@@ -1,0 +1,2 @@
+2025-03-06 01:21:27,380-DEBUG-【views-change_view: line 125】{'now_view': {'viewType': 'timeGridWeek', 'start': '2025-03-01T16:00:00.000Z', 'end': '2025-03-08T16:00:00.000Z'}}
+2025-03-06 01:21:43,627-DEBUG-【views-change_view: line 125】{'now_view': {'viewType': 'timeGridWeek', 'start': '2025-03-01T16:00:00.000Z', 'end': '2025-03-08T16:00:00.000Z'}}

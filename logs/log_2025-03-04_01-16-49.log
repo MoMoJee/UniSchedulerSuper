@@ -1,0 +1,10 @@
+2025-03-04 01:17:18,681-DEBUG-【views-ai_create: line 166】AI说：{'我的建议': '问候是日常交流的一部分，不需要特别安排时间。如果你有其他需要安排的事项，请随时告诉我。'}
+2025-03-04 01:17:18,682-DEBUG-【views-ai_create: line 167】AI生成了：[{'title': '问候', 'start': '2025-03-04T01:17', 'end': '2025-03-04T01:18', 'description': '与时间管理助手打招呼', 'importance': 'not-important', 'urgency': 'not-urgent'}]
+2025-03-04 01:18:23,491-DEBUG-【views-ai_create: line 166】AI说：{'我的建议': '明天的约会很重要，建议你提前做好准备，包括个人卫生、形象、安全措施、约会地点和时间的确认、交通安排以及心理准备。保持良好的沟通，尊重对方，确保双方都有一个愉快的体验。祝你约会顺利！'}
+2025-03-04 01:18:23,491-DEBUG-【views-ai_create: line 167】AI生成了：[{'title': '个人卫生和形象准备', 'start': '2025-03-03T19:00', 'end': '2025-03-03T20:00', 'description': '洗澡、整理发型、选择得体的服装', 'importance': 'important', 'urgency': 'urgent'}, {'title': '安全准备', 'start': '2025-03-03T20:00', 'end': '2025-03-03T20:30', 'description': '准备安全套，了解性健康知识', 'importance': 'important', 'urgency': 'urgent'}, {'title': '约会地点和时间确认', 'start': '2025-03-03T20:30', 'end': '2025-03-03T21:00', 'description': '与对方确认约会地点和时间，确保双方都清楚', 'importance': 'important', 'urgency': 'urgent'}, {'title': '交通安排', 'start': '2025-03-03T21:00', 'end': '2025-03-03T21:30', 'description': '提前规划好交通路线，避免迟到', 'importance': 'important', 'urgency': 'urgent'}, {'title': '心理准备', 'start': '2025-03-03T21:30', 'end': '2025-03-03T22:00', 'description': '放松心情，保持自信和积极的态度', 'importance': 'important', 'urgency': 'urgent'}]
+2025-03-04 01:18:47,690-DEBUG-【views-delete_event: line 288】指定了要删除的日程代码：eef55323-25cd-4cc6-b851-dcac170c1cff
+2025-03-04 01:18:49,122-DEBUG-【views-delete_event: line 288】指定了要删除的日程代码：bf3a183e-d38c-4273-a627-8dff2c6746e3
+2025-03-04 01:18:50,350-DEBUG-【views-delete_event: line 288】指定了要删除的日程代码：12300ff3-cbcf-4b2c-a9d7-2980de0850be
+2025-03-04 01:18:51,527-DEBUG-【views-delete_event: line 288】指定了要删除的日程代码：c7b216c9-cc89-442d-a8f7-e45459a72264
+2025-03-04 01:18:52,719-DEBUG-【views-delete_event: line 288】指定了要删除的日程代码：3d6f0ce7-57f0-4985-89ff-01fa385022e6
+2025-03-04 01:18:55,216-DEBUG-【views-delete_event: line 288】指定了要删除的日程代码：d6793a33-ccda-4b11-b467-dd68eb54f00d
