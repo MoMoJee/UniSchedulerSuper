@@ -1,0 +1,2 @@
+2025-04-15 15:14:10,038-DEBUG-【views-user_settings: line 190】{'now_view': {'viewType': 'timeGridWeek', 'start': '2025-04-13T00:00:00Z', 'end': '2025-04-20T00:00:00Z'}}
+2025-04-15 15:14:11,114-DEBUG-【views-user_settings: line 190】{'now_view': {'viewType': 'timeGridWeek', 'start': '2025-04-13T00:00:00Z', 'end': '2025-04-20T00:00:00Z'}}

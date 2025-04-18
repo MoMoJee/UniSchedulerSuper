@@ -1,0 +1,5 @@
+2025-04-18 17:23:01,137-DEBUG-【views-change_view: line 133】user_settings 是 [{'now_view': {'viewType': 'timeGridWeek', 'start': '2025-04-13T00:00:00Z', 'end': '2025-04-20T00:00:00Z'}}]
+2025-04-18 17:23:12,856-DEBUG-【views-change_view: line 133】user_settings 是 [{'now_view': {'viewType': 'timeGridWeek', 'start': '2025-04-20T00:00:00Z', 'end': '2025-04-27T00:00:00Z'}}]
+2025-04-18 17:23:14,166-DEBUG-【views-change_view: line 133】user_settings 是 [{'now_view': {'viewType': 'timeGridWeek', 'start': '2025-04-13T00:00:00Z', 'end': '2025-04-20T00:00:00Z'}}]
+2025-04-18 17:23:15,288-DEBUG-【views-change_view: line 133】user_settings 是 [{'now_view': {'viewType': 'timeGridWeek', 'start': '2025-04-20T00:00:00Z', 'end': '2025-04-27T00:00:00Z'}}]
+2025-04-18 17:23:15,439-DEBUG-【views-change_view: line 133】user_settings 是 [{'now_view': {'viewType': 'timeGridWeek', 'start': '2025-04-27T00:00:00Z', 'end': '2025-05-04T00:00:00Z'}}]
