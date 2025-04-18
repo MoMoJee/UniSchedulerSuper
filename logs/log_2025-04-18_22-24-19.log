@@ -1,0 +1,357 @@
+2025-04-18 22:27:06,338-DEBUG-【views-ai_create: line 266】[{'role': 'system', 'content': '你是一个时间管理助手，根据我的需求，帮我创建日程，包括标题（title），开始时间（start），结束时间（end），详细描述（description）、重要性（importance）、紧急性（urgency），日程的数量由你自己按照我的需求决定'}, {'role': 'system', 'content': '在回复你的建议之后，你应该同时附上你的建议或者提示文本\n吃饭、睡觉等时间不该被占用\n有些事情可以同时做\n不重要或不紧急的事件应当给重要或紧急的事件让路，比如适当减少用时'}, {'role': 'system', 'content': '以学习python为例，以如下JSON格式返回：'}, {'role': 'system', 'content': "{'0': {'title': '学习数据类型', 'start': '2025-02-18T08:00', 'end': '2025-02-18T10:00', 'description': '包括整形、字符串等数据类型', 'importance': 'important', 'urgency': 'urgent'}, '1': {'title': '学习控制语句', 'start': '2025-02-19T10:30', 'end': '2025-02-19T12:30', 'description': '包括if选择结构，while循环结构等', 'importance': 'important', 'urgency': 'urgent'}, '2': {'title': '学习错误处理', 'start': '2025-02-20T15:00', 'end': '2025-02-20T16:00', 'description': '看懂报错、学会try-expect逻辑非常重要', 'importance': 'not-important', 'urgency': 'not-urgent'}, '3': {'title': '完成一个小作业', 'start': '2025-02-21T19:00', 'end': '2025-02-21T21:00', 'description': '适当的实际训练很重要', 'importance': 'important', 'urgency': 'urgent'}, 'suggestion': {'我的建议': '我将你学习python的日程分散到了四天，这将帮助你初步认识python，如果有什么需要，请继续向我提出！'}}"}, {'role': 'user', 'content': "我已经确定了如下日程，请你尽量别影响这些已经安排的日程：[{'title': '让我们开始吧！', 'start': '2025-04-18T23:00:00', 'end': '2025-04-19T00:00:00', 'description': '花一小时时间，学习如何使用我们的计划工具！', 'importance': 'important', 'urgency': 'urgent', 'ddl': ''}]"}, {'role': 'user', 'content': '2025:04:18:22:27 Friday  我4月26到5月5要从北京到上海去玩儿，再回来\n帮我查询期间当地的天气信息、景点信息、车票信息（坐高铁来回）\n帮我安排好期间的所有吃饭、住宿\n给我一份详细的旅游安排'}]
+2025-04-18 22:28:18,435-DEBUG-【views-web_chat: line 563】=================联网搜索功能启用=================
+2025-04-18 22:28:18,435-DEBUG-【views-web_chat: line 564】chat_prompt_tokens:          9720
+2025-04-18 22:28:18,436-DEBUG-【views-web_chat: line 565】chat_completion_tokens:      1479
+2025-04-18 22:28:18,436-DEBUG-【views-web_chat: line 566】chat_total_tokens:           11199
+2025-04-18 22:28:18,436-DEBUG-【views-web_chat: line 567】===============================================
+2025-04-18 22:28:18,436-DEBUG-【views-ai_create: line 275】{
+    "0": {
+        "title": "北京南站乘坐G1高铁前往上海",
+        "start": "2025-04-26T07:00",
+        "end": "2025-04-26T11:29",
+        "description": "北京南站乘坐G1高铁前往上海，预计11:29到达上海站",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "1": {
+        "title": "办理酒店入住",
+        "start": "2025-04-26T11:30",
+        "end": "2025-04-26T12:00",
+        "description": "到达酒店后办理入住手续，放下行李",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "2": {
+        "title": "午餐：上海特色小吃",
+        "start": "2025-04-26T12:00",
+        "end": "2025-04-26T13:00",
+        "description": "品尝上海特色小吃，如小笼包、生煎包等",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "3": {
+        "title": "游览外滩",
+        "start": "2025-04-26T13:00",
+        "end": "2025-04-26T15:00",
+        "description": "欣赏外滩的万国建筑和黄浦江的美景",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "4": {
+        "title": "游览东方明珠广播电视塔",
+        "start": "2025-04-26T15:00",
+        "end": "2025-04-26T17:00",
+        "description": "登东方明珠广播电视塔，俯瞰上海全景",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "5": {
+        "title": "晚餐：上海本帮菜",
+        "start": "2025-04-26T17:00",
+        "end": "2025-04-26T18:30",
+        "description": "品尝上海本帮菜，如红烧肉、糖醋排骨等",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "6": {
+        "title": "夜游外滩",
+        "start": "2025-04-26T18:30",
+        "end": "2025-04-26T20:00",
+        "description": "欣赏外滩的夜景，感受上海的繁华",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "7": {
+        "title": "自由活动",
+        "start": "2025-04-26T20:00",
+        "end": "2025-04-26T22:00",
+        "description": "自由活动，可选择去酒吧或购物",
+        "importance": "not-important",
+        "urgency": "not-urgent"
+    },
+    "8": {
+        "title": "游览豫园",
+        "start": "2025-04-27T09:00",
+        "end": "2025-04-27T11:00",
+        "description": "参观豫园的古典园林建筑，感受江南水乡的韵味",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "9": {
+        "title": "午餐：豫园小吃",
+        "start": "2025-04-27T11:00",
+        "end": "2025-04-27T12:00",
+        "description": "在豫园品尝各种传统小吃",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "10": {
+        "title": "游览上海博物馆",
+        "start": "2025-04-27T12:00",
+        "end": "2025-04-27T14:00",
+        "description": "参观上海博物馆，了解中国古代艺术和历史",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "11": {
+        "title": "晚餐：上海特色餐厅",
+        "start": "2025-04-27T14:00",
+        "end": "2025-04-27T15:30",
+        "description": "在特色餐厅享用晚餐",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "12": {
+        "title": "游览上海科技馆",
+        "start": "2025-04-27T15:30",
+        "end": "2025-04-27T17:30",
+        "description": "参观上海科技馆，体验科技的魅力",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "13": {
+        "title": "自由活动",
+        "start": "2025-04-27T17:30",
+        "end": "2025-04-27T19:00",
+        "description": "自由活动，可选择去公园散步或购物",
+        "importance": "not-important",
+        "urgency": "not-urgent"
+    },
+    "14": {
+        "title": "乘坐G1高铁返回北京",
+        "start": "2025-05-05T07:00",
+        "end": "2025-05-05T11:29",
+        "description": "从上海站乘坐G1高铁返回北京南站",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "suggestion": {
+        "我的建议": "根据您的需求，我为您制定了详细的旅游安排。建议您提前预订车票和酒店，以确保行程顺利。如果需要进一步调整或添加活动，请随时告知！"
+    }
+}
+2025-04-18 22:28:18,437-DEBUG-【views-ai_create: line 280】AI说：{'我的建议': '根据您的需求，我为您制定了详细的旅游安排。建议您提前预订车票和酒店，以确保行程顺利。如果需要进一步调整或添加活动，请随时告知！'}
+2025-04-18 22:28:18,437-DEBUG-【views-ai_create: line 281】AI生成了：[{'title': '北京南站乘坐G1高铁前往上海', 'start': '2025-04-26T07:00', 'end': '2025-04-26T11:29', 'description': '北京南站乘坐G1高铁前往上海，预计11:29到达上海站', 'importance': 'important', 'urgency': 'urgent'}, {'title': '办理酒店入住', 'start': '2025-04-26T11:30', 'end': '2025-04-26T12:00', 'description': '到达酒店后办理入住手续，放下行李', 'importance': 'important', 'urgency': 'urgent'}, {'title': '午餐：上海特色小吃', 'start': '2025-04-26T12:00', 'end': '2025-04-26T13:00', 'description': '品尝上海特色小吃，如小笼包、生煎包等', 'importance': 'important', 'urgency': 'urgent'}, {'title': '游览外滩', 'start': '2025-04-26T13:00', 'end': '2025-04-26T15:00', 'description': '欣赏外滩的万国建筑和黄浦江的美景', 'importance': 'important', 'urgency': 'urgent'}, {'title': '游览东方明珠广播电视塔', 'start': '2025-04-26T15:00', 'end': '2025-04-26T17:00', 'description': '登东方明珠广播电视塔，俯瞰上海全景', 'importance': 'important', 'urgency': 'urgent'}, {'title': '晚餐：上海本帮菜', 'start': '2025-04-26T17:00', 'end': '2025-04-26T18:30', 'description': '品尝上海本帮菜，如红烧肉、糖醋排骨等', 'importance': 'important', 'urgency': 'urgent'}, {'title': '夜游外滩', 'start': '2025-04-26T18:30', 'end': '2025-04-26T20:00', 'description': '欣赏外滩的夜景，感受上海的繁华', 'importance': 'important', 'urgency': 'urgent'}, {'title': '自由活动', 'start': '2025-04-26T20:00', 'end': '2025-04-26T22:00', 'description': '自由活动，可选择去酒吧或购物', 'importance': 'not-important', 'urgency': 'not-urgent'}, {'title': '游览豫园', 'start': '2025-04-27T09:00', 'end': '2025-04-27T11:00', 'description': '参观豫园的古典园林建筑，感受江南水乡的韵味', 'importance': 'important', 'urgency': 'urgent'}, {'title': '午餐：豫园小吃', 'start': '2025-04-27T11:00', 'end': '2025-04-27T12:00', 'description': '在豫园品尝各种传统小吃', 'importance': 'important', 'urgency': 'urgent'}, {'title': '游览上海博物馆', 'start': '2025-04-27T12:00', 'end': '2025-04-27T14:00', 'description': '参观上海博物馆，了解中国古代艺术和历史', 'importance': 'important', 'urgency': 'urgent'}, {'title': '晚餐：上海特色餐厅', 'start': '2025-04-27T14:00', 'end': '2025-04-27T15:30', 'description': '在特色餐厅享用晚餐', 'importance': 'important', 'urgency': 'urgent'}, {'title': '游览上海科技馆', 'start': '2025-04-27T15:30', 'end': '2025-04-27T17:30', 'description': '参观上海科技馆，体验科技的魅力', 'importance': 'important', 'urgency': 'urgent'}, {'title': '自由活动', 'start': '2025-04-27T17:30', 'end': '2025-04-27T19:00', 'description': '自由活动，可选择去公园散步或购物', 'importance': 'not-important', 'urgency': 'not-urgent'}, {'title': '乘坐G1高铁返回北京', 'start': '2025-05-05T07:00', 'end': '2025-05-05T11:29', 'description': '从上海站乘坐G1高铁返回北京南站', 'importance': 'important', 'urgency': 'urgent'}]
+2025-04-18 22:58:27,218-DEBUG-【views-ai_create: line 266】[{'role': 'system', 'content': '你是一个时间管理助手，根据我的需求，帮我创建日程，包括标题（title），开始时间（start），结束时间（end），详细描述（description）、重要性（importance）、紧急性（urgency），日程的数量由你自己按照我的需求决定'}, {'role': 'system', 'content': '在回复你的建议之后，你应该同时附上你的建议或者提示文本\n吃饭、睡觉等时间不该被占用\n有些事情可以同时做\n不重要或不紧急的事件应当给重要或紧急的事件让路，比如适当减少用时'}, {'role': 'system', 'content': '以学习python为例，以如下JSON格式返回：'}, {'role': 'system', 'content': "{'0': {'title': '学习数据类型', 'start': '2025-02-18T08:00', 'end': '2025-02-18T10:00', 'description': '包括整形、字符串等数据类型', 'importance': 'important', 'urgency': 'urgent'}, '1': {'title': '学习控制语句', 'start': '2025-02-19T10:30', 'end': '2025-02-19T12:30', 'description': '包括if选择结构，while循环结构等', 'importance': 'important', 'urgency': 'urgent'}, '2': {'title': '学习错误处理', 'start': '2025-02-20T15:00', 'end': '2025-02-20T16:00', 'description': '看懂报错、学会try-expect逻辑非常重要', 'importance': 'not-important', 'urgency': 'not-urgent'}, '3': {'title': '完成一个小作业', 'start': '2025-02-21T19:00', 'end': '2025-02-21T21:00', 'description': '适当的实际训练很重要', 'importance': 'important', 'urgency': 'urgent'}, 'suggestion': {'我的建议': '我将你学习python的日程分散到了四天，这将帮助你初步认识python，如果有什么需要，请继续向我提出！'}}"}, {'role': 'user', 'content': '我4月26到5月5要从北京到上海去玩儿，再回来\n帮我查询期间当地的天气信息、景点信息、车票信息（坐高铁来回）\n帮我安排好期间的所有吃饭、住宿\n给我一份详细的旅游安排'}, {'role': 'assistant', 'content': '{\n    "0": {\n        "title": "北京南站乘坐G1高铁前往上海",\n        "start": "2025-04-26T07:00",\n        "end": "2025-04-26T11:29",\n        "description": "北京南站乘坐G1高铁前往上海，预计11:29到达上海站",\n        "importance": "important",\n        "urgency": "urgent"\n    },\n    "1": {\n        "title": "办理酒店入住",\n        "start": "2025-04-26T11:30",\n        "end": "2025-04-26T12:00",\n        "description": "到达酒店后办理入住手续，放下行李",\n        "importance": "important",\n        "urgency": "urgent"\n    },\n    "2": {\n        "title": "午餐：上海特色小吃",\n        "start": "2025-04-26T12:00",\n        "end": "2025-04-26T13:00",\n        "description": "品尝上海特色小吃，如小笼包、生煎包等",\n        "importance": "important",\n        "urgency": "urgent"\n    },\n    "3": {\n        "title": "游览外滩",\n        "start": "2025-04-26T13:00",\n        "end": "2025-04-26T15:00",\n        "description": "欣赏外滩的万国建筑和黄浦江的美景",\n        "importance": "important",\n        "urgency": "urgent"\n    },\n    "4": {\n        "title": "游览东方明珠广播电视塔",\n        "start": "2025-04-26T15:00",\n        "end": "2025-04-26T17:00",\n        "description": "登东方明珠广播电视塔，俯瞰上海全景",\n        "importance": "important",\n        "urgency": "urgent"\n    },\n    "5": {\n        "title": "晚餐：上海本帮菜",\n        "start": "2025-04-26T17:00",\n        "end": "2025-04-26T18:30",\n        "description": "品尝上海本帮菜，如红烧肉、糖醋排骨等",\n        "importance": "important",\n        "urgency": "urgent"\n    },\n    "6": {\n        "title": "夜游外滩",\n        "start": "2025-04-26T18:30",\n        "end": "2025-04-26T20:00",\n        "description": "欣赏外滩的夜景，感受上海的繁华",\n        "importance": "important",\n        "urgency": "urgent"\n    },\n    "7": {\n        "title": "自由活动",\n        "start": "2025-04-26T20:00",\n        "end": "2025-04-26T22:00",\n        "description": "自由活动，可选择去酒吧或购物",\n        "importance": "not-important",\n        "urgency": "not-urgent"\n    },\n    "8": {\n        "title": "游览豫园",\n        "start": "2025-04-27T09:00",\n        "end": "2025-04-27T11:00",\n        "description": "参观豫园的古典园林建筑，感受江南水乡的韵味",\n        "importance": "important",\n        "urgency": "urgent"\n    },\n    "9": {\n        "title": "午餐：豫园小吃",\n        "start": "2025-04-27T11:00",\n        "end": "2025-04-27T12:00",\n        "description": "在豫园品尝各种传统小吃",\n        "importance": "important",\n        "urgency": "urgent"\n    },\n    "10": {\n        "title": "游览上海博物馆",\n        "start": "2025-04-27T12:00",\n        "end": "2025-04-27T14:00",\n        "description": "参观上海博物馆，了解中国古代艺术和历史",\n        "importance": "important",\n        "urgency": "urgent"\n    },\n    "11": {\n        "title": "晚餐：上海特色餐厅",\n        "start": "2025-04-27T14:00",\n        "end": "2025-04-27T15:30",\n        "description": "在特色餐厅享用晚餐",\n        "importance": "important",\n        "urgency": "urgent"\n    },\n    "12": {\n        "title": "游览上海科技馆",\n        "start": "2025-04-27T15:30",\n        "end": "2025-04-27T17:30",\n        "description": "参观上海科技馆，体验科技的魅力",\n        "importance": "important",\n        "urgency": "urgent"\n    },\n    "13": {\n        "title": "自由活动",\n        "start": "2025-04-27T17:30",\n        "end": "2025-04-27T19:00",\n        "description": "自由活动，可选择去公园散步或购物",\n        "importance": "not-important",\n        "urgency": "not-urgent"\n    },\n    "14": {\n        "title": "乘坐G1高铁返回北京",\n        "start": "2025-05-05T07:00",\n        "end": "2025-05-05T11:29",\n        "description": "从上海站乘坐G1高铁返回北京南站",\n        "importance": "important",\n        "urgency": "urgent"\n    },\n    "suggestion": {\n        "我的建议": "根据您的需求，我为您制定了详细的旅游安排。建议您提前预订车票和酒店，以确保行程顺利。如果需要进一步调整或添加活动，请随时告知！"\n    }\n}'}, {'role': 'user', 'content': "我已经确定了如下日程，请你尽量别影响这些已经安排的日程：[{'title': '让我们开始吧！', 'start': '2025-04-18T23:00:00', 'end': '2025-04-19T00:00:00', 'description': '花一小时时间，学习如何使用我们的计划工具！', 'importance': 'important', 'urgency': 'urgent', 'ddl': ''}]"}, {'role': 'user', 'content': '2025:04:18:22:58 Friday  4月28到5月4日的日程你没给'}]
+2025-04-18 22:59:43,563-DEBUG-【views-web_chat: line 563】=================联网搜索功能启用=================
+2025-04-18 22:59:43,563-DEBUG-【views-web_chat: line 564】chat_prompt_tokens:          10787
+2025-04-18 22:59:43,563-DEBUG-【views-web_chat: line 565】chat_completion_tokens:      2544
+2025-04-18 22:59:43,564-DEBUG-【views-web_chat: line 566】chat_total_tokens:           13331
+2025-04-18 22:59:43,564-DEBUG-【views-web_chat: line 567】===============================================
+2025-04-18 22:59:43,564-DEBUG-【views-ai_create: line 275】{
+    "0": {
+        "title": "让我们开始吧！",
+        "start": "2025-04-18T23:00:00",
+        "end": "2025-04-19T00:00:00",
+        "description": "花一小时时间，学习如何使用我们的计划工具！",
+        "importance": "important",
+        "urgency": "urgent",
+        "ddl": ""
+    },
+    "1": {
+        "title": "游览上海植物园花展",
+        "start": "2025-04-28T09:00",
+        "end": "2025-04-28T12:00",
+        "description": "欣赏上海植物园花展的新优植物花园，感受自然之美",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "2": {
+        "title": "午餐：上海特色餐厅",
+        "start": "2025-04-28T12:00",
+        "end": "2025-04-28T13:30",
+        "description": "在特色餐厅享用午餐，品尝上海美食",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "3": {
+        "title": "游览黄浦新天地主会场",
+        "start": "2025-04-28T13:30",
+        "end": "2025-04-28T16:00",
+        "description": "参观黄浦新天地主会场的太平桥绿地，欣赏花园景观",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "4": {
+        "title": "晚餐：上海特色餐厅",
+        "start": "2025-04-28T16:00",
+        "end": "2025-04-28T17:30",
+        "description": "在特色餐厅享用晚餐，品尝上海美食",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "5": {
+        "title": "游览耀雪冰雪世界",
+        "start": "2025-04-29T09:00",
+        "end": "2025-04-29T12:00",
+        "description": "体验全球最大的室内滑雪场，感受冰雪乐趣",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "6": {
+        "title": "午餐：耀雪冰雪世界内餐厅",
+        "start": "2025-04-29T12:00",
+        "end": "2025-04-29T13:30",
+        "description": "在耀雪冰雪世界内餐厅享用午餐",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "7": {
+        "title": "游览上海国际花展",
+        "start": "2025-04-29T13:30",
+        "end": "2025-04-29T16:00",
+        "description": "参观上海国际花展，欣赏各种花卉和园艺景观",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "8": {
+        "title": "晚餐：上海特色餐厅",
+        "start": "2025-04-29T16:00",
+        "end": "2025-04-29T17:30",
+        "description": "在特色餐厅享用晚餐，品尝上海美食",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "9": {
+        "title": "游览上海迪士尼乐园",
+        "start": "2025-04-30T09:00",
+        "end": "2025-04-30T21:30",
+        "description": "在迪士尼乐园度过一整天，体验各种游乐设施和表演",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "10": {
+        "title": "游览上海博物馆",
+        "start": "2025-05-01T09:00",
+        "end": "2025-05-01T12:00",
+        "description": "参观上海博物馆，了解中国古代艺术和历史",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "11": {
+        "title": "午餐：上海特色餐厅",
+        "start": "2025-05-01T12:00",
+        "end": "2025-05-01T13:30",
+        "description": "在特色餐厅享用午餐，品尝上海美食",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "12": {
+        "title": "游览上海科技馆",
+        "start": "2025-05-01T13:30",
+        "end": "2025-05-01T16:00",
+        "description": "参观上海科技馆，体验科技的魅力",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "13": {
+        "title": "晚餐：上海特色餐厅",
+        "start": "2025-05-01T16:00",
+        "end": "2025-05-01T17:30",
+        "description": "在特色餐厅享用晚餐，品尝上海美食",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "14": {
+        "title": "游览上海之鱼泡泡公园",
+        "start": "2025-05-02T09:00",
+        "end": "2025-05-02T12:00",
+        "description": "参观上海之鱼泡泡公园，欣赏花展和自然景观",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "15": {
+        "title": "午餐：上海特色餐厅",
+        "start": "2025-05-02T12:00",
+        "end": "2025-05-02T13:30",
+        "description": "在特色餐厅享用午餐，品尝上海美食",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "16": {
+        "title": "游览上海滨江森林公园",
+        "start": "2025-05-02T13:30",
+        "end": "2025-05-02T16:00",
+        "description": "参观上海滨江森林公园，欣赏杜鹃花海",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "17": {
+        "title": "晚餐：上海特色餐厅",
+        "start": "2025-05-02T16:00",
+        "end": "2025-05-02T17:30",
+        "description": "在特色餐厅享用晚餐，品尝上海美食",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "18": {
+        "title": "游览武康路",
+        "start": "2025-05-03T09:00",
+        "end": "2025-05-03T12:00",
+        "description": "漫步武康路，感受法租界的独特魅力",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "19": {
+        "title": "午餐：武康路咖啡馆",
+        "start": "2025-05-03T12:00",
+        "end": "2025-05-03T13:30",
+        "description": "在武康路的咖啡馆享用午餐，品尝咖啡和甜点",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "20": {
+        "title": "游览田子坊",
+        "start": "2025-05-03T13:30",
+        "end": "2025-05-03T16:00",
+        "description": "在田子坊漫步，感受艺术氛围",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "21": {
+        "title": "晚餐：田子坊特色餐厅",
+        "start": "2025-05-03T16:00",
+        "end": "2025-05-03T17:30",
+        "description": "在田子坊的特色餐厅享用晚餐",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "22": {
+        "title": "游览外滩",
+        "start": "2025-05-04T09:00",
+        "end": "2025-05-04T12:00",
+        "description": "欣赏外滩的万国建筑和黄浦江的美景",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "23": {
+        "title": "午餐：外滩特色餐厅",
+        "start": "2025-05-04T12:00",
+        "end": "2025-05-04T13:30",
+        "description": "在外滩的特色餐厅享用午餐",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "24": {
+        "title": "游览东方明珠广播电视塔",
+        "start": "2025-05-04T13:30",
+        "end": "2025-05-04T16:00",
+        "description": "登东方明珠广播电视塔，俯瞰上海全景",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "25": {
+        "title": "晚餐：东方明珠旋转餐厅",
+        "start": "2025-05-04T16:00",
+        "end": "2025-05-04T17:30",
+        "description": "在东方明珠旋转餐厅享用晚餐，欣赏夜景",
+        "importance": "important",
+        "urgency": "urgent"
+    },
+    "suggestion": {
+        "我的建议": "根据您的需求，我为您制定了详细的旅游安排。建议您提前预订车票和酒店，以确保行程顺利。如果需要进一步调整或添加活动，请随时告知！"
+    }
+}
+2025-04-18 22:59:43,565-DEBUG-【views-ai_create: line 280】AI说：{'我的建议': '根据您的需求，我为您制定了详细的旅游安排。建议您提前预订车票和酒店，以确保行程顺利。如果需要进一步调整或添加活动，请随时告知！'}
+2025-04-18 22:59:43,565-DEBUG-【views-ai_create: line 281】AI生成了：[{'title': '让我们开始吧！', 'start': '2025-04-18T23:00:00', 'end': '2025-04-19T00:00:00', 'description': '花一小时时间，学习如何使用我们的计划工具！', 'importance': 'important', 'urgency': 'urgent', 'ddl': ''}, {'title': '游览上海植物园花展', 'start': '2025-04-28T09:00', 'end': '2025-04-28T12:00', 'description': '欣赏上海植物园花展的新优植物花园，感受自然之美', 'importance': 'important', 'urgency': 'urgent'}, {'title': '午餐：上海特色餐厅', 'start': '2025-04-28T12:00', 'end': '2025-04-28T13:30', 'description': '在特色餐厅享用午餐，品尝上海美食', 'importance': 'important', 'urgency': 'urgent'}, {'title': '游览黄浦新天地主会场', 'start': '2025-04-28T13:30', 'end': '2025-04-28T16:00', 'description': '参观黄浦新天地主会场的太平桥绿地，欣赏花园景观', 'importance': 'important', 'urgency': 'urgent'}, {'title': '晚餐：上海特色餐厅', 'start': '2025-04-28T16:00', 'end': '2025-04-28T17:30', 'description': '在特色餐厅享用晚餐，品尝上海美食', 'importance': 'important', 'urgency': 'urgent'}, {'title': '游览耀雪冰雪世界', 'start': '2025-04-29T09:00', 'end': '2025-04-29T12:00', 'description': '体验全球最大的室内滑雪场，感受冰雪乐趣', 'importance': 'important', 'urgency': 'urgent'}, {'title': '午餐：耀雪冰雪世界内餐厅', 'start': '2025-04-29T12:00', 'end': '2025-04-29T13:30', 'description': '在耀雪冰雪世界内餐厅享用午餐', 'importance': 'important', 'urgency': 'urgent'}, {'title': '游览上海国际花展', 'start': '2025-04-29T13:30', 'end': '2025-04-29T16:00', 'description': '参观上海国际花展，欣赏各种花卉和园艺景观', 'importance': 'important', 'urgency': 'urgent'}, {'title': '晚餐：上海特色餐厅', 'start': '2025-04-29T16:00', 'end': '2025-04-29T17:30', 'description': '在特色餐厅享用晚餐，品尝上海美食', 'importance': 'important', 'urgency': 'urgent'}, {'title': '游览上海迪士尼乐园', 'start': '2025-04-30T09:00', 'end': '2025-04-30T21:30', 'description': '在迪士尼乐园度过一整天，体验各种游乐设施和表演', 'importance': 'important', 'urgency': 'urgent'}, {'title': '游览上海博物馆', 'start': '2025-05-01T09:00', 'end': '2025-05-01T12:00', 'description': '参观上海博物馆，了解中国古代艺术和历史', 'importance': 'important', 'urgency': 'urgent'}, {'title': '午餐：上海特色餐厅', 'start': '2025-05-01T12:00', 'end': '2025-05-01T13:30', 'description': '在特色餐厅享用午餐，品尝上海美食', 'importance': 'important', 'urgency': 'urgent'}, {'title': '游览上海科技馆', 'start': '2025-05-01T13:30', 'end': '2025-05-01T16:00', 'description': '参观上海科技馆，体验科技的魅力', 'importance': 'important', 'urgency': 'urgent'}, {'title': '晚餐：上海特色餐厅', 'start': '2025-05-01T16:00', 'end': '2025-05-01T17:30', 'description': '在特色餐厅享用晚餐，品尝上海美食', 'importance': 'important', 'urgency': 'urgent'}, {'title': '游览上海之鱼泡泡公园', 'start': '2025-05-02T09:00', 'end': '2025-05-02T12:00', 'description': '参观上海之鱼泡泡公园，欣赏花展和自然景观', 'importance': 'important', 'urgency': 'urgent'}, {'title': '午餐：上海特色餐厅', 'start': '2025-05-02T12:00', 'end': '2025-05-02T13:30', 'description': '在特色餐厅享用午餐，品尝上海美食', 'importance': 'important', 'urgency': 'urgent'}, {'title': '游览上海滨江森林公园', 'start': '2025-05-02T13:30', 'end': '2025-05-02T16:00', 'description': '参观上海滨江森林公园，欣赏杜鹃花海', 'importance': 'important', 'urgency': 'urgent'}, {'title': '晚餐：上海特色餐厅', 'start': '2025-05-02T16:00', 'end': '2025-05-02T17:30', 'description': '在特色餐厅享用晚餐，品尝上海美食', 'importance': 'important', 'urgency': 'urgent'}, {'title': '游览武康路', 'start': '2025-05-03T09:00', 'end': '2025-05-03T12:00', 'description': '漫步武康路，感受法租界的独特魅力', 'importance': 'important', 'urgency': 'urgent'}, {'title': '午餐：武康路咖啡馆', 'start': '2025-05-03T12:00', 'end': '2025-05-03T13:30', 'description': '在武康路的咖啡馆享用午餐，品尝咖啡和甜点', 'importance': 'important', 'urgency': 'urgent'}, {'title': '游览田子坊', 'start': '2025-05-03T13:30', 'end': '2025-05-03T16:00', 'description': '在田子坊漫步，感受艺术氛围', 'importance': 'important', 'urgency': 'urgent'}, {'title': '晚餐：田子坊特色餐厅', 'start': '2025-05-03T16:00', 'end': '2025-05-03T17:30', 'description': '在田子坊的特色餐厅享用晚餐', 'importance': 'important', 'urgency': 'urgent'}, {'title': '游览外滩', 'start': '2025-05-04T09:00', 'end': '2025-05-04T12:00', 'description': '欣赏外滩的万国建筑和黄浦江的美景', 'importance': 'important', 'urgency': 'urgent'}, {'title': '午餐：外滩特色餐厅', 'start': '2025-05-04T12:00', 'end': '2025-05-04T13:30', 'description': '在外滩的特色餐厅享用午餐', 'importance': 'important', 'urgency': 'urgent'}, {'title': '游览东方明珠广播电视塔', 'start': '2025-05-04T13:30', 'end': '2025-05-04T16:00', 'description': '登东方明珠广播电视塔，俯瞰上海全景', 'importance': 'important', 'urgency': 'urgent'}, {'title': '晚餐：东方明珠旋转餐厅', 'start': '2025-05-04T16:00', 'end': '2025-05-04T17:30', 'description': '在东方明珠旋转餐厅享用晚餐，欣赏夜景', 'importance': 'important', 'urgency': 'urgent'}]
+2025-04-18 23:03:54,484-DEBUG-【views-delete_events_in_range: line 466】2025-04-27, 2025-05-06
+2025-04-18 23:03:58,390-DEBUG-【views-delete_event: line 395】指定了要删除的日程代码：fa39fb1f-069e-4bcc-9584-df4f1306211d

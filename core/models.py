@@ -23,13 +23,6 @@ DATA_SCHEMA = {
             "default": "",
         },
     },
-    "test_1":{
-        "nickname": {
-            "type": int,
-            "nullable": False,
-            "default": 114514
-        }
-    },
     "events": {
         "type": list,
         "nullable": False,
@@ -72,7 +65,7 @@ DATA_SCHEMA = {
             },
             "ddl": {
                 "type": str,
-                "nullable": True,
+                "nullable": False,
                 "default": "",
             },
         },
@@ -315,7 +308,6 @@ class UserData(models.Model):
         # 在用户数据中创建这个新的key
         try:
             new_data = cls.objects.create(user=request.user, key=new_key, value=json.dumps(validated_data))
-            print(new_data)
             return new_data, True, {"status": "success", "message": f"Key <{new_key}> added successfully."}
         except IntegrityError:
             logger.error(f"Failed to add key <{new_key}>: IntegrityError")
@@ -360,7 +352,6 @@ class UserData(models.Model):
 
         # 验证和初始化数据
         validated_data = self.validate_and_initialize_data(data, schema)
-        print(f"vvva{validated_data}")
 
         # 在用户数据中创建这个新的key
         try:

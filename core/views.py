@@ -123,7 +123,6 @@ def change_view(request):
         while len(user_settings) >= 10:
             del user_settings[0]
 
-        logger.debug(f"user_settings 是 {user_settings}")
         user_data.set_value(user_settings)
 
         return JsonResponse({'status': 'success', 'message': 'Success request'}, status=200)
@@ -185,7 +184,6 @@ def user_settings(request):
     if request.method == 'GET':
         user_data, created = UserData.objects.get_or_create(user=request.user, key="user_settings", defaults={"value": json.dumps([])})
         user_settings = user_data.get_value()
-        logger.debug(user_settings[-2])
         # 这里，我们选择返回数据库中（经过处理后的）最新的日程
         # TODO 对于新注册的用户，这里会因为没有收集到足够的setting数据而报错索引溢出。但是可以不管
 
@@ -238,7 +236,7 @@ def get_events(request):
 
         events_groups = json.loads(user_data_groups.value)
 
-        events = user_data.get_value()
+        events = user_data.get_value(check=True)
         if not events:
             events = []
         # 返回事件和日程组数据
@@ -299,7 +297,6 @@ def update_events(request):
                 event['urgency'] = urgency
                 event['groupID'] = group_id
                 event['ddl'] = ddl
-                logger.debug(f'日程更新，详情：{event}')
                 # 将更新后的数据保存回数据库
                 user_data.set_value(events)
                 # 返回响应
@@ -318,7 +315,6 @@ def update_events(request):
                 event['urgency'] = urgency
                 event['groupID'] = group_id
                 event['ddl'] = ddl
-                logger.debug(f'日程更新，详情：{event}')
                 # 将更新后的数据保存回数据库
                 planner_data["temp_events"] = temp_events
                 user_temp_events_data.set_value(planner_data)
