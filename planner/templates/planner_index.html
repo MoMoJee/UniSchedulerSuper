@@ -283,6 +283,8 @@
             </select>
         </p>
         <button id="sendToAI">发送</button>
+        <button onclick="mergeTempEvents('merge_only')">仅合并日程</button>
+{#        <button onclick="mergeTempEvents('keep_both')">保留日程和会话</button>#}
         <button id="confirmMergeAndSave">确认并保存</button>
     </div>
 </div>
@@ -404,6 +406,14 @@
             allDayText: '全天', // 更改all-day 显示文本
             initialView: 'timeGridWeek', // 初始视图
             editable: true, // enable draggable events
+            nowIndicator: true,
+            businessHours: {
+                  // days of week. an array of zero-based day of week integers (0=Sunday)
+                  daysOfWeek: [1, 2, 3, 4, 5, 6, 0], // Monday - Thursday
+
+                  startTime: '10:00', // a start time (10am in this example)
+                  endTime: '23:00', // an end time (6pm in this example)
+            },
 
             eventDrop: function (info) {
 
@@ -578,6 +588,17 @@
                                 };
                             });
 
+                            // 检查 ai_planning_time 是否存在
+                            if (data.ai_planning_time && data.ai_planning_time.start && data.ai_planning_time.end) {
+                                // 添加背景事件
+                                eventsWithColor.push({
+                                    start: data.ai_planning_time.start,
+                                    end: data.ai_planning_time.end,
+                                    display: 'background',
+                                    backgroundColor: '#1a36ec', // 背景颜色
+                                });
+                            }
+
                             successCallback(eventsWithColor);
                         } else {
                             failureCallback(new Error('Invalid data format'));
@@ -587,18 +608,6 @@
                         failureCallback(error);
                     });
             },
-
-            resources: function (info, successCallback, failureCallback) {
-                fetch('/get_calendar/resources/')
-                    .then(response => response.json())
-                    .then(data => {
-                        successCallback(data);
-                    })
-                    .catch(error => {
-                        failureCallback(error);
-                    });
-            }
-
         });
 
         // 页面加载时恢复视图
@@ -770,6 +779,7 @@
             body: JSON.stringify({
                 start: window.selectedStart,
                 end: window.selectedEnd
+            {#    TODO 把背景改成绿色来显示这是AI规划区间#}
             })
         })
             .then(response => response.json())
@@ -973,41 +983,52 @@
         // 在这里可以更新前端显示的临时日程数据
     }
 
-    function mergeTempEvents(){
+    function mergeTempEvents(action) {
         // 合并 tempEvents 到主事件数据
         fetch('merge_temp_events/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ tempEvents: tempEvents, dialogue: dialogue })
+            body: JSON.stringify({
+                tempEvents: tempEvents,
+                dialogue: dialogue,
+                action: action // 添加 action 参数
+            })
         })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // 根据不同的 action 执行不同的操作
+                if (action === 'save_and_end') {
                     // 清空 tempEvents 和 dialogue
                     tempEvents = [];
                     dialogue = [];
-                    displayDialogue();
-                    updateTempEvents();
-
-                    alert('临时日程已合并到主日程中！');
-                } else {
-                    alert('合并失败: ' + data.message);
+                } else if (action === 'merge_only') {
+                    // 清空 tempEvents 但保留 dialogue
+                    tempEvents = [];
                 }
-            })
-            .catch(error => {
-                console.error('Error merging temp events:', error);
-                alert('合并失败: ' + error.message);
-            });
-    };
+                // 更新显示
+                displayDialogue();
+                updateTempEvents();
+
+                alert('操作成功！');
+            } else {
+                alert('操作失败: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error merging temp events:', error);
+            alert('操作失败: ' + error.message);
+        });
+    }
 
     document.getElementById('confirmMergeAndSave').addEventListener('click', function() {
         const confirmResult = confirm('此操作会将AI生成的日程置入你的日程表，同时清空聊天记录，确定吗？');
 
         if (confirmResult) {
             // 用户点击了确定，执行 mergeTempEvents
-            mergeTempEvents();
+            mergeTempEvents('save_and_end');
         } else {
             // 用户点击了取消，不做任何操作
             console.log('用户取消了操作');
@@ -1015,8 +1036,10 @@
     });
 
     document.getElementById('directMergeTempEvents').addEventListener('click', function() {
-        mergeTempEvents();
+        mergeTempEvents('save_and_end');
+    {#    TODO 这和点那个合并没啥区别，调用的后端都是同一个。要改，可能要多加逻辑，一可以保留会话，日程合并；二可以保留会话，保留日程（让AI改），三可以结束对话并保存，四可以取消更改#}
     });
+    {#TODO 还可以加 保存聊天记录和最后一次生成的 temp 日程 #}
 
     // AI生成日程代码结束
 

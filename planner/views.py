@@ -311,7 +311,8 @@ def ai_create(request):
                 "description": created_event["description"],
                 "importance": created_event["importance"],
                 "urgency": created_event["urgency"],
-                "groupID": str(group_id)  # 存储 groupId
+                "groupID": str(group_id),  # 存储 groupId
+                "ddl": ""
             })
 
 
@@ -361,40 +362,64 @@ def get_previous_dialogue(request):
 @login_required
 def merge_temp_events(request):
     if request.method == 'POST':
-        # 导入历史记录
-        user_planner_data, created = UserData.objects.get_or_create(
-            user=request.user,
-            key="planner",
-            defaults={"value": json.dumps({
-                "dialogue": [],
-                "temp_events": []
-            })}
-        )
+        try:
 
-        user_data, created = UserData.objects.get_or_create(
-            user=request.user,
-            key="events",
-        )
+            data = json.loads(request.body)
+            action = data.get('action', 'save_and_end')  # 默认为 save_and_end
+
+            user_planner_data, created, result = UserData.get_or_initialize(request, new_key="planner", data={
+                    "dialogue": [],
+                    "temp_events": []
+                })
+
+            user_events_data, created, result = UserData.get_or_initialize(request, new_key="events")
 
 
-        planner_data = json.loads(user_planner_data.value)
-        temp_events = planner_data["temp_events"]
+            planner_data = user_planner_data.get_value()
+            temp_events = planner_data["temp_events"]
+            dialogue = planner_data["dialogue"]
+            ai_planning_time = planner_data["ai_planning_time"]
 
-        events = json.loads(user_data.value)
-        events += temp_events
-        user_data.value = json.dumps(events)
-        user_data.save()
+            events = user_events_data.get_value()
+            events += temp_events
+            user_events_data.set_value(events)
 
-        user_planner_data.value = json.dumps({
-            "dialogue": [],
-            "temp_events": [],
-            "ai_planning_time": {}
-        })
-        # 重置planner中的字段
+            # 根据 action 执行不同的操作
+            if action == 'merge_only':
+                # 仅合并日程，保留会话
+                events = user_events_data.get_value()
+                events += temp_events
+                user_events_data.set_value(events)
 
-        user_planner_data.save()
+                user_planner_data.set_value({
+                    "dialogue": dialogue,
+                    "temp_events": [],
+                    "ai_planning_time": ai_planning_time
+                })
+            elif action == 'keep_both':
+                # 保留日程和会话
+                # TODO 可以在这里添加其他操作，比如标记日程为草稿等
 
-        return JsonResponse({"status": "success"})
+                pass
+            elif action == 'save_and_end':
+                # 结束对话并保存，和原来一样
+                events = user_events_data.get_value()
+                events += temp_events
+                user_events_data.set_value(events)
+
+                user_planner_data.set_value({
+                    "dialogue": [],
+                    "temp_events": [],
+                    "ai_planning_time": {}
+                })
+                print(12311)
+            else:
+                return JsonResponse({'status': 'error', 'message': 'Invalid action'}, status=400)
+
+
+            return JsonResponse({"status": "success"})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 
 
@@ -614,7 +639,8 @@ def get_temp_long_events(request):
 
         user_temp_events_data, created, result =UserData.get_or_initialize(request=request, new_key="planner", data={
             "dialogue": [],
-            "temp_events": []
+            "temp_events": [],
+            "ai_planning_time": {}
         })
 
         planner_data = user_temp_events_data.get_value()
@@ -638,7 +664,7 @@ def get_temp_long_events(request):
             events_groups = []
 
             # 返回事件和日程组数据
-        return JsonResponse({"events": all_events, "events_groups": events_groups})
+        return JsonResponse({"events": all_events, "events_groups": events_groups, "ai_planning_time": planner_data["ai_planning_time"]})
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 
 
