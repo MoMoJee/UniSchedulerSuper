@@ -411,7 +411,6 @@ class UserData(models.Model):
         根据 schema 验证和初始化数据。
         如果数据不符合 schema，将根据 schema 的默认值进行初始化。
         """
-        #　TODO get_value 的检查为啥会导致数据库更新？
         if not data:
             return schema.get("default", {})
 
