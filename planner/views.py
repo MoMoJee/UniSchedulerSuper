@@ -263,7 +263,6 @@ def ai_create(request):
         dialogues += planner_data["dialogue"]
         dialogues.append({"role": "user", "content": f"我已经确定了如下日程，请你尽量别影响这些已经安排的日程：{str(filtered_events)}"})
         dialogues.append({"role": "user", "content": f"{time_str}  {str(user_input)}"})
-        logger.debug(dialogues)
 
         # 解析AI回复
         # reply = ai_reply(dialogues, ai_setting)["response"]
@@ -272,13 +271,10 @@ def ai_create(request):
         reply = web_search_ai_reply(dialogues, ai_setting)
         # TODO 这里是联网搜索的版本，可用但有点烧钱，可以考虑本地搜索引擎。同时这里的各种逻辑还是有点问题，毕竟直接换的，也不支持别的模型。此外我会添加一个联网搜索按钮
 
-        logger.debug(reply)
 
 
         created_events, suggestion = parse_json_to_list_and_string(reply)
 
-        logger.debug(f'AI说：{suggestion}')
-        logger.debug(f'AI生成了：{created_events}')
 
 
         try:
@@ -381,7 +377,6 @@ def merge_temp_events(request):
             ai_planning_time = planner_data["ai_planning_time"]
 
             events = user_events_data.get_value()
-            events += temp_events
             user_events_data.set_value(events)
 
             # 根据 action 执行不同的操作
@@ -412,7 +407,6 @@ def merge_temp_events(request):
                     "temp_events": [],
                     "ai_planning_time": {}
                 })
-                print(12311)
             else:
                 return JsonResponse({'status': 'error', 'message': 'Invalid action'}, status=400)
 
@@ -487,8 +481,6 @@ def delete_events_in_range(request):
             data = json.loads(request.body)
             start_time = data.get('start')
             end_time = data.get('end')
-
-            logger.debug(f'{start_time}, {end_time}')
 
             if not start_time or not end_time:
                 return JsonResponse({'status': 'error', 'message': 'Missing start or end time'}, status=400)

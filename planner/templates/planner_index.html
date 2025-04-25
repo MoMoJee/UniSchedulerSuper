@@ -267,7 +267,6 @@
 <br/>
 <button id="createEventGroupButton">创建日程组</button>
 <button id="startDialogueButton">开始AI对话</button>
-<button id="directMergeTempEvents">合并计划师中安排的日程到主日程数据</button>
 <div id="aiDialogue" class="ai-dialogue" style="display: none;">
     <div class="ai-dialogue-header">
         <span class="ai-dialogue-title">与AI对话</span>
@@ -283,7 +282,7 @@
             </select>
         </p>
         <button id="sendToAI">发送</button>
-        <button onclick="mergeTempEvents('merge_only')">仅合并日程</button>
+        <button id="confirmMergeOnly" onclick="mergeTempEvents('merge_only')">仅合并日程</button>
 {#        <button onclick="mergeTempEvents('keep_both')">保留日程和会话</button>#}
         <button id="confirmMergeAndSave">确认并保存</button>
     </div>
@@ -431,7 +430,7 @@
                         return;
                     }
                 }
-                updateEvent(info.event.id, info.event.start.toISOString(), info.event.end.toISOString(), info.event.title, info.event.extendedProps.description, info.event.extendedProps.importance, info.event.extendedProps.urgency, info.event.extendedProps.groupID, ddl);
+                updateEvent(info.event.id, info.event.start.toISOString(), info.event.end.toISOString(), info.event.title, info.event.extendedProps.description, info.event.extendedProps.importance, info.event.extendedProps.urgency, info.event.extendedProps.groupID, info.event.extendedProps.ddl);
             },
             eventResize: function (info) {
                 const event = info.event;
@@ -880,7 +879,6 @@
                 displayDialogue();
                 tempEvents = data.tempEvents;
                 updateTempEvents();
-                console.log(data)
             })
             .catch(error => console.error('Error fetching previous dialogue:', error));
     });
@@ -908,7 +906,7 @@
         document.getElementById('aiEventGroupId').disabled = true;
         document.querySelector('.ai-dialogue-close').disabled = true;
         document.getElementById('confirmMergeAndSave').disabled = true;
-
+        document.getElementById('confirmMergeOnly').disabled = true;
         // 更新对话历史记录
         dialogue.push({ user: userInput });
         displayDialogue();
@@ -937,6 +935,8 @@
                 document.querySelector('.ai-dialogue-close').disabled = false;
                 document.getElementById('aiEventGroupId').disabled = false;
                 document.getElementById('confirmMergeAndSave').disabled = false;
+                document.getElementById('confirmMergeOnly').disabled = false;
+
                 // 清空输入框
                 document.getElementById('userInput').value = '';
                 location.reload()
@@ -953,6 +953,8 @@
                 document.querySelector('.ai-dialogue-close').disabled = false;
                 document.getElementById('aiEventGroupId').disabled = false;
                 document.getElementById('confirmMergeAndSave').disabled = false;
+                document.getElementById('confirmMergeOnly').disabled = false;
+
                 location.reload()
             });
 
@@ -1033,11 +1035,6 @@
             // 用户点击了取消，不做任何操作
             console.log('用户取消了操作');
         }
-    });
-
-    document.getElementById('directMergeTempEvents').addEventListener('click', function() {
-        mergeTempEvents('save_and_end');
-    {#    TODO 这和点那个合并没啥区别，调用的后端都是同一个。要改，可能要多加逻辑，一可以保留会话，日程合并；二可以保留会话，保留日程（让AI改），三可以结束对话并保存，四可以取消更改#}
     });
     {#TODO 还可以加 保存聊天记录和最后一次生成的 temp 日程 #}
 

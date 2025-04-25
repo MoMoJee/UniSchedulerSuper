@@ -392,8 +392,6 @@ def delete_event(request):
         except json.JSONDecodeError:
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON data'}, status=400)
 
-        logger.debug(f'指定了要删除的日程代码：{event_id}')
-
         if event_id is None:
             return JsonResponse({'status': 'error', 'message': 'eventId is missing'}, status=400)
 
@@ -462,8 +460,6 @@ def update_event_group(request):
         title = data.get('title')
         description = data.get('description')
         color = data.get('color')
-        logger.debug(group_id)
-
         user_data, created = UserData.objects.get_or_create(user=request.user, key="events_groups")
         events_groups = json.loads(user_data.value)
 
