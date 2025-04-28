@@ -4,9 +4,154 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Personal Time Management</title>
-    <link rel="stylesheet" href="css/home.css" />
-    <link rel="stylesheet" href="css/css初始化.css" />
+    <style>
+        h1 {
+  display:inline-block;
+}
+.common1 {
+  float:right;
+  margin-right:100px;
+  margin-top:10px;
+}
+.common1:hover{
+color:rgb(118,129,141);
+}
+.common{
+display:inline-block;
+text-align:center;
+width:100px;
+length:50px;
+padding:10px;
+background-color:rgb(255,255,255);
+transition:background-color 0.3s,color 0.3s;
+}
+.common:hover{
+background-color:rgb(118,129,141);
+color:rgb(255,255,255);
+}
+.button1{
+float:right;
+margin-right:10px;
+padding:10px 20px;
+font_size:16px;
+background-color:rgb(44,62,80);
+color:rgb(255,255,255);
+border:none;
+border-radius:5px;
+cursor:pointer;
+transition:background-color 0.3s;
+}
+.button1:hover{
+background-color:rgb(30,43,55);
 
+}
+
+/* 对话框样式 */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  background-color: #fff;
+  margin: 15% auto;
+  padding: 20px;
+  width: 30%;
+}
+
+.close {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+  color: black;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/*重要紧急维度选择 样式*/
+.importance-urgency-matrix {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.matrix-button {
+  padding: 10px;
+  background-color: white;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
+
+.matrix-button.selected {
+  background-color: #ccc; /* 灰色背景表示选中 */
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.close {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.close:hover {
+  color: black;
+  cursor: pointer;
+}
+
+.group-item {
+  display: flex;
+  align-items: center; /* 垂直居中对齐 */
+  justify-content: flex-start; /* 水平起始对齐 */
+  gap: 10px; /* 子元素之间的间距 */
+  margin-bottom: 10px; /* 每个列表项之间的间距 */
+}
+
+.group-item label {
+  flex-grow: 1; /* 让标签占据剩余空间 */
+}
+
+.group-item button {
+  margin-left: auto; /* 将按钮推到右侧 */
+}
+
+/*!* 深色主题的自定义样式 *!*/
+/*.fc {*/
+/*    background-color: #333; !* 设置日历背景为深灰色 *!*/
+/*    color: #fff; !* 设置文本颜色为白色 *!*/
+/*}*/
+
+/*.fc-day {*/
+/*    background-color: #444; !* 设置日期单元格背景 *!*/
+/*}*/
+
+/*.fc-event {*/
+/*    background-color: #555; !* 设置事件背景 *!*/
+/*    border-color: #666; !* 设置事件边框颜色 *!*/
+/*    color: #fff; !* 设置事件文本颜色 *!*/
+/*}*/
+</style>
 </head>
 <body>
 <h1>Welcome, {{ request.user.username }}!</h1>
