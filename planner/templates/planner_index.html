@@ -5,6 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>计划师</title>
     <style>
+        h1 {
+          display:inline-block;
+        }
+        a {
+            text-decoration: none;
+            color: #666;
+        }
+        .common1 {
+          float:right;
+          margin-right:100px;
+          margin-top:10px;
+        }
+        .common1:hover{
+            color:rgb(118,129,141);
+        }
+        .common{
+            display:inline-block;
+            text-align:center;
+            width:100px;
+            length:50px;
+            padding:10px;
+            background-color:rgb(255,255,255);
+            transition:background-color 0.3s,color 0.3s;
+        }
+        .common:hover{
+            background-color:rgb(118,129,141);
+            color:rgb(255,255,255);
+        }
+        .button1{
+            float:right;
+            margin-right:10px;
+            padding:10px 20px;
+            font_size:16px;
+            background-color:rgb(44,62,80);
+            color:rgb(255,255,255);
+            border:none;
+            border-radius:5px;
+            cursor:pointer;
+            transition:background-color 0.3s;
+        }
+        .button1:hover{
+            background-color:rgb(30,43,55);
+
+        }
         /* 对话框样式 */
         .modal {
             display: none;
@@ -262,11 +306,7 @@
 </head>
 <body>
 <!--TODO 这里的所有超链接，都要做成好看的按钮。可以直接写，也可以用 FullCalendar 的API实现（比如“新建日程”按钮）-->
-<button id="updateEventsButton">AI自动安排选中日程</button>
-<a href="/home">主页</a>
-<br/>
-<button id="createEventGroupButton">创建日程组</button>
-<button id="startDialogueButton">开始AI对话</button>
+<a href="/home" class="common">主页</a>
 <div id="aiDialogue" class="ai-dialogue" style="display: none;">
     <div class="ai-dialogue-header">
         <span class="ai-dialogue-title">与AI对话</span>
@@ -544,7 +584,7 @@
 
             aspectRatio: 1.8,
             headerToolbar: {
-                left: 'today prev, next, createEventButton',
+                left: 'today prev, next, createEventButton, createEventGroupButton, updateEventsButton, startDialogueButton',
                 center: 'title',
                 right: 'timeGridDay,dayGridMonth,timeGridWeek,listWeek'
             },
@@ -561,7 +601,25 @@
                 createEventButton: {
                     text: '新建日程',
                     click: function () {
-                        openCreateEventModal(0,0);
+                        openCreateEventModal(0, 0);
+                    }
+                },
+                createEventGroupButton: {
+                    text: '新建日程组',
+                    click: function () {
+                        openCreateEventGroupModal();
+                    }
+                },
+                updateEventsButton:{
+                    text: 'AI自动安排选中日程',
+                    click: function () {
+                        updateEventsButton();
+                    }
+                },
+                startDialogueButton:{
+                    text: 'AI助手',
+                    click: function () {
+                        startDialogueButton();
                     }
                 }
             },
@@ -616,8 +674,7 @@
 
         calendar.render();
 
-
-        document.getElementById('updateEventsButton').addEventListener('click', function() {
+        function updateEventsButton(){
             // 显示加载动画
             document.getElementById('loadingOverlay').style.display = 'block';
 
@@ -680,7 +737,7 @@
                     // 停止随机移动日程
                     clearInterval(randomMoveInterval);
                 });
-        });
+        }
     });
 
 
@@ -809,10 +866,6 @@
         createEvent();
     });
 
-    // 添加按钮点击事件监听器
-    document.getElementById('createEventGroupButton').addEventListener('click', function() {
-        openCreateEventGroupModal();
-    });
 
     // 处理创建日程组的表单提交
     document.getElementById('createEventGroupForm').addEventListener('submit', function(event) {
@@ -853,7 +906,7 @@
     let tempEvents = [];
     let dialogue = [];
 
-    document.getElementById('startDialogueButton').addEventListener('click', function() {
+    function startDialogueButton(){
         const aiDialogue = document.getElementById('aiDialogue');
         aiDialogue.style.display = 'flex';
         isDialogueOpen = true;
@@ -881,7 +934,7 @@
                 updateTempEvents();
             })
             .catch(error => console.error('Error fetching previous dialogue:', error));
-    });
+    }
 
     document.querySelector('.ai-dialogue-close').addEventListener('click', function() {
         const aiDialogue = document.getElementById('aiDialogue');

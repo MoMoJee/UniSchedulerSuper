@@ -187,6 +187,7 @@ def ai_create(request):
                 "ai_planning_time": {}
             })}
         )
+        # TODO 修复一下当AI出错时，用户发的文本不被保存的问题
 
         # 这里其实重复获取了，后面又导入了一次，但我懒得改
         user_events_data, created = UserData.objects.get_or_create(user=request.user, key="events")
@@ -378,6 +379,8 @@ def merge_temp_events(request):
 
             events = user_events_data.get_value()
             user_events_data.set_value(events)
+
+            # TODO 再加一个 取消之前的所有，新开一个聊天。这个同样也要作用于 ai_suggestions
 
             # 根据 action 执行不同的操作
             if action == 'merge_only':

@@ -101,6 +101,7 @@ def user_data(request):
 
 @login_required
 def home(request):
+    # TODO 新加一个用户 config ，存储新手教程类和“不再提示”这种配置
     return render(request, 'home.html')
 
 

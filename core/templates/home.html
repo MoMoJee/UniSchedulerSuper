@@ -5,232 +5,152 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Personal Time Management</title>
     <style>
+        h1 {
+          display:inline-block;
+        }
+        a {
+            text-decoration: none;
+            color: #666;
+        }
+        .common1 {
+          float:right;
+          margin-right:100px;
+          margin-top:10px;
+        }
+        .common1:hover{
+            color:rgb(118,129,141);
+        }
+        .common{
+            display:inline-block;
+            text-align:center;
+            width:100px;
+            length:50px;
+            padding:10px;
+            background-color:rgb(255,255,255);
+            transition:background-color 0.3s,color 0.3s;
+        }
+        .common:hover{
+            background-color:rgb(118,129,141);
+            color:rgb(255,255,255);
+        }
+        .button1{
+            float:right;
+            margin-right:10px;
+            padding:10px 20px;
+            font_size:16px;
+            background-color:rgb(44,62,80);
+            color:rgb(255,255,255);
+            border:none;
+            border-radius:5px;
+            cursor:pointer;
+            transition:background-color 0.3s;
+        }
+        .button1:hover{
+            background-color:rgb(30,43,55);
+
+        }
+
         /* 对话框样式 */
         .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
+          display: none;
+          position: fixed;
+          z-index: 1000;
+          left: 0;
+          top: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.5);
         }
 
         .modal-content {
-            background-color: #fff;
-            margin: 15% auto;
-            padding: 20px;
-            width: 30%;
+          background-color: #fff;
+          margin: 15% auto;
+          padding: 20px;
+          width: 30%;
         }
 
         .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
+          color: #aaa;
+          float: right;
+          font-size: 28px;
+          font-weight: bold;
         }
 
         .close:hover,
         .close:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
+          color: black;
+          text-decoration: none;
+          cursor: pointer;
         }
 
         /*重要紧急维度选择 样式*/
         .importance-urgency-matrix {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 10px;
         }
 
         .matrix-button {
-            padding: 10px;
-            background-color: white;
-            border: 1px solid #ccc;
-            cursor: pointer;
+          padding: 10px;
+          background-color: white;
+          border: 1px solid #ccc;
+          cursor: pointer;
         }
 
         .matrix-button.selected {
-            background-color: #ccc; /* 灰色背景表示选中 */
+          background-color: #ccc; /* 灰色背景表示选中 */
         }
 
         .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
+          display: none;
+          position: fixed;
+          z-index: 1000;
+          left: 0;
+          top: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.5);
         }
 
-
-
         .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
+          color: #aaa;
+          float: right;
+          font-size: 28px;
+          font-weight: bold;
         }
 
         .close:hover {
-            color: black;
-            cursor: pointer;
+          color: black;
+          cursor: pointer;
         }
 
         .group-item {
-            display: flex;
-            align-items: center; /* 垂直居中对齐 */
-            justify-content: flex-start; /* 水平起始对齐 */
-            gap: 10px; /* 子元素之间的间距 */
-            margin-bottom: 10px; /* 每个列表项之间的间距 */
+          display: flex;
+          align-items: center; /* 垂直居中对齐 */
+          justify-content: flex-start; /* 水平起始对齐 */
+          gap: 10px; /* 子元素之间的间距 */
+          margin-bottom: 10px; /* 每个列表项之间的间距 */
         }
 
         .group-item label {
-            flex-grow: 1; /* 让标签占据剩余空间 */
+          flex-grow: 1; /* 让标签占据剩余空间 */
         }
 
         .group-item button {
-            margin-left: auto; /* 将按钮推到右侧 */
+          margin-left: auto; /* 将按钮推到右侧 */
         }
-          .popper,
-  .tooltip {
-    position: absolute;
-    z-index: 9999;
-    background: #FFC107;
-    color: black;
-    width: 150px;
-    border-radius: 3px;
-    box-shadow: 0 0 2px rgba(0,0,0,0.5);
-    padding: 10px;
-    text-align: center;
-  }
-  .style5 .tooltip {
-    background: #1E252B;
-    color: #FFFFFF;
-    max-width: 200px;
-    width: auto;
-    font-size: .8rem;
-    padding: .5em 1em;
-  }
-  .popper .popper__arrow,
-  .tooltip .tooltip-arrow {
-    width: 0;
-    height: 0;
-    border-style: solid;
-    position: absolute;
-    margin: 5px;
-  }
-
-  .tooltip .tooltip-arrow,
-  .popper .popper__arrow {
-    border-color: #FFC107;
-  }
-  .style5 .tooltip .tooltip-arrow {
-    border-color: #1E252B;
-  }
-  .popper[x-placement^="top"],
-  .tooltip[x-placement^="top"] {
-    margin-bottom: 5px;
-  }
-  .popper[x-placement^="top"] .popper__arrow,
-  .tooltip[x-placement^="top"] .tooltip-arrow {
-    border-width: 5px 5px 0 5px;
-    border-left-color: transparent;
-    border-right-color: transparent;
-    border-bottom-color: transparent;
-    bottom: -5px;
-    left: calc(50% - 5px);
-    margin-top: 0;
-    margin-bottom: 0;
-  }
-  .popper[x-placement^="bottom"],
-  .tooltip[x-placement^="bottom"] {
-    margin-top: 5px;
-  }
-  .tooltip[x-placement^="bottom"] .tooltip-arrow,
-  .popper[x-placement^="bottom"] .popper__arrow {
-    border-width: 0 5px 5px 5px;
-    border-left-color: transparent;
-    border-right-color: transparent;
-    border-top-color: transparent;
-    top: -5px;
-    left: calc(50% - 5px);
-    margin-top: 0;
-    margin-bottom: 0;
-  }
-  .tooltip[x-placement^="right"],
-  .popper[x-placement^="right"] {
-    margin-left: 5px;
-  }
-  .popper[x-placement^="right"] .popper__arrow,
-  .tooltip[x-placement^="right"] .tooltip-arrow {
-    border-width: 5px 5px 5px 0;
-    border-left-color: transparent;
-    border-top-color: transparent;
-    border-bottom-color: transparent;
-    left: -5px;
-    top: calc(50% - 5px);
-    margin-left: 0;
-    margin-right: 0;
-  }
-  .popper[x-placement^="left"],
-  .tooltip[x-placement^="left"] {
-    margin-right: 5px;
-  }
-  .popper[x-placement^="left"] .popper__arrow,
-  .tooltip[x-placement^="left"] .tooltip-arrow {
-    border-width: 5px 0 5px 5px;
-    border-top-color: transparent;
-    border-right-color: transparent;
-    border-bottom-color: transparent;
-    right: -5px;
-    top: calc(50% - 5px);
-    margin-left: 0;
-    margin-right: 0;
-  }
-
-
-
-
-
-        /*!* 深色主题的自定义样式 *!*/
-        /*.fc {*/
-        /*    background-color: #333; !* 设置日历背景为深灰色 *!*/
-        /*    color: #fff; !* 设置文本颜色为白色 *!*/
-        /*}*/
-
-        /*.fc-day {*/
-        /*    background-color: #444; !* 设置日期单元格背景 *!*/
-        /*}*/
-
-        /*.fc-event {*/
-        /*    background-color: #555; !* 设置事件背景 *!*/
-        /*    border-color: #666; !* 设置事件边框颜色 *!*/
-        /*    color: #fff; !* 设置事件文本颜色 *!*/
-        /*}*/
-
-    </style>
-
+</style>
 </head>
 <body>
-<h1>Welcome, {{ request.user.username }}!</h1>
-<a href="/user_logout">退出登录</a>
-{#<br/>#}
-{#<a href="/ai_chatting">AI聊天</a>#}
-{#TODO 这里等聊天室做成了再开放#}
-<br/>
-<a href="/planner">计划师</a>
-<br/>
-<a href="/about">关于我们</a>
-<br/>
-<a href="/user_data">我的</a>
-<br/>
-<button id="editEventGroupsButton">编辑日程组</button>
-<button id="importEventsButton">导入日程</button>
+<h1>你好，{{ request.user.username }}!</h1>
+    <a href="/user_logout" class="common1">退出登录</a>
+    <br/>
+    <a href="/ai_chatting" class="common">AI聊天</a>
+    <a href="/planner" class="common">计划师</a>
+    <a href="/about" class="common">关于我们</a>
+    <a href="/user_data" class="common">我的</a>
+    <button id="editEventGroupsButton" class="button1">编辑日程组</button>
+    <button id="importEventsButton" class="button1">导入日程</button>
 <div id="importEventsModal" class="modal">
     <div class="modal-content">
         <span class="close" onclick="closeImportEventsModal()">&times;</span>
@@ -1101,7 +1021,7 @@
 
 
 
-    
+
 </script>
 </body>
 </html>
