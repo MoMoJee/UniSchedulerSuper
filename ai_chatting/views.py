@@ -19,6 +19,10 @@ from core.models import  UserData
 
 @login_required
 def ai_chatting_index(request):
+    # 为新用户创建默认的 UserData 实例
+    user_data = UserData.objects.create(user=request.user, key='ai_chatting')  # 创建key，用于ai_chatting
+    user_data.set_value({"token_balance": 1000000, "nickname": "jojo"})  # 用于指示AI聊天剩余的tokens、昵称。这里是可以用各类数据类型的
+    user_data.save()
     return render(request, 'ai_chatting_index.html')
 
 
@@ -28,9 +32,6 @@ def chatting(request):
         # 从 request.body 中获取 JSON 数据
         data = json.loads(request.body)
         user_input = data.get('message')
-
-
-
 
 
         if "#cc初始化" in user_input:

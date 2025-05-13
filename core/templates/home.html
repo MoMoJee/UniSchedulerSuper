@@ -142,13 +142,15 @@
 </style>
 </head>
 <body>
-<h1>你好，{{ request.user.username }}!</h1>
+<h1>你好 {{ user.username }}! 现在是 {{ datetime }} 第 {{ currentWeek }} 周</h1>
     <a href="/user_logout" class="common1">退出登录</a>
     <br/>
     <a href="/ai_chatting" class="common">AI聊天</a>
     <a href="/planner" class="common">计划师</a>
     <a href="/about" class="common">关于我们</a>
     <a href="/user_data" class="common">我的</a>
+    <a href="/user_preferences" class="common">设置</a>
+    <a href="/get_calendar/outport_calendar/" class="common">导出日程</a>
     <button id="editEventGroupsButton" class="button1">编辑日程组</button>
     <button id="importEventsButton" class="button1">导入日程</button>
 <div id="importEventsModal" class="modal">

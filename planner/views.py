@@ -30,6 +30,8 @@ logger = logging.getLogger("logger")
 @csrf_exempt
 @login_required
 def ai_suggestions(request):
+    # TODO 做一个历史聊天记录，uid 存
+    # TODO 做成一个 tool call，调用日程生成
     if request.method == 'GET':
         # 获取用户的所有事件
         user_events_data, created = UserData.objects.get_or_create(user=request.user, key="events")
@@ -141,7 +143,8 @@ def ai_suggestions(request):
                         "importance": original_event["importance"],
                         "urgency": original_event["urgency"],
                         "groupID": original_event["groupID"],  # 存储 groupId
-                        "ddl": original_event["ddl"]
+                        "ddl": original_event["ddl"],
+                        "last_modified": original_event["last_modified"],
                     })
                     all_events = [item for item in all_events if item["id"] != original_event["id"]]
                     matched = True
@@ -178,28 +181,38 @@ def ai_create(request):
 
         group_id = data.get('group_id')
 
-        user_planner_data, created = UserData.objects.get_or_create(
-            user=request.user,
-            key="planner",
-            defaults={"value": json.dumps({
+        user_planner_data, created, result = UserData.get_or_initialize(request=request, new_key="planner", data={
                 "dialogue": [],
                 "temp_events": [],
                 "ai_planning_time": {}
-            })}
-        )
-        # TODO 修复一下当AI出错时，用户发的文本不被保存的问题
+            })
+
 
         # 这里其实重复获取了，后面又导入了一次，但我懒得改
-        user_events_data, created = UserData.objects.get_or_create(user=request.user, key="events")
-        events = json.loads(user_events_data.value)
+        user_events_data, created, result = UserData.get_or_initialize(request=request, new_key="events")
+        events = user_events_data.get_value()
 
-        planner_data = json.loads(user_planner_data.value)
+        planner_data = user_planner_data.get_value()
+
         ai_planning_time = planner_data['ai_planning_time']
+        dialogue_before = planner_data['dialogue']
+        temp_events_before = planner_data['temp_events']
+
+        user_planner_data.set_value({
+                "dialogue":
+                    dialogue_before + [{
+                "role": "user",
+                "content": str(user_input)
+            }],
+                "temp_events": temp_events_before,
+                "ai_planning_time": ai_planning_time
+        })
+        # 修复当AI出错时，用户发的文本不被保存的问题
 
         # 筛选在时间范围内的事件
         filtered_events = []
 
-        None_ai_planning_time_remind = ""  # 用来提示AI规划使用时没有指定时间
+        none_ai_planning_time_remind = ""  # 用来提示AI规划使用时没有指定时间
 
         if 'start' in ai_planning_time and 'end' in ai_planning_time:
             time_range_start = datetime.fromisoformat(ai_planning_time['start']).replace(tzinfo=timezone.utc)
@@ -213,7 +226,7 @@ def ai_create(request):
                 if time_range_start <= event_start and event_end <= time_range_end:
                     filtered_events.append(event)
         else:
-            None_ai_planning_time_remind = "您没有通过拖动选定的方式指定要提交给AI作为参考的时间段，这会导致AI无法正确绕开您的已有日程。\n"
+            none_ai_planning_time_remind = "您没有通过拖动选定的方式指定要提交给AI作为参考的时间段，这会导致AI无法正确绕开您的已有日程。\n"
 
         for event in filtered_events:
             event.pop("groupID", None)  # 如果 "groupID" 不存在，不会报错
@@ -240,28 +253,18 @@ def ai_create(request):
             "temperature": 0.3,
             "code": 3
         }
+        # TODO 这儿不是正确的调用方式，只是考虑到 AI 的 tool call 是直接 copy 的 moonshot，懒得改
 
         for ai_setting in ai_settings:
             if ai_setting["code"] == json.loads(user_data.value)["AI_setting_code"]:
                 break
 
-        # 导入历史记录
-        user_data, created = UserData.objects.get_or_create(
-            user=request.user,
-            key="planner",
-            defaults={"value": json.dumps({
-                "dialogue": [],
-                "temp_events": []
-            })}
-
-        )
 
         current_time = datetime.now()
         # 将当前时间格式化为字符串，格式为：年-月-日 时:分:秒
         time_str = current_time.strftime("%Y:%m:%d:%H:%M %A")
 
-        planner_data = json.loads(user_data.value)
-        dialogues += planner_data["dialogue"]
+        dialogues += dialogue_before
         dialogues.append({"role": "user", "content": f"我已经确定了如下日程，请你尽量别影响这些已经安排的日程：{str(filtered_events)}"})
         dialogues.append({"role": "user", "content": f"{time_str}  {str(user_input)}"})
 
@@ -284,7 +287,6 @@ def ai_create(request):
             final_suggestion = reply
 
         # 数据库保存AI的回复
-
 
         # 更新 dialogue
         planner_data["dialogue"] += [{
@@ -309,19 +311,16 @@ def ai_create(request):
                 "importance": created_event["importance"],
                 "urgency": created_event["urgency"],
                 "groupID": str(group_id),  # 存储 groupId
-                "ddl": ""
+                "ddl": "",
+                "last_modified": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             })
-
-
 
         # 更新 temp_events
         planner_data["temp_events"] = formated_created_events
 
-        user_data.value = json.dumps(planner_data)
-        user_data.save()
+        user_planner_data.set_value(planner_data)
 
-
-        return JsonResponse({"suggestions": [f'注意，{None_ai_planning_time_remind}, {final_suggestion}' if None_ai_planning_time_remind else final_suggestion], "events": created_events})
+        return JsonResponse({"suggestions": [f'注意，{none_ai_planning_time_remind}, {final_suggestion}' if none_ai_planning_time_remind else final_suggestion], "events": created_events})
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 
 # AI生成的对话框

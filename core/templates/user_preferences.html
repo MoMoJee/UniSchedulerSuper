@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户偏好设置</title>
+    <!-- 引入 Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container mt-5">
+    <h2 class="mb-4">用户偏好设置</h2>
+    <form id="preferencesForm">
+        {% csrf_token %} <!-- 添加 CSRF Token -->
+        <div class="mb-3">
+            <label for="weekNumberStart" class="form-label">第n周的起始日期</label>
+            <input type="date" class="form-control" id="weekNumberStart" name="week_number_start"
+                   value="{% if user_preference.week_number_start %}{{ user_preference.week_number_start|date:'Y-m-d' }}{% endif %}">
+        </div>
+        <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="autoDdl" name="auto_ddl"
+                   {% if user_preference.auto_ddl %}checked{% endif %}>
+            <label class="form-check-label" for="autoDdl">每次新建日程时自动将日程结束时间设置为截止时间</label>
+        </div>
+        <div class="d-flex justify-content-between">
+            <button type="submit" class="btn btn-primary">保存更改</button>
+            <a href="/home" class="btn btn-secondary">返回主页</a>
+        </div>
+    </form>
+</div>
+
+<!-- 引入 jQuery 和 Bootstrap JS -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        // 获取 CSRF Token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // 判断是否是 CSRF Token 的 Cookie
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        const csrftoken = getCookie('csrftoken');
+
+        $('#preferencesForm').on('submit', function(e) {
+            e.preventDefault();
+
+            // 收集表单数据
+            const formData = {
+                week_number_start: $('#weekNumberStart').val(),
+                auto_ddl: $('#autoDdl').is(':checked')
+            };
+
+            // 发送POST请求保存数据
+            $.ajax({
+                url: '',
+                type: 'POST',
+                data: { preferences: JSON.stringify(formData) },
+                beforeSend: function(xhr) {
+                    // 设置 CSRF Token 到请求头
+                    xhr.setRequestHeader("X-CSRFToken", csrftoken);
+                },
+                success: function(response) {
+                    alert(response.message);
+                },
+                error: function() {
+                    alert('保存失败，请重试。');
+                }
+            });
+        });
+    });
+</script>
+</body>
+</html>

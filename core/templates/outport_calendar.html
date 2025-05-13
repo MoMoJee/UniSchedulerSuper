@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>日历导出</title>
+  <script>
+    function downloadCalendar(mode) {
+        // TODO 以后要加上选择某些日程组导出
+      // 检查是否有修改过的日程
+      fetch(`/get_calendar/check_modified_events?mode=${mode}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.modified_events.length > 0) {
+            // 显示用户选择的弹窗
+            const userChoice = prompt(
+              "警告：以下日程在上一次导出之后被修改过：\n" +
+              data.modified_events.map(event => `- ${event.title} (详情: ${event.description})`).join("\n") +
+              "\n请选择处理方式：\n1. 包含这些日程\n2. 忽略",
+              "1"
+            );
+
+            if (userChoice === null) {
+              alert("操作已取消。");
+              return;
+            }
+
+            // 构建下载链接，传递 mode 和 user_choice 参数
+            const url = `/get_calendar/get_outport_calendar?mode=${mode}&user_choice=${userChoice}`;
+            window.location.href = url;
+          } else {
+            // 如果没有修改过的日程，直接下载
+            const url = `/get_calendar/get_outport_calendar?mode=${mode}`;
+            window.location.href = url;
+          }
+        })
+        .catch(error => console.error("Error:", error));
+    }
+  </script>
+</head>
+<body>
+<h1>导出日历</h1>
+
+<!-- 按钮一：只导出新增日程 -->
+<button onclick="downloadCalendar('new')">导出新增日程</button>
+
+<!-- 按钮二：导出所有日程 -->
+<button onclick="downloadCalendar('all')">导出所有日程</button>
+
+</body>
+</html>

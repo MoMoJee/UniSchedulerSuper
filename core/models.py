@@ -1,3 +1,5 @@
+from typing import Tuple, Any
+
 from django.db import models
 from django.contrib.auth.models import User
 import json
@@ -11,6 +13,7 @@ logger = logging.getLogger("logger")
 # 定义标准数据格式
 DATA_SCHEMA = {
     # TODO 这里的 default 不能稳定工作
+    # !!!!! 注意 dict 类型必须要嵌套到没有为止，dict 类型的 default 只要写一个 {} 即可 ！！！！！
     "ai_chatting": {
         "token_balance": {
             "type": int,
@@ -67,6 +70,11 @@ DATA_SCHEMA = {
                 "type": str,
                 "nullable": False,
                 "default": "",
+            },
+            "last_modified": {
+                "type": str,
+                "nullable": False,
+                "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             },
         },
     },
@@ -212,6 +220,53 @@ DATA_SCHEMA = {
             },
         },
     },
+    "outport_calendar_data": {
+        "type": dict,
+        "nullable": False,
+        "default": {},
+        "items": {
+            "sent_events_uuid": {
+                "type": list,
+                "nullable": False,
+                "default": [],  # TODO 列表类型的检查有问题，只能处理列表内直接嵌套字典的，去看 events 的就知道了。so 不要 check
+            },
+            "last_sent_time": {
+                "type": str,
+                "nullable": False,
+                "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            }
+        },
+    },
+    "user_preference": {
+        "type": dict,
+        "nullable": False,
+        "default": {},
+        "items": {
+            "week_number_start": {
+                "type": dict,
+                "nullable": False,
+                "default":  {},
+                "items": {
+                    "month":{
+                        "type": int,
+                        "nullable": False,
+                        "default": 1,
+                    },
+                    "day":{
+                        "type": int,
+                        "nullable": False,
+                        "default": 1,
+                    },
+                },
+            },
+            "auto_ddl": {
+                # TODO 布尔值的检查会出现 if <bool> 的愚蠢错误
+                "type": bool,
+                "nullable": True,
+                "default": True,
+            },
+        },
+    },
 }
 # 这里定义用户信息类
 
@@ -258,7 +313,8 @@ class UserData(models.Model):
         return f"{self.user.username} - {self.key}"
 
     @classmethod
-    def get_or_initialize(cls, request, new_key, data=None):
+    def get_or_initialize(cls, request, new_key, data=None)-> tuple[None, bool, dict[str, str]] | tuple[
+        'UserData', bool, dict[str, str]]:
         """
         获取或初始化用户数据（通过key）。
 
@@ -373,7 +429,7 @@ class UserData(models.Model):
             return {"status": "error", "message": f"Failed to add key <{new_key}>: {str(e)}"}
 
 
-    def set_value(self, data, check=False):
+    def set_value(self, data, check=False)->None:
         # 在设置值之前，先验证和初始化数据
         schema = DATA_SCHEMA.get(str(self.key))
         if check:
@@ -387,7 +443,7 @@ class UserData(models.Model):
         self.value = json.dumps(data)
         self.save()
 
-    def get_value(self, check=False):
+    def get_value(self, check=False)->dict:
         if not self.value:
             return {}
         try:
@@ -398,8 +454,8 @@ class UserData(models.Model):
                 if schema:
                     data = self.validate_and_initialize_data(data, schema)
                 else:
-                    logger.warning(f"{self.key}是未经DATA_SCHEMA定义的key，要先对DATA_SCHEMA执行修改")
-                    return
+                    logger.warning(f"{self.key}是未经 DATA_SCHEMA 定义的 key，要先对 DATA_SCHEMA 执行修改")
+                    return {}
 
             return data
         except json.JSONDecodeError as e:
