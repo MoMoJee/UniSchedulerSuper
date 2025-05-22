@@ -131,6 +131,16 @@ def home(request):
         "currentWeek": week_number,
         'user': request.user  # 传递用户对象，方便在模板中使用 {{ request.user.username }}
     }
+    # 初始化 user_planner_data
+    user_planner_data, created, result = UserData.get_or_initialize(
+        request=request,
+        new_key="planner",
+        data={
+            "dialogue": [],
+            "temp_events": [],
+            "ai_planning_time": {}
+        }
+    )
     return render(request, 'home.html', context)
 
 
@@ -355,6 +365,8 @@ def update_events(request):
         last_modified = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+
+
         # 获取当前用户的 UserData 对象
 
         user_data, created, result = UserData.get_or_initialize(
@@ -366,9 +378,15 @@ def update_events(request):
         events = user_data.get_value(check=True)
         events = convert_time_format(events)
 
+        user_temp_events_data: 'UserData'
         user_temp_events_data, created, result = UserData.get_or_initialize(
             request=request,
-            new_key="planner"
+            new_key="planner",
+            data={
+                "dialogue": [],
+                "temp_events": [],
+                "ai_planning_time": {}
+                }
         )
 
         planner_data = user_temp_events_data.get_value()
@@ -890,5 +908,9 @@ def get_resources(request):
     ])})
     resources = user_data.get_value()
     return JsonResponse(resources, safe=False)
+
+
+def friendly_link(request):
+    return render(request, 'memory.html')
 
 

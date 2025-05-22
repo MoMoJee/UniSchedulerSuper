@@ -237,9 +237,10 @@ def ai_create(request):
         # AI设置
         json_file_path = "default_files/planner.json"  # 替换为你的 JSON 文件路径
         with open(json_file_path, 'r', encoding='utf-8') as file:
-            dialogues = json.load(file)
+            dialogues:list = json.load(file)
             for dialogue in dialogues:
                 dialogue["content"] = str(dialogue["content"])
+            system_prompt = dialogues.copy()  #  用于后续重审 system_prompt
 
         with open("default_files/AI_setting.json", 'r', encoding='utf-8') as file:
             ai_settings = json.load(file)
@@ -265,8 +266,10 @@ def ai_create(request):
         time_str = current_time.strftime("%Y:%m:%d:%H:%M %A")
 
         dialogues += dialogue_before
-        dialogues.append({"role": "user", "content": f"我已经确定了如下日程，请你尽量别影响这些已经安排的日程：{str(filtered_events)}"})
+        dialogues.append({"role": "system", "content": f"我已经确定了如下日程，你在安排日程时，应该注意两个原则：\n1. 如果我要求你生成的日程与我已经规划的日程有明确关联，或有时间/空间连续性，那么你就依附于我已有的日程生成新日程\n2. 如果我要求你生成的日程与我已经规划的日程没有关联，那么你不能让我要求你生成的新日程干扰我原有的日程：{str(filtered_events)}"})
         dialogues.append({"role": "user", "content": f"{time_str}  {str(user_input)}"})
+        dialogues.append({"role": "system", "content": "再次重申："})
+        dialogues += system_prompt
 
         # 解析AI回复
         # reply = ai_reply(dialogues, ai_setting)["response"]
@@ -630,14 +633,14 @@ def get_temp_long_events(request):
         # {"value": json.dumps()})
 
         user_events_data, created, result = UserData.get_or_initialize(request=request, new_key="events")
-
+        user_temp_events_data: 'UserData'
         user_temp_events_data, created, result =UserData.get_or_initialize(request=request, new_key="planner", data={
             "dialogue": [],
             "temp_events": [],
             "ai_planning_time": {}
         })
 
-        planner_data = user_temp_events_data.get_value()
+        planner_data = user_temp_events_data.get_value(check=True)
 
         temp_events = planner_data["temp_events"]
         events = user_events_data.get_value()

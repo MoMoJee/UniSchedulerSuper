@@ -25,5 +25,6 @@ urlpatterns = [
     path("get_calendar/check_modified_events", views.check_modified_events, name="check_modified_events"),
     path("get_calendar/change_view/", views.change_view, name="change_view"),
     path("get_calendar/user_settings/", views.user_settings, name="user_settings"),
+    path("friendly_link/", views.friendly_link, name="friendly_link"),
 
 ]
