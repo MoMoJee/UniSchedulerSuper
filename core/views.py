@@ -218,7 +218,7 @@ def user_preferences(request):
         user_preference_data, created, result = UserData.get_or_initialize(request, new_key="user_preference")
 
         # 设置并保存新的偏好数据
-        user_preference_data.set_value(updated_preference_dict)
+        user_preference_data.set_value(updated_preference_dict,check=True)
 
 
         return JsonResponse({'status': 'success', 'message': 'Preferences saved successfully.'})

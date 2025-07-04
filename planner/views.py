@@ -3,10 +3,13 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
-import ollama
 from openai import OpenAI
 import json
 import uuid
+
+from planner.LLMFunctions import find_or_create_preset, update_preset_with_dialogue
+from utils.utils import list_to_str
+
 
 # Create your views here.
 
@@ -92,7 +95,7 @@ def ai_suggestions(request):
 
         user_setting_data, created = UserData.objects.get_or_create(user=request.user, key="setting", defaults={"value": json.dumps({"AI_setting_code": 4})})
 
-
+        # TODO 这个莫名其妙的 AI 调用，真是
         ai_setting = {
             "url": "https://api.moonshot.cn/v1",
             "model": "kimi-latest",
@@ -192,6 +195,9 @@ def ai_create(request):
         user_events_data, created, result = UserData.get_or_initialize(request=request, new_key="events")
         events = user_events_data.get_value()
 
+        user_preference_data, created, result = UserData.get_or_initialize(request, new_key="user_preference")
+        user_preference = user_preference_data.get_value()
+
         planner_data = user_planner_data.get_value()
 
         ai_planning_time = planner_data['ai_planning_time']
@@ -246,34 +252,53 @@ def ai_create(request):
             ai_settings = json.load(file)
 
         user_data, created = UserData.objects.get_or_create(user=request.user, key="setting", defaults={"value": json.dumps({"AI_setting_code": 4})})
-        ai_setting = {
-            "url": "https://api.moonshot.cn/v1",
-            "model": "kimi-latest",
-            "api": "sk-uRE0Q10kqRt1PwxLPFYV4JV0bCDaL9r588URpIP2sCEcaVuX",
-            "name": "kimi-latest",
-            "temperature": 0.3,
-            "code": 3
-        }
         # TODO 这儿不是正确的调用方式，只是考虑到 AI 的 tool call 是直接 copy 的 moonshot，懒得改
 
         for ai_setting in ai_settings:
             if ai_setting["code"] == json.loads(user_data.value)["AI_setting_code"]:
                 break
+        else:
+            logger.warning(f"AI设置代码 {json.loads(user_data.value)['AI_setting_code']} 不存在")
+            return JsonResponse({'status': 'error', 'message': f"AI设置代码 {json.loads(user_data.value)['AI_setting_code']} 不存在"}, status=400)
+
 
 
         current_time = datetime.now()
         # 将当前时间格式化为字符串，格式为：年-月-日 时:分:秒
         time_str = current_time.strftime("%Y:%m:%d:%H:%M %A")
 
+
+        preset_result, status = find_or_create_preset(prompt_scene_presets=user_preference["prompt_scene_presets"],
+                                              _dialogue=dialogue_before + [{"role": "user","content": str(user_input)}],  # 这里去掉了属于这个场景
+                                              user_ai_settings={"AI_setting_code": ai_setting["code"]})  # TODO 显而易见这里不该这么写，但能跑
+
+        if status == "new_preset":
+            user_preference["prompt_scene_presets"].append(preset_result)
+            # TODO 还差一个 user_preference 的更新机制
+
+
+        preset_result_str = (
+            f"在场景【{preset_result['prompt_scene']}】相关的日程生成时，请注意：\n"
+            f"我期望实现：{list_to_str(preset_result['need'])}\n"
+            f"你不可以做的有：{list_to_str(preset_result['do_not'])}\n"
+            f"其他补充信息：{list_to_str(preset_result['other_info'])}"
+        )
+
         dialogues += dialogue_before
         dialogues.append({"role": "system", "content": f"我已经确定了如下日程，你在安排日程时，应该注意两个原则：\n1. 如果我要求你生成的日程与我已经规划的日程有明确关联，或有时间/空间连续性，那么你就依附于我已有的日程生成新日程\n2. 如果我要求你生成的日程与我已经规划的日程没有关联，那么你不能让我要求你生成的新日程干扰我原有的日程：{str(filtered_events)}"})
         dialogues.append({"role": "user", "content": f"{time_str}  {str(user_input)}"})
+        dialogues.append({"role": "user", "content": f"{time_str} {preset_result_str}"})
         dialogues.append({"role": "system", "content": "再次重申："})
-        dialogues += system_prompt
+        dialogues = dialogues + system_prompt
+
+        print(dialogues)
 
         # 解析AI回复
         # reply = ai_reply(dialogues, ai_setting)["response"]
 
+        for ai_setting in ai_settings:
+            if ai_setting["code"] == 3:  # TODO 这里强制设定了AI设置代码为 kimi，因为我用了 kimi 的联网搜索工具
+                break
 
         reply = web_search_ai_reply(dialogues, ai_setting)
         # TODO 这里是联网搜索的版本，可用但有点烧钱，可以考虑本地搜索引擎。同时这里的各种逻辑还是有点问题，毕竟直接换的，也不支持别的模型。此外我会添加一个联网搜索按钮
@@ -322,6 +347,7 @@ def ai_create(request):
         planner_data["temp_events"] = formated_created_events
 
         user_planner_data.set_value(planner_data)
+        user_preference_data.set_value(user_preference)
 
         return JsonResponse({"suggestions": [f'注意，{none_ai_planning_time_remind}, {final_suggestion}' if none_ai_planning_time_remind else final_suggestion], "events": created_events})
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
@@ -348,8 +374,10 @@ def get_previous_dialogue(request):
         for message in previous_dialogue:
             if message["role"] == "user":
                 formated_dialogue.append({"user": message["content"]})
-            else:
+            elif message["role"] == "assistant":
                 formated_dialogue.append({"ai": (json.loads(message["content"]))["suggestion"]["我的建议"]})
+            else:
+                continue
 
 
         return JsonResponse({"dialogue": formated_dialogue, "tempEvents": temp_events})
@@ -373,6 +401,9 @@ def merge_temp_events(request):
 
             user_events_data, created, result = UserData.get_or_initialize(request, new_key="events")
 
+            user_preference_data, created, result = UserData.get_or_initialize(request, new_key="user_preference")
+            user_preference = user_preference_data.get_value()
+
 
             planner_data = user_planner_data.get_value()
             temp_events = planner_data["temp_events"]
@@ -390,6 +421,13 @@ def merge_temp_events(request):
                 events = user_events_data.get_value()
                 events += temp_events
                 user_events_data.set_value(events)
+
+                dialogue.append(
+                    {"role": "system",
+                     "content": "用户对之前生成的日程已经满意，除非用户有要求，否则不需要再生成与之前的要求对应的日程，只关注之后的需求即可",
+                     }
+                )
+                # 用户点那个“仅合并日程”，一般是为了开始生成新的，对之前生成的已经满意了
 
                 user_planner_data.set_value({
                     "dialogue": dialogue,
@@ -412,6 +450,18 @@ def merge_temp_events(request):
                     "temp_events": [],
                     "ai_planning_time": {}
                 })
+
+                # TODO 下面粗略地实现更新用户的 prompt_scene_presets 的功能
+                # TODO 这里的匹配感觉优点太模糊，我刚才试了一下，让安排考试复习日程，但是给我匹配到之前写的根据每日日程课程安排做作业了
+                new_prompt_scene_presets = update_preset_with_dialogue(
+                    prompt_scene_presets=user_preference["prompt_scene_presets"],
+                    _dialogue=dialogue,
+                    user_ai_settings={"AI_setting_code": 2})
+
+                if new_prompt_scene_presets:
+                    user_preference["prompt_scene_presets"] = new_prompt_scene_presets
+                    user_preference_data.set_value(user_preference)
+
             else:
                 return JsonResponse({'status': 'error', 'message': 'Invalid action'}, status=400)
 
@@ -441,6 +491,9 @@ def add_to_ai_planning_time(request):
             try:
                 start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
             except (ValueError, TypeError):
+                for i in range(3):
+                    start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
+
                 try:
                     date_obj = datetime.strptime(start_time, "%Y-%m-%d")
                     start_time = date_obj.replace(hour=0, minute=0, second=0)
@@ -640,7 +693,7 @@ def get_temp_long_events(request):
             "ai_planning_time": {}
         })
 
-        planner_data = user_temp_events_data.get_value(check=True)
+        planner_data = user_temp_events_data.get_value(check=False)
 
         temp_events = planner_data["temp_events"]
         events = user_events_data.get_value()

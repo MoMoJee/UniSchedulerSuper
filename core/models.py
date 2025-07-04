@@ -196,12 +196,12 @@ DATA_SCHEMA = {
                 "items": {
                     "start": {
                         "type": str,
-                        "nullable": False,
+                        "nullable": True,
                         "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     },
                     "end": {
                         "type": str,
-                        "nullable": False,
+                        "nullable": True,
                         "default": (datetime.datetime.now() + datetime.timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S"),
                     },
                 },
@@ -264,6 +264,32 @@ DATA_SCHEMA = {
                 "type": bool,
                 "nullable": True,
                 "default": True,
+            },
+            "prompt_scene_presets": {
+                "type": list,
+                "nullable": False,
+                "default": [],
+                "items": {
+                    "prompt_scene": {
+                        "type": str,
+                        "nullable": True,
+                    },
+                    "need": {
+                        "type": list,
+                        "nullable": True,
+                        "default": [],
+                    },
+                    "do_not": {
+                        "type": list,
+                        "nullable": True,
+                        "default": [],
+                    },
+                    "other_info": {
+                        "type": list,
+                        "nullable": True,
+                        "default": [],
+                    },
+                },
             },
         },
     },
@@ -467,7 +493,7 @@ class UserData(models.Model):
         根据 schema 验证和初始化数据。
         如果数据不符合 schema，将根据 schema 的默认值进行初始化。
         """
-        if not data:
+        if data is None:
             return schema.get("default", {})
 
         # 如果数据类型不匹配，直接返回默认值
