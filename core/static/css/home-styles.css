@@ -1,0 +1,915 @@
+/* CSS 变量定义 */
+:root {
+    --background-color: #ffffff;
+    --border-color: #e9ecef;
+    --text-color: #333333;
+    --primary-color: #007bff;
+}
+
+/* 全局样式 */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: 'Arial', sans-serif;
+    background-color: #f5f5f5;
+}
+
+/* FullCalendar 基础样式确保 */
+.fc {
+    direction: ltr;
+    text-align: left;
+}
+
+.fc-theme-standard td,
+.fc-theme-standard th {
+    border: 1px solid #ddd;
+}
+
+/* 让整个时间网格容器填满空间但不直接滚动 */
+.fc-timegrid {
+    flex: 1 !important; /* 占满剩余空间 */
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: visible !important; /* 让内部的滚动器处理滚动 */
+    min-height: 0 !important; /* 允许收缩以适应屏幕 */
+}
+
+/* 确保日历容器有足够的高度 */
+#calendar {
+    min-height: 600px;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+/* 头部样式 */
+.header {
+    background: white;
+    padding: 15px 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+}
+
+.header h1 {
+    margin: 0;
+    color: #333;
+    font-size: 24px;
+}
+
+.header-nav {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.nav-button {
+    padding: 8px 16px;
+    background: #f8f9fa;
+    color: #666;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: all 0.3s;
+    border: 1px solid #e9ecef;
+}
+
+.nav-button:hover {
+    background: #007bff;
+    color: white;
+}
+
+.logout-button {
+    background: #dc3545;
+    color: white;
+}
+
+.logout-button:hover {
+    background: #c82333;
+}
+
+/* 主要内容区域 - 新的响应式布局 */
+.main-container {
+    display: flex;
+    height: calc(100vh - 76px); /* 减去导航栏高度 */
+    gap: 0; /* 移除gap，让调节器紧贴面板 */
+    padding: 10px;
+    overflow: hidden;
+    align-items: stretch; /* 确保所有面板同等高度 */
+    flex-wrap: nowrap; /* 禁止换行 */
+}
+
+/* 面板基础样式 */
+.resizable-panel {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* 允许flex子项缩小 */
+    position: relative;
+    margin: 0 5px; /* 添加左右边距 */
+}
+
+/* 左侧面板 - 待办事项和提醒 */
+.left-panel {
+    flex: 0 0 20%; /* 固定20%宽度，不伸缩 */
+    min-width: 250px;
+    max-width: 35%; /* 限制最大宽度 */
+    background-color: #fff; /* 调试用 */
+    margin-left: 0; /* 移除左边距 */
+}
+
+/* 中央面板 - 日历 */
+.center-panel {
+    flex: 1 1 50%; /* 允许收缩，基础50%宽度 */
+    min-width: 400px;
+    background-color: #f0f8ff; /* 调试用 - 淡蓝色 */
+}
+
+/* 右侧面板 - AI助手 */
+.right-panel {
+    flex: 0 0 30%; /* 固定30%宽度，不伸缩 */
+    min-width: 250px;
+    max-width: 35%; /* 限制最大宽度 */
+    background-color: #f0fff0; /* 调试用 - 淡绿色 */
+    margin-right: 0; /* 移除右边距 */
+}
+
+/* 面板头部 */
+.panel-header {
+    padding: 15px 20px 10px 20px;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.panel-header h5 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+}
+
+/* 面板内容 */
+.panel-content {
+    flex: 1;
+    padding: 15px 20px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 左侧面板的特殊样式 */
+.section-half {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.section-header {
+    padding: 10px 15px;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.section-header h6 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.section-content {
+    flex: 1;
+    padding: 10px 15px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.section-divider {
+    height: 1px;
+    background: #e9ecef;
+    margin: 0 15px;
+    flex-shrink: 0;
+}
+
+/* 可滚动内容区域 */
+.scrollable-content {
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* 筛选器控件固定在顶部 */
+.filter-controls, .reminder-filters {
+    background-color: var(--background-color);
+    border-bottom: 1px solid var(--border-color);
+    padding: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.scrollable-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scrollable-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.scrollable-content::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.scrollable-content::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* 调节器样式 */
+.resize-handle {
+    width: 8px;
+    background: transparent;
+    cursor: col-resize;
+    flex-shrink: 0;
+    position: relative;
+    transition: background-color 0.2s;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.resize-handle:hover {
+    background: rgba(0, 123, 255, 0.1);
+}
+
+.resize-handle::before {
+    content: '';
+    width: 4px;
+    height: 40px;
+    background: #ddd;
+    border-radius: 2px;
+    transition: background-color 0.2s;
+}
+
+.resize-handle:hover::before {
+    background: #007bff;
+}
+
+/* 拖动状态样式 */
+.resize-handle.resizing {
+    background: rgba(0, 123, 255, 0.2);
+}
+
+.resize-handle.resizing::before {
+    background: #007bff;
+}
+
+/* 日历区域特殊样式 */
+.calendar-content {
+    position: relative;
+    flex: 1; /* 占满剩余空间 */
+    min-height: 0; /* 允许收缩 */
+    overflow-y: auto; /* 恢复垂直滚动 */
+    overflow-x: hidden; /* 隐藏水平滚动条 */
+    padding: 10px; /* 添加内边距 */
+    display: flex; /* 使用flex布局 */
+    flex-direction: column; /* 垂直布局 */
+}
+
+.calendar-container {
+    min-height: 100%; /* 最小高度为容器高度 */
+    background: white;
+    border-radius: 4px;
+    flex: 1; /* 占满父容器 */
+    display: flex; /* 使用flex布局 */
+    flex-direction: column; /* 垂直布局 */
+}
+
+/* 确保FullCalendar适应容器 */
+.fc {
+    height: 100% !important; /* 填满整个容器 */
+    display: flex !important; /* 使用flex布局 */
+    flex-direction: column !important; /* 垂直布局 */
+}
+
+/* FullCalendar的视图容器 */
+.fc-view-harness {
+    flex: 1 !important; /* 占满剩余空间 */
+    height: 100% !important; /* 确保填满容器 */
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* 让整个时间网格容器填满空间但不直接滚动 */
+.fc-timegrid {
+    flex: 1 !important; /* 占满剩余空间 */
+    height: 100% !important; /* 确保填满容器 */
+    overflow: visible !important; /* 让内部的滚动器处理滚动 */
+    min-height: 400px !important; /* 确保最小高度 */
+}
+
+/* 确保时间网格body有足够高度 */
+.fc-timegrid-body {
+    min-height: 720px !important; /* 24小时 * 30px */
+}
+
+/* 不再单独设置时间槽滚动 */
+.fc-timegrid-slots {
+    overflow: visible !important;
+    max-height: none !important;
+    min-height: 720px !important; /* 确保24小时都显示 */
+}
+
+/* 恢复滚动器的滚动功能，但移除固定高度 */
+.fc-scroller {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    /* 移除固定的max-height，让它自适应 */
+}
+
+/* 针对时间网格滚动容器进行设置 */
+.fc-scroller-harness .fc-scroller,
+.fc-timegrid .fc-scroller {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    flex: 1 !important; /* 占据剩余空间 */
+    min-height: 0 !important; /* 允许收缩 */
+}
+
+/* 全天槽专用样式 - 使用最高优先级强制覆盖 */
+.fc-header-toolbar + .fc-view-harness .fc-daygrid-header,
+.fc-view .fc-daygrid-header,
+.fc-daygrid-header,
+.fc-col-header {
+    max-height: 50px !important;
+    min-height: 30px !important;
+    height: 50px !important;
+    overflow: visible !important; /* 改为visible以显示"全天"文字 */
+    flex: 0 0 50px !important;
+}
+
+.fc-daygrid-header .fc-scroller,
+.fc-col-header .fc-scroller,
+.fc-daygrid .fc-scroller:not(.fc-timegrid .fc-scroller),
+.fc-header-toolbar + .fc-view-harness .fc-daygrid-header .fc-scroller {
+    overflow: visible !important; /* 改为visible以显示"全天"文字 */
+    max-height: 50px !important;
+    height: auto !important; /* 改为auto让内容自适应 */
+    scrollbar-width: none !important; /* Firefox */
+    -ms-overflow-style: none !important; /* IE */
+}
+
+.fc-daygrid-header .fc-scroller::-webkit-scrollbar,
+.fc-col-header .fc-scroller::-webkit-scrollbar {
+    display: none !important; /* Chrome, Safari */
+}
+
+/* 更强制的全天槽样式 */
+.fc-view-harness .fc-daygrid-header {
+    flex: 0 0 50px !important; /* 不要伸缩，固定高度 */
+    max-height: 50px !important;
+}
+
+/* 全天事件样式调整 */
+.fc-daygrid-event {
+    margin: 1px 0 !important;
+    padding: 2px 4px !important;
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+}
+
+/* 确保时间表格有足够高度显示所有时间 */
+.fc-scrollgrid-sync-table {
+    min-height: 720px !important; /* 24小时的高度 */
+}
+
+/* 保持时间槽的高度 */
+.fc-timegrid-slot {
+    height: 30px !important; /* 固定每个时间槽30px高度 */
+}
+
+/* 确保事件列和时间槽同步 */
+.fc-timegrid-cols {
+    min-height: 720px !important;
+}
+
+/* 确保时间轴正常显示 */
+.fc-timegrid-axis {
+    min-width: 50px;
+}
+
+.fc-view-harness {
+    height: 100% !important;
+}
+
+/* 模态框统一样式 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* 半透明遮罩 */
+    backdrop-filter: blur(2px); /* 背景模糊效果 */
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal.show {
+    display: flex !important;
+    opacity: 1;
+}
+
+.modal-content {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    width: 30vw; /* 宽度占视窗30% */
+    height: 50vh; /* 高度占视窗50% */
+    min-width: 400px; /* 最小宽度400px */
+    min-height: 300px; /* 最小高度300px */
+    max-width: 90vw; /* 最大宽度不超过90% */
+    max-height: 90vh; /* 最大高度不超过90% */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    transform: scale(0.8);
+    transition: transform 0.3s ease;
+}
+
+.modal.show .modal-content {
+    transform: scale(1);
+}
+
+/* 响应式设计：确保宽度不低于高度的110% */
+@media (max-aspect-ratio: 11/10) {
+    .modal-content {
+        width: 55vh; /* 高度的110% */
+        min-width: 55vh;
+    }
+}
+
+/* 手机端适配 */
+@media (max-width: 768px) {
+    .modal-content {
+        width: 85vw;
+        height: 70vh;
+        min-width: 300px;
+        min-height: 400px;
+    }
+}
+
+/* 平板端适配 */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .modal-content {
+        width: 50vw;
+        height: 60vh;
+    }
+}
+
+.modal-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px 12px 0 0;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: white;
+}
+
+.modal-body {
+    padding: 24px;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.modal-footer {
+    padding: 16px 24px 20px;
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-shrink: 0;
+    background-color: #f8f9fa;
+    border-radius: 0 0 12px 12px;
+}
+
+.close {
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    line-height: 1;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.close:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+/* 文字截断样式 */
+.text-truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2; /* 标准属性 */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.text-truncate-1 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 列表项样式 */
+.todo-item, .reminder-item {
+    margin-bottom: 8px;
+    padding: 10px;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    background: #f8f9fa;
+    transition: box-shadow 0.2s;
+}
+
+.todo-item:hover, .reminder-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.todo-item .title, .reminder-item .title {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.todo-item .meta, .reminder-item .meta {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+/* AI聊天区域样式 */
+.ai-chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 200px;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    background: #f8f9fa;
+}
+
+.welcome-message {
+    text-align: center;
+    color: #6c757d;
+    padding: 20px;
+}
+
+.welcome-message i {
+    font-size: 24px;
+    margin-bottom: 10px;
+    color: #007bff;
+}
+
+.welcome-message ul {
+    text-align: left;
+    display: inline-block;
+    margin-top: 10px;
+}
+
+.chat-input-area {
+    flex-shrink: 0;
+}
+
+/* 按钮样式优化 */
+.create-btn {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.ai-quick-actions .btn {
+    font-size: 13px;
+    padding: 6px 12px;
+}
+
+/* 响应式布局 */
+@media (max-width: 1200px) {
+    .left-panel {
+        flex: 0 0 25%; /* 调整为25% */
+        min-width: 200px;
+    }
+    
+    .center-panel {
+        flex: 0 0 45%; /* 调整为45% */
+    }
+    
+    .right-panel {
+        flex: 0 0 30%; /* 保持30% */
+        min-width: 250px;
+    }
+}
+
+@media (max-width: 992px) {
+    .main-container {
+        flex-direction: column;
+        height: auto;
+        min-height: calc(100vh - 76px);
+    }
+    
+    .left-panel, .center-panel, .right-panel {
+        flex: 1 1 auto !important; /* 允许自动调整 */
+        margin: 5px 10px;
+        max-width: none;
+        min-width: 200px;
+    }
+    
+    .resize-handle {
+        display: none;
+    }
+    
+    .section-half {
+        min-height: 300px;
+    }
+    
+    .center-panel {
+        order: 1;
+        min-height: 500px;
+    }
+    
+    .left-panel {
+        order: 2;
+    }
+    
+    .right-panel {
+        order: 3;
+        min-height: 400px;
+    }
+}
+
+@media (max-width: 768px) {
+    .main-container {
+        margin: 0;
+    }
+    
+    .resizable-panel {
+        margin: 5px;
+        border-radius: 4px;
+    }
+    
+    .panel-header {
+        padding: 10px 15px 8px 15px;
+    }
+    
+    .panel-header h5 {
+        font-size: 14px;
+    }
+    
+    .section-header h6 {
+        font-size: 13px;
+    }
+    
+    .filter-controls {
+        margin-bottom: 8px;
+    }
+    
+    .form-select-sm {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+}
+
+/* 自定义滚动条样式适配 */
+@media (max-width: 768px) {
+    .scrollable-content::-webkit-scrollbar {
+        width: 4px;
+    }
+}
+
+/* 日历锁定纵向显示范围 */
+.calendar-container {
+    position: relative;
+    overflow: hidden !important;
+}
+
+.fc-view-harness {
+    overflow: hidden !important;
+}
+
+/* 禁用日历的滚动 */
+.fc-scroller {
+    overflow-y: hidden !important;
+    overflow-x: hidden !important;
+}
+
+.fc-daygrid-body {
+    overflow: hidden !important;
+}
+
+/* 确保日历适应固定高度 */
+.fc-daygrid-day-frame {
+    min-height: auto !important;
+    height: auto !important;
+}
+
+/* 优化表格样式 */
+.fc-theme-standard .fc-scrollgrid {
+    border: 1px solid #e0e0e0;
+}
+
+.fc-theme-standard td, .fc-theme-standard th {
+    border-color: #e9ecef;
+}
+
+/* 加载状态样式 */
+.loading-placeholder {
+    text-align: center;
+    padding: 20px;
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.loading-placeholder i {
+    margin-right: 8px;
+}
+
+/* 日历区域 */
+.calendar-section {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.calendar-title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+}
+
+.calendar-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.action-button {
+    padding: 8px 12px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.action-button:hover {
+    background: #0056b3;
+}
+
+.action-button.secondary {
+    background: #6c757d;
+}
+
+.action-button.secondary:hover {
+    background: #545b62;
+}
+
+/* 重复提醒UI样式 */
+.form-check-switch .form-check-input {
+    width: 2.5rem;
+    height: 1.25rem;
+    margin-left: -2.875rem;
+}
+
+.form-check-switch .form-check-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.weekdays-toggle {
+    display: flex;
+    gap: 2px;
+    flex-wrap: wrap;
+}
+
+.weekdays-toggle .btn {
+    min-width: 40px;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.weekdays-toggle .btn-check:checked + .btn-outline-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.weekdays-toggle .btn-outline-primary {
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.weekdays-toggle .btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+#editScopeSelection .btn-group {
+    width: 100%;
+}
+
+#editScopeSelection .btn-group .btn {
+    flex: 1;
+    font-size: 14px;
+    padding: 8px 12px;
+}
+
+#editScopeSelection .btn-check:checked + .btn-outline-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.repeat-preview {
+    font-style: italic;
+    color: #6c757d;
+}
+
+.card .card-body {
+    background: rgba(0, 123, 255, 0.05);
+}
+
+/* 禁用状态的表单控件样式 */
+.form-control:disabled,
+.form-select:disabled {
+    background-color: #f8f9fa;
+    opacity: 0.7;
+}
+
+.btn:disabled,
+.btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.weekdays-toggle .btn:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}

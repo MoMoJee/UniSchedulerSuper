@@ -1,0 +1,1139 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UniSchedulerSuper - 智能日程管理系统</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/home-styles.css' %}">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar navbar-expand-lg bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand text-white" href="#">
+                <i class="fas fa-calendar-check me-2"></i>
+                UniSchedulerSuper
+            </a>
+            
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-white" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle me-1"></i>
+                        用户
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>设置</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-question-circle me-2"></i>帮助</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-sign-out-alt me-2"></i>退出</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容区域 -->
+    <div class="main-container">
+        <!-- 左侧面板 - 待办事项和提醒 -->
+        <div class="left-panel resizable-panel" data-min-width="15" data-max-width="35">
+            <!-- 待办事项区域 -->
+            <div class="todo-section section-half">
+                <div class="section-header">
+                    <h6><i class="fas fa-tasks me-2"></i>待办事项</h6>
+                    <button class="btn btn-primary btn-sm create-btn" onclick="modalManager.openCreateTodoModal()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                
+                <!-- 待办事项筛选和排序 - 固定在顶部 -->
+                <div class="filter-controls mb-2">
+                    <div class="row g-1">
+                        <div class="col-6">
+                            <select class="form-select form-select-sm" id="todoStatusFilter">
+                                <option value="">全部状态</option>
+                                <option value="pending">待完成</option>
+                                <option value="in_progress">进行中</option>
+                                <option value="completed">已完成</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <select class="form-select form-select-sm" id="todoSortBy">
+                                <option value="priority">按优先级</option>
+                                <option value="due_date">按到期时间</option>
+                                <option value="created_at">按创建时间</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section-content scrollable-content">
+                    <!-- 待办事项列表 -->
+                    <div id="todoList" class="todo-list">
+                        <div class="loading-placeholder">
+                            <i class="fas fa-spinner fa-spin"></i> 加载中...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分隔线 -->
+            <div class="section-divider"></div>
+
+            <!-- 提醒区域 -->
+            <div class="reminder-section section-half">
+                <div class="section-header">
+                    <h6><i class="fas fa-bell me-2"></i>提醒</h6>
+                    <button class="btn btn-primary btn-sm create-btn" onclick="modalManager.openCreateReminderModal()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                
+                <!-- 提醒筛选控件 - 固定在顶部 -->
+                <div class="reminder-filters mb-2">
+                    <div class="row g-1">
+                        <div class="col-6">
+                            <select id="reminderTimeRange" class="form-select form-select-sm">
+                                <option value="today">今天</option>
+                                <option value="week">本周</option>
+                                <option value="month">本月</option>
+                                <option value="quarter">本季度</option>
+                                <option value="year">一年内</option>
+                                <option value="all">全部时间</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <select id="reminderStatusFilter" class="form-select form-select-sm">
+                                <option value="active">活跃</option>
+                                <option value="completed">已完成</option>
+                                <option value="dismissed">已忽略</option>
+                                <option value="snoozed">已延后</option>
+                                <option value="all">全部状态</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-1 mt-1">
+                        <div class="col-6">
+                            <select id="reminderPriorityFilter" class="form-select form-select-sm">
+                                <option value="all">全部优先级</option>
+                                <option value="critical">紧急</option>
+                                <option value="high">高优先级</option>
+                                <option value="medium">中优先级</option>
+                                <option value="low">低优先级</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <select id="reminderTypeFilter" class="form-select form-select-sm">
+                                <option value="all">全部类型</option>
+                                <option value="single">单次提醒</option>
+                                <option value="recurring">重复提醒</option>
+                                <option value="detached">已分离</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section-content scrollable-content">
+                    <div id="reminderList" class="reminder-list">
+                        <div class="loading-placeholder">
+                            <i class="fas fa-spinner fa-spin"></i> 加载中...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 调节器 -->
+        <div class="resize-handle left-resize" data-target="left-panel"></div>
+
+        <!-- 中央面板 - 日历 -->
+        <div class="center-panel resizable-panel" data-min-width="30" data-max-width="70">
+            <div class="panel-header">
+                <h5><i class="fas fa-calendar-alt me-2"></i>日程日历</h5>
+                <div class="calendar-controls">
+                    <button class="btn btn-outline-primary btn-sm me-2" onclick="modalManager.openCreateEventModal()">
+                        <i class="fas fa-plus me-1"></i>新建事件
+                    </button>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="eventManager.calendar.today()">今天</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="eventManager.calendar.prev()">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="eventManager.calendar.next()">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel-content calendar-content">
+                <div id="calendar" class="calendar-container"></div>
+            </div>
+        </div>
+
+        <!-- 调节器 -->
+        <div class="resize-handle right-resize" data-target="center-panel"></div>
+
+        <!-- 右侧面板 - AI助手 -->
+        <div class="right-panel resizable-panel" data-min-width="20" data-max-width="50">
+            <div class="panel-header">
+                <h5><i class="fas fa-robot me-2"></i>AI助手</h5>
+                <button class="btn btn-outline-primary btn-sm" id="aiChatToggle">
+                    <i class="fas fa-comment"></i>
+                </button>
+            </div>
+            
+            <div class="panel-content scrollable-content">
+                <div class="ai-quick-actions mb-3">
+                    <button class="btn btn-outline-info btn-sm w-100 mb-2" onclick="aiAssistant.smartSchedule()">
+                        <i class="fas fa-magic me-1"></i>智能安排
+                    </button>
+                    <button class="btn btn-outline-success btn-sm w-100 mb-2" onclick="aiAssistant.analyzePriority()">
+                        <i class="fas fa-chart-line me-1"></i>优先级分析
+                    </button>
+                    <button class="btn btn-outline-warning btn-sm w-100 mb-2" onclick="aiAssistant.timeBlocking()">
+                        <i class="fas fa-clock me-1"></i>时间块分配
+                    </button>
+                </div>
+                
+                <div class="ai-chat-area">
+                    <div class="chat-messages" id="aiChatMessages">
+                        <div class="welcome-message">
+                            <i class="fas fa-robot"></i>
+                            <p>你好！我是你的AI助手，可以帮你：</p>
+                            <ul>
+                                <li>智能安排日程</li>
+                                <li>分析任务优先级</li>
+                                <li>优化时间分配</li>
+                                <li>提供效率建议</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-input-area">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="aiChatInput" placeholder="输入你的问题...">
+                            <button class="btn btn-primary" id="aiSendButton">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建事件模态框 -->
+    <div class="modal" id="createEventModal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-calendar-plus me-2"></i>创建新事件
+                </h5>
+                <span class="close">&times;</span>
+            </div>
+            
+            <form id="createEventForm" class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="newEventTitle" class="form-label">标题 *</label>
+                        <input type="text" class="form-control form-input" id="newEventTitle" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="newEventGroupId" class="form-label">日程组</label>
+                        <select class="form-select" id="newEventGroupId">
+                            <option value="">无</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="newEventStart" class="form-label">开始时间 *</label>
+                        <input type="datetime-local" class="form-control form-input" id="newEventStart" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="newEventEnd" class="form-label">结束时间 *</label>
+                        <input type="datetime-local" class="form-control form-input" id="newEventEnd" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="creatEventDdl" class="form-label">截止时间</label>
+                        <input type="datetime-local" class="form-control" id="creatEventDdl">
+                    </div>
+                    
+                    <div class="col-12">
+                        <label for="newEventDescription" class="form-label">描述</label>
+                        <textarea class="form-control" id="newEventDescription" rows="3"></textarea>
+                    </div>
+                    
+                    <!-- 重要性紧急性矩阵 -->
+                    <div class="col-12">
+                        <label class="form-label">重要性 / 紧急性</label>
+                        <div class="importance-urgency-matrix">
+                            <div class="matrix-row">
+                                <button type="button" class="matrix-button important-urgent" 
+                                        data-importance="high" data-urgency="high"
+                                        onclick="setImportanceUrgency('high', 'high', this)">
+                                    重要紧急
+                                </button>
+                                <button type="button" class="matrix-button important-not-urgent" 
+                                        data-importance="high" data-urgency="low"
+                                        onclick="setImportanceUrgency('high', 'low', this)">
+                                    重要不紧急
+                                </button>
+                            </div>
+                            <div class="matrix-row">
+                                <button type="button" class="matrix-button not-important-urgent" 
+                                        data-importance="low" data-urgency="high"
+                                        onclick="setImportanceUrgency('low', 'high', this)">
+                                    不重要紧急
+                                </button>
+                                <button type="button" class="matrix-button not-important-not-urgent" 
+                                        data-importance="low" data-urgency="low"
+                                        onclick="setImportanceUrgency('low', 'low', this)">
+                                    不重要不紧急
+                                </button>
+                            </div>
+                        </div>
+                        <input type="hidden" id="newEventImportance">
+                        <input type="hidden" id="newEventUrgency">
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="modalManager.closeAllModals()">取消</button>
+                    <button type="submit" class="btn btn-primary">创建事件</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 编辑事件模态框 -->
+    <div class="modal" id="editEventModal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-calendar-edit me-2"></i>编辑事件
+                </h5>
+                <span class="close">&times;</span>
+            </div>
+            
+            <form id="editEventForm" class="modal-body">
+                <input type="hidden" id="eventId">
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="eventTitle" class="form-label">标题 *</label>
+                        <input type="text" class="form-control form-input" id="eventTitle" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="eventGroupId" class="form-label">日程组</label>
+                        <select class="form-select" id="eventGroupId">
+                            <option value="">无</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="eventStart" class="form-label">开始时间 *</label>
+                        <input type="datetime-local" class="form-control form-input" id="eventStart" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="eventEnd" class="form-label">结束时间 *</label>
+                        <input type="datetime-local" class="form-control form-input" id="eventEnd" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="eventDdl" class="form-label">截止时间</label>
+                        <input type="datetime-local" class="form-control" id="eventDdl">
+                    </div>
+                    
+                    <div class="col-12">
+                        <label for="eventDescription" class="form-label">描述</label>
+                        <textarea class="form-control" id="eventDescription" rows="3"></textarea>
+                    </div>
+                    
+                    <!-- 重要性紧急性矩阵 -->
+                    <div class="col-12">
+                        <label class="form-label">重要性 / 紧急性</label>
+                        <div class="importance-urgency-matrix">
+                            <div class="matrix-row">
+                                <button type="button" class="matrix-button important-urgent" 
+                                        data-importance="high" data-urgency="high"
+                                        onclick="setImportanceUrgency('high', 'high', this)">
+                                    重要紧急
+                                </button>
+                                <button type="button" class="matrix-button important-not-urgent" 
+                                        data-importance="high" data-urgency="low"
+                                        onclick="setImportanceUrgency('high', 'low', this)">
+                                    重要不紧急
+                                </button>
+                            </div>
+                            <div class="matrix-row">
+                                <button type="button" class="matrix-button not-important-urgent" 
+                                        data-importance="low" data-urgency="high"
+                                        onclick="setImportanceUrgency('low', 'high', this)">
+                                    不重要紧急
+                                </button>
+                                <button type="button" class="matrix-button not-important-not-urgent" 
+                                        data-importance="low" data-urgency="low"
+                                        onclick="setImportanceUrgency('low', 'low', this)">
+                                    不重要不紧急
+                                </button>
+                            </div>
+                        </div>
+                        <input type="hidden" id="eventImportance">
+                        <input type="hidden" id="eventUrgency">
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" onclick="modalManager.handleDeleteEvent()">删除</button>
+                    <button type="button" class="btn btn-secondary" onclick="modalManager.closeAllModals()">取消</button>
+                    <button type="submit" class="btn btn-primary" onclick="modalManager.handleUpdateEvent()">更新事件</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 创建待办事项模态框 -->
+    <div class="modal" id="createTodoModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus-circle me-2"></i>创建待办事项
+                </h5>
+                <span class="close">&times;</span>
+            </div>
+            
+            <form id="createTodoForm" class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label for="newTodoTitle" class="form-label">标题 *</label>
+                        <input type="text" class="form-control form-input" id="newTodoTitle" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="newTodoDueDate" class="form-label">到期时间</label>
+                        <input type="datetime-local" class="form-control" id="newTodoDueDate">
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="newTodoEstimatedDuration" class="form-label">预计耗时（分钟）</label>
+                        <input type="number" class="form-control" id="newTodoEstimatedDuration" min="1">
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="newTodoImportance" class="form-label">重要性</label>
+                        <select class="form-select" id="newTodoImportance">
+                            <option value="low">低</option>
+                            <option value="medium" selected>中</option>
+                            <option value="high">高</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="newTodoUrgency" class="form-label">紧急性</label>
+                        <select class="form-select" id="newTodoUrgency">
+                            <option value="low">低</option>
+                            <option value="normal" selected>普通</option>
+                            <option value="high">高</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-12">
+                        <label for="newTodoGroupId" class="form-label">日程组</label>
+                        <select class="form-select" id="newTodoGroupId">
+                            <option value="">无</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-12">
+                        <label for="newTodoDescription" class="form-label">描述</label>
+                        <textarea class="form-control" id="newTodoDescription" rows="3"></textarea>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="modalManager.closeAllModals()">取消</button>
+                    <button type="submit" class="btn btn-primary">创建待办</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 编辑待办事项模态框 -->
+    <div class="modal" id="editTodoModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>编辑待办事项
+                </h5>
+                <span class="close">&times;</span>
+            </div>
+            
+            <form id="editTodoForm" class="modal-body">
+                <input type="hidden" id="todoId">
+                
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label for="todoTitle" class="form-label">标题 *</label>
+                        <input type="text" class="form-control form-input" id="todoTitle" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="todoDueDate" class="form-label">到期时间</label>
+                        <input type="datetime-local" class="form-control" id="todoDueDate">
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="todoEstimatedDuration" class="form-label">预计耗时（分钟）</label>
+                        <input type="number" class="form-control" id="todoEstimatedDuration" min="1">
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="todoImportance" class="form-label">重要性</label>
+                        <select class="form-select" id="todoImportance">
+                            <option value="low">低</option>
+                            <option value="medium">中</option>
+                            <option value="high">高</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="todoUrgency" class="form-label">紧急性</label>
+                        <select class="form-select" id="todoUrgency">
+                            <option value="low">低</option>
+                            <option value="normal">普通</option>
+                            <option value="high">高</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-12">
+                        <label for="todoGroupId" class="form-label">日程组</label>
+                        <select class="form-select" id="todoGroupId">
+                            <option value="">无</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-12">
+                        <label for="todoDescription" class="form-label">描述</label>
+                        <textarea class="form-control" id="todoDescription" rows="3"></textarea>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" onclick="todoManager.deleteTodo(modalManager.currentTodoId)">删除</button>
+                    <button type="button" class="btn btn-secondary" onclick="modalManager.closeAllModals()">取消</button>
+                    <button type="submit" class="btn btn-primary" onclick="modalManager.handleUpdateTodo()">更新待办</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 创建提醒模态框 -->
+    <div class="modal" id="createReminderModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-bell-plus me-2"></i>创建提醒
+                </h5>
+                <span class="close">&times;</span>
+            </div>
+            
+            <form id="createReminderForm" class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label for="newReminderTitle" class="form-label">标题 *</label>
+                        <input type="text" class="form-control form-input" id="newReminderTitle" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="newReminderTriggerTime" class="form-label">提醒时间 *</label>
+                        <input type="datetime-local" class="form-control form-input" id="newReminderTriggerTime" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="newReminderPriority" class="form-label">优先级</label>
+                        <select class="form-select" id="newReminderPriority">
+                            <option value="low">低</option>
+                            <option value="normal" selected>普通</option>
+                            <option value="high">高</option>
+                            <option value="urgent">紧急</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="newReminderRepeat" onchange="toggleRepeatOptions('new')">
+                            <label class="form-check-label" for="newReminderRepeat">
+                                <i class="fas fa-repeat me-2"></i>重复提醒
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12" id="newRepeatOptions" style="display: none;">
+                        <div class="card bg-light">
+                            <div class="card-body p-3">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="newRepeatFreq" class="form-label">重复频率</label>
+                                        <select class="form-select" id="newRepeatFreq" onchange="updateRepeatOptions('new')">
+                                            <option value="DAILY">每天</option>
+                                            <option value="WEEKLY">每周</option>
+                                            <option value="MONTHLY">每月</option>
+                                            <option value="YEARLY">每年</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="newRepeatInterval" class="form-label">间隔</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">每</span>
+                                            <input type="number" class="form-control" id="newRepeatInterval" value="1" min="1" max="365">
+                                            <span class="input-group-text" id="newIntervalUnit">天</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-12" id="newWeekdaysOptions" style="display: none;">
+                                        <label class="form-label">重复日期</label>
+                                        <div class="btn-group weekdays-toggle" role="group">
+                                            <input type="checkbox" class="btn-check" id="newMO" value="MO">
+                                            <label class="btn btn-outline-primary btn-sm" for="newMO">一</label>
+                                            
+                                            <input type="checkbox" class="btn-check" id="newTU" value="TU">
+                                            <label class="btn btn-outline-primary btn-sm" for="newTU">二</label>
+                                            
+                                            <input type="checkbox" class="btn-check" id="newWE" value="WE">
+                                            <label class="btn btn-outline-primary btn-sm" for="newWE">三</label>
+                                            
+                                            <input type="checkbox" class="btn-check" id="newTH" value="TH">
+                                            <label class="btn btn-outline-primary btn-sm" for="newTH">四</label>
+                                            
+                                            <input type="checkbox" class="btn-check" id="newFR" value="FR">
+                                            <label class="btn btn-outline-primary btn-sm" for="newFR">五</label>
+                                            
+                                            <input type="checkbox" class="btn-check" id="newSA" value="SA">
+                                            <label class="btn btn-outline-primary btn-sm" for="newSA">六</label>
+                                            
+                                            <input type="checkbox" class="btn-check" id="newSU" value="SU">
+                                            <label class="btn btn-outline-primary btn-sm" for="newSU">日</label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6" id="newMonthlyOptions" style="display: none;">
+                                        <label for="newMonthlyType" class="form-label">月重复方式</label>
+                                        <select class="form-select" id="newMonthlyType" onchange="updateMonthlyOptions('new')">
+                                            <option value="simple">每隔指定月数</option>
+                                            <option value="bymonthday">按日期（例如：每月15日）</option>
+                                            <option value="byweekday">按星期（例如：每月第二个周一）</option>
+                                        </select>
+                                    </div>                    <!-- 按日期重复的选择 -->
+                    <div class="col-md-6" id="newMonthlyDateOptions" style="display: none;">
+                        <label for="newMonthlyDate" class="form-label">选择日期</label>
+                        <select class="form-select" id="newMonthlyDate">
+                            <option value="1">1日</option>
+                            <option value="2">2日</option>
+                            <option value="3">3日</option>
+                            <option value="4">4日</option>
+                            <option value="5">5日</option>
+                            <option value="6">6日</option>
+                            <option value="7">7日</option>
+                            <option value="8">8日</option>
+                            <option value="9">9日</option>
+                            <option value="10">10日</option>
+                            <option value="11">11日</option>
+                            <option value="12">12日</option>
+                            <option value="13">13日</option>
+                            <option value="14">14日</option>
+                            <option value="15">15日</option>
+                            <option value="16">16日</option>
+                            <option value="17">17日</option>
+                            <option value="18">18日</option>
+                            <option value="19">19日</option>
+                            <option value="20">20日</option>
+                            <option value="21">21日</option>
+                            <option value="22">22日</option>
+                            <option value="23">23日</option>
+                            <option value="24">24日</option>
+                            <option value="25">25日</option>
+                            <option value="26">26日</option>
+                            <option value="27">27日</option>
+                            <option value="28">28日</option>
+                            <option value="29">29日</option>
+                            <option value="30">30日</option>
+                            <option value="31">31日</option>
+                            <option value="-1">月末</option>
+                        </select>
+                    </div>
+                    
+                    <!-- 按星期重复的选择 -->
+                    <div class="col-md-3" id="newMonthlyWeekOptions" style="display: none;">
+                        <label for="newMonthlyWeek" class="form-label">第几周</label>
+                        <select class="form-select" id="newMonthlyWeek">
+                            <option value="1">第一周</option>
+                            <option value="2">第二周</option>
+                            <option value="3">第三周</option>
+                            <option value="4">第四周</option>
+                            <option value="-1">最后一周</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3" id="newMonthlyWeekdayOptions" style="display: none;">
+                        <label for="newMonthlyWeekday" class="form-label">星期几</label>
+                        <select class="form-select" id="newMonthlyWeekday">
+                            <option value="MO">周一</option>
+                            <option value="TU">周二</option>
+                            <option value="WE">周三</option>
+                            <option value="TH">周四</option>
+                            <option value="FR">周五</option>
+                            <option value="SA">周六</option>
+                            <option value="SU">周日</option>
+                        </select>
+                    </div>                                    <div class="col-md-6">
+                                        <label for="newRepeatUntil" class="form-label">结束时间（可选）</label>
+                                        <input type="date" class="form-control" id="newRepeatUntil">
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        <span id="newRepeatPreview">预览：不重复</span>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12">
+                        <label for="newReminderContent" class="form-label">提醒内容</label>
+                        <textarea class="form-control" id="newReminderContent" rows="3"></textarea>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="modalManager.closeAllModals()">取消</button>
+                    <button type="submit" class="btn btn-primary">创建提醒</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 编辑提醒模态框 -->
+    <div class="modal" id="editReminderModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-bell-edit me-2"></i>编辑提醒
+                </h5>
+                <span class="close">&times;</span>
+            </div>
+            
+            <form id="editReminderForm" class="modal-body">
+                <input type="hidden" id="reminderId">
+                
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label for="reminderTitle" class="form-label">标题 *</label>
+                        <input type="text" class="form-control form-input" id="reminderTitle" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="reminderTriggerTime" class="form-label">提醒时间 *</label>
+                        <input type="datetime-local" class="form-control form-input" id="reminderTriggerTime" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="reminderPriority" class="form-label">优先级</label>
+                        <select class="form-select" id="reminderPriority">
+                            <option value="low">低</option>
+                            <option value="normal">普通</option>
+                            <option value="high">高</option>
+                            <option value="urgent">紧急</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-12">
+                        <label for="reminderContent" class="form-label">提醒内容</label>
+                        <textarea class="form-control" id="reminderContent" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="reminderRepeat" onchange="if(!this.disabled) toggleRepeatOptions('edit'); else this.checked = false;">
+                            <label class="form-check-label" for="reminderRepeat">
+                                <i class="fas fa-repeat me-2"></i>重复提醒
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12" id="editRepeatOptions" style="display: none;">
+                        <div class="card bg-light">
+                            <div class="card-body p-3">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="reminderRepeatFreq" class="form-label">重复频率</label>
+                                        <select class="form-select" id="reminderRepeatFreq" onchange="updateRepeatOptions('edit')">
+                                            <option value="DAILY">每天</option>
+                                            <option value="WEEKLY">每周</option>
+                                            <option value="MONTHLY">每月</option>
+                                            <option value="YEARLY">每年</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="reminderRepeatInterval" class="form-label">间隔</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">每</span>
+                                            <input type="number" class="form-control" id="reminderRepeatInterval" value="1" min="1" max="365">
+                                            <span class="input-group-text" id="reminderIntervalUnit">天</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-12" id="reminderWeekdaysOptions" style="display: none;">
+                                        <label class="form-label">重复日期</label>
+                                        <div class="btn-group weekdays-toggle" role="group">
+                                            <input type="checkbox" class="btn-check" id="reminderMO" value="MO">
+                                            <label class="btn btn-outline-primary btn-sm" for="reminderMO">一</label>
+                                            
+                                            <input type="checkbox" class="btn-check" id="reminderTU" value="TU">
+                                            <label class="btn btn-outline-primary btn-sm" for="reminderTU">二</label>
+                                            
+                                            <input type="checkbox" class="btn-check" id="reminderWE" value="WE">
+                                            <label class="btn btn-outline-primary btn-sm" for="reminderWE">三</label>
+                                            
+                                            <input type="checkbox" class="btn-check" id="reminderTH" value="TH">
+                                            <label class="btn btn-outline-primary btn-sm" for="reminderTH">四</label>
+                                            
+                                            <input type="checkbox" class="btn-check" id="reminderFR" value="FR">
+                                            <label class="btn btn-outline-primary btn-sm" for="reminderFR">五</label>
+                                            
+                                            <input type="checkbox" class="btn-check" id="reminderSA" value="SA">
+                                            <label class="btn btn-outline-primary btn-sm" for="reminderSA">六</label>
+                                            
+                                            <input type="checkbox" class="btn-check" id="reminderSU" value="SU">
+                                            <label class="btn btn-outline-primary btn-sm" for="reminderSU">日</label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6" id="reminderMonthlyOptions" style="display: none;">
+                                        <label for="reminderRepeatBy" class="form-label">月重复方式</label>
+                                        <select class="form-select" id="reminderRepeatBy" onchange="updateMonthlyOptions('edit')">
+                                            <option value="simple">每隔X个月</option>
+                                            <option value="bymonthday">按日期（例如：每月15日）</option>
+                                            <option value="byweekday">按星期（例如：每月第二个周一）</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-md-6" id="reminderMonthlyByOptions" style="display: none;">
+                                        <label for="reminderMonthlySelector" class="form-label">选择日期</label>
+                                        <select class="form-select" id="reminderMonthlySelector">
+                                            <!-- 动态填充选项 -->
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="reminderRepeatUntil" class="form-label">结束时间（可选）</label>
+                                        <input type="date" class="form-control" id="reminderRepeatUntil">
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        <span id="reminderRepeatPreview">预览：不重复</span>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            
+            <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" onclick="reminderManager.deleteReminder(modalManager.currentReminderId)">删除</button>
+                    <button type="button" class="btn btn-secondary" onclick="modalManager.closeAllModals()">取消</button>
+                    <button type="submit" class="btn btn-primary" onclick="modalManager.handleUpdateReminder()">更新提醒</button>
+                </div>
+        </div>
+    </div>
+
+    <!-- AI聊天模态框 -->
+    <div class="modal" id="aiChatModal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-robot me-2"></i>AI智能助手
+                </h5>
+                <span class="close">&times;</span>
+            </div>
+            
+            <div class="modal-body">
+                <div class="chat-container">
+                    <div id="chatMessages" class="chat-messages">
+                        <div class="ai-message">
+                            <div class="message-avatar">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="message-content">
+                                您好！我是您的AI助手，可以帮助您：
+                                <ul>
+                                    <li>智能安排日程</li>
+                                    <li>分析任务优先级</li>
+                                    <li>优化时间分配</li>
+                                    <li>提供日程建议</li>
+                                </ul>
+                                有什么可以帮助您的吗？
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-input">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="chatInput" placeholder="输入您的问题...">
+                            <button class="btn btn-primary" type="button" onclick="aiAssistant.sendMessage()">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{% static 'fullcalendar_index.global.js' %}"></script>
+    
+    <!-- 全局变量 -->
+    <script>
+        // Django传递的数据
+        window.events_groups = {{ events_groups|safe }};
+        window.CSRF_TOKEN = '{{ csrf_token }}';
+    </script>
+    
+    <!-- 自定义JavaScript模块 -->
+    <script src="{% static 'js/settings-manager.js' %}"></script>
+    <script src="{% static 'js/panel-resizer.js' %}"></script>
+    <script src="{% static 'js/reminder-manager.js' %}"></script>
+    <script src="{% static 'js/modal-manager.js' %}"></script>
+    <script src="{% static 'js/event-manager.js' %}"></script>
+    <script src="{% static 'js/todo-manager.js' %}"></script>
+    
+    <!-- AI助手模块 -->
+    <script>
+        class AIAssistant {
+            constructor() {
+                this.chatModal = document.getElementById('aiChatModal');
+                this.chatMessages = document.getElementById('chatMessages');
+                this.chatInput = document.getElementById('chatInput');
+                this.init();
+            }
+
+            init() {
+                // AI聊天切换按钮
+                document.getElementById('aiChatToggle').addEventListener('click', () => {
+                    this.chatModal.style.display = 'block';
+                });
+
+                // 回车发送消息
+                this.chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+            }
+
+            async sendMessage() {
+                const message = this.chatInput.value.trim();
+                if (!message) return;
+
+                // 添加用户消息
+                this.addMessage(message, 'user');
+                this.chatInput.value = '';
+
+                try {
+                    const response = await fetch('/ai_chatting/chat/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': window.CSRF_TOKEN
+                        },
+                        body: JSON.stringify({ message: message })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        this.addMessage(data.response, 'ai');
+                    } else {
+                        this.addMessage('抱歉，我现在无法回应。请稍后再试。', 'ai');
+                    }
+                } catch (error) {
+                    console.error('AI聊天错误:', error);
+                    this.addMessage('网络连接出现问题，请检查网络后重试。', 'ai');
+                }
+            }
+
+            addMessage(content, type) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `${type}-message`;
+                
+                messageDiv.innerHTML = `
+                    <div class="message-avatar">
+                        <i class="fas fa-${type === 'user' ? 'user' : 'robot'}"></i>
+                    </div>
+                    <div class="message-content">${content}</div>
+                `;
+                
+                this.chatMessages.appendChild(messageDiv);
+                this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+            }
+
+            async smartSchedule() {
+                try {
+                    const response = await fetch('/planner/smart_schedule/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': window.CSRF_TOKEN
+                        }
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        modalManager.showNotification('智能安排已完成', 'success');
+                        eventManager.loadEvents();
+                    } else {
+                        modalManager.showNotification('智能安排失败', 'error');
+                    }
+                } catch (error) {
+                    console.error('智能安排错误:', error);
+                    modalManager.showNotification('智能安排出现错误', 'error');
+                }
+            }
+
+            async analyzePriority() {
+                try {
+                    const response = await fetch('/planner/analyze_priority/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': window.CSRF_TOKEN
+                        }
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        modalManager.showNotification('优先级分析已完成', 'success');
+                        todoManager.loadTodos();
+                    } else {
+                        modalManager.showNotification('优先级分析失败', 'error');
+                    }
+                } catch (error) {
+                    console.error('优先级分析错误:', error);
+                    modalManager.showNotification('优先级分析出现错误', 'error');
+                }
+            }
+
+            async timeBlocking() {
+                try {
+                    const response = await fetch('/planner/time_blocking/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': window.CSRF_TOKEN
+                        }
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        modalManager.showNotification('时间块分配已完成', 'success');
+                        eventManager.loadEvents();
+                    } else {
+                        modalManager.showNotification('时间块分配失败', 'error');
+                    }
+                } catch (error) {
+                    console.error('时间块分配错误:', error);
+                    modalManager.showNotification('时间块分配出现错误', 'error');
+                }
+            }
+        }
+
+        // 创建AI助手实例
+        const aiAssistant = new AIAssistant();
+        
+        // 创建管理器实例（全局变量）
+        window.modalManager = new ModalManager();
+        window.eventManager = new EventManager();
+        window.todoManager = new TodoManager();
+        window.reminderManager = new ReminderManager();
+        window.panelResizer = new PanelResizer(); // 添加面板调节器
+    </script>
+
+    <!-- 页面初始化 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 首先初始化设置管理器
+            settingsManager.init();
+            
+            // 初始化各个管理器
+            window.modalManager.init();
+            window.eventManager.init();
+            window.todoManager.init();
+            window.reminderManager.init();
+            
+            // 初始化重复提醒UI事件监听器
+            initRepeatReminderListeners();
+            
+            // 稍微延迟加载数据，确保DOM完全准备好
+            setTimeout(() => {
+                window.eventManager.loadEvents();
+                window.todoManager.loadTodos();
+                window.reminderManager.loadReminders();
+                
+                // 再延迟一点应用保存的设置，确保所有数据加载完成
+                setTimeout(() => {
+                    settingsManager.applySettings();
+                    console.log('已应用保存的用户设置');
+                }, 500);
+            }, 100);
+            
+            console.log('UniSchedulerSuper 系统已初始化完成');
+        });
+        
+        // 初始化重复提醒相关的事件监听器
+        function initRepeatReminderListeners() {
+            // 监听所有可能影响重复预览的控件
+            const fieldsToWatch = [
+                'newRepeatFreq', 'newRepeatInterval', 'newRepeatUntil', 'newMonthlyType', 'newMonthlyDate', 'newMonthlyWeek', 'newMonthlyWeekday',
+                'editRepeatFreq', 'editRepeatInterval', 'editRepeatUntil', 'editMonthlyType', 'editMonthlyDate', 'editMonthlyWeek', 'editMonthlyWeekday',
+                'newMO', 'newTU', 'newWE', 'newTH', 'newFR', 'newSA', 'newSU',
+                'editMO', 'editTU', 'editWE', 'editTH', 'editFR', 'editSA', 'editSU'
+            ];
+            
+            fieldsToWatch.forEach(fieldId => {
+                const element = document.getElementById(fieldId);
+                if (element) {
+                    const mode = fieldId.startsWith('new') ? 'new' : 'edit';
+                    element.addEventListener('change', () => {
+                        updateRepeatPreview(mode);
+                    });
+                }
+            });
+        }
+        
+    </script>
+</body>
+</html>

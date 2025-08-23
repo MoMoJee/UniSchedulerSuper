@@ -1,1 +1,3 @@
 /default_files/
+/logs/
+.db.sqlite3

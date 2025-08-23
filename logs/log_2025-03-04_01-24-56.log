@@ -1,2 +1,0 @@
-2025-03-04 01:25:20,007-DEBUG-【views-ai_create: line 166】AI说：{'我的建议': '问候是日常交流的一部分，不需要花费太多时间。你可以在任何空闲时刻进行，不会影响你的其他重要日程。'}
-2025-03-04 01:25:20,008-DEBUG-【views-ai_create: line 167】AI生成了：[{'title': '问候', 'start': '2025-03-04T01:25:16', 'end': '2025-03-04T01:30:00', 'description': '与时间管理助手进行日常问候', 'importance': 'not-important', 'urgency': 'not-urgent'}]

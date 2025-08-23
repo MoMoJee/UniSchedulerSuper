@@ -76,6 +76,212 @@ DATA_SCHEMA = {
                 "nullable": False,
                 "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             },
+            # 新增字段 - RRule支持
+            "rrule": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            "rrule_generated": {
+                "type": bool,
+                "nullable": False,
+                "default": False,
+            },
+            "rrule_parent_id": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            # 新增字段 - 关联和扩展
+            "linked_reminders": {
+                "type": list,
+                "nullable": False,
+                "default": [],
+            },
+            "tags": {
+                "type": list,
+                "nullable": False,
+                "default": [],
+            },
+            "location": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            "status": {
+                "type": str,
+                "nullable": False,
+                "default": "confirmed",  # confirmed|tentative|cancelled
+            },
+        },
+    },
+    "todos": {
+        "type": list,
+        "nullable": False,
+        "default": [],
+        "items": {
+            "id": {
+                "type": str,
+                "nullable": False,
+            },
+            "title": {
+                "type": str,
+                "nullable": False,
+            },
+            "description": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            "importance": {
+                "type": str,
+                "nullable": False,
+                "default": "medium",  # critical|high|medium|low
+            },
+            "urgency": {
+                "type": str,
+                "nullable": False,
+                "default": "normal",  # urgent|normal|not-urgent
+            },
+            "tags": {
+                "type": list,
+                "nullable": False,
+                "default": [],
+            },
+            "created_at": {
+                "type": str,
+                "nullable": False,
+                "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            },
+            "due_date": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            "estimated_duration": {
+                "type": str,
+                "nullable": True,
+                "default": "1h",  # 预估耗时，格式如 "1h", "30m", "2h30m"
+            },
+            "groupID": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            "status": {
+                "type": str,
+                "nullable": False,
+                "default": "pending",  # pending|in-progress|completed|cancelled
+            },
+            "dependencies": {
+                "type": list,
+                "nullable": False,
+                "default": [],  # 依赖的其他待办ID列表
+            },
+            "linked_reminders": {
+                "type": list,
+                "nullable": False,
+                "default": [],
+            },
+            "priority_score": {
+                "type": float,
+                "nullable": False,
+                "default": 0.5,  # AI计算的优先级分数，0-1之间
+            },
+            "last_modified": {
+                "type": str,
+                "nullable": False,
+                "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            },
+        },
+    },
+    "reminders": {
+        "type": list,
+        "nullable": False,
+        "default": [],
+        "items": {
+            "id": {
+                "type": str,
+                "nullable": False,
+            },
+            "title": {
+                "type": str,
+                "nullable": False,
+            },
+            "content": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            "trigger_time": {
+                "type": str,
+                "nullable": False,
+            },
+            "priority": {
+                "type": str,
+                "nullable": False,
+                "default": "normal",  # critical|high|normal|low|debug
+            },
+            "advance_triggers": {
+                "type": list,
+                "nullable": False,
+                "default": [],
+                "items": {
+                    "time_before": {
+                        "type": str,
+                        "nullable": False,
+                    },
+                    "priority": {
+                        "type": str,
+                        "nullable": False,
+                    },
+                    "message": {
+                        "type": str,
+                        "nullable": True,
+                        "default": "",
+                    },
+                },
+            },
+            "rrule": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            "linked_event_id": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            "linked_todo_id": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            "status": {
+                "type": str,
+                "nullable": False,
+                "default": "active",  # active|dismissed|snoozed
+            },
+            "snooze_until": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            "notification_sent": {
+                "type": bool,
+                "nullable": False,
+                "default": False,
+            },
+            "created_at": {
+                "type": str,
+                "nullable": False,
+                "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            },
+            "last_modified": {
+                "type": str,
+                "nullable": False,
+                "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            },
         },
     },
     "events_groups": {
@@ -100,6 +306,69 @@ DATA_SCHEMA = {
                 "type": str,
                 "nullable": False,
                 "default": "#000000",  # 默认颜色
+            },
+            # 新增增强字段
+            "type": {
+                "type": str,
+                "nullable": False,
+                "default": "other",  # work|personal|study|health|social|other
+            },
+            "default_duration": {
+                "type": str,
+                "nullable": True,
+                "default": "1h",
+            },
+            "default_importance": {
+                "type": str,
+                "nullable": False,
+                "default": "medium",
+            },
+            "default_urgency": {
+                "type": str,
+                "nullable": False,
+                "default": "normal",
+            },
+            "ai_priority": {
+                "type": float,
+                "nullable": False,
+                "default": 0.5,  # AI管理优先级
+            },
+            "auto_scheduling": {
+                "type": bool,
+                "nullable": False,
+                "default": True,  # 是否允许AI自动调度
+            },
+            "working_hours": {
+                "type": dict,
+                "nullable": False,
+                "default": {},
+                "items": {
+                    "start": {
+                        "type": str,
+                        "nullable": True,
+                        "default": "09:00",
+                    },
+                    "end": {
+                        "type": str,
+                        "nullable": True,
+                        "default": "18:00",
+                    },
+                    "days": {
+                        "type": list,
+                        "nullable": False,
+                        "default": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+                    },
+                },
+            },
+            "created_at": {
+                "type": str,
+                "nullable": False,
+                "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            },
+            "last_modified": {
+                "type": str,
+                "nullable": False,
+                "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             },
         },
     },
@@ -132,6 +401,96 @@ DATA_SCHEMA = {
             },
         },
     },
+    'user_interface_settings': {
+        "type": dict,
+        "nullable": False,
+        "default": {},
+        "items": {
+            "todoFilters": {
+                "type": dict,
+                "nullable": False,
+                "default": {},
+                "items": {
+                    "statusFilter": {
+                        "type": str,
+                        "nullable": False,
+                        "default": "",
+                    },
+                    "sortBy": {
+                        "type": str,
+                        "nullable": False,
+                        "default": "priority",
+                    },
+                },
+            },
+            "reminderFilters": {
+                "type": dict,
+                "nullable": False,
+                "default": {},
+                "items": {
+                    "timeRange": {
+                        "type": str,
+                        "nullable": False,
+                        "default": "all",
+                    },
+                    "status": {
+                        "type": str,
+                        "nullable": False,
+                        "default": "all",
+                    },
+                    "priority": {
+                        "type": str,
+                        "nullable": False,
+                        "default": "all",
+                    },
+                    "type": {
+                        "type": str,
+                        "nullable": False,
+                        "default": "all",
+                    },
+                },
+            },
+            "calendarView": {
+                "type": dict,
+                "nullable": False,
+                "default": {},
+                "items": {
+                    "viewType": {
+                        "type": str,
+                        "nullable": False,
+                        "default": "timeGridWeek",
+                    },
+                    "currentDate": {
+                        "type": str,
+                        "nullable": False,
+                        "default": datetime.datetime.now().strftime("%Y-%m-%d"),
+                    },
+                },
+            },
+            "panelLayout": {
+                "type": dict,
+                "nullable": False,
+                "default": {},
+                "items": {
+                    "leftPanelWidth": {
+                        "type": float,
+                        "nullable": False,
+                        "default": 20.0,
+                    },
+                    "centerPanelWidth": {
+                        "type": float,
+                        "nullable": False,
+                        "default": 50.0,
+                    },
+                    "rightPanelWidth": {
+                        "type": float,
+                        "nullable": True,
+                        "default": 30.0,
+                    },
+                },
+            },
+        },
+    },
     "planner": {
         "type": dict,
         "nullable": False,
@@ -142,6 +501,99 @@ DATA_SCHEMA = {
                 "nullable": False,
                 "default": [],
             },
+            "agent_operations": {
+                "type": list,
+                "nullable": False,
+                "default": [],
+                "items": {
+                    "operation_id": {
+                        "type": str,
+                        "nullable": False,
+                    },
+                    "session_id": {
+                        "type": str,
+                        "nullable": False,
+                    },
+                    "type": {
+                        "type": str,
+                        "nullable": False,
+                        # create|update|delete|query|batch
+                    },
+                    "target_type": {
+                        "type": str,
+                        "nullable": False,
+                        # event|todo|reminder|group
+                    },
+                    "target_id": {
+                        "type": str,
+                        "nullable": True,
+                        "default": "",
+                    },
+                    "operation_details": {
+                        "type": dict,
+                        "nullable": False,
+                        "default": {},
+                        "items": {
+                            "before": {
+                                "type": dict,
+                                "nullable": False,
+                                "default": {},
+                            },
+                            "after": {
+                                "type": dict,
+                                "nullable": False,
+                                "default": {},
+                            },
+                            "changes": {
+                                "type": dict,
+                                "nullable": False,
+                                "default": {},
+                            },
+                        },
+                    },
+                    "ai_reasoning": {
+                        "type": str,
+                        "nullable": True,
+                        "default": "",
+                    },
+                    "confidence_score": {
+                        "type": float,
+                        "nullable": False,
+                        "default": 0.5,
+                    },
+                    "user_feedback": {
+                        "type": str,
+                        "nullable": False,
+                        "default": "pending",  # pending|accepted|rejected|modified
+                    },
+                    "user_comment": {
+                        "type": str,
+                        "nullable": True,
+                        "default": "",
+                    },
+                    "timestamp": {
+                        "type": str,
+                        "nullable": False,
+                        "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    },
+                    "dependencies": {
+                        "type": list,
+                        "nullable": False,
+                        "default": [],  # 依赖的其他操作ID列表
+                    },
+                    "auto_executed": {
+                        "type": bool,
+                        "nullable": False,
+                        "default": False,
+                    },
+                    "rollback_data": {
+                        "type": dict,
+                        "nullable": False,
+                        "default": {},
+                    },
+                },
+            },
+            # 保留temp_events以保证向后兼容，但标记为已弃用
             "temp_events": {
                 "type": list,
                 "nullable": False,
@@ -205,6 +657,17 @@ DATA_SCHEMA = {
                         "default": (datetime.datetime.now() + datetime.timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S"),
                     },
                 },
+            },
+            # 新增会话管理
+            "current_session_id": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            "session_history": {
+                "type": list,
+                "nullable": False,
+                "default": [],
             },
         },
     },
