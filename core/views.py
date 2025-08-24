@@ -16,6 +16,17 @@ try:
 except ImportError:
     HAS_DATEUTIL = False
 
+# 导入我们的新引擎
+from integrated_reminder_manager import IntegratedReminderManager
+
+# 提醒管理器工厂函数
+def get_reminder_manager(request):
+    """获取用户专属的提醒管理器实例"""
+    if request:
+        return IntegratedReminderManager(request=request)
+    else:
+        return IntegratedReminderManager()
+
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import login, authenticate
@@ -165,6 +176,10 @@ def home(request):
             "ai_planning_time": {}
         }
     )
+
+    # 初始化 rrule_series_storage 。否则直接创建的时候不知道为啥会创建两个 rrule_series_storage，找半天找不到错在哪儿
+    rrule_series_storage, created, result = UserData.get_or_initialize(request, new_key="rrule_series_storage")
+
     return render(request, 'core/home_new.html', context)
 
 
@@ -1068,7 +1083,7 @@ def auto_generate_missing_instances(reminders):
 
 @csrf_exempt
 def create_reminder(request):
-    """创建新提醒"""
+    """创建新提醒 - 使用新的 RRule 引擎"""
     if request.method == 'POST':
         user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
         reminders = user_reminders_data.get_value()
@@ -1084,98 +1099,56 @@ def create_reminder(request):
         if not title or not trigger_time:
             return JsonResponse({'status': 'error', 'message': '标题和触发时间是必填项'}, status=400)
         
-        # 生成系列ID（对于重复提醒，所有实例共享同一个series_id）
-        series_id = str(uuid.uuid4())
-        reminder_id = str(uuid.uuid4())
-        
-        new_reminder = {
-            "id": reminder_id,
-            "series_id": series_id,
+        # 准备提醒数据
+        reminder_data = {
             "title": title,
             "content": content,
             "trigger_time": trigger_time,
-            "original_trigger_time": trigger_time,
             "priority": priority,
-            "rrule": rrule,
-            "original_rrule": rrule,
             "status": "active",
-            "is_detached": False,
-            "detach_reason": "",
             "snooze_until": "",
-            "series_metadata": {
-                "title": title,
-                "content": content,
-                "priority": priority
-            },
             "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "last_modified": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         
-        # 根据是否有重复规则决定创建策略
-        instances_to_create = []
-        if rrule and 'FREQ=' in rrule:
-            # 对于重复提醒，根据是否有截止时间采用不同策略
-            print(f"DEBUG: Creating recurring reminder, analyzing RRULE: {rrule}")
+        try:
+            # 确保 reminders 是列表
+            if not isinstance(reminders, list):
+                reminders = []
             
-            has_until = 'UNTIL=' in rrule
-            
-            if has_until:
-                # 有截止时间：一次性生成全部实例到截止时间
-                print(f"DEBUG: RRULE has UNTIL, generating all instances to end time")
-                instances_to_create = generate_reminder_instances(new_reminder, days_ahead=365*2, min_instances=1000)  # 生成到截止时间的所有实例
+            if rrule and 'FREQ=' in rrule:
+                # 创建重复提醒
+                print(f"DEBUG: Creating recurring reminder with rrule: {rrule}")
+                reminder_mgr = get_reminder_manager(request)
+                recurring_reminder = reminder_mgr.create_recurring_reminder(reminder_data, rrule)
+                reminders.append(recurring_reminder)
+                
+                # 处理数据生成实例
+                updated_reminders = reminder_mgr.process_reminder_data(reminders)
+                user_reminders_data.set_value(updated_reminders)
+                
+                return JsonResponse({
+                    'status': 'success', 
+                    'message': f'重复提醒已创建，系列ID: {recurring_reminder["series_id"]}'
+                })
             else:
-                # 无截止时间：只生成未来有限的实例（30天或10个）
-                print(f"DEBUG: RRULE has no UNTIL, generating limited instances")
-                instances_to_create = generate_reminder_instances(new_reminder, days_ahead=30, min_instances=10)
-            
-            # 检查用户输入的时间是否符合RRule规则
-            user_input_time = datetime.datetime.fromisoformat(trigger_time)
-            
-            # 检查是否需要包含用户输入的时间作为第一个实例
-            should_include_input_time = False
-            
-            if 'FREQ=DAILY' in rrule:
-                # 每日重复：总是包含输入时间作为起点
-                should_include_input_time = True
-            elif 'FREQ=WEEKLY' in rrule:
-                if 'BYDAY=' in rrule:
-                    # 有指定星期几的周重复：检查输入时间是否在指定的星期几
-                    import re
-                    byday_match = re.search(r'BYDAY=([A-Z,]+)', rrule)
-                    if byday_match:
-                        weekday_str = byday_match.group(1)
-                        weekday_mapping = {
-                            'MO': 0, 'TU': 1, 'WE': 2, 'TH': 3, 
-                            'FR': 4, 'SA': 5, 'SU': 6
-                        }
-                        specified_weekdays = [weekday_mapping[day] for day in weekday_str.split(',') if day in weekday_mapping]
-                        if user_input_time.weekday() in specified_weekdays:
-                            should_include_input_time = True
-                else:
-                    # 简单的每周重复：包含输入时间
-                    should_include_input_time = True
-            elif 'FREQ=MONTHLY' in rrule:
-                # 月重复：需要更复杂的检查，暂时包含输入时间
-                should_include_input_time = True
-            
-            if should_include_input_time:
-                # 将用户输入的提醒作为第一个实例
-                instances_to_create.insert(0, new_reminder)
-                print(f"DEBUG: Including user input time as first instance")
-            else:
-                print(f"DEBUG: User input time does not match RRule, skipping")
-        else:
-            # 单次提醒，直接使用用户输入的时间
-            instances_to_create = [new_reminder]
-        
-        reminders.extend(instances_to_create)
-        user_reminders_data.set_value(reminders)
-        
-        return JsonResponse({
-            'status': 'success', 
-            'reminder': new_reminder,
-            'instances_created': len(instances_to_create)
-        })
+                # 创建单个提醒
+                reminder_data.update({
+                    'id': str(uuid.uuid4()),
+                    'series_id': None,
+                    'rrule': '',
+                    'is_recurring': False,
+                    'is_main_reminder': False,
+                    'is_detached': False
+                })
+                reminders.append(reminder_data)
+                user_reminders_data.set_value(reminders)
+                
+                return JsonResponse({'status': 'success', 'message': '提醒已创建'})
+                
+        except Exception as e:
+            print(f"ERROR in create_reminder: {e}")
+            return JsonResponse({'status': 'error', 'message': f'创建提醒失败: {str(e)}'}, status=500)
     
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
@@ -1457,201 +1430,148 @@ def generate_reminder_instances(base_reminder, days_ahead=90, min_instances=10):
 
 @csrf_exempt
 def update_reminder(request):
-    """更新提醒"""
+    """更新提醒 - 使用新的RRule引擎"""
     if request.method == 'POST':
-        user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
-        reminders = user_reminders_data.get_value()
-        
-        data = json.loads(request.body)
-        reminder_id = data.get('id')
-        
-        if not reminder_id:
-            return JsonResponse({'status': 'error', 'message': '提醒ID是必填项'}, status=400)
-        
-        # 查找要更新的提醒
-        reminder_found = False
-        original_reminder = None
-        
-        # 检查是否是创建新系列模式
-        create_new_series = data.get('create_new_series', False)
-        
-        logger.debug(f"DEBUG update_reminder: reminder_id={reminder_id}, create_new_series={create_new_series}")
-        logger.debug(f"DEBUG data keys: {list(data.keys())}")
-        
-        if create_new_series:
-            # 创建新系列模式：删除从当前时间点之后的原系列，创建新系列
-            for reminder in reminders:
-                if reminder['id'] == reminder_id:
-                    original_reminder = reminder.copy()
-                    original_series_id = reminder.get('series_id')
-                    original_trigger_time = reminder['trigger_time']
+        try:
+            data = json.loads(request.body)
+            reminder_id = data.get('id')
+            
+            if not reminder_id:
+                return JsonResponse({'status': 'error', 'message': '提醒ID是必填项'}, status=400)
+            
+            # 检查是否包含重复规则变化
+            rrule_change_scope = data.get('rrule_change_scope')
+            create_new_series = data.get('create_new_series', False)
+            
+            if rrule_change_scope or create_new_series:
+                # 使用批量编辑功能处理重复规则变化
+                
+                # 映射前端scope到后端scope
+                scope_mapping = {
+                    'this_only': 'single',
+                    'from_this': 'future', 
+                    'all': 'all'
+                }
+                
+                edit_scope = scope_mapping.get(rrule_change_scope, 'single')
+                
+                # 获取用户数据
+                user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
+                
+                # 初始化集成管理器
+                manager = IntegratedReminderManager(request)
+                
+                # 获取提醒列表
+                reminders = user_reminders_data.get_value()
+                
+                # 查找目标提醒
+                target_reminder = None
+                for reminder in reminders:
+                    if reminder['id'] == reminder_id:
+                        target_reminder = reminder
+                        break
+                
+                if not target_reminder:
+                    return JsonResponse({'status': 'error', 'message': '未找到指定的提醒'}, status=404)
+                
+                # 根据编辑范围执行不同操作
+                if edit_scope == 'single':
+                    # 仅此提醒：直接更新当前提醒
+                    if 'title' in data:
+                        target_reminder['title'] = data['title']
+                    if 'content' in data:
+                        target_reminder['content'] = data['content']
+                    if 'trigger_time' in data:
+                        target_reminder['trigger_time'] = data['trigger_time']
+                    if 'priority' in data:
+                        target_reminder['priority'] = data['priority']
+                    if 'rrule' in data:
+                        target_reminder['rrule'] = data['rrule']
                     
-                    # 如果新的rrule为空，表示关闭重复功能
-                    new_rrule = data.get('rrule', '')
-                    if not new_rrule:
-                        # 关闭重复功能：删除系列中此时间点之后的所有提醒
-                        if original_series_id:
-                            # 找到所有同系列且时间在当前提醒之后的提醒并删除
-                            reminders_to_remove = []
-                            for other_reminder in reminders:
-                                if (other_reminder.get('series_id') == original_series_id and 
-                                    other_reminder['trigger_time'] > original_trigger_time and
-                                    other_reminder.get('separated_from_series') != True):
-                                    reminders_to_remove.append(other_reminder)
+                    target_reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    # 如果有系列ID，标记为分离
+                    if target_reminder.get('series_id'):
+                        target_reminder['is_detached'] = True
+                        target_reminder['detach_reason'] = 'edited_single'
+                    
+                elif edit_scope in ['future', 'all']:
+                    # 未来提醒或所有提醒：使用修改重复规则方法
+                    series_id = target_reminder.get('series_id')
+                    if series_id and data.get('rrule'):
+                        try:
+                            from_date = datetime.datetime.fromisoformat(target_reminder['trigger_time'])
+                            new_rrule = data.get('rrule')
                             
-                            # 删除这些提醒
-                            for reminder_to_remove in reminders_to_remove:
-                                reminders.remove(reminder_to_remove)
-                        
-                        # 更新当前提醒，移除重复规则
-                        reminder['title'] = data.get('title', reminder['title'])
-                        reminder['content'] = data.get('content', reminder['content'])
-                        reminder['priority'] = data.get('priority', reminder['priority'])
-                        reminder['trigger_time'] = data.get('trigger_time', reminder['trigger_time'])
-                        reminder['rrule'] = ''
-                        reminder['series_id'] = None  # 脱离系列
-                        reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            # 应用更新到目标提醒
+                            if 'title' in data:
+                                target_reminder['title'] = data['title']
+                            if 'content' in data:
+                                target_reminder['content'] = data['content']
+                            if 'trigger_time' in data:
+                                target_reminder['trigger_time'] = data['trigger_time']
+                                from_date = datetime.datetime.fromisoformat(data['trigger_time'])
+                            if 'priority' in data:
+                                target_reminder['priority'] = data['priority']
+                            
+                            # 调用修改重复规则方法
+                            updated_reminders = manager.modify_recurring_rule(
+                                reminders, series_id, from_date, new_rrule, edit_scope
+                            )
+                            
+                            user_reminders_data.set_value(updated_reminders)
+                            return JsonResponse({'status': 'success'})
+                            
+                        except Exception as e:
+                            logger.error(f"Error modifying recurring rule: {e}")
+                            return JsonResponse({'status': 'error', 'message': f'修改重复规则时出错: {str(e)}'}, status=500)
                     else:
-                        # 创建新的重复系列
-                        new_series_id = str(uuid.uuid4())
-                        new_trigger_time = data.get('trigger_time', reminder['trigger_time'])
+                        # 没有系列ID或rrule，按单个提醒处理
+                        if 'title' in data:
+                            target_reminder['title'] = data['title']
+                        if 'content' in data:
+                            target_reminder['content'] = data['content']
+                        if 'trigger_time' in data:
+                            target_reminder['trigger_time'] = data['trigger_time']
+                        if 'priority' in data:
+                            target_reminder['priority'] = data['priority']
+                        if 'rrule' in data:
+                            target_reminder['rrule'] = data['rrule']
                         
-                        # 删除原系列中此时间点之后的所有提醒
-                        if original_series_id:
-                            reminders_to_remove = []
-                            for other_reminder in reminders:
-                                if (other_reminder.get('series_id') == original_series_id and 
-                                    other_reminder['trigger_time'] >= original_trigger_time and
-                                    other_reminder['id'] != reminder_id and
-                                    other_reminder.get('separated_from_series') != True):
-                                    reminders_to_remove.append(other_reminder)
-                            
-                            # 删除这些提醒
-                            for reminder_to_remove in reminders_to_remove:
-                                reminders.remove(reminder_to_remove)
+                        target_reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                user_reminders_data.set_value(reminders)
+                return JsonResponse({'status': 'success'})
+            
+            else:
+                # 简单更新，直接修改提醒数据
+                user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
+                reminders = user_reminders_data.get_value()
+                
+                for reminder in reminders:
+                    if reminder['id'] == reminder_id:
+                        # 更新字段
+                        if 'title' in data:
+                            reminder['title'] = data['title']
+                        if 'content' in data:
+                            reminder['content'] = data['content']
+                        if 'trigger_time' in data:
+                            reminder['trigger_time'] = data['trigger_time']
+                        if 'priority' in data:
+                            reminder['priority'] = data['priority']
+                        if 'status' in data:
+                            reminder['status'] = data['status']
                         
-                        # 更新当前提醒作为新系列的起点
-                        reminder['title'] = data.get('title', reminder['title'])
-                        reminder['content'] = data.get('content', reminder['content'])
-                        reminder['priority'] = data.get('priority', reminder['priority'])
-                        reminder['trigger_time'] = new_trigger_time
-                        reminder['rrule'] = new_rrule
-                        reminder['series_id'] = new_series_id
                         reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         
-                        # 生成新系列的后续提醒实例
-                        if HAS_DATEUTIL:
-                            try:
-                                # 解析触发时间，确保是naive时间（无时区信息）
-                                if new_trigger_time.endswith('Z'):
-                                    start_time = parse(new_trigger_time)
-                                    if start_time.tzinfo is not None:
-                                        start_time = start_time.replace(tzinfo=None)
-                                else:
-                                    # 直接使用datetime.fromisoformat避免自动添加时区
-                                    try:
-                                        start_time = datetime.datetime.fromisoformat(new_trigger_time)
-                                    except:
-                                        start_time = parse(new_trigger_time)
-                                        if start_time.tzinfo is not None:
-                                            start_time = start_time.replace(tzinfo=None)
-                                
-                                # 处理RRULE - 确保UNTIL时间格式与start_time一致（都是naive时间）
-                                processed_rrule = new_rrule
-                                if 'UNTIL=' in new_rrule:
-                                    # 确保UNTIL时间也是naive格式（不添加Z后缀）
-                                    import re
-                                    until_match = re.search(r'UNTIL=([^;]+)', new_rrule)
-                                    if until_match:
-                                        until_str = until_match.group(1)
-                                        if until_str.endswith('Z'):
-                                            try:
-                                                # 移除Z后缀，保持naive时间格式
-                                                until_naive = until_str.rstrip('Z')
-                                                processed_rrule = new_rrule.replace(until_str, until_naive)
-                                            except:
-                                                # 如果解析失败，保持原样
-                                                pass
-                                
-                                # 解析重复规则
-                                rrule = rrulestr(processed_rrule, dtstart=start_time)
-                                print(f"DEBUG: Creating rrule with dtstart={start_time} (tzinfo={start_time.tzinfo}), rrule={processed_rrule}")
-                                
-                                # 生成未来6个月的实例
-                                end_date = start_time + datetime.timedelta(days=180)
-                                instances = list(rrule.between(start_time + datetime.timedelta(seconds=1), end_date, inc=True))
-                                
-                                # 为每个实例创建提醒
-                                for instance_time in instances:
-                                    new_reminder = {
-                                        'id': str(uuid.uuid4()),
-                                        'series_id': new_series_id,
-                                        'title': reminder['title'],
-                                        'content': reminder['content'],
-                                        'trigger_time': instance_time.strftime('%Y-%m-%dT%H:%M'),
-                                        'original_trigger_time': instance_time.strftime('%Y-%m-%dT%H:%M:%S'),
-                                        'priority': reminder['priority'],
-                                        'rrule': new_rrule,
-                                        'original_rrule': reminder.get('original_rrule', reminder.get('rrule', '')),
-                                        'status': 'active',
-                                        'is_detached': False,
-                                        'detach_reason': '',
-                                        'snooze_until': '',
-                                        'series_metadata': reminder.get('series_metadata', {
-                                            'title': reminder['title'],
-                                            'content': reminder['content'],
-                                            'priority': reminder['priority']
-                                        }),
-                                        'created_at': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                        'last_modified': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                    }
-                                    reminders.append(new_reminder)
-                                    
-                            except Exception as e:
-                                print(f"Error generating recurring instances: {e}")
-                        else:
-                            print("dateutil not available, cannot generate recurring instances")
-                    
-                    reminder_found = True
-                    break
-        else:
-            # 正常更新模式
-            for reminder in reminders:
-                if reminder['id'] == reminder_id:
-                    original_reminder = reminder.copy()  # 保存原始状态
-                    
-                    original_rrule = reminder.get('rrule')
-                    new_rrule = data.get('rrule', reminder['rrule'])
-                    
-                    # 分析重复规则变化类型
-                    change_type = analyze_rrule_change(original_rrule, new_rrule)
-                    
-                    if change_type == 'no_change':
-                        # 普通更新，不涉及重复规则变化
-                        simple_update_reminder(reminder, data)
-                        
-                    elif change_type == 'single_to_recurring':
-                        # 情况1：单个提醒变为重复提醒
-                        handle_single_to_recurring(reminder, data, reminders)
-                        
-                    elif change_type == 'recurring_to_single':
-                        # 情况2：重复提醒变为单个提醒
-                        handle_recurring_to_single(reminder, data)
-                        
-                    elif change_type == 'recurring_rule_change':
-                        # 情况3：重复规则改变 - 需要用户选择影响范围
-                        scope = data.get('rrule_change_scope', 'from_this')  # 默认从当前开始
-                        handle_recurring_rule_change(reminder, data, reminders, scope, reminder_id)
-                    
-                    reminder_found = True
-                    break
-        
-        if not reminder_found:
-            return JsonResponse({'status': 'error', 'message': '未找到指定的提醒'}, status=404)
-        
-        user_reminders_data.set_value(reminders)
-        
-        return JsonResponse({'status': 'success'})
+                        user_reminders_data.set_value(reminders)
+                        return JsonResponse({'status': 'success'})
+                
+                return JsonResponse({'status': 'error', 'message': '未找到指定的提醒'}, status=404)
+                
+        except Exception as e:
+            logger.error(f"Error updating reminder: {e}")
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
@@ -1900,233 +1820,336 @@ def update_reminder_status(request):
 
 @csrf_exempt
 def bulk_edit_reminders(request):
-    """批量编辑提醒"""
+    """批量编辑重复提醒"""
+    if request.method == 'POST':
+        user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
+        
+        if user_reminders_data is None:
+            return JsonResponse({'status': 'error', 'message': result.get('message', '获取用户数据失败')}, status=400)
+        
+        try:
+            reminders = user_reminders_data.get_value()
+            if not isinstance(reminders, list):
+                reminders = []
+        except:
+            reminders = []
+        
+        data = json.loads(request.body)
+        logger.debug(f"{data=}")
+
+        reminder_id = data.get('reminder_id')
+        operation = data.get('operation', 'edit')  # edit, delete
+        edit_scope = data.get('edit_scope', 'single')  # single, all, future, from_time
+        from_time = data.get('from_time')  # 当 edit_scope 为 from_time 时必需
+        series_id = data.get('series_id')
+        
+        # 调整scope映射
+        scope_mapping = {
+            'this_only': 'single',
+            'all': 'all', 
+            'from_this': 'future',
+            'from_time': 'from_time'
+        }
+        edit_scope = scope_mapping.get(edit_scope, edit_scope)
+        
+        # 获取更新数据
+        updates = {
+            'title': data.get('title'),
+            'content': data.get('content'),  # 前端发送的是content，不是description
+            'description': data.get('description'),  # 保留兼容性
+            'priority': data.get('priority'),  # 添加missing的priority字段
+            'importance': data.get('importance'),
+            'urgency': data.get('urgency'),
+            'trigger_time': data.get('trigger_time'),
+            'rrule': data.get('rrule'),
+            'reminder_mode': data.get('reminder_mode'),
+        }
+        # 过滤掉None值
+        updates = {k: v for k, v in updates.items() if v is not None}
+        
+        logger.info(f"Received updates: {updates}")
+        
+        if not reminder_id:
+            return JsonResponse({'status': 'error', 'message': '提醒ID是必填项'}, status=400)
+        
+        if edit_scope == 'from_time' and not from_time:
+            return JsonResponse({'status': 'error', 'message': '当编辑范围为"从指定时间"时，必须提供起始时间'}, status=400)
+        
+        # 使用新的引擎处理
+        try:
+            if operation == 'delete':
+                if edit_scope == 'single':
+                    # 删除单个实例
+                    reminder_mgr = get_reminder_manager(request)
+                    updated_reminders = reminder_mgr.delete_reminder_instance(
+                        reminders, reminder_id, series_id or ''
+                    )
+                    # 处理重复提醒数据以防止自动补回
+                    final_reminders = reminder_mgr.process_reminder_data(updated_reminders)
+                    user_reminders_data.set_value(final_reminders)
+                    return JsonResponse({'status': 'success'})
+                    
+                elif edit_scope in ['all', 'future', 'from_time']:
+                    # 删除整个系列或从某时间开始删除
+                    reminder_mgr = get_reminder_manager(request)
+                    
+                    if edit_scope == 'all':
+                        # 删除整个系列
+                        updated_reminders = []
+                        for reminder in reminders:
+                            if reminder.get('series_id') != series_id:
+                                updated_reminders.append(reminder)
+                        
+                        # 完全删除系列
+                        if series_id:
+                            reminder_mgr.rrule_engine.delete_series(series_id)
+                            logger.info(f"Completely deleted series {series_id}")
+                        
+                        # 处理重复提醒数据以防止自动补回
+                        final_reminders = reminder_mgr.process_reminder_data(updated_reminders)
+                        user_reminders_data.set_value(final_reminders)
+                        return JsonResponse({'status': 'success'})
+                        
+                    elif edit_scope in ['future', 'from_time']:
+                        # 删除此及之后（使用截断方法）
+                        if edit_scope == 'from_time' and from_time:
+                            # 如果指定了from_time，找到对应的提醒
+                            target_reminder_id = None
+                            target_time = datetime.datetime.fromisoformat(from_time)
+                            for reminder in reminders:
+                                if (reminder.get('series_id') == series_id and 
+                                    reminder.get('trigger_time')):
+                                    try:
+                                        reminder_time = datetime.datetime.fromisoformat(reminder['trigger_time'])
+                                        if abs((reminder_time - target_time).total_seconds()) < 60:  # 允许1分钟误差
+                                            target_reminder_id = reminder['id']
+                                            break
+                                    except:
+                                        continue
+                            
+                            if not target_reminder_id:
+                                return JsonResponse({'status': 'error', 'message': '找不到指定时间的提醒'}, status=400)
+                                
+                            reminder_id = target_reminder_id
+                        
+                        # 使用新的截断方法，它会同时更新RRule引擎和提醒数据
+                        logger.info(f"使用新的截断方法，它会同时更新RRule引擎和提醒数据")
+                        updated_reminders = reminder_mgr.delete_reminder_this_and_after(
+                            reminders, reminder_id, series_id or ''
+                        )
+                        
+                        # 处理重复提醒数据以防止自动补回
+                        final_reminders = reminder_mgr.process_reminder_data(updated_reminders)
+                        user_reminders_data.set_value(final_reminders)
+                        return JsonResponse({'status': 'success'})
+                    
+            elif operation == 'edit':
+                if edit_scope == 'single':
+                    # 编辑单个提醒
+                    for reminder in reminders:
+                        if reminder['id'] == reminder_id:
+                            reminder.update(updates)
+                            reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            break
+                    user_reminders_data.set_value(reminders)
+                    return JsonResponse({'status': 'success'})
+                    
+                elif edit_scope in ['all', 'future', 'from_time']:
+                    # 批量编辑 - 使用新的modify_recurring_rule方法
+                    reminder_mgr = get_reminder_manager(request)
+                    
+                    # 确定修改的起始时间
+                    cutoff_time = None
+                    if from_time:
+                        try:
+                            cutoff_time = datetime.datetime.fromisoformat(from_time)
+                        except:
+                            cutoff_time = datetime.datetime.now()
+                    elif edit_scope == 'future':
+                        current_reminder = next((r for r in reminders if r.get('id') == reminder_id), None)
+                        if current_reminder:
+                            try:
+                                cutoff_time = datetime.datetime.fromisoformat(current_reminder.get('trigger_time', ''))
+                            except:
+                                cutoff_time = datetime.datetime.now()
+                        else:
+                            cutoff_time = datetime.datetime.now()
+                    
+                    if edit_scope == 'all':
+                        # 修改整个系列 - 简单更新所有相关提醒
+                        updated_count = 0
+                        for reminder in reminders:
+                            if reminder.get('series_id') == series_id or reminder.get('id') == reminder_id:
+                                # 只更新非时间字段，保持原有的trigger_time
+                                update_data = {k: v for k, v in updates.items() if k not in ['trigger_time']}
+                                reminder.update(update_data)
+                                reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                updated_count += 1
+                        
+                        user_reminders_data.set_value(reminders)
+                        return JsonResponse({'status': 'success', 'updated_count': updated_count})
+                        
+                    elif edit_scope in ['future', 'from_time']:
+                        # 从指定时间开始修改
+                        if cutoff_time is None:
+                            return JsonResponse({'status': 'error', 'message': '无法确定修改的起始时间'}, status=400)
+                        
+                        if 'rrule' in updates:
+                            # 检查RRule是否真的发生了变化
+                            new_rrule = updates.get('rrule')
+                            if not new_rrule:
+                                return JsonResponse({'status': 'error', 'message': 'RRule是必填项'}, status=400)
+                            
+                            # 找到当前序列的原始RRule进行比较
+                            original_rrule = None
+                            for reminder in reminders:
+                                if (reminder.get('series_id') == series_id and 
+                                    reminder.get('rrule')):
+                                    original_rrule = reminder.get('rrule')
+                                    break
+                            
+                            # 如果RRule没有变化，按非RRule修改处理
+                            if original_rrule and original_rrule == new_rrule:
+                                logger.info(f"RRule unchanged for series {series_id}, treating as non-RRule modification")
+                                logger.info(f"Original updates dict before filtering: {updates}")
+                                
+                                updated_count = 0
+                                for reminder in reminders:
+                                    if (reminder.get('series_id') == series_id and 
+                                        reminder.get('trigger_time')):
+                                        try:
+                                            trigger_time = datetime.datetime.fromisoformat(reminder['trigger_time'])
+                                            if trigger_time >= cutoff_time:
+                                                # 对于非RRule修改，允许更新trigger_time，但不允许修改rrule
+                                                update_data = {k: v for k, v in updates.items() if k not in ['rrule']}
+                                                logger.info(f"After filtering out rrule: {update_data}")
+                                                logger.info(f"Updating reminder {reminder.get('id', 'unknown')} with data: {update_data}")
+                                                reminder.update(update_data)
+                                                reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                                updated_count += 1
+                                        except:
+                                            pass
+                                
+                                user_reminders_data.set_value(reminders)
+                                return JsonResponse({'status': 'success', 'updated_count': updated_count})
+                            
+                            # RRule确实发生了变化 - 需要创建新序列
+                            logger.info(f"Modifying recurring rule from {cutoff_time} for series {series_id}")
+                            
+                            # 检查是否有新的trigger_time，如果有，使用它作为新系列的起始时间
+                            new_start_time = cutoff_time
+                            if 'trigger_time' in updates:
+                                try:
+                                    requested_time = datetime.datetime.fromisoformat(updates['trigger_time'])
+                                    # 使用用户指定的新时间作为起始时间
+                                    new_start_time = requested_time
+                                    logger.info(f"Using requested trigger_time {requested_time} as new series start time")
+                                except:
+                                    logger.warning(f"Invalid trigger_time format: {updates.get('trigger_time')}, using cutoff_time")
+                            
+                            # 调用modify_recurring_rule方法，传递额外的更新参数和新的起始时间
+                            # 如果用户提供了新的trigger_time，将其包含在additional_updates中
+                            other_updates = {k: v for k, v in updates.items() if k not in ['rrule']}
+                            updated_reminders = reminder_mgr.modify_recurring_rule(
+                                reminders, series_id, new_start_time, new_rrule, 
+                                scope='from_this', additional_updates=other_updates
+                            )
+                            
+                            # 处理重复提醒数据以确保实例足够
+                            final_reminders = reminder_mgr.process_reminder_data(updated_reminders)
+                            user_reminders_data.set_value(final_reminders)
+                            
+                            logger.info(f"Successfully modified recurring rule for series {series_id}")
+                            return JsonResponse({'status': 'success'})
+                        
+                        else:
+                            # 只修改其他字段，不涉及RRule - 直接更新
+                            logger.info(f"Modifying non-RRule fields from {cutoff_time} for series {series_id}")
+                            
+                            updated_count = 0
+                            for reminder in reminders:
+                                if (reminder.get('series_id') == series_id and 
+                                    reminder.get('trigger_time')):
+                                    try:
+                                        trigger_time = datetime.datetime.fromisoformat(reminder['trigger_time'])
+                                        if trigger_time >= cutoff_time:
+                                            # 对于非RRule修改，允许更新所有字段包括trigger_time
+                                            update_data = updates.copy()
+                                            reminder.update(update_data)
+                                            reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                            updated_count += 1
+                                    except:
+                                        pass
+                            
+                            user_reminders_data.set_value(reminders)
+                            return JsonResponse({'status': 'success', 'updated_count': updated_count})
+                        
+                    else:
+                        # 其他情况的批量编辑（不涉及RRule修改）
+                        updated_count = 0
+                        for reminder in reminders:
+                            should_update = False
+                            if reminder.get('series_id') == series_id or reminder.get('id') == reminder_id:
+                                if edit_scope == 'all':
+                                    should_update = True
+                                elif cutoff_time and reminder.get('trigger_time'):
+                                    try:
+                                        trigger_time = datetime.datetime.fromisoformat(reminder['trigger_time'])
+                                        if trigger_time >= cutoff_time:
+                                            should_update = True
+                                    except:
+                                        pass
+                            
+                            if should_update:
+                                # 只更新非时间字段，保持原有的trigger_time
+                                update_data = {k: v for k, v in updates.items() if k not in ['trigger_time']}
+                                reminder.update(update_data)
+                                reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                updated_count += 1
+                        
+                        user_reminders_data.set_value(reminders)
+                        return JsonResponse({'status': 'success', 'updated_count': updated_count})
+            
+            return JsonResponse({'status': 'error', 'message': '无效的操作或范围'}, status=400)
+                
+        except Exception as e:
+            logger.error(f"批量编辑提醒失败: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': f'操作失败: {str(e)}'}, status=500)
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+
+
+@csrf_exempt
+def maintain_reminders(request):
+    """维护提醒实例 - 定期调用以确保重复提醒的实例足够"""
     if request.method == 'POST':
         user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
         reminders = user_reminders_data.get_value()
         
-        data = json.loads(request.body)
-        series_id = data.get('series_id')
-        operation = data.get('operation')  # edit/delete
-        scope = data.get('scope')  # all/this_only/from_this/from_time
-        from_time = data.get('from_time', '')
-        update_data = data.get('update_data', {})
+        # 确保 reminders 是列表
+        if not isinstance(reminders, list):
+            reminders = []
         
-        print(f"DEBUG bulk_edit_reminders: series_id={series_id}, operation={operation}, scope={scope}")
-        print(f"DEBUG update_data: {update_data}")
-        print(f"DEBUG create_new_series: {update_data.get('create_new_series', False)}")
-        
-        if not series_id or not operation or not scope:
-            return JsonResponse({'status': 'error', 'message': '参数不完整'}, status=400)
-        
-        affected_count = 0
-        
-        if scope == 'this_only':
-            # 单独处理：将提醒标记为分离状态
-            reminder_id = data.get('reminder_id')
-            for reminder in reminders:
-                if reminder['id'] == reminder_id:
-                    reminder['is_detached'] = True
-                    reminder['detach_reason'] = 'individual_edit'
-                    if operation == 'edit':
-                        reminder.update(update_data)
-                    elif operation == 'delete':
-                        reminders.remove(reminder)
-                    reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    affected_count = 1
-                    break
-                    
-        elif scope == 'all':
-            # 处理整个系列
-            base_reminder = None
-            # 先找到基准提醒（通常是第一个或被编辑的那个）
-            for reminder in reminders:
-                if reminder['series_id'] == series_id and not reminder['is_detached']:
-                    if reminder['id'] == data.get('reminder_id'):
-                        base_reminder = reminder
-                        break
+        try:
+            # 使用新引擎处理提醒数据
+            reminder_mgr = get_reminder_manager(request)
+            updated_reminders = reminder_mgr.process_reminder_data(reminders)
             
-            if not base_reminder:
-                # 如果没找到指定的，就用第一个
-                for reminder in reminders:
-                    if reminder['series_id'] == series_id and not reminder['is_detached']:
-                        base_reminder = reminder
-                        break
+            # 保存更新后的数据
+            user_reminders_data.set_value(updated_reminders)
             
-            if base_reminder:
-                base_trigger_time = datetime.datetime.fromisoformat(base_reminder['trigger_time'])
-                
-                for reminder in reminders[:]:
-                    if reminder['series_id'] == series_id and not reminder['is_detached']:
-                        if operation == 'edit':
-                            # 计算时间偏移
-                            current_trigger_time = datetime.datetime.fromisoformat(reminder['trigger_time'])
-                            time_offset = current_trigger_time - base_trigger_time
-                            
-                            # 更新数据，但保持时间相对关系
-                            reminder.update(update_data)
-                            
-                            # 如果更新数据中包含trigger_time，需要重新计算其他提醒的时间
-                            if 'trigger_time' in update_data:
-                                new_base_time = datetime.datetime.fromisoformat(update_data['trigger_time'])
-                                reminder['trigger_time'] = (new_base_time + time_offset).strftime("%Y-%m-%d %H:%M:%S")
-                            
-                            reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        elif operation == 'delete':
-                            reminders.remove(reminder)
-                        affected_count += 1
-                    
-        elif scope in ['from_this', 'from_time']:
-            # 从某个时间点开始处理
-            cutoff_time = datetime.datetime.fromisoformat(from_time) if from_time else datetime.datetime.now()
+            added_count = len(updated_reminders) - len(reminders)
             
-            # 检查是否要创建新系列
-            create_new_series = update_data.get('create_new_series', False)
+            return JsonResponse({
+                'status': 'success',
+                'original_count': len(reminders),
+                'updated_count': len(updated_reminders),
+                'added_instances': added_count
+            })
             
-            if create_new_series:
-                print(f"DEBUG: Entering create_new_series mode for series_id={series_id}")
-                
-                # 找到被编辑的具体提醒
-                edited_reminder = None
-                for reminder in reminders:
-                    if reminder['id'] == data.get('reminder_id'):
-                        edited_reminder = reminder
-                        break
-                
-                if not edited_reminder:
-                    print(f"DEBUG: Could not find edited reminder with id={data.get('reminder_id')}")
-                    return JsonResponse({'status': 'error', 'message': '未找到被编辑的提醒'}, status=400)
-                
-                original_series_id = edited_reminder.get('series_id')
-                original_trigger_time = datetime.datetime.fromisoformat(edited_reminder['trigger_time'])
-                new_rrule = update_data.get('rrule', '')
-                
-                print(f"DEBUG: original_trigger_time={original_trigger_time}, new_rrule={new_rrule}")
-                
-                # 删除原系列中从当前时间点之后的所有提醒（不包括已分离的）
-                reminders_to_remove = []
-                for other_reminder in reminders:
-                    if (other_reminder.get('series_id') == original_series_id and 
-                        datetime.datetime.fromisoformat(other_reminder['trigger_time']) >= original_trigger_time and
-                        other_reminder['id'] != edited_reminder['id'] and
-                        not other_reminder.get('is_detached', False)):
-                        reminders_to_remove.append(other_reminder)
-                
-                print(f"DEBUG: Will remove {len(reminders_to_remove)} future reminders")
-                
-                # 删除这些提醒
-                for reminder_to_remove in reminders_to_remove:
-                    reminders.remove(reminder_to_remove)
-                    affected_count += 1
-                
-                # 处理原有系列的剩余提醒：给它们设置截止时间，防止继续自动生成
-                print(f"DEBUG: Processing remaining reminders in original series {original_series_id}")
-                remaining_count = 0
-                for remaining_reminder in reminders:
-                    if (remaining_reminder.get('series_id') == original_series_id and 
-                        not remaining_reminder.get('is_detached', False) and
-                        remaining_reminder['id'] != edited_reminder['id'] and
-                        datetime.datetime.fromisoformat(remaining_reminder['trigger_time']) < original_trigger_time):
-                        
-                        remaining_count += 1
-                        print(f"DEBUG: Found remaining reminder {remaining_reminder['id']} with trigger_time {remaining_reminder['trigger_time']}")
-                        
-                        # 更新RRule，添加UNTIL截止时间为当前被编辑提醒的时间
-                        old_rrule = remaining_reminder.get('rrule', '')
-                        print(f"DEBUG: Original rrule for reminder {remaining_reminder['id']}: {old_rrule}")
-                        
-                        if old_rrule and 'FREQ=' in old_rrule:
-                            # 移除现有的UNTIL或COUNT（如果有）
-                            parts = []
-                            for part in old_rrule.split(';'):
-                                if not part.startswith('UNTIL=') and not part.startswith('COUNT='):
-                                    parts.append(part)
-                            
-                            # 添加新的UNTIL时间（设为当前编辑提醒的前一天，确保原系列在此之前结束）
-                            until_time = (original_trigger_time - datetime.timedelta(days=1)).strftime('%Y%m%dT%H%M%S')
-                            updated_rrule = ';'.join(parts) + f';UNTIL={until_time}'
-                            
-                            remaining_reminder['rrule'] = updated_rrule
-                            remaining_reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                            print(f"DEBUG: Updated remaining reminder {remaining_reminder['id']} rrule from '{old_rrule}' to '{updated_rrule}'")
-                        else:
-                            print(f"DEBUG: Skipping reminder {remaining_reminder['id']} - no valid rrule to update")
-                
-                print(f"DEBUG: Processed {remaining_count} remaining reminders in original series")
-                
-                # 更新当前提醒
-                edited_reminder.update(update_data)
-                # 移除create_new_series标记，避免存储到数据中
-                if 'create_new_series' in edited_reminder:
-                    del edited_reminder['create_new_series']
-                edited_reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                
-                if not new_rrule or new_rrule == '':
-                    # 关闭重复功能：当前提醒脱离系列
-                    print("DEBUG: Closing repeat, detaching reminder from series")
-                    edited_reminder['series_id'] = None
-                    edited_reminder['rrule'] = ''
-                    edited_reminder['is_detached'] = True
-                    edited_reminder['detach_reason'] = 'repeat_disabled'
-                else:
-                    # 修改重复规则：创建新系列并生成新实例
-                    print("DEBUG: Creating new series with new rrule")
-                    new_series_id = str(uuid.uuid4())
-                    edited_reminder['series_id'] = new_series_id
-                    edited_reminder['rrule'] = new_rrule
-                    
-                    # 生成新系列的后续提醒实例
-                    new_instances = generate_reminder_instances(edited_reminder, 90, 10)
-                    print(f"DEBUG: Generated {len(new_instances)} new instances")
-                    reminders.extend(new_instances)
-                    affected_count += len(new_instances)
-                
-                affected_count += 1  # 包括当前被编辑的提醒
-            else:
-                # 原有逻辑：保持时间相对关系的编辑
-                # 找到基准提醒
-                base_reminder = None
-                for reminder in reminders:
-                    if (reminder['series_id'] == series_id and 
-                        not reminder['is_detached'] and
-                        reminder['id'] == data.get('reminder_id')):
-                        base_reminder = reminder
-                        break
-                
-                if base_reminder:
-                    base_trigger_time = datetime.datetime.fromisoformat(base_reminder['trigger_time'])
-                    
-                    for reminder in reminders[:]:
-                        if (reminder['series_id'] == series_id and 
-                            not reminder['is_detached'] and
-                            datetime.datetime.fromisoformat(reminder['trigger_time']) >= cutoff_time):
-                            
-                            if operation == 'edit':
-                                # 计算时间偏移
-                                current_trigger_time = datetime.datetime.fromisoformat(reminder['trigger_time'])
-                                time_offset = current_trigger_time - base_trigger_time
-                                
-                                # 更新数据，但保持时间相对关系
-                                reminder.update(update_data)
-                                
-                                # 如果更新数据中包含trigger_time，需要重新计算其他提醒的时间
-                                if 'trigger_time' in update_data:
-                                    new_base_time = datetime.datetime.fromisoformat(update_data['trigger_time'])
-                                    reminder['trigger_time'] = (new_base_time + time_offset).strftime("%Y-%m-%d %H:%M:%S")
-                                
-                                reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                            elif operation == 'delete':
-                                reminders.remove(reminder)
-                            affected_count += 1
-        
-        user_reminders_data.set_value(reminders)
-        
-        # 如果是编辑操作且影响了系列，需要重新生成未来实例
-        if operation == 'edit' and scope in ['all', 'from_this', 'from_time'] and affected_count > 0:
-            # 这里可以添加重新生成逻辑
-            pass
-        
-        return JsonResponse({'status': 'success', 'affected_count': affected_count})
+        except Exception as e:
+            logger.error(f"维护提醒失败: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': f'维护失败: {str(e)}'}, status=500)
     
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 

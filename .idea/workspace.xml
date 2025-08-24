@@ -4,419 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/UniSchedulerSuper.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/UniSchedulerSuper.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/jsLibraryMappings.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" />
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
+      <change afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/data_source_mapping.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/js/reminder-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/reminder-manager.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/urls.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_00-43-53.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_00-43-54.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_00-46-31.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_00-46-32.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_00-50-47.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_00-52-43.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_14-09-24.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_14-09-25.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_14-16-26.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_14-17-09.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_14-26-27.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_15-44-39.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_15-45-09.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_15-46-15.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_16-34-29.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_16-35-08.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_16-35-26.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-21_16-37-46.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-22_15-08-57.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-22_15-08-58.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-22_15-12-05.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-22_15-12-46.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_16-52-57.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_16-58-39.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_16-59-34.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_17-02-28.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_17-05-02.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_17-05-43.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_17-07-07.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_17-09-03.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_17-21-45.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_19-10-47.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_19-12-39.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_19-17-31.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_19-20-49.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_19-27-13.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_19-32-14.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_19-35-01.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_21-04-04.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_21-04-05.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-23_21-12-34.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-24_16-21-57.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-24_16-21-58.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-27_14-39-38.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-27_14-39-39.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-27_14-41-31.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-02-27_14-42-43.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-02_23-34-25.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-02_23-34-26.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_01-18-26.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_01-27-18.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_01-28-12.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_01-29-49.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_01-32-28.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_01-33-36.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_01-40-52.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_13-35-04.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_19-53-57.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_20-53-17.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_20-57-25.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_21-12-07.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_21-14-32.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_21-16-19.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_21-18-33.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_21-21-55.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_21-33-57.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_21-36-33.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_21-38-45.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_22-06-20.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_22-08-50.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_22-17-05.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_22-18-24.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_22-18-58.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_22-20-10.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_22-21-17.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_22-39-08.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_22-40-25.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_22-40-40.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_23-17-23.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_23-20-49.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_23-22-21.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_23-25-21.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-03_23-31-33.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-04_00-09-47.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-04_00-10-59.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-04_00-11-13.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-04_00-11-43.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-04_00-12-18.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-04_00-13-36.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-04_01-03-21.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-04_01-14-10.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-04_01-15-30.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-04_01-16-49.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-04_01-24-56.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-04_01-25-57.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-04_01-27-25.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-04_01-29-47.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-05_23-10-55.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-05_23-11-31.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-05_23-13-27.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-05_23-16-48.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-05_23-21-25.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-05_23-23-51.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-05_23-24-36.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-05_23-29-34.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-05_23-29-51.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-05_23-50-06.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_00-50-02.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-07-42.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-11-05.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-13-29.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-14-41.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-15-40.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-16-13.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-16-47.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-18-10.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-19-18.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-20-24.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-20-34.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-21-13.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-22-04.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-30-32.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-32-21.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-32-47.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-33-28.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-06_01-43-34.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_01-35-27.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_01-43-11.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_01-53-30.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_10-35-58.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_10-42-02.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_10-43-42.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_10-44-11.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_11-45-19.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_11-46-51.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_11-47-28.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_11-50-13.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_11-57-13.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_11-58-08.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_11-59-04.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_12-02-41.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_12-04-05.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_15-56-12.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_16-00-26.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_16-02-40.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_16-08-32.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_16-16-32.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_16-33-57.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_16-34-42.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_23-03-25.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-07_23-03-27.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_20-37-36.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_20-37-37.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_21-06-09.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_21-09-26.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_21-09-39.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_21-12-04.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_21-12-37.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_21-13-52.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_21-15-12.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_21-17-00.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_21-23-07.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_21-23-22.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_21-25-54.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_21-29-56.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_22-46-32.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_22-51-41.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_23-13-25.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_23-18-38.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_23-21-58.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_23-31-57.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_23-33-38.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_23-41-05.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_23-48-39.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_23-50-03.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_23-52-01.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_23-53-37.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-08_23-55-27.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_17-38-58.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_17-38-59.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_17-50-19.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_17-52-12.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_17-52-28.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_17-54-35.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_17-57-08.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_19-37-36.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_19-42-40.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_20-23-28.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_20-23-29.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_20-57-50.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_20-58-55.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_20-59-42.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_21-00-28.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_21-02-47.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-09_21-04-11.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-11_23-17-18.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-11_23-17-19.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-11_23-21-45.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-12_16-15-06.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-13_01-26-14.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-13_01-30-09.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-13_01-31-10.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-13_01-37-41.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-13_01-43-29.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-13_01-50-39.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-30_00-02-54.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-30_00-02-55.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-30_00-10-11.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-30_00-13-06.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-30_00-13-44.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-30_00-22-25.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-31_00-54-55.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-03-31_00-58-20.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-09_23-51-19.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-09_23-51-21.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-09_23-53-55.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-10_20-05-32.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-10_20-05-33.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-10_20-14-41.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-10_20-20-42.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-10_20-24-00.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-10_20-26-40.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-10_20-30-28.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-10_21-03-44.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-10_22-06-14.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-12_17-35-49.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_01-04-31.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_01-04-32.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_14-06-45.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_14-06-46.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_14-35-50.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_14-36-28.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_14-39-03.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_14-42-46.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_14-50-18.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_14-50-48.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_14-53-41.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_15-03-09.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_15-06-33.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_15-13-12.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_15-14-03.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_15-16-21.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_15-21-22.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_15-21-23.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_15-24-31.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_15-28-00.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-15_15-31-52.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-16_00-38-19.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-16_00-38-20.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-16_00-43-53.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-16_00-45-05.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-16_00-46-48.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-16_01-25-12.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-16_01-26-18.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-16_21-36-23.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-16_22-03-21.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-16_22-04-40.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-16_23-40-43.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-16_23-44-12.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-16_23-44-59.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-16_23-45-06.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_01-27-41.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-19-14.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-21-32.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-21-33.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-22-53.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-22-54.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-23-13.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-23-14.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-24-11.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-24-12.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-24-30.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-24-49.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-24-50.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-25-09.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-25-29.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-25-30.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-26-21.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-26-22.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-26-52.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_02-28-13.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_14-25-03.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_14-25-19.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_14-27-24.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_14-52-12.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-17_15-54-56.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_00-59-39.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_01-09-42.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_01-18-46.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_01-21-33.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_01-24-13.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_01-29-57.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_01-31-29.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_01-32-38.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_01-33-38.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_01-34-20.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_01-37-41.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_01-38-05.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_01-39-41.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_01-40-51.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_01-41-19.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_01-41-27.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_01-43-09.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-06-24.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-08-53.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-10-43.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-11-17.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-11-34.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-15-03.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-18-35.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-19-04.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-19-11.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-19-42.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-23-46.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-24-53.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-28-15.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-30-33.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-35-18.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-40-30.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-43-51.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-49-37.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-52-39.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-53-27.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-53-53.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-54-46.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-58-10.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_10-59-32.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_11-03-53.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_11-07-19.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_11-08-21.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_11-09-13.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_11-11-47.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_11-14-12.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_11-16-19.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_11-17-49.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_11-19-34.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_11-43-15.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_11-46-24.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_11-47-12.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_16-45-32.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_16-51-40.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_16-53-39.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_16-56-22.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-01-31.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-03-10.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-05-01.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-10-15.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-11-26.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-12-35.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-16-02.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-16-30.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-16-50.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-17-36.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-17-55.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-19-15.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-19-55.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-22-55.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-31-16.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-34-34.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-34-53.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-56-05.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-56-06.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_17-58-14.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_18-00-46.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_20-49-00.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_20-49-32.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_20-50-42.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_20-51-29.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_20-51-59.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-08-24.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-13-06.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-13-40.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-14-34.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-16-16.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-16-48.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-19-12.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-25-04.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-25-47.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-28-32.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-30-59.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-36-13.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-37-38.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-38-55.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-39-28.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-42-27.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-44-21.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-47-02.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-50-14.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-52-21.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_21-53-02.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_22-04-24.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_22-10-16.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_22-18-25.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_22-18-26.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_22-24-19.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_23-11-42.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_23-12-28.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_23-14-12.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_23-14-54.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/log_2025-04-18_23-15-46.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -441,6 +37,9 @@
     &quot;accountId&quot;: &quot;a602f574-96af-4e54-b743-f602b02df597&quot;
   }
 }</component>
+  <component name="PerforceDirect.Settings">
+    <option name="CHARSET" value="none" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 7
 }</component>
@@ -460,10 +59,13 @@
     "Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found": "找到数据库连接形参",
     "Notification.DoNotAsk-DatabaseConfigFileWatcher.found": "true",
     "Python.code_line_counter.executor": "Run",
+    "Python.test_exception_debug.executor": "Run",
+    "Python.test_rrule_system.executor": "Run",
     "RunOnceActivity.OpenDjangoStructureViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "git-widget-placeholder": "release",
     "ignore.virus.scanning.warn.message": "true",
     "junie.onboarding.icon.badge.shown": "true",
@@ -473,6 +75,7 @@
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "reference.settingsdialog.project.grazie",
     "to.speed.mode.migration.done": "true",
     "vue.rearranger.settings.migration": "true"
   }
@@ -485,7 +88,7 @@
       <recent name="D:\PROJECTS\UniSchedulerSuper\default_files" />
     </key>
   </component>
-  <component name="RunManager" selected="Django 服务器.UniSchedulerSuper">
+  <component name="RunManager">
     <configuration name="UniSchedulerSuper" type="PythonConfigurationType" factoryName="Python">
       <module name="UniSchedulerSuper" />
       <option name="ENV_FILES" value="" />
@@ -543,6 +146,9 @@
       </set>
     </attachedChunks>
   </component>
+  <component name="SvnConfiguration">
+    <configuration>C:\Users\MoMoJee\AppData\Roaming\Subversion</configuration>
+  </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="默认任务">
       <changelist id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="" />
@@ -565,14 +171,53 @@
       <workItem from="1755359527573" duration="90000" />
       <workItem from="1755360077777" duration="218000" />
       <workItem from="1755491982074" duration="4809000" />
-      <workItem from="1755786173666" duration="39855000" />
+      <workItem from="1755786173666" duration="41156000" />
+      <workItem from="1755975110883" duration="27885000" />
     </task>
+    <task id="LOCAL-00001" summary="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
+      <option name="closed" value="true" />
+      <created>1755974067958</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1755974067958</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="HEAD" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md" />
+    <option name="LAST_COMMIT_MESSAGE" value="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md" />
+  </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_rrule_system.coverage" NAME="test_rrule_system 覆盖结果" MODIFIED="1756019650259" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$code_line_counter.coverage" NAME="code_line_counter 覆盖结果" MODIFIED="1755359556811" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_exception_debug.coverage" NAME="test_exception_debug 覆盖结果" MODIFIED="1756045494260" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

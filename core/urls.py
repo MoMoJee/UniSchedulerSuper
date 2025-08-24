@@ -39,6 +39,7 @@ urlpatterns = [
     path('api/reminders/dismiss/', views.dismiss_reminder, name='dismiss_reminder'),
     path('api/reminders/complete/', views.complete_reminder, name='complete_reminder'),
     path('api/reminders/pending/', views.get_pending_reminders, name='get_pending_reminders'),
+    path('api/reminders/maintain/', views.maintain_reminders, name='maintain_reminders'),
     
     # Todos API
     path('api/todos/', views.get_todos, name='get_todos'),

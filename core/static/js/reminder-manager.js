@@ -1016,6 +1016,7 @@ class ReminderManager {
 
     // 执行批量操作
     async performBulkOperation(seriesId, operation, scope, fromTime, reminderId, updateData = {}) {
+        console.log(updateData)
         try {
             const response = await fetch('/api/reminders/bulk-edit/', {
                 method: 'POST',
@@ -1023,13 +1024,23 @@ class ReminderManager {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': this.getCSRFToken()
                 },
+
                 body: JSON.stringify({
-                    series_id: seriesId,
-                    operation: operation,
-                    scope: scope,
-                    from_time: fromTime,
                     reminder_id: reminderId,
-                    update_data: updateData
+                    operation: operation,
+                    edit_scope: scope,
+                    from_time: fromTime,
+                    series_id: seriesId,
+                    // 传递更新数据
+                    title: updateData.title,
+                    content: updateData.content,  // 修正：使用 content 而不是 description
+                    description: updateData.description,
+                    priority: updateData.priority,  // 添加缺失的 priority 字段
+                    importance: updateData.importance,
+                    urgency: updateData.urgency,
+                    trigger_time: updateData.trigger_time,
+                    rrule: updateData.rrule,
+                    reminder_mode: updateData.reminder_mode
                 })
             });
             
@@ -1038,11 +1049,16 @@ class ReminderManager {
                 await this.loadReminders();
                 // 重新应用当前筛选器设置
                 this.applyFilters();
-                console.log(`批量${operation}完成，影响了${result.affected_count}个提醒`);
+                console.log(`批量${operation}完成`);
                 return true;
+            } else {
+                const errorData = await response.json();
+                console.error('批量操作失败:', errorData);
+                alert(errorData.message || '操作失败');
             }
         } catch (error) {
             console.error(`Error performing bulk ${operation}:`, error);
+            alert('网络错误，请重试');
         }
         return false;
     }

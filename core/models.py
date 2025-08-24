@@ -756,6 +756,71 @@ DATA_SCHEMA = {
             },
         },
     },
+    "rrule_series_storage": {
+        "type": dict,
+        "nullable": False,
+        "default": {},
+        "items": {
+            "segments": {
+                "type": list,
+                "nullable": False,
+                "default": [],
+                "items": {
+                    "id": {
+                        "type": str,
+                        "nullable": False,
+                    },
+                    "rrule": {
+                        "type": str,
+                        "nullable": False,
+                    },
+                    "dtstart": {
+                        "type": str,
+                        "nullable": False,
+                    },
+                    "until": {
+                        "type": str,
+                        "nullable": True,
+                        "default": "",
+                    },
+                    "count": {
+                        "type": int,
+                        "nullable": True,
+                        "default": -1,
+                    },
+                    "original_data": {
+                        "type": dict,
+                        "nullable": False,
+                        "default": {},
+                    },
+                },
+            },
+            "exceptions": {
+                "type": list,
+                "nullable": False,
+                "default": [],
+                "items": {
+                    "series_id": {
+                        "type": str,
+                        "nullable": False,
+                    },
+                    "exception_date": {
+                        "type": str,
+                        "nullable": False,
+                    },
+                    "type": {
+                        "type": str,
+                        "nullable": False,
+                    },
+                    "new_data": {
+                        "type": dict,
+                        "nullable": True,
+                        "default": {},
+                    },
+                },
+            },
+        },
+    },
 }
 # 这里定义用户信息类
 
@@ -787,16 +852,6 @@ class UserData(models.Model):
     key = models.CharField(max_length=100)
     value = models.TextField()
     # 使用 TextField 存储序列化后的数据。python自带的SQLite不支持JSON格式，因此下面有一套解析函数
-
-    # def __init__(self, *args, **kwargs):
-    #     self.request = kwargs.pop('request', None)
-    #     self.user = kwargs.pop('user', None)
-    #     self.new_key = kwargs.pop('new_key', None)
-    #     self.data = kwargs.pop('data', None)
-    #     super().__init__(*args, **kwargs)
-    #     if self.request and self.new_key:
-    #         self.init_key(self.request, self.new_key, self.data)
-
 
     def __str__(self):
         return f"{self.user.username} - {self.key}"
