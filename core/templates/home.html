@@ -1,9 +1,11 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Personal Time Management</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'css/home.css' %}">
     <style>
         h1 {
           display:inline-block;
@@ -138,6 +140,183 @@
 
         .group-item button {
           margin-left: auto; /* 将按钮推到右侧 */
+        }
+
+        /* 消息提示框样式 */
+        .message-box-overlay {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            background-color: rgba(0, 0, 0, 0.5) !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            z-index: 2000 !important;
+        }
+
+        .message-box {
+            background: white !important;
+            border-radius: 8px !important;
+            padding: 20px !important;
+            width: 20% !important;
+            max-width: 400px !important;
+            min-width: 300px !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+            text-align: center !important;
+        }
+
+        .message-box-content {
+            margin-bottom: 20px !important;
+        }
+
+        .message-box-icon {
+            font-size: 32px !important;
+            margin-bottom: 10px !important;
+        }
+
+        .message-box-success .message-box-icon {
+            color: #28a745 !important;
+        }
+
+        .message-box-error .message-box-icon {
+            color: #dc3545 !important;
+        }
+
+        .message-box-info .message-box-icon {
+            color: #17a2b8 !important;
+        }
+
+        .message-box-text {
+            font-size: 16px !important;
+            margin-bottom: 10px !important;
+            color: #333 !important;
+        }
+
+        .message-box-close {
+            background-color: #007bff !important;
+            color: white !important;
+            border: none !important;
+            padding: 8px 20px !important;
+            border-radius: 4px !important;
+            cursor: pointer !important;
+            font-size: 14px !important;
+        }
+
+        .message-box-close:hover {
+            background-color: #0056b3 !important;
+        }
+
+        /* 提醒触发弹窗样式 */
+        .reminder-alert-overlay {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            background-color: rgba(0, 0, 0, 0.7) !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            z-index: 3000 !important;
+        }
+
+        .reminder-alert-box {
+            background: white !important;
+            border-radius: 12px !important;
+            padding: 30px !important;
+            width: 30% !important;
+            height: 40% !important;
+            min-width: 500px !important;
+            min-height: 400px !important;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2) !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
+
+        .reminder-alert-header {
+            display: flex !important;
+            align-items: center !important;
+            margin-bottom: 20px !important;
+            padding-bottom: 15px !important;
+            border-bottom: 2px solid #f0f0f0 !important;
+        }
+
+        .reminder-alert-priority {
+            font-size: 24px !important;
+            margin-right: 15px !important;
+        }
+
+        .reminder-alert-title {
+            font-size: 18px !important;
+            font-weight: bold !important;
+            color: #333 !important;
+            flex: 1 !important;
+        }
+
+        .reminder-alert-time {
+            font-size: 14px !important;
+            color: #666 !important;
+            background: #f8f9fa !important;
+            padding: 4px 8px !important;
+            border-radius: 4px !important;
+        }
+
+        .reminder-alert-content {
+            flex: 1 !important;
+            margin-bottom: 20px !important;
+            overflow-y: auto !important;
+        }
+
+        .reminder-alert-content-text {
+            font-size: 16px !important;
+            line-height: 1.5 !important;
+            color: #555 !important;
+            white-space: pre-wrap !important;
+        }
+
+        .reminder-alert-actions {
+            display: flex !important;
+            gap: 10px !important;
+            justify-content: flex-end !important;
+        }
+
+        .reminder-alert-btn {
+            padding: 10px 20px !important;
+            border: none !important;
+            border-radius: 6px !important;
+            cursor: pointer !important;
+            font-size: 14px !important;
+            font-weight: 500 !important;
+            transition: all 0.2s !important;
+        }
+
+        .reminder-alert-btn-ignore {
+            background-color: #6c757d !important;
+            color: white !important;
+        }
+
+        .reminder-alert-btn-ignore:hover {
+            background-color: #545b62 !important;
+        }
+
+        .reminder-alert-btn-snooze {
+            background-color: #ffc107 !important;
+            color: #000 !important;
+        }
+
+        .reminder-alert-btn-snooze:hover {
+            background-color: #e0a800 !important;
+        }
+
+        .reminder-alert-btn-complete {
+            background-color: #28a745 !important;
+            color: white !important;
+        }
+
+        .reminder-alert-btn-complete:hover {
+            background-color: #1e7e34 !important;
         }
 </style>
 </head>

@@ -1,8 +1,9 @@
-// 提醒管理模块
+﻿// 提醒管理模块
 class ReminderManager {
     constructor() {
         this.reminders = [];
         this.reminderContainer = null;
+        this.pendingBulkEdit = null;  // 初始化为null
     }
 
     // 获取CSRF Token
@@ -174,8 +175,10 @@ class ReminderManager {
         div.dataset.reminderId = reminder.id;
         
         const priorityIcon = this.getPriorityIcon(reminder.priority);
-        const timeStr = this.formatTriggerTime(reminder.trigger_time);
-        const isOverdue = new Date(reminder.trigger_time) < new Date();
+        // 如果提醒被延后，显示延后后的时间；否则显示原始触发时间
+        const displayTime = this.getEffectiveReminderTime(reminder);
+        const timeStr = this.formatTriggerTime(displayTime);
+        const isOverdue = new Date(displayTime) < new Date();
         
         div.innerHTML = `
             <div class="reminder-content">
@@ -208,7 +211,7 @@ class ReminderManager {
     // 获取优先级图标
     getPriorityIcon(priority) {
         const iconMap = {
-            'critical': '🚨',
+            'urgent': '🔥',
             'high': '❗',
             'normal': '🔔',
             'low': '🔕',
@@ -354,6 +357,16 @@ class ReminderManager {
         return false;
     }
 
+    // 获取提醒的有效时间（考虑延后）
+    getEffectiveReminderTime(reminder) {
+        // 如果提醒被延后且有snooze_until时间，使用延后时间
+        if (reminder.status && reminder.status.startsWith('snoozed_') && reminder.snooze_until) {
+            return reminder.snooze_until;
+        }
+        // 否则使用原始触发时间
+        return reminder.trigger_time;
+    }
+
     // 格式化触发时间
     formatTriggerTime(timeStr) {
         const date = new Date(timeStr);
@@ -364,6 +377,7 @@ class ReminderManager {
         const days = Math.floor(hours / 24);
         
         if (diff < 0) {
+            // 已过期的提醒
             const overdue = Math.abs(minutes);
             if (overdue < 60) {
                 return `已过期 ${overdue} 分钟`;
@@ -372,13 +386,21 @@ class ReminderManager {
             } else {
                 return `已过期 ${Math.floor(overdue / 1440)} 天`;
             }
-        } else if (minutes < 60) {
-            return `${minutes} 分钟后`;
-        } else if (hours < 24) {
-            return `${hours} 小时后`;
-        } else if (days < 7) {
-            return `${days} 天后`;
+        } else if (minutes <= 600) {  // 10小时内(600分钟)显示倒计时
+            if (minutes < 60) {
+                return `${minutes} 分钟后`;
+            } else {
+                // 大于1小时的显示x时x分格式
+                const remainingHours = Math.floor(minutes / 60);
+                const remainingMinutes = minutes % 60;
+                if (remainingMinutes === 0) {
+                    return `${remainingHours} 小时后`;
+                } else {
+                    return `${remainingHours} 时 ${remainingMinutes} 分后`;
+                }
+            }
         } else {
+            // 大于10小时，显示日期+时+分
             return date.toLocaleDateString('zh-CN', {
                 month: 'short',
                 day: 'numeric',
@@ -434,12 +456,21 @@ class ReminderManager {
 
     // 触发提醒
     triggerReminder(reminder) {
-        this.showNotification(reminder.title, reminder.content, reminder.priority);
+        // 立即标记为已发送，防止重复触发
+        reminder.notification_sent = true;
+        
+        // 显示前端弹窗
+        this.showReminderAlert(reminder);
+        
+        // 异步发送到后端（不阻塞）
         this.markNotificationSent(reminder.id);
     }
 
     // 触发提前提醒
     triggerAdvanceReminder(reminder, advanceTrigger) {
+        // 立即标记为已发送，防止重复触发
+        advanceTrigger.notification_sent = true;
+        
         const message = advanceTrigger.message || `${advanceTrigger.time_before}后有提醒: ${reminder.title}`;
         this.showNotification(message, reminder.content, advanceTrigger.priority);
     }
@@ -480,6 +511,180 @@ class ReminderManager {
         }, 5000);
     }
 
+    // 显示消息提示框（用于操作反馈）
+    showMessage(message, type) {
+        const messageBox = document.createElement('div');
+        messageBox.className = 'message-box-overlay';
+        messageBox.innerHTML = `
+            <div class="message-box message-box-${type}">
+                <div class="message-box-content">
+                    <div class="message-box-icon">
+                        ${type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ'}
+                    </div>
+                    <div class="message-box-text">${this.escapeHtml(message)}</div>
+                </div>
+                <button class="message-box-close" onclick="this.parentElement.remove()">确定</button>
+            </div>
+        `;
+        
+        document.body.appendChild(messageBox);
+        
+        // 3秒后自动消失
+        setTimeout(() => {
+            if (messageBox.parentElement) {
+                messageBox.remove();
+            }
+        }, 3000);
+    }
+
+    // 显示提醒触发弹窗
+    showReminderAlert(reminder) {
+        const alertBox = document.createElement('div');
+        alertBox.className = 'reminder-alert-overlay';
+        alertBox.innerHTML = `
+            <div class="reminder-alert-box ${reminder.priority}">
+                <div class="reminder-alert-header">
+                    <span class="reminder-alert-priority">${this.getPriorityIcon(reminder.priority)}</span>
+                    <span class="reminder-alert-title">${this.escapeHtml(reminder.title)}</span>
+                    <span class="reminder-alert-time">${this.formatTriggerTime(reminder.trigger_time)}</span>
+                </div>
+                <div class="reminder-alert-content">
+                    <div class="reminder-alert-content-text">${this.escapeHtml(reminder.content || '无详细内容')}</div>
+                    ${reminder.rrule ? '<div style="margin-top: 10px; color: #666; font-size: 14px;">🔄 重复提醒</div>' : ''}
+                </div>
+                <div class="reminder-alert-actions">
+                    <button class="reminder-alert-btn reminder-alert-btn-ignore" onclick="reminderManager.handleReminderAlertAction('${reminder.id}', 'ignore')">忽略</button>
+                    <button class="reminder-alert-btn reminder-alert-btn-snooze" onclick="reminderManager.handleReminderAlertAction('${reminder.id}', 'snooze')">延后</button>
+                    <button class="reminder-alert-btn reminder-alert-btn-complete" onclick="reminderManager.handleReminderAlertAction('${reminder.id}', 'complete')">完成</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(alertBox);
+        
+        // 点击背景关闭（相当于忽略）
+        alertBox.addEventListener('click', (e) => {
+            if (e.target === alertBox) {
+                this.handleReminderAlertAction(reminder.id, 'ignore');
+            }
+        });
+    }
+
+    // 处理提醒弹窗操作
+    async handleReminderAlertAction(reminderId, action) {
+        // 关闭弹窗
+        const alertBox = document.querySelector('.reminder-alert-overlay');
+        if (alertBox) {
+            alertBox.remove();
+        }
+
+        // 执行对应操作
+        switch (action) {
+            case 'ignore':
+                await this.dismissReminder(reminderId);
+                break;
+            case 'snooze':
+                // 显示延后选项
+                this.showSnoozeOptions(reminderId);
+                break;
+            case 'complete':
+                await this.completeReminder(reminderId);
+                break;
+        }
+    }
+
+    // 显示延后选项
+    showSnoozeOptions(reminderId) {
+        // 找到原提醒数据，以便取消时能重新显示
+        const reminder = this.reminders.find(r => r.id === reminderId);
+        
+        const snoozeBox = document.createElement('div');
+        snoozeBox.className = 'message-box-overlay';
+        snoozeBox.innerHTML = `
+            <div class="message-box">
+                <div class="message-box-content">
+                    <div class="message-box-text">选择延后时间：</div>
+                    <div style="margin: 15px 0;">
+                        <button class="reminder-alert-btn reminder-alert-btn-snooze" onclick="reminderManager.executeSnooze('${reminderId}', '15m')" style="margin: 5px;">15分钟后</button>
+                        <button class="reminder-alert-btn reminder-alert-btn-snooze" onclick="reminderManager.executeSnooze('${reminderId}', '1h')" style="margin: 5px;">1小时后</button>
+                        <button class="reminder-alert-btn reminder-alert-btn-snooze" onclick="reminderManager.executeSnooze('${reminderId}', '1d')" style="margin: 5px;">一天后</button>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <button class="reminder-alert-btn reminder-alert-btn-snooze" onclick="reminderManager.customSnoozeFromAlert('${reminderId}')" style="margin: 5px;">自定义时间</button>
+                    </div>
+                </div>
+                <button class="message-box-close" onclick="reminderManager.cancelSnoozeAndRestoreAlert('${reminderId}')">取消</button>
+            </div>
+        `;
+        
+        document.body.appendChild(snoozeBox);
+    }
+
+    // 取消延后并恢复提醒弹窗
+    cancelSnoozeAndRestoreAlert(reminderId) {
+        // 关闭延后选项弹窗
+        const snoozeBox = document.querySelector('.message-box-overlay');
+        if (snoozeBox) {
+            snoozeBox.remove();
+        }
+        
+        // 重新显示原提醒弹窗
+        const reminder = this.reminders.find(r => r.id === reminderId);
+        if (reminder) {
+            this.showReminderAlert(reminder);
+        }
+    }
+
+    // 执行延后操作（从弹窗调用）
+    async executeSnooze(reminderId, snoozeType) {
+        // 关闭延后选项弹窗
+        const snoozeBox = document.querySelector('.message-box-overlay');
+        if (snoozeBox) {
+            snoozeBox.remove();
+        }
+        
+        await this.snoozeReminder(reminderId, snoozeType);
+    }
+
+    // 自定义延后时间（从弹窗调用）
+    async customSnoozeFromAlert(reminderId) {
+        // 关闭延后选项弹窗
+        const snoozeBox = document.querySelector('.message-box-overlay');
+        if (snoozeBox) {
+            snoozeBox.remove();
+        }
+        
+        const timeInput = prompt('请输入延后时间（格式：YYYY-MM-DD HH:MM）：');
+        if (timeInput) {
+            try {
+                const snoozeUntil = new Date(timeInput);
+                if (snoozeUntil > new Date()) {
+                    await this.updateReminderStatus(reminderId, 'snoozed_custom', snoozeUntil.toISOString());
+                } else {
+                    alert('延后时间必须在未来');
+                    // 时间无效，重新显示提醒弹窗
+                    const reminder = this.reminders.find(r => r.id === reminderId);
+                    if (reminder) {
+                        this.showReminderAlert(reminder);
+                    }
+                }
+            } catch (error) {
+                alert('时间格式错误');
+                // 格式错误，重新显示提醒弹窗
+                const reminder = this.reminders.find(r => r.id === reminderId);
+                if (reminder) {
+                    this.showReminderAlert(reminder);
+                }
+            }
+        } else {
+            // 用户取消了输入，重新显示提醒弹窗
+            const reminder = this.reminders.find(r => r.id === reminderId);
+            if (reminder) {
+                this.showReminderAlert(reminder);
+            }
+        }
+    }
+
     // 解析时间长度
     parseDuration(duration) {
         const match = duration.match(/(\d+)([mhd])/);
@@ -498,19 +703,18 @@ class ReminderManager {
 
     // 标记通知已发送
     async markNotificationSent(reminderId) {
-        try {
-            await fetch('/api/reminders/mark-sent/', {
-                // TODO 这个后端还没实现
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.getCSRFToken()
-                },
-                body: JSON.stringify({ reminder_id: reminderId })
-            });
-        } catch (error) {
-            console.error('Error marking notification sent:', error);
-        }
+        // 异步发送到后端，不阻塞前端提醒显示
+        fetch('/api/reminders/mark-sent/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCSRFToken()
+            },
+            body: JSON.stringify({ reminder_id: reminderId })
+        }).catch(error => {
+            // 静默处理错误，不影响前端提醒功能
+            console.warn('Failed to mark notification sent (non-critical):', error);
+        });
     }
 
     // 创建新提醒
@@ -539,12 +743,16 @@ class ReminderManager {
 
     // 更新提醒
     async updateReminder(reminderId, reminderData) {
+        console.log('DEBUG: updateReminder called with:', reminderId, reminderData);
+        
         try {
             // 检查是否有待处理的批量编辑（来自模态框管理器）
-            const hasPendingBulkEdit = this.pendingBulkEdit !== null;
+            const hasPendingBulkEdit = this.pendingBulkEdit != null;  // 使用 != null 同时检查 null 和 undefined
+            console.log('DEBUG: hasPendingBulkEdit =', hasPendingBulkEdit, 'pendingBulkEdit =', this.pendingBulkEdit);
             
             // 检查是否是创建新系列模式
             const isCreateNewSeries = reminderData.create_new_series === true;
+            console.log('DEBUG: isCreateNewSeries =', isCreateNewSeries);
             
             // 只有在非批量编辑模式且非创建新系列模式下才检查重复规则变化
             if (!hasPendingBulkEdit && !isCreateNewSeries) {
@@ -559,6 +767,10 @@ class ReminderManager {
                 const newRrule = reminderData.rrule;
                 const changeType = this.analyzeRruleChange(originalRrule, newRrule);
                 
+                console.log('DEBUG: originalRrule =', originalRrule);
+                console.log('DEBUG: newRrule =', newRrule);
+                console.log('DEBUG: changeType =', changeType);
+                
                 // 如果是重复规则变化，需要用户选择影响范围
                 if (changeType === 'recurring_rule_change') {
                     const scope = await this.showRruleChangeDialog(reminderId, originalReminder);
@@ -567,15 +779,19 @@ class ReminderManager {
                     }
                     reminderData.rrule_change_scope = scope;
                 } else if (changeType === 'recurring_to_single') {
-                    // 重复变单个，确认操作
+                    // 重复变单个，确认操作并设置scope
                     if (!confirm('确定要将此重复提醒转换为单个提醒吗？这将从系列中分离此提醒。')) {
                         return false;
                     }
+                    // 设置scope为single，表示只影响当前提醒
+                    reminderData.rrule_change_scope = 'this_only';
                 } else if (changeType === 'single_to_recurring') {
-                    // 单个变重复，确认操作
+                    // 单个变重复，确认操作并设置scope
                     if (!confirm('确定要将此单个提醒转换为重复提醒吗？系统将根据重复规则生成未来的提醒实例。')) {
                         return false;
                     }
+                    // 设置scope为all，表示创建新的重复系列
+                    reminderData.rrule_change_scope = 'all';
                 }
             }
             
@@ -1054,10 +1270,86 @@ class ReminderManager {
             } else {
                 const errorData = await response.json();
                 console.error('批量操作失败:', errorData);
-                alert(errorData.message || '操作失败');
+                
+                // 检查是否是重复提醒转单次提醒的错误
+                if (errorData.message && errorData.message.includes('RRule是必填项') && 
+                    updateData && !updateData.rrule && operation === 'edit') {
+                    
+                    // 显示转换确认对话框
+                    const userConfirmed = confirm(
+                        '检测到您要将重复提醒转换为单次提醒。\n\n' +
+                        '这将执行以下操作：\n' +
+                        '• 将当前提醒转换为单次提醒\n' +
+                        '• 删除该系列中所有未来的提醒\n' +
+                        '• 为过去的提醒设置截止时间\n\n' +
+                        '确定要继续吗？'
+                    );
+                    
+                    if (userConfirmed) {
+                        // 发送特殊的转换请求
+                        return await this.convertRecurringToSingle(seriesId, reminderId, updateData);
+                    }
+                } else {
+                    alert(errorData.message || '操作失败');
+                }
             }
         } catch (error) {
             console.error(`Error performing bulk ${operation}:`, error);
+            
+            // 检查是否是重复提醒转单次提醒的错误
+            if (error.message && error.message.includes('RRule是必填项') && 
+                updateData && !updateData.rrule && operation === 'edit') {
+                
+                // 显示转换确认对话框
+                const userConfirmed = confirm(
+                    '检测到您要将重复提醒转换为单次提醒。\n\n' +
+                    '这将执行以下操作：\n' +
+                    '• 将当前提醒转换为单次提醒\n' +
+                    '• 删除该系列中所有未来的提醒\n' +
+                    '• 为过去的提醒设置截止时间\n\n' +
+                    '确定要继续吗？'
+                );
+                
+                if (userConfirmed) {
+                    // 发送特殊的转换请求
+                    return await this.convertRecurringToSingle(seriesId, reminderId, updateData);
+                }
+            } else {
+                alert('网络错误，请重试');
+            }
+        }
+        return false;
+    }
+
+    // 将重复提醒转换为单次提醒
+    async convertRecurringToSingle(seriesId, reminderId, updateData) {
+        try {
+            const response = await fetch('/api/reminders/convert-to-single/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify({
+                    series_id: seriesId,
+                    reminder_id: reminderId,
+                    update_data: updateData
+                })
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                await this.loadReminders();
+                this.applyFilters();
+                console.log('重复提醒转换为单次提醒成功');
+                return true;
+            } else {
+                const errorData = await response.json();
+                console.error('转换失败:', errorData);
+                alert(errorData.message || '转换失败');
+            }
+        } catch (error) {
+            console.error('Error converting recurring to single:', error);
             alert('网络错误，请重试');
         }
         return false;
@@ -1333,20 +1625,31 @@ function updateRepeatOptions(mode) {
 }
 
 function updateMonthlyOptions(mode) {
-    const monthlyType = document.getElementById(mode === 'new' ? 'newRepeatBy' : 'reminderRepeatBy').value;
-    const monthlyByOptions = document.getElementById(mode === 'new' ? 'newMonthlyByOptions' : 'reminderMonthlyByOptions');
+    // 获取正确的ID前缀
+    const prefix = mode === 'new' ? 'new' : (mode === 'edit' ? 'edit' : 'reminder');
     
-    if (monthlyType === 'simple') {
-        // 简单的每隔x个月 - 隐藏所有额外选项
-        if (monthlyByOptions) monthlyByOptions.style.display = 'none';
-    } else if (monthlyType === 'bymonthday') {
+    // 获取月重复类型
+    const monthlyTypeId = mode === 'new' ? 'newMonthlyType' : 'reminderRepeatBy';
+    const monthlyType = document.getElementById(monthlyTypeId).value;
+    
+    // 获取各种选项元素
+    const monthlyDateOptions = document.getElementById(prefix + 'MonthlyDateOptions');
+    const monthlyWeekOptions = document.getElementById(prefix + 'MonthlyWeekOptions');
+    const monthlyWeekdayOptions = document.getElementById(prefix + 'MonthlyWeekdayOptions');
+    
+    // 首先隐藏所有选项
+    if (monthlyDateOptions) monthlyDateOptions.style.display = 'none';
+    if (monthlyWeekOptions) monthlyWeekOptions.style.display = 'none';
+    if (monthlyWeekdayOptions) monthlyWeekdayOptions.style.display = 'none';
+    
+    // 根据类型显示对应选项
+    if (monthlyType === 'bymonthday') {
         // 按日期重复 - 显示日期选择器
-        if (monthlyByOptions) monthlyByOptions.style.display = 'block';
-        // TODO: 填充日期选项
+        if (monthlyDateOptions) monthlyDateOptions.style.display = 'block';
     } else if (monthlyType === 'byweekday') {
         // 按星期重复 - 显示星期选择器
-        if (monthlyByOptions) monthlyByOptions.style.display = 'block';
-        // TODO: 填充星期选项
+        if (monthlyWeekOptions) monthlyWeekOptions.style.display = 'block';
+        if (monthlyWeekdayOptions) monthlyWeekdayOptions.style.display = 'block';
     }
     
     updateRepeatPreview(mode);
@@ -1520,12 +1823,14 @@ function buildRruleFromUI(mode) {
     
     // 添加月重复规则
     if (freq === 'MONTHLY') {
-        const monthlyTypeElement = document.getElementById(mode === 'new' ? 'newRepeatBy' : 'reminderRepeatBy');
+        const monthlyTypeId = mode === 'new' ? 'newMonthlyType' : 'reminderRepeatBy';
+        const monthlyTypeElement = document.getElementById(monthlyTypeId);
         const monthlyType = monthlyTypeElement ? monthlyTypeElement.value : 'simple';
         
         if (monthlyType === 'bymonthday') {
             // 按日期重复
-            const monthlyDate = document.getElementById(`${prefix}MonthlyDate`);
+            const monthlyDateId = mode === 'new' ? 'newMonthlyDate' : 'editMonthlyDate';
+            const monthlyDate = document.getElementById(monthlyDateId);
             if (monthlyDate && monthlyDate.value) {
                 const day = monthlyDate.value;
                 if (day === '-1') {
@@ -1537,8 +1842,10 @@ function buildRruleFromUI(mode) {
             }
         } else if (monthlyType === 'byweekday') {
             // 按星期重复
-            const monthlyWeek = document.getElementById(`${prefix}MonthlyWeek`);
-            const monthlyWeekday = document.getElementById(`${prefix}MonthlyWeekday`);
+            const monthlyWeekId = mode === 'new' ? 'newMonthlyWeek' : 'editMonthlyWeek';
+            const monthlyWeekdayId = mode === 'new' ? 'newMonthlyWeekday' : 'editMonthlyWeekday';
+            const monthlyWeek = document.getElementById(monthlyWeekId);
+            const monthlyWeekday = document.getElementById(monthlyWeekdayId);
             
             if (monthlyWeek && monthlyWeekday && monthlyWeek.value && monthlyWeekday.value) {
                 const week = monthlyWeek.value;
@@ -1607,7 +1914,8 @@ function parseRruleToUI(rrule, mode) {
         // 检查是否是月重复的星期模式（如2MO表示第2个星期一）
         if (ruleObj.FREQ === 'MONTHLY' && weekdays.some(day => /^\d/.test(day) || /^-\d/.test(day))) {
             // 设置为按星期重复
-            const monthlyTypeSelect = document.getElementById(`${prefix}MonthlyType`);
+            const monthlyTypeSelectId = mode === 'new' ? 'newMonthlyType' : 'reminderRepeatBy';
+            const monthlyTypeSelect = document.getElementById(monthlyTypeSelectId);
             if (monthlyTypeSelect) {
                 monthlyTypeSelect.value = 'byweekday';
                 updateMonthlyOptions(mode);
@@ -1619,8 +1927,10 @@ function parseRruleToUI(rrule, mode) {
                     const week = match[1];
                     const weekday = match[2];
                     
-                    const weekSelect = document.getElementById(`${prefix}MonthlyWeek`);
-                    const weekdaySelect = document.getElementById(`${prefix}MonthlyWeekday`);
+                    const weekSelectId = mode === 'new' ? 'newMonthlyWeek' : 'editMonthlyWeek';
+                    const weekdaySelectId = mode === 'new' ? 'newMonthlyWeekday' : 'editMonthlyWeekday';
+                    const weekSelect = document.getElementById(weekSelectId);
+                    const weekdaySelect = document.getElementById(weekdaySelectId);
                     
                     if (weekSelect) weekSelect.value = week;
                     if (weekdaySelect) weekdaySelect.value = weekday;
@@ -1637,7 +1947,8 @@ function parseRruleToUI(rrule, mode) {
         }
     } else if (ruleObj.FREQ === 'MONTHLY') {
         // 月重复但没有BYDAY，检查是否有BYMONTHDAY
-        const monthlyTypeSelect = document.getElementById(`${prefix}MonthlyType`);
+        const monthlyTypeSelectId = mode === 'new' ? 'newMonthlyType' : 'reminderRepeatBy';
+        const monthlyTypeSelect = document.getElementById(monthlyTypeSelectId);
         if (monthlyTypeSelect) {
             if (ruleObj.BYMONTHDAY) {
                 // 按日期重复
@@ -1645,7 +1956,8 @@ function parseRruleToUI(rrule, mode) {
                 updateMonthlyOptions(mode);
                 
                 // 设置月日期
-                const monthlyDateSelect = document.getElementById(`${prefix}MonthlyDate`);
+                const monthlyDateSelectId = mode === 'new' ? 'newMonthlyDate' : 'editMonthlyDate';
+                const monthlyDateSelect = document.getElementById(monthlyDateSelectId);
                 if (monthlyDateSelect) {
                     monthlyDateSelect.value = ruleObj.BYMONTHDAY;
                 }

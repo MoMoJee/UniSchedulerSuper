@@ -836,10 +836,67 @@
                                         </select>
                                     </div>
                                     
-                                    <div class="col-md-6" id="reminderMonthlyByOptions" style="display: none;">
-                                        <label for="reminderMonthlySelector" class="form-label">选择日期</label>
-                                        <select class="form-select" id="reminderMonthlySelector">
-                                            <!-- 动态填充选项 -->
+                                    <!-- 按日期重复的选择 -->
+                                    <div class="col-md-6" id="editMonthlyDateOptions" style="display: none;">
+                                        <label for="editMonthlyDate" class="form-label">选择日期</label>
+                                        <select class="form-select" id="editMonthlyDate">
+                                            <option value="1">1日</option>
+                                            <option value="2">2日</option>
+                                            <option value="3">3日</option>
+                                            <option value="4">4日</option>
+                                            <option value="5">5日</option>
+                                            <option value="6">6日</option>
+                                            <option value="7">7日</option>
+                                            <option value="8">8日</option>
+                                            <option value="9">9日</option>
+                                            <option value="10">10日</option>
+                                            <option value="11">11日</option>
+                                            <option value="12">12日</option>
+                                            <option value="13">13日</option>
+                                            <option value="14">14日</option>
+                                            <option value="15">15日</option>
+                                            <option value="16">16日</option>
+                                            <option value="17">17日</option>
+                                            <option value="18">18日</option>
+                                            <option value="19">19日</option>
+                                            <option value="20">20日</option>
+                                            <option value="21">21日</option>
+                                            <option value="22">22日</option>
+                                            <option value="23">23日</option>
+                                            <option value="24">24日</option>
+                                            <option value="25">25日</option>
+                                            <option value="26">26日</option>
+                                            <option value="27">27日</option>
+                                            <option value="28">28日</option>
+                                            <option value="29">29日</option>
+                                            <option value="30">30日</option>
+                                            <option value="31">31日</option>
+                                            <option value="-1">月末</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- 按星期重复的选择 -->
+                                    <div class="col-md-3" id="editMonthlyWeekOptions" style="display: none;">
+                                        <label for="editMonthlyWeek" class="form-label">第几周</label>
+                                        <select class="form-select" id="editMonthlyWeek">
+                                            <option value="1">第一周</option>
+                                            <option value="2">第二周</option>
+                                            <option value="3">第三周</option>
+                                            <option value="4">第四周</option>
+                                            <option value="-1">最后一周</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-md-3" id="editMonthlyWeekdayOptions" style="display: none;">
+                                        <label for="editMonthlyWeekday" class="form-label">星期几</label>
+                                        <select class="form-select" id="editMonthlyWeekday">
+                                            <option value="MO">周一</option>
+                                            <option value="TU">周二</option>
+                                            <option value="WE">周三</option>
+                                            <option value="TH">周四</option>
+                                            <option value="FR">周五</option>
+                                            <option value="SA">周六</option>
+                                            <option value="SU">周日</option>
                                         </select>
                                     </div>
                                     
@@ -862,7 +919,6 @@
             </form>
             
             <div class="modal-footer">
-                    <button type="button" class="btn btn-danger" onclick="reminderManager.deleteReminder(modalManager.currentReminderId)">删除</button>
                     <button type="button" class="btn btn-secondary" onclick="modalManager.closeAllModals()">取消</button>
                     <button type="submit" class="btn btn-primary" onclick="modalManager.handleUpdateReminder()">更新提醒</button>
                 </div>

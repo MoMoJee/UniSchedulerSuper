@@ -4,15 +4,19 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
-      <change afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/data_source_mapping.xml" afterDir="false" />
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="1.5.1 UniSchedulerSuper Release&#10;重构了 RRule 解析方法">
+      <change beforePath="$PROJECT_DIR$/.idea/data_source_mapping.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/css/home-styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/css/home-styles.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/css/home.css" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/css/home.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/js/modal-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/modal-manager.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/static/js/reminder-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/reminder-manager.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/core/home_new.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/core/home_new.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/home.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/home.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/urls.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/integrated_reminder_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/integrated_reminder_manager.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -61,6 +65,7 @@
     "Python.code_line_counter.executor": "Run",
     "Python.test_exception_debug.executor": "Run",
     "Python.test_rrule_system.executor": "Run",
+    "Python.views.executor": "Run",
     "RunOnceActivity.OpenDjangoStructureViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
@@ -75,7 +80,7 @@
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "reference.settingsdialog.project.grazie",
+    "settings.editor.selected.configurable": "http.proxy",
     "to.speed.mode.migration.done": "true",
     "vue.rearranger.settings.migration": "true"
   }
@@ -88,7 +93,7 @@
       <recent name="D:\PROJECTS\UniSchedulerSuper\default_files" />
     </key>
   </component>
-  <component name="RunManager">
+  <component name="RunManager" selected="Django 服务器.UniSchedulerSuper">
     <configuration name="UniSchedulerSuper" type="PythonConfigurationType" factoryName="Python">
       <module name="UniSchedulerSuper" />
       <option name="ENV_FILES" value="" />
@@ -141,8 +146,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-e03c56caf84a-JavaScript-PY-252.23892.515" />
-        <option value="bundled-python-sdk-7e47963ff851-f0eec537fc84-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.23892.515" />
+        <option value="bundled-js-predefined-d6986cc7102b-b598e85cdad2-JavaScript-PY-252.25557.130" />
+        <option value="bundled-python-sdk-1bde30d8e611-7b97d883f26b-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.25557.130" />
       </set>
     </attachedChunks>
   </component>
@@ -172,7 +177,9 @@
       <workItem from="1755360077777" duration="218000" />
       <workItem from="1755491982074" duration="4809000" />
       <workItem from="1755786173666" duration="41156000" />
-      <workItem from="1755975110883" duration="27885000" />
+      <workItem from="1755975110883" duration="57374000" />
+      <workItem from="1756735143958" duration="156000" />
+      <workItem from="1756735336173" duration="5278000" />
     </task>
     <task id="LOCAL-00001" summary="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
       <option name="closed" value="true" />
@@ -182,7 +189,15 @@
       <option name="project" value="LOCAL" />
       <updated>1755974067958</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="1.5.1 UniSchedulerSuper Release&#10;重构了 RRule 解析方法">
+      <option name="closed" value="true" />
+      <created>1756061689002</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1756061689002</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -213,11 +228,13 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md" />
-    <option name="LAST_COMMIT_MESSAGE" value="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md" />
+    <MESSAGE value="1.5.1 UniSchedulerSuper Release&#10;重构了 RRule 解析方法" />
+    <option name="LAST_COMMIT_MESSAGE" value="1.5.1 UniSchedulerSuper Release&#10;重构了 RRule 解析方法" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_rrule_system.coverage" NAME="test_rrule_system 覆盖结果" MODIFIED="1756019650259" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$code_line_counter.coverage" NAME="code_line_counter 覆盖结果" MODIFIED="1755359556811" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_exception_debug.coverage" NAME="test_exception_debug 覆盖结果" MODIFIED="1756045494260" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$views.coverage" NAME="views 覆盖结果" MODIFIED="1756101431647" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/core" />
   </component>
 </project>

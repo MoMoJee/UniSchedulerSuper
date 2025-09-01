@@ -34,12 +34,14 @@ urlpatterns = [
     path('api/reminders/update/', views.update_reminder, name='update_reminder'),
     path('api/reminders/update-status/', views.update_reminder_status, name='update_reminder_status'),
     path('api/reminders/bulk-edit/', views.bulk_edit_reminders, name='bulk_edit_reminders'),
+    path('api/reminders/convert-to-single/', views.convert_recurring_to_single, name='convert_recurring_to_single'),
     path('api/reminders/delete/', views.delete_reminder, name='delete_reminder'),
-    path('api/reminders/snooze/', views.snooze_reminder, name='snooze_reminder'),
-    path('api/reminders/dismiss/', views.dismiss_reminder, name='dismiss_reminder'),
-    path('api/reminders/complete/', views.complete_reminder, name='complete_reminder'),
+    path('api/reminders/snooze/', views.snooze_reminder, name='snooze_reminder'),  # TODO 这个 URL 貌似没有用法了
+    path('api/reminders/dismiss/', views.dismiss_reminder, name='dismiss_reminder'),  # TODO 这个 URL 貌似没有用法了
+    path('api/reminders/complete/', views.complete_reminder, name='complete_reminder'),  # TODO 这个 URL 貌似没有用法了
     path('api/reminders/pending/', views.get_pending_reminders, name='get_pending_reminders'),
     path('api/reminders/maintain/', views.maintain_reminders, name='maintain_reminders'),
+    path('api/reminders/mark-sent/', views.mark_notification_sent, name='mark_notification_sent'),
     
     # Todos API
     path('api/todos/', views.get_todos, name='get_todos'),

@@ -144,3 +144,180 @@ background-color:rgb(30,43,55);
 /*    border-color: #666; !* 设置事件边框颜色 *!*/
 /*    color: #fff; !* 设置事件文本颜色 *!*/
 /*}*/
+
+/* 消息提示框样式 */
+.message-box-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.message-box {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    width: 20%;
+    max-width: 400px;
+    min-width: 300px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    text-align: center;
+}
+
+.message-box-content {
+    margin-bottom: 20px;
+}
+
+.message-box-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+}
+
+.message-box-success .message-box-icon {
+    color: #28a745;
+}
+
+.message-box-error .message-box-icon {
+    color: #dc3545;
+}
+
+.message-box-info .message-box-icon {
+    color: #17a2b8;
+}
+
+.message-box-text {
+    font-size: 16px;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.message-box-close {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.message-box-close:hover {
+    background-color: #0056b3;
+}
+
+/* 提醒触发弹窗样式 */
+.reminder-alert-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+}
+
+.reminder-alert-box {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    width: 30%;
+    height: 40%;
+    min-width: 500px;
+    min-height: 400px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+}
+
+.reminder-alert-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.reminder-alert-priority {
+    font-size: 24px;
+    margin-right: 15px;
+}
+
+.reminder-alert-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+    flex: 1;
+}
+
+.reminder-alert-time {
+    font-size: 14px;
+    color: #666;
+    background: #f8f9fa;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.reminder-alert-content {
+    flex: 1;
+    margin-bottom: 20px;
+    overflow-y: auto;
+}
+
+.reminder-alert-content-text {
+    font-size: 16px;
+    line-height: 1.5;
+    color: #555;
+    white-space: pre-wrap;
+}
+
+.reminder-alert-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.reminder-alert-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.reminder-alert-btn-ignore {
+    background-color: #6c757d;
+    color: white;
+}
+
+.reminder-alert-btn-ignore:hover {
+    background-color: #545b62;
+}
+
+.reminder-alert-btn-snooze {
+    background-color: #ffc107;
+    color: #000;
+}
+
+.reminder-alert-btn-snooze:hover {
+    background-color: #e0a800;
+}
+
+.reminder-alert-btn-complete {
+    background-color: #28a745;
+    color: white;
+}
+
+.reminder-alert-btn-complete:hover {
+    background-color: #1e7e34;
+}

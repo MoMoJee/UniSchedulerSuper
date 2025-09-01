@@ -805,30 +805,8 @@ class ModalManager {
     enableFullEditMode() {
         console.log('DEBUG: enableFullEditMode called');
         
-        // 检查当前提醒是否为无截止时间的重复提醒
-        const pendingBulkEdit = reminderManager.pendingBulkEdit;
-        if (pendingBulkEdit && (pendingBulkEdit.scope === 'from_this' || pendingBulkEdit.scope === 'from_time')) {
-            // 找到当前编辑的提醒
-            const currentReminder = reminderManager.reminders.find(r => r.id === pendingBulkEdit.reminderId);
-            if (currentReminder && currentReminder.rrule && !currentReminder.rrule.includes('UNTIL=')) {
-                // 这是一个无截止时间的重复提醒，需要强制用户设置截止时间
-                const userChoice = confirm(
-                    '您正在修改无截止时间的重复提醒。\n\n' +
-                    '为避免产生冲突的重复实例，修改重复规则时必须设置结束时间。\n\n' +
-                    '点击"确定"继续修改（需要设置结束时间）\n' +
-                    '点击"取消"保持原有规则'
-                );
-                
-                if (!userChoice) {
-                    console.log('DEBUG: User cancelled full edit mode for unlimited series');
-                    return; // 用户取消，不启用完整编辑模式
-                }
-                
-                // 用户选择继续，标记需要强制设置截止时间
-                this.forceUntilRequired = true;
-                console.log('DEBUG: Marked until as required for unlimited series edit');
-            }
-        }
+        // 移除无限重复修改的强制限制，允许所有重复规则修改
+        // 让后端处理无限重复序列到无限重复序列的转换逻辑
         
         // 在清理前保存自定义时间控件的值
         const timeOnlyInput = document.getElementById('reminderTimeOnly');
@@ -891,24 +869,7 @@ class ModalManager {
         const reminderData = this.getReminderFormData('edit');
         console.log('DEBUG handleUpdateReminder: reminderData =', reminderData);
 
-        // 检查是否为无限重复系列的修改，如果是则阻止提交
-        if (this.forceUntilRequired) {
-            // 检查当前构建的RRule是否仍然是无限重复的
-            const currentRrule = reminderData.rrule;
-            const isCurrentlyUnlimited = currentRrule && 
-                                       currentRrule.includes('FREQ=') && 
-                                       !currentRrule.includes('UNTIL=') && 
-                                       !currentRrule.includes('COUNT=');
-            
-            console.log('DEBUG: forceUntilRequired validation - currentRrule:', currentRrule, 'isCurrentlyUnlimited:', isCurrentlyUnlimited);
-            
-            if (isCurrentlyUnlimited) {
-                const message = '❌ 无法提交：正在修改无限重复的提醒系列\n\n💡 请设置结束条件：\n• 设置"截止日期"（推荐）\n• 或设置"重复次数"\n\n然后再提交修改';
-                this.showNotification(message, 'error');
-                alert(message); // 确保用户能看到提示
-                return; // 阻止提交
-            }
-        }
+        // 移除无限重复修改的强制限制，允许后端处理所有重复规则修改场景
 
         // 检查是否有待处理的批量编辑
         if (reminderManager.pendingBulkEdit) {
@@ -923,7 +884,7 @@ class ModalManager {
                     // 清除待处理的批量编辑信息
                     this.clearPendingBulkEditWithoutLog();
                     this.closeAllModals();
-                    this.showNotification('已创建新的重复提醒系列', 'success');
+                    // 移除提示消息：this.showNotification('已创建新的重复提醒系列', 'success');
                 } else {
                     this.showNotification('创建新系列失败', 'error');
                 }
@@ -935,13 +896,14 @@ class ModalManager {
                     // 清除待处理的批量编辑信息
                     this.clearPendingBulkEditWithoutLog();
                     this.closeAllModals();
-                    this.showNotification('批量编辑成功', 'success');
+                    // 移除提示消息：this.showNotification('批量编辑成功', 'success');
                 } else {
                     this.showNotification('批量编辑失败', 'error');
                 }
             }
         } else {
             // 单独更新
+            console.log('DEBUG: About to call updateReminder with:', this.currentReminderId, reminderData);
             const success = await reminderManager.updateReminder(this.currentReminderId, reminderData);
 
             if (success) {
@@ -1171,22 +1133,11 @@ class ModalManager {
             const editModal = document.getElementById('editReminderModal');
             const isFullEdit = editModal && editModal.getAttribute('data-full-edit') === 'true';
             
-            // 检查是否强制要求设置截止时间（针对无截止时间的重复提醒）
-            if (this.forceUntilRequired && data.is_recurring) {
-                const untilField = document.getElementById('repeatUntil');
-                if (!untilField || !untilField.value.trim()) {
-                    this.showNotification('修改无截止时间的重复提醒规则时，必须设置截止时间以避免产生冲突的重复实例', 'error');
-                    return false;
-                }
-            }
+            // 移除强制截止时间的验证，允许无限重复到无限重复的转换
             
             if (isFullEdit && data.is_recurring && data.create_new_series) {
-                // "更改重复规则"模式：必须设置截止时间
-                const untilField = document.getElementById('repeatUntil');
-                if (!untilField || !untilField.value.trim()) {
-                    this.showNotification('更改重复规则时必须设置截止时间，以便系统正确管理重复提醒', 'error');
-                    return false;
-                }
+                // "更改重复规则"模式：移除强制截止时间要求，允许后端处理无限重复转换
+                console.log('DEBUG: Full edit mode with new series creation - allowing unlimited recurring rules');
             }
         }
         
