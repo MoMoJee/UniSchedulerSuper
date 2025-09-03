@@ -2,9 +2,7 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
-import logging
-
-logger = logging.getLogger('logger')
+from logger import logger
 
 def some_view(request):
     logger.info("This is an info message")

@@ -10,7 +10,7 @@ import uuid
 from planner.LLMFunctions import find_or_create_preset, update_preset_with_dialogue
 from utils.utils import list_to_str
 
-
+from logger import logger
 # Create your views here.
 
 def planner_index(request):
@@ -25,9 +25,6 @@ def planner_index(request):
         })}
     )
     return render(request, 'planner_index.html')
-
-import logging
-logger = logging.getLogger("logger")
 
 # AI建议修改的代码
 @csrf_exempt

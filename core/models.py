@@ -3,12 +3,11 @@ from typing import Tuple, Any
 from django.db import models
 from django.contrib.auth.models import User
 import json
-import logging
 import datetime
 from django.db.utils import IntegrityError
 
 
-logger = logging.getLogger("logger")
+from logger import logger
 
 # 定义标准数据格式
 DATA_SCHEMA = {

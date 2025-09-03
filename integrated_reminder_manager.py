@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import json
 import uuid
-import logging
 
 # 导入我们的 RRule 引擎
 from rrule_engine import RRuleEngine
@@ -19,7 +18,7 @@ try:
 except ImportError:
     HAS_DATEUTIL = False
 
-logger = logging.getLogger("logger")
+from logger import logger
 
 
 # class MemoryStorageBackend:
