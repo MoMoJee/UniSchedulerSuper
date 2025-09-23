@@ -53,6 +53,14 @@ from .views_reminder import (
     complete_reminder_impl
 )
 
+# 导入 events 相关视图函数  
+from .views_events import (
+    get_events_impl,
+    create_event_impl,
+    delete_event_impl,
+    update_events_impl
+)
+
 # 索引页
 def index(request):
     return render(request, 'index.html')
@@ -369,262 +377,33 @@ def user_settings(request):
 
 @login_required
 def get_events(request):
-    if request.method == 'GET':
-        # 自动新建一个日程
-
-        # 获取当前时间
-        now = datetime.datetime.now()
-        # 找到最近的整点
-        next_hour = now.replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1)
-        # 计算一天之后的时间
-        one_day_later = next_hour + datetime.timedelta(hours=1)
-        # 格式化为指定的格式
-        next_hour_formatted = next_hour.strftime("%Y-%m-%dT%H:%M:%S")
-        one_day_later_formatted = one_day_later.strftime("%Y-%m-%dT%H:%M:%S")
-
-        user_data: 'UserData'
-        # 当没有读取到events的值（即新用户）的时候，自动新建一个任务
-        user_data, created, result = UserData.get_or_initialize(request=request, new_key="events", data=[
-            {
-                "id": '1',
-                "title": "让我们开始吧！",
-                "start": next_hour_formatted,
-                "end": one_day_later_formatted,
-                "backgroundColor": "red",
-                "description": "花一小时时间，学习如何使用我们的计划工具！",
-                "importance": "important",
-                "urgency": "urgent",
-                "groupID": "1",
-                "ddl": "",
-                "last_modified": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            }
-        ])
-
-        # 获取用户的所有日程组
-        user_data_groups, created = UserData.objects.get_or_create(user=request.user, key="events_groups", defaults={"value": json.dumps([
-            {
-                "id": '1',
-                "name": "学习如何使用日程组！",
-                "description": "进阶工具：日程组，继续学习如何使用我们的计划工具！",
-                "color": "red"
-            }
-        ])})
-
-        events_groups = json.loads(user_data_groups.value)
-
-        events = user_data.get_value(check=True)  # 设为 True ，每次服务器修改都能让用户端实时更新
-        user_data.set_value(events)
-        if not events:
-            events = []
-        # 返回事件和日程组数据
-        if not events_groups:
-            events_groups = []
-
-            # 返回事件和日程组数据
-        return JsonResponse({"events": events, "events_groups": events_groups})
-    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+    """获取events数据 - 委托给views_events中的实现"""
+    return get_events_impl(request)
 
 
 
 
+@login_required
 @csrf_exempt
-@login_required # 如果前端和后端不在同一域，可能需要禁用 CSRF 保护
 def update_events(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        event_id = data.get('eventId')
-        new_start = data.get('newStart')
-        new_end = data.get('newEnd')
-        title = data.get('title')
-        description = data.get('description')
-        importance = data.get('importance')
-        urgency = data.get('urgency')
-        group_id = data.get('groupID', '')  # 默认为空字符串
-        ddl = data.get('ddl')
-        last_modified = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    """更新事件 - 委托给views_events中的实现"""
+    return update_events_impl(request)
 
-
-
-
-        # 获取当前用户的 UserData 对象
-
-        user_data, created, result = UserData.get_or_initialize(
-            request=request,
-            new_key="events",
-        )
-
-        # 获取存储的 events 数据
-        events = user_data.get_value(check=True)
-        events = convert_time_format(events)
-
-        user_temp_events_data: 'UserData'
-        user_temp_events_data, created, result = UserData.get_or_initialize(
-            request=request,
-            new_key="planner",
-            data={
-                "dialogue": [],
-                "temp_events": [],
-                "ai_planning_time": {}
-                }
-        )
-
-        planner_data = user_temp_events_data.get_value()
-
-        temp_events = planner_data["temp_events"]
-
-        # 查找需要更新的事件
-        for event in events:
-            if event['id'] == event_id:
-                event['start'] = new_start
-                event['end'] = new_end
-                event['title'] = title
-                event['description'] = description
-                event['importance'] = importance
-                event['urgency'] = urgency
-                event['groupID'] = group_id
-                event['ddl'] = ddl
-                event['last_modified'] = last_modified
-                # 将更新后的数据保存回数据库
-                user_data.set_value(events)
-                # 返回响应
-                return JsonResponse({'status': 'success'})
-
-                # 查找temp需要更新的事件，这里做的逻辑是在临时事件未保存时只是在临时数据那里修改
-                # TODO 后面可能加入更高级的算法，让用户改过的数据不被AI动（PS：我懒得改了）
-
-        for event in temp_events:
-            if event['id'] == event_id:
-                event['start'] = new_start
-                event['end'] = new_end
-                event['title'] = title
-                event['description'] = description
-                event['importance'] = importance
-                event['urgency'] = urgency
-                event['groupID'] = group_id
-                event['ddl'] = ddl
-                event['last_modified'] = last_modified
-                # 将更新后的数据保存回数据库
-                planner_data["temp_events"] = temp_events
-                user_temp_events_data.set_value(planner_data)
-                # 返回响应
-                return JsonResponse({'status': 'success'})
-
-
-    else:
-        return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
-
-
-
-def convert_time_format(events):
-    """
-    解析事件列表，将UTC时间转换为本地时间（减去8小时）。
-    :param events: 事件列表，每个事件是一个字典，包含时间信息。
-    :return: 转换后的时间列表。
-    """
-    for event in events:
-        # 检查 'start' 和 'end' 时间是否为 UTC 时间（以 'Z' 结尾）
-        for key in ['start', 'end']:
-            if event[key].endswith('Z'):
-                # 转换为 datetime 对象并减去8小时
-                utc_time = datetime.datetime.fromisoformat(event[key].replace('Z', '+00:00'))
-                local_time = utc_time - timedelta(hours=-8)
-                # 格式化为本地时间格式
-                event[key] = local_time.strftime('%Y-%m-%dT%H:%M')
-    return events
 
 
 @login_required
 @csrf_exempt
 def create_event(request):
-    # todo 加一个批量生产重复日程，我觉得可以作为一种日程组？或者给加一个重复日程加个标签？
-    if request.method == 'POST':
-        user_events_data, created, result = UserData.get_or_initialize(request, new_key="events")
-        events = user_events_data.get_value()
-        user_preference_data, created, result = UserData.get_or_initialize(request, new_key="user_preference")
-        user_preference = user_preference_data.get_value()
-
-        data = json.loads(request.body)
-        title = data.get('title')
-        start = data.get('start')
-        end = data.get('end')
-        description = data.get('description')
-        importance = data.get('importance')
-        urgency = data.get('urgency')
-        group_id = data.get('groupId')
-
-        # 不需要修复时区问题，前端传过来的已经是正确的时间
-        # start = add_8_hours_to_time_string(start)
-        # end = add_8_hours_to_time_string(end)
-
-        if user_preference["auto_ddl"]:
-            ddl = data.get('ddl')
-            # if ddl:
-            #     ddl = add_8_hours_to_time_string(ddl)
-        else:
-            ddl = ""
-
-        new_event = {
-            "id": str(uuid.uuid4()),
-            "title": title,
-            "start": start,
-            "end": end,
-            "description": description,
-            "importance": importance,
-            "urgency": urgency,
-            "groupID": group_id,
-            "ddl": ddl,
-            "last_modified": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
-
-        events.append(new_event)
-        user_events_data.set_value(events)
-
-        return JsonResponse({'status': 'success'})
+    """创建新事件 - 委托给views_events中的实现"""
+    return create_event_impl(request)
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 
 
 @csrf_exempt
 @login_required
 def delete_event(request):
-    if request.method == 'POST':
-        # 解析 JSON 数据
-        try:
-            data = json.loads(request.body)
-            event_id = data.get('eventId')
-        except json.JSONDecodeError:
-            return JsonResponse({'status': 'error', 'message': 'Invalid JSON data'}, status=400)
-
-        if event_id is None:
-            return JsonResponse({'status': 'error', 'message': 'eventId is missing'}, status=400)
-
-        user_data, created = UserData.objects.get_or_create(
-            user=request.user,
-            key="events",
-            defaults={"value": json.dumps([])}
-        )
-        events = json.loads(user_data.value)
-
-        user_temp_events_data, created = UserData.objects.get_or_create(user=request.user, key="planner")
-        planner_data = user_temp_events_data.get_value()
-        temp_events = planner_data["temp_events"]
-
-
-
-        # 删除指定的事件
-        events = [event for event in events if event['id'] != event_id]
-        temp_events = [event for event in temp_events if event['id'] != event_id]
-        # 将更新后的数据保存回数据库
-        # TODO 同上，这里可能也要做类似的逻辑让AI不改
-        planner_data["temp_events"] = temp_events
-        user_temp_events_data.value = json.dumps(planner_data)
-        user_temp_events_data.save()
-
-        user_data.value = json.dumps(events)
-        user_data.save()
-
-        return JsonResponse({'status': 'success'})
-    else:
-        return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+    """删除事件 - 委托给views_events中的实现"""
+    return delete_event_impl(request)
 
 @login_required
 @csrf_exempt

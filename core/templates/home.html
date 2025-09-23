@@ -730,10 +730,11 @@
         });
     }
 
-    document.getElementById('createEventForm').addEventListener('submit', function (event) {
-        event.preventDefault();
-        createEvent();
-    });
+    // 移除重复的事件监听器 - ModalManager已经处理了createEventForm提交
+    // document.getElementById('createEventForm').addEventListener('submit', function (event) {
+    //     event.preventDefault();
+    //     createEvent();
+    // });
 
 
 

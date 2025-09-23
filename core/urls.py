@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import views_events
 
 urlpatterns = [
     path('', views.index, name='index'),
@@ -16,7 +17,7 @@ urlpatterns = [
     path('get_calendar/events/', views.get_events, name='get_events'),
     path('get_calendar/update_events/', views.update_events, name='update_events'),
     path('get_calendar/delete_event/', views.delete_event, name='delete_event'),
-    path('get_calendar/create_event/', views.create_event, name='create_event'),
+    path('events/create_event/', views.create_event, name='create_event'),
     path('get_calendar/create_events_group/', views.create_events_group, name='create_events_group'),
     path('get_calendar/update_events_group/', views.update_event_group, name='update_events_group'),
     path('get_calendar/delete_event_groups/', views.delete_event_groups, name='delete_event_groups'),
@@ -42,6 +43,9 @@ urlpatterns = [
     path('api/reminders/pending/', views.get_pending_reminders, name='get_pending_reminders'),
     path('api/reminders/maintain/', views.maintain_reminders, name='maintain_reminders'),
     path('api/reminders/mark-sent/', views.mark_notification_sent, name='mark_notification_sent'),
+    
+    # Events API
+    path('api/events/bulk-edit/', views_events.bulk_edit_events_impl, name='bulk_edit_events'),
     
     # Todos API
     path('api/todos/', views.get_todos, name='get_todos'),

@@ -14,6 +14,22 @@
     
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- 强制隐藏editEventRecurringInfo元素的样式 -->
+    <style>
+        #editEventRecurringInfo {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        /* 防止JavaScript重新显示 */
+        #editEventRecurringInfo[data-force-hidden="true"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+        }
+    </style>
 </head>
 <body>
     <!-- 顶部导航栏 -->
@@ -270,6 +286,164 @@
                         <input type="datetime-local" class="form-control" id="creatEventDdl">
                     </div>
                     
+                    <!-- RRule重复设置 -->
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="newEventIsRecurring">
+                            <label class="form-check-label" for="newEventIsRecurring">
+                                <i class="fas fa-repeat me-1"></i>重复事件
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 重复事件设置区域 -->
+                    <div class="col-12" id="newEventRecurringOptions" style="display: none;">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="fas fa-cog me-2"></i>重复设置</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <!-- 重复频率 -->
+                                    <div class="col-md-4">
+                                        <label for="newEventFreq" class="form-label">重复频率</label>
+                                        <select class="form-select" id="newEventFreq">
+                                            <option value="DAILY">每日</option>
+                                            <option value="WEEKLY">每周</option>
+                                            <option value="MONTHLY">每月</option>
+                                            <option value="YEARLY">每年</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- 重复间隔 -->
+                                    <div class="col-md-4">
+                                        <label for="newEventInterval" class="form-label">间隔</label>
+                                        <input type="number" class="form-control" id="newEventInterval" value="1" min="1" max="365">
+                                    </div>
+                                    
+                                    <!-- 结束条件 -->
+                                    <div class="col-md-4">
+                                        <label for="newEventEndType" class="form-label">结束条件</label>
+                                        <select class="form-select" id="newEventEndType">
+                                            <option value="never">永不结束</option>
+                                            <option value="count">重复次数</option>
+                                            <option value="until">结束日期</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- 重复次数 -->
+                                    <div class="col-md-6" id="newEventCountContainer" style="display: none;">
+                                        <label for="newEventCount" class="form-label">重复次数</label>
+                                        <input type="number" class="form-control" id="newEventCount" value="10" min="1" max="999">
+                                    </div>
+                                    
+                                    <!-- 结束日期 -->
+                                    <div class="col-md-6" id="newEventUntilContainer" style="display: none;">
+                                        <label for="newEventUntil" class="form-label">结束日期</label>
+                                        <input type="date" class="form-control" id="newEventUntil">
+                                    </div>
+                                    
+                                    <!-- 每周重复的星期选择 -->
+                                    <div class="col-12" id="newEventWeekdaysContainer" style="display: none;">
+                                        <label class="form-label">重复星期</label>
+                                        <div class="weekday-buttons">
+                                            <button type="button" class="btn btn-outline-primary btn-sm weekday-btn" data-day="MO">周一</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm weekday-btn" data-day="TU">周二</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm weekday-btn" data-day="WE">周三</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm weekday-btn" data-day="TH">周四</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm weekday-btn" data-day="FR">周五</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm weekday-btn" data-day="SA">周六</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm weekday-btn" data-day="SU">周日</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 每月重复设置 -->
+                                    <div class="col-md-6" id="newEventMonthlyOptions" style="display: none;">
+                                        <label for="newEventMonthlyType" class="form-label">月重复方式</label>
+                                        <select class="form-select" id="newEventMonthlyType">
+                                            <option value="simple">每隔指定月数</option>
+                                            <option value="bymonthday">按日期（例如：每月15日）</option>
+                                            <option value="byweekday">按星期（例如：每月第二个周一）</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- 按日期重复的选择 -->
+                                    <div class="col-md-6" id="newEventMonthlyDateOptions" style="display: none;">
+                                        <label for="newEventMonthlyDate" class="form-label">选择日期</label>
+                                        <select class="form-select" id="newEventMonthlyDate">
+                                            <option value="1">1日</option>
+                                            <option value="2">2日</option>
+                                            <option value="3">3日</option>
+                                            <option value="4">4日</option>
+                                            <option value="5">5日</option>
+                                            <option value="6">6日</option>
+                                            <option value="7">7日</option>
+                                            <option value="8">8日</option>
+                                            <option value="9">9日</option>
+                                            <option value="10">10日</option>
+                                            <option value="11">11日</option>
+                                            <option value="12">12日</option>
+                                            <option value="13">13日</option>
+                                            <option value="14">14日</option>
+                                            <option value="15">15日</option>
+                                            <option value="16">16日</option>
+                                            <option value="17">17日</option>
+                                            <option value="18">18日</option>
+                                            <option value="19">19日</option>
+                                            <option value="20">20日</option>
+                                            <option value="21">21日</option>
+                                            <option value="22">22日</option>
+                                            <option value="23">23日</option>
+                                            <option value="24">24日</option>
+                                            <option value="25">25日</option>
+                                            <option value="26">26日</option>
+                                            <option value="27">27日</option>
+                                            <option value="28">28日</option>
+                                            <option value="29">29日</option>
+                                            <option value="30">30日</option>
+                                            <option value="31">31日</option>
+                                            <option value="-1">月末</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- 按星期重复的选择 -->
+                                    <div class="col-md-3" id="newEventMonthlyWeekOptions" style="display: none;">
+                                        <label for="newEventMonthlyWeek" class="form-label">第几周</label>
+                                        <select class="form-select" id="newEventMonthlyWeek">
+                                            <option value="1">第一周</option>
+                                            <option value="2">第二周</option>
+                                            <option value="3">第三周</option>
+                                            <option value="4">第四周</option>
+                                            <option value="-1">最后一周</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-md-3" id="newEventMonthlyWeekdayOptions" style="display: none;">
+                                        <label for="newEventMonthlyWeekday" class="form-label">星期几</label>
+                                        <select class="form-select" id="newEventMonthlyWeekday">
+                                            <option value="MO">周一</option>
+                                            <option value="TU">周二</option>
+                                            <option value="WE">周三</option>
+                                            <option value="TH">周四</option>
+                                            <option value="FR">周五</option>
+                                            <option value="SA">周六</option>
+                                            <option value="SU">周日</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- RRule预览 -->
+                                    <div class="col-12">
+                                        <label class="form-label">重复规则预览</label>
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <span id="newEventRulePreview">请选择重复设置</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="col-12">
                         <label for="newEventDescription" class="form-label">描述</label>
                         <textarea class="form-control" id="newEventDescription" rows="3"></textarea>
@@ -363,6 +537,208 @@
                         <textarea class="form-control" id="eventDescription" rows="3"></textarea>
                     </div>
                     
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="eventRepeat" onchange="if(!this.disabled) toggleRepeatOptions('editEvent'); else this.checked = false;">
+                            <label class="form-check-label" for="eventRepeat">
+                                <i class="fas fa-repeat me-2"></i>重复日程
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 重复事件信息显示 -->
+                    <div class="col-12" id="editEventRecurringInfo" style="display: none;">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-repeat me-2"></i>
+                            <strong>这是一个重复事件</strong>
+                            <p class="mb-2">修改范围：</p>
+                            <div class="btn-group-vertical w-100" role="group">
+                                <div class="form-check">
+                                    <input type="radio" class="form-check-input" name="editEventScope" id="editScopeThis" value="single" checked>
+                                    <label class="form-check-label" for="editScopeThis">
+                                        <strong>仅此次</strong>
+                                        <small class="text-muted d-block">只修改当前选中的事件实例</small>
+                                    </label>
+                                </div>
+                                
+                                <div class="form-check">
+                                    <input type="radio" class="form-check-input" name="editEventScope" id="editScopeAll" value="all">
+                                    <label class="form-check-label" for="editScopeAll">
+                                        <strong>全部</strong>
+                                        <small class="text-muted d-block">修改整个重复事件系列</small>
+                                    </label>
+                                </div>
+                                
+                                <div class="form-check">
+                                    <input type="radio" class="form-check-input" name="editEventScope" id="editScopeFuture" value="future">
+                                    <label class="form-check-label" for="editScopeFuture">
+                                        <strong>此及之后</strong>
+                                        <small class="text-muted d-block">修改当前及之后的所有事件实例</small>
+                                    </label>
+                                </div>
+                                
+                                <div class="form-check">
+                                    <input type="radio" class="form-check-input" name="editEventScope" id="editScopeFromTime" value="from_time">
+                                    <label class="form-check-label" for="editScopeFromTime">
+                                        <strong>从指定时间开始</strong>
+                                        <small class="text-muted d-block">从选择的时间点开始修改</small>
+                                    </label>
+                                    <select class="form-select form-select-sm mt-2" id="editEventTimeSelect" style="display: none;">
+                                        <!-- 动态填充时间选项 -->
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- RRule编辑设置 -->
+                    <div class="col-12" id="editEventRecurringOptions" style="display: none;">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="fas fa-cog me-2"></i>重复设置修改</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <!-- 重复频率 -->
+                                    <div class="col-md-4">
+                                        <label for="editEventFreq" class="form-label">重复频率</label>
+                                        <select class="form-select" id="editEventFreq" onchange="if(window.rruleManager) window.rruleManager.updateFrequencyOptions('edit');">
+                                            <option value="DAILY">每日</option>
+                                            <option value="WEEKLY">每周</option>
+                                            <option value="MONTHLY">每月</option>
+                                            <option value="YEARLY">每年</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- 重复间隔 -->
+                                    <div class="col-md-4">
+                                        <label for="editEventInterval" class="form-label">间隔</label>
+                                        <input type="number" class="form-control" id="editEventInterval" value="1" min="1" max="365">
+                                    </div>
+                                    
+                                    <!-- 结束条件 -->
+                                    <div class="col-md-4">
+                                        <label for="editEventEndType" class="form-label">结束条件</label>
+                                        <select class="form-select" id="editEventEndType">
+                                            <option value="never">永不结束</option>
+                                            <option value="count">重复次数</option>
+                                            <option value="until">结束日期</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- 重复次数 -->
+                                    <div class="col-md-6" id="editEventCountContainer" style="display: none;">
+                                        <label for="editEventCount" class="form-label">重复次数</label>
+                                        <input type="number" class="form-control" id="editEventCount" value="10" min="1" max="999">
+                                    </div>
+                                    
+                                    <!-- 结束日期 -->
+                                    <div class="col-md-6" id="editEventUntilContainer" style="display: none;">
+                                        <label for="editEventUntil" class="form-label">结束日期</label>
+                                        <input type="date" class="form-control" id="editEventUntil">
+                                    </div>
+                                    
+                                    <!-- 每周重复的星期选择 -->
+                                    <div class="col-12" id="editEventWeekdaysContainer" style="display: none;">
+                                        <label class="form-label">重复星期</label>
+                                        <div class="weekday-buttons">
+                                            <button type="button" class="btn btn-outline-primary btn-sm weekday-btn" data-day="MO">周一</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm weekday-btn" data-day="TU">周二</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm weekday-btn" data-day="WE">周三</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm weekday-btn" data-day="TH">周四</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm weekday-btn" data-day="FR">周五</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm weekday-btn" data-day="SA">周六</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm weekday-btn" data-day="SU">周日</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 每月重复设置 -->
+                                    <div class="col-md-6" id="editEventMonthlyOptions" style="display: none;">
+                                        <label for="editEventMonthlyType" class="form-label">月重复方式</label>
+                                        <select class="form-select" id="editEventMonthlyType" onchange="if(window.rruleManager) window.rruleManager.updateEventMonthlyOptions('edit');">
+                                            <option value="simple">每隔指定月数</option>
+                                            <option value="bymonthday">按日期（例如：每月15日）</option>
+                                            <option value="byweekday">按星期（例如：每月第二个周一）</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- 按日期重复的选择 -->
+                                    <div class="col-md-6" id="editEventMonthlyDateOptions" style="display: none;">
+                                        <label for="editEventMonthlyDate" class="form-label">选择日期</label>
+                                        <select class="form-select" id="editEventMonthlyDate">
+                                            <option value="1">1日</option>
+                                            <option value="2">2日</option>
+                                            <option value="3">3日</option>
+                                            <option value="4">4日</option>
+                                            <option value="5">5日</option>
+                                            <option value="6">6日</option>
+                                            <option value="7">7日</option>
+                                            <option value="8">8日</option>
+                                            <option value="9">9日</option>
+                                            <option value="10">10日</option>
+                                            <option value="11">11日</option>
+                                            <option value="12">12日</option>
+                                            <option value="13">13日</option>
+                                            <option value="14">14日</option>
+                                            <option value="15">15日</option>
+                                            <option value="16">16日</option>
+                                            <option value="17">17日</option>
+                                            <option value="18">18日</option>
+                                            <option value="19">19日</option>
+                                            <option value="20">20日</option>
+                                            <option value="21">21日</option>
+                                            <option value="22">22日</option>
+                                            <option value="23">23日</option>
+                                            <option value="24">24日</option>
+                                            <option value="25">25日</option>
+                                            <option value="26">26日</option>
+                                            <option value="27">27日</option>
+                                            <option value="28">28日</option>
+                                            <option value="29">29日</option>
+                                            <option value="30">30日</option>
+                                            <option value="31">31日</option>
+                                            <option value="-1">月末</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- 按星期重复的选择 -->
+                                    <div class="col-md-3" id="editEventMonthlyWeekOptions" style="display: none;">
+                                        <label for="editEventMonthlyWeek" class="form-label">第几周</label>
+                                        <select class="form-select" id="editEventMonthlyWeek">
+                                            <option value="1">第一周</option>
+                                            <option value="2">第二周</option>
+                                            <option value="3">第三周</option>
+                                            <option value="4">第四周</option>
+                                            <option value="-1">最后一周</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-md-3" id="editEventMonthlyWeekdayOptions" style="display: none;">
+                                        <label for="editEventMonthlyWeekday" class="form-label">星期几</label>
+                                        <select class="form-select" id="editEventMonthlyWeekday">
+                                            <option value="MO">周一</option>
+                                            <option value="TU">周二</option>
+                                            <option value="WE">周三</option>
+                                            <option value="TH">周四</option>
+                                            <option value="FR">周五</option>
+                                            <option value="SA">周六</option>
+                                            <option value="SU">周日</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- RRule预览 -->
+                                    <div class="col-12">
+                                        <label class="form-label">重复规则预览</label>
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <span id="editEventRulePreview">当前重复规则</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <!-- 重要性紧急性矩阵 -->
                     <div class="col-12">
                         <label class="form-label">重要性 / 紧急性</label>
@@ -403,6 +779,58 @@
                     <button type="submit" class="btn btn-primary" onclick="modalManager.handleUpdateEvent()">更新事件</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- 重复事件删除确认模态框 -->
+    <div class="modal" id="deleteRecurringEventModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2 text-warning"></i>删除重复事件
+                </h5>
+                <span class="close">&times;</span>
+            </div>
+            
+            <div class="modal-body">
+                <p>这是一个重复事件，请选择删除范围：</p>
+                
+                <div class="delete-scope-options">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="deleteEventScope" id="deleteScopeThis" value="single" checked>
+                        <label class="form-check-label" for="deleteScopeThis">
+                            <strong>仅此次</strong>
+                            <small class="text-muted d-block">只删除当前选中的事件实例</small>
+                        </label>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="deleteEventScope" id="deleteScopeAll" value="all">
+                        <label class="form-check-label" for="deleteScopeAll">
+                            <strong>全部</strong>
+                            <small class="text-muted d-block">删除整个重复事件系列</small>
+                        </label>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="deleteEventScope" id="deleteScopeFuture" value="future">
+                        <label class="form-check-label" for="deleteScopeFuture">
+                            <strong>此及之后</strong>
+                            <small class="text-muted d-block">删除当前及之后的所有事件实例</small>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>注意：</strong>删除操作无法撤销！
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="modalManager.closeAllModals()">取消</button>
+                <button type="button" class="btn btn-danger" onclick="modalManager.confirmDeleteRecurringEvent()">确认删除</button>
+            </div>
         </div>
     </div>
 
@@ -983,6 +1411,7 @@
     <script src="{% static 'js/settings-manager.js' %}"></script>
     <script src="{% static 'js/panel-resizer.js' %}"></script>
     <script src="{% static 'js/reminder-manager.js' %}"></script>
+    <script src="{% static 'js/rrule-manager.js' %}"></script>
     <script src="{% static 'js/modal-manager.js' %}"></script>
     <script src="{% static 'js/event-manager.js' %}"></script>
     <script src="{% static 'js/todo-manager.js' %}"></script>
@@ -1135,6 +1564,7 @@
         window.eventManager = new EventManager();
         window.todoManager = new TodoManager();
         window.reminderManager = new ReminderManager();
+        window.rruleManager = new RRuleManager();
         window.panelResizer = new PanelResizer(); // 添加面板调节器
     </script>
 

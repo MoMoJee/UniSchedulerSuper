@@ -91,6 +91,42 @@ DATA_SCHEMA = {
                 "nullable": True,
                 "default": "",
             },
+            # 重复事件系列相关字段
+            "series_id": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            "is_recurring": {
+                "type": bool,
+                "nullable": False,
+                "default": False,
+            },
+            "is_main_event": {
+                "type": bool,
+                "nullable": False,
+                "default": False,
+            },
+            "is_detached": {
+                "type": bool,
+                "nullable": False,
+                "default": False,
+            },
+            "recurrence_id": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            "parent_event_id": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            "original_series_id": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
             # 新增字段 - 关联和扩展
             "linked_reminders": {
                 "type": list,
@@ -756,6 +792,71 @@ DATA_SCHEMA = {
         },
     },
     "rrule_series_storage": {
+        "type": dict,
+        "nullable": False,
+        "default": {},
+        "items": {
+            "segments": {
+                "type": list,
+                "nullable": False,
+                "default": [],
+                "items": {
+                    "id": {
+                        "type": str,
+                        "nullable": False,
+                    },
+                    "rrule": {
+                        "type": str,
+                        "nullable": False,
+                    },
+                    "dtstart": {
+                        "type": str,
+                        "nullable": False,
+                    },
+                    "until": {
+                        "type": str,
+                        "nullable": True,
+                        "default": "",
+                    },
+                    "count": {
+                        "type": int,
+                        "nullable": True,
+                        "default": -1,
+                    },
+                    "original_data": {
+                        "type": dict,
+                        "nullable": False,
+                        "default": {},
+                    },
+                },
+            },
+            "exceptions": {
+                "type": list,
+                "nullable": False,
+                "default": [],
+                "items": {
+                    "series_id": {
+                        "type": str,
+                        "nullable": False,
+                    },
+                    "exception_date": {
+                        "type": str,
+                        "nullable": False,
+                    },
+                    "type": {
+                        "type": str,
+                        "nullable": False,
+                    },
+                    "new_data": {
+                        "type": dict,
+                        "nullable": True,
+                        "default": {},
+                    },
+                },
+            },
+        },
+    },
+    "events_rrule_series": {
         "type": dict,
         "nullable": False,
         "default": {},
