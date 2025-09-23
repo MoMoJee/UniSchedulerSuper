@@ -22,19 +22,26 @@ from logger import logger
 class EventsRRuleManager(IntegratedReminderManager):
     """Events专用的RRule管理器 - 继承并适配提醒管理器"""
     
-    def __init__(self, user):
-        # 创建一个模拟request对象，因为IntegratedReminderManager需要request参数
+    def __init__(self, user_or_request):
+        # 自动包裹MockRequest，确保有is_authenticated属性
+        from django.http import HttpRequest
         class MockRequest:
             def __init__(self, user):
                 self.user = user
-                
-        mock_request = MockRequest(user)
+                self.is_authenticated = True
+        if hasattr(user_or_request, 'is_authenticated') and not isinstance(user_or_request, HttpRequest):
+            # 传入的是user对象
+            mock_request = MockRequest(user_or_request)
+        elif hasattr(user_or_request, 'user'):
+            # 传入的是request对象
+            mock_request = MockRequest(user_or_request.user)
+        else:
+            # 兜底
+            mock_request = MockRequest(user_or_request)
         super().__init__(mock_request)
-        
         # 重新配置RRule引擎使用Events专用的存储键
         self.storage_backend = UserDataStorageBackend(mock_request)
         self.storage_backend.storage_key = "events_rrule_series"
-        
         # 重新初始化RRule引擎使用新的存储后端
         self.rrule_engine = RRuleEngine(self.storage_backend)
     
