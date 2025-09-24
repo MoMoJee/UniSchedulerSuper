@@ -314,7 +314,7 @@ class EventsRRuleManager(IntegratedReminderManager):
             series_id = event.get('series_id')
             rrule = event.get('rrule')
             
-            logger.info(f"[DEBUG] Processing event: series_id={series_id}, rrule={rrule}, is_detached={event.get('is_detached', False)}")
+            logger.debug(f"Processing event: series_id={series_id}, rrule={rrule}, is_detached={event.get('is_detached', False)}")
             
             if series_id and rrule and 'FREQ=' in rrule and not event.get('is_detached', False):
                 if series_id not in recurring_series:
@@ -493,7 +493,7 @@ class EventsRRuleManager(IntegratedReminderManager):
                     'recurrence_id': instance_time.strftime("%Y%m%dT%H%M%S"),
                     'last_modified': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 })
-                logger.info(f"[DEBUG] Generated instance with series_id: {instance.get('series_id')}")
+                logger.debug(f"Generated instance with series_id: {instance.get('series_id')}")
                 instances.append(instance)
                 
         except Exception as e:
@@ -1416,10 +1416,13 @@ def bulk_edit_events_impl(request):
                     if current_event:
                         try:
                             cutoff_time = datetime.datetime.fromisoformat(current_event.get('start', ''))
+                            logger.info(f"Found current event, cutoff_time set to: {cutoff_time}")
                         except:
                             cutoff_time = datetime.datetime.now()
+                            logger.warning(f"Failed to parse event start time, using current time: {cutoff_time}")
                     else:
                         cutoff_time = datetime.datetime.now()
+                        logger.warning(f"Current event not found, using current time: {cutoff_time}")
                 
                 if edit_scope == 'all':
                     # 修改整个系列
@@ -1441,6 +1444,7 @@ def bulk_edit_events_impl(request):
                         return JsonResponse({'status': 'error', 'message': '无法确定修改的起始时间'}, status=400)
                     
                     if 'rrule' in updates:
+                        logger.info(f"RRule detected in updates: {updates.get('rrule')}")
                         # 检查RRule是否真的发生了变化
                         new_rrule = updates.get('rrule')
                         if not new_rrule:
@@ -1454,9 +1458,12 @@ def bulk_edit_events_impl(request):
                                 original_rrule = event.get('rrule')
                                 break
                         
+                        logger.info(f"Original RRule: {original_rrule}, New RRule: {new_rrule}")
+                        
                         # 如果RRule没有变化，按非RRule修改处理
                         if original_rrule and original_rrule == new_rrule:
                             logger.info(f"RRule unchanged for event series {series_id}, treating as non-RRule modification")
+                            logger.info(f"Cutoff time: {cutoff_time}, Updates to apply: {updates}")
                             
                             updated_count = 0
                             for event in events:
@@ -1464,14 +1471,31 @@ def bulk_edit_events_impl(request):
                                     event.get('start')):
                                     try:
                                         event_time = datetime.datetime.fromisoformat(event['start'])
-                                        if event_time >= cutoff_time:
+                                        # 确保时区一致性 - 统一转换为naive datetime进行比较
+                                        if cutoff_time.tzinfo is not None:
+                                            # cutoff_time有时区信息，转换为naive
+                                            cutoff_time_naive = cutoff_time.replace(tzinfo=None)
+                                        else:
+                                            cutoff_time_naive = cutoff_time
+                                            
+                                        if event_time.tzinfo is not None:
+                                            # event_time有时区信息，转换为naive  
+                                            event_time_naive = event_time.replace(tzinfo=None)
+                                        else:
+                                            event_time_naive = event_time
+                                            
+                                        logger.info(f"Checking event {event.get('id')} at {event_time_naive} >= {cutoff_time_naive}: {event_time_naive >= cutoff_time_naive}")
+                                        if event_time_naive >= cutoff_time_naive:
                                             # 对于非RRule修改，只更新非时间字段，保持原有的start/end时间
                                             update_data = {k: v for k, v in updates.items() if k not in ['rrule', 'start', 'end']}
+                                            logger.info(f"Updating event {event.get('id')} with: {update_data}")
                                             event.update(update_data)
                                             event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                                             updated_count += 1
-                                    except:
-                                        pass
+                                    except Exception as e:
+                                        logger.error(f"Error processing event {event.get('id', 'unknown')}: {e}")
+                            
+                            logger.info(f"Updated {updated_count} events in RRule unchanged branch, saving to database")
                             
                             user_events_data.set_value(events)
                             return JsonResponse({'status': 'success', 'updated_count': updated_count})
@@ -1507,6 +1531,7 @@ def bulk_edit_events_impl(request):
                     else:
                         # 只修改其他字段，不涉及RRule - 直接更新
                         logger.info(f"Modifying non-RRule fields from {cutoff_time} for event series {series_id}")
+                        logger.info(f"Updates to apply: {updates}")
                         
                         updated_count = 0
                         for event in events:
@@ -1514,15 +1539,29 @@ def bulk_edit_events_impl(request):
                                 event.get('start')):
                                 try:
                                     event_time = datetime.datetime.fromisoformat(event['start'])
-                                    if event_time >= cutoff_time:
+                                    # 确保时区一致性 - 统一转换为naive datetime进行比较
+                                    if cutoff_time.tzinfo is not None:
+                                        cutoff_time_naive = cutoff_time.replace(tzinfo=None)
+                                    else:
+                                        cutoff_time_naive = cutoff_time
+                                        
+                                    if event_time.tzinfo is not None:
+                                        event_time_naive = event_time.replace(tzinfo=None)
+                                    else:
+                                        event_time_naive = event_time
+                                        
+                                    logger.info(f"Checking event {event.get('id')} at {event_time_naive} >= {cutoff_time_naive}: {event_time_naive >= cutoff_time_naive}")
+                                    if event_time_naive >= cutoff_time_naive:
                                         # 对于非RRule修改，排除start/end字段，保持原有时间
                                         update_data = {k: v for k, v in updates.items() if k not in ['start', 'end']}
+                                        logger.info(f"Updating event {event.get('id')} with: {update_data}")
                                         event.update(update_data)
                                         event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                                         updated_count += 1
-                                except:
-                                    pass
+                                except Exception as e:
+                                    logger.error(f"Error processing event {event.get('id', 'unknown')}: {e}")
                         
+                        logger.info(f"Updated {updated_count} events, saving to database")
                         user_events_data.set_value(events)
                         return JsonResponse({'status': 'success', 'updated_count': updated_count})
         
