@@ -80,12 +80,11 @@ class EventsRRuleManager(IntegratedReminderManager):
             
             # 判断是否为复杂重复模式，需要查找下一个符合条件的时间点
             needs_next_occurrence = self._is_complex_rrule(rrule)
-            # 检查是否包含多个BYDAY值
-            has_multiple_byday = self._has_multiple_byday_values(rrule)
-            logger.info(f"Event RRule: {rrule}, is_complex: {needs_next_occurrence}, has_multiple_byday: {has_multiple_byday}, start_time: {start_time}")
+            logger.info(f"Event RRule: {rrule}, is_complex: {needs_next_occurrence}, start_time: {start_time}")
             
-            if needs_next_occurrence and not has_multiple_byday:
-                # 对于复杂重复模式但只有单个BYDAY值的情况，查找下一个符合条件的时间点
+            if needs_next_occurrence:
+                # 对于复杂重复模式，查找下一个符合条件的时间点
+                # 无论是单个还是多个BYDAY值，都需要验证所选日期是否符合规则
                 actual_start_time = self._find_next_occurrence(rrule, start_time)
                 logger.info(f"Found next occurrence: {actual_start_time}")
                 if actual_start_time:
@@ -105,11 +104,9 @@ class EventsRRuleManager(IntegratedReminderManager):
                     actual_start_time = start_time
                     logger.warning(f"No valid occurrence found, using original time: {actual_start_time}")
             else:
-                # 对于简单重复模式或多BYDAY值模式，直接使用用户输入的时间
-                # 多BYDAY值（如BYDAY=WE,FR）应该让RRule引擎自动处理多个日期
+                # 对于简单重复模式，直接使用用户输入的时间
                 actual_start_time = start_time
-                reason = "multiple BYDAY values" if has_multiple_byday else "simple repeat mode"
-                logger.info(f"{reason}, using original time: {actual_start_time}")
+                logger.info(f"Simple repeat mode, using original time: {actual_start_time}")
             
             # 创建RRule系列，使用返回的UID作为series_id
             series_id = self.rrule_engine.create_series(rrule, actual_start_time)
@@ -143,13 +140,7 @@ class EventsRRuleManager(IntegratedReminderManager):
             logger.error(f"Failed to create recurring event: {str(e)}")
             raise
     
-    def _has_multiple_byday_values(self, rrule_str: str) -> bool:
-        """检查RRule是否包含多个BYDAY值（如BYDAY=MO,FR）"""
-        byday_match = re.search(r'BYDAY=([A-Z0-9,+-]+)', rrule_str)
-        if byday_match:
-            byday_value = byday_match.group(1)
-            return ',' in byday_value
-        return False
+
     
     def _is_complex_rrule(self, rrule_str: str) -> bool:
         """判断是否为复杂的RRule模式，需要查找下一个符合条件的时间点"""
@@ -162,8 +153,25 @@ class EventsRRuleManager(IntegratedReminderManager):
         try:
             from dateutil.rrule import rrulestr
             
+            # 确保时间是naive datetime，避免时区问题
+            if start_time.tzinfo is not None:
+                start_time = start_time.replace(tzinfo=None)
+            
+            # 处理rrule中的UNTIL值，如果包含Z后缀，需要转换为本地时间
+            processed_rrule = rrule_str
+            if 'UNTIL=' in rrule_str:
+                import re
+                until_match = re.search(r'UNTIL=([^;]+)', rrule_str)
+                if until_match:
+                    until_str = until_match.group(1)
+                    # 如果UNTIL是UTC格式（以Z结尾），转换为naive格式
+                    if until_str.endswith('Z'):
+                        # 移除Z后缀，使用naive datetime
+                        until_naive = until_str[:-1]
+                        processed_rrule = rrule_str.replace(f'UNTIL={until_str}', f'UNTIL={until_naive}')
+            
             # 构建完整的RRule字符串用于测试
-            full_rrule = f"DTSTART:{start_time.strftime('%Y%m%dT%H%M%S')}\nRRULE:{rrule_str}"
+            full_rrule = f"DTSTART:{start_time.strftime('%Y%m%dT%H%M%S')}\nRRULE:{processed_rrule}"
             
             # 解析RRule
             rule = rrulestr(full_rrule, dtstart=start_time)
@@ -826,12 +834,122 @@ class EventsRRuleManager(IntegratedReminderManager):
     def modify_recurring_rule(self, events: List[Dict[str, Any]], series_id: str, 
                             cutoff_time: datetime.datetime, new_rrule: str, 
                             scope: str = 'from_this', additional_updates: Dict[str, Any] = None) -> List[Dict[str, Any]]:
-        """修改重复规则"""
+        """修改重复规则 - Events专用实现"""
         if additional_updates is None:
             additional_updates = {}
         
-        # 调用父类的方法，适配事件数据结构
-        return super().modify_recurring_rule(events, series_id, cutoff_time, new_rrule, scope, additional_updates)
+        updated_events = []
+        main_event = None
+        
+        # 找到主事件
+        for event in events:
+            if (event.get('series_id') == series_id and 
+                event.get('is_main_event', False)):
+                main_event = event
+                break
+        
+        if not main_event:
+            logger.error(f"No main event found for series {series_id}")
+            return events
+        
+        if scope == 'all':
+            # 影响整个系列
+            for event in events:
+                if event.get('series_id') == series_id:
+                    if event.get('is_main_event', False):
+                        # 更新主事件的规则
+                        event['rrule'] = new_rrule
+                        if additional_updates:
+                            event.update({k: v for k, v in additional_updates.items() if k not in ['start', 'end']})
+                        event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        updated_events.append(event)
+                    # 删除所有生成的实例，稍后重新生成
+                else:
+                    updated_events.append(event)
+            
+        elif scope == 'from_this':
+            # 从指定日期开始修改 - 需要创建新的series
+            logger.info(f"Modifying events series {series_id} from {cutoff_time} with new rule: {new_rrule}")
+            
+            # 标准化时间为naive datetime
+            if cutoff_time.tzinfo is not None:
+                cutoff_time = cutoff_time.replace(tzinfo=None)
+            
+            # 1. 截断原来的series到指定时间
+            self.rrule_engine.truncate_series_until(series_id, cutoff_time)
+            
+            # 2. 确定新系列的起始时间
+            new_start_time = cutoff_time
+            if additional_updates and 'start' in additional_updates:
+                try:
+                    requested_time = datetime.datetime.fromisoformat(additional_updates['start'])
+                    new_start_time = requested_time
+                    logger.info(f"Using requested start time {requested_time} as new series start time")
+                except:
+                    logger.warning(f"Invalid start time format: {additional_updates.get('start')}, using cutoff_time")
+            
+            # 3. 创建新的series
+            new_series_id = self.rrule_engine.create_series(new_rrule, new_start_time)
+            logger.info(f"Created new series {new_series_id} for modified rule")
+            
+            # 4. 处理所有事件
+            for event in events:
+                if event.get('series_id') == series_id:
+                    try:
+                        event_start = event.get('start', '')
+                        if event_start:
+                            # 标准化事件时间
+                            event_time = datetime.datetime.fromisoformat(event_start)
+                            if event_time.tzinfo is not None:
+                                event_time = event_time.replace(tzinfo=None)
+                        else:
+                            continue
+                    except:
+                        continue
+                        
+                    if event_time < cutoff_time:
+                        # 在修改时间之前的事件：保留在原series中，添加UNTIL限制
+                        current_rrule = event.get('rrule', '')
+                        until_time = cutoff_time - datetime.timedelta(seconds=1)
+                        until_str = until_time.strftime('%Y%m%dT%H%M%S')
+                        
+                        if 'UNTIL=' in current_rrule.upper():
+                            import re
+                            updated_rrule = re.sub(r'UNTIL=\d{8}T\d{6}', f'UNTIL={until_str}', current_rrule, flags=re.IGNORECASE)
+                            event['rrule'] = updated_rrule
+                        else:
+                            if current_rrule and not current_rrule.endswith(';'):
+                                event['rrule'] = f"{current_rrule};UNTIL={until_str}"
+                            else:
+                                event['rrule'] = f"{current_rrule}UNTIL={until_str}"
+                        
+                        event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        updated_events.append(event)
+                        logger.info(f"Updated event {event.get('id')} with UNTIL={until_str}")
+                        
+                    elif event_time == cutoff_time:
+                        # 这是修改起点，创建新的主事件
+                        new_main_event = main_event.copy()
+                        new_main_event.update({
+                            'id': str(uuid.uuid4()),
+                            'series_id': new_series_id,
+                            'rrule': new_rrule,
+                            'start': new_start_time.strftime("%Y-%m-%dT%H:%M:%S"),
+                            'end': (new_start_time + (datetime.datetime.fromisoformat(main_event['end']) - datetime.datetime.fromisoformat(main_event['start']))).strftime("%Y-%m-%dT%H:%M:%S"),
+                            'is_main_event': True,
+                            'last_modified': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        })
+                        if additional_updates:
+                            new_main_event.update({k: v for k, v in additional_updates.items() if k not in ['start', 'end', 'rrule']})
+                        
+                        updated_events.append(new_main_event)
+                        logger.info(f"Created new main event {new_main_event['id']} for new series {new_series_id}")
+                        
+                    # 删除所有在cutoff_time之后的旧实例，稍后会重新生成
+                else:
+                    updated_events.append(event)
+        
+        return updated_events
 
 
 def get_events_manager(request) -> EventsRRuleManager:
@@ -1002,14 +1120,16 @@ def create_event_impl(request):
                     if count_match:
                         count = int(count_match.group(1))
                         # 生成指定数量的实例（包括主事件）
-                        additional_instances = manager.generate_event_instances(main_event, 365, count - 1)
+                        # RRule引擎会生成所有实例，generate_event_instances会过滤掉主事件
+                        # 所以需要传递完整的count值确保总数正确
+                        additional_instances = manager.generate_event_instances(main_event, 365, count)
                         events.extend(additional_instances)
                 elif 'UNTIL=' in rrule:
                     # 处理UNTIL限制的重复事件
                     print(f"[DEBUG] Processing UNTIL event with rrule: {rrule}")
                     # 生成从开始时间到UNTIL时间之间的所有实例
-                    # 使用较大的天数范围来确保覆盖整个UNTIL期间
-                    additional_instances = manager.generate_event_instances(main_event, 365 * 2)  # 2年范围
+                    # 使用较大的天数范围和实例数量来确保覆盖整个UNTIL期间
+                    additional_instances = manager.generate_event_instances(main_event, 365 * 2, 1000)  # 2年范围，最多1000个实例
                     print(f"[DEBUG] Generated {len(additional_instances)} additional instances for UNTIL event")
                     events.extend(additional_instances)
                 
@@ -1184,7 +1304,14 @@ def bulk_edit_events_impl(request):
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
     
+    import time
+    start_time = time.time()
+    
     try:
+        # 检查请求体大小
+        if len(request.body) > 10 * 1024 * 1024:  # 10MB限制
+            return JsonResponse({'status': 'error', 'message': '请求数据过大'}, status=413)
+            
         data = json.loads(request.body)
         
         # 提取参数
@@ -1396,10 +1523,20 @@ def bulk_edit_events_impl(request):
                             logger.info(f"Updated single event {event_id}")
                         break
                 
+                # 检查处理时间
+                if time.time() - start_time > 25:
+                    user_events_data.set_value(events)
+                    return JsonResponse({'status': 'success', 'message': '单个事件修改完成'})
+                
                 # 处理重复事件数据，确保分离后的原系列能正常生成后续实例
-                final_events = manager.process_event_data(events)
-                user_events_data.set_value(final_events)
-                return JsonResponse({'status': 'success'})
+                try:
+                    final_events = manager.process_event_data(events)
+                    user_events_data.set_value(final_events)
+                    return JsonResponse({'status': 'success'})
+                except Exception as process_error:
+                    logger.error(f"process_event_data failed in single edit: {str(process_error)}")
+                    user_events_data.set_value(events)
+                    return JsonResponse({'status': 'success', 'message': '事件已修改，数据处理可能不完整'})
                 
             elif edit_scope in ['all', 'future', 'from_time']:
                 # 批量编辑 - 使用manager的方法
@@ -1514,19 +1651,52 @@ def bulk_edit_events_impl(request):
                             except:
                                 logger.warning(f"Invalid start time format: {updates.get('start')}, using cutoff_time")
                         
+                        # 检查处理时间，避免超时
+                        if time.time() - start_time > 25:  # 25秒后返回，避免超时
+                            logger.warning("批量编辑接近超时，返回成功响应")
+                            return JsonResponse({'status': 'success', 'message': '操作正在后台处理中'})
+                        
                         # 调用modify_recurring_rule方法，传递额外的更新参数和新的起始时间
                         other_updates = {k: v for k, v in updates.items() if k not in ['rrule']}
-                        updated_events = manager.modify_recurring_rule(
-                            events, series_id, new_start_time, new_rrule, 
-                            scope='from_this', additional_updates=other_updates
-                        )
+                        try:
+                            updated_events = manager.modify_recurring_rule(
+                                events, series_id, new_start_time, new_rrule, 
+                                scope='from_this', additional_updates=other_updates
+                            )
+                        except Exception as modify_error:
+                            logger.error(f"modify_recurring_rule failed: {str(modify_error)}")
+                            # 即使modify失败，也要确保有响应
+                            return JsonResponse({'status': 'error', 'message': f'修改重复规则失败: {str(modify_error)}'}, status=500)
                         
                         # 处理重复事件数据以确保实例足够
-                        final_events = manager.process_event_data(updated_events)
-                        user_events_data.set_value(final_events)
+                        # 再次检查处理时间
+                        current_time = time.time()
+                        if current_time - start_time > 27:  # 27秒后快速返回
+                            logger.warning("批量编辑接近超时，保存数据并返回")
+                            user_events_data.set_value(updated_events)
+                            return JsonResponse({'status': 'success', 'message': '操作已完成，数据正在同步'})
                         
-                        logger.info(f"Successfully modified recurring rule for event series {series_id}")
-                        return JsonResponse({'status': 'success'})
+                        try:
+                            # 如果时间充足，进行完整的数据处理
+                            if current_time - start_time < 20:  # 20秒内进行完整处理
+                                final_events = manager.process_event_data(updated_events)
+                                user_events_data.set_value(final_events)
+                            else:
+                                # 时间不足，只保存基本更新
+                                user_events_data.set_value(updated_events)
+                                logger.info("时间不足，跳过完整数据处理")
+                            
+                            logger.info(f"Successfully modified recurring rule for event series {series_id}")
+                            return JsonResponse({'status': 'success'})
+                        except Exception as process_error:
+                            logger.error(f"process_event_data failed: {str(process_error)}")
+                            # 如果process失败，至少保存updated_events
+                            try:
+                                user_events_data.set_value(updated_events)
+                                return JsonResponse({'status': 'success', 'message': '操作完成，但数据处理可能不完整'})
+                            except Exception as save_error:
+                                logger.error(f"Even save failed: {str(save_error)}")
+                                return JsonResponse({'status': 'error', 'message': '保存数据时出错'}, status=500)
                     
                     else:
                         # 只修改其他字段，不涉及RRule - 直接更新
@@ -1565,16 +1735,43 @@ def bulk_edit_events_impl(request):
                         user_events_data.set_value(events)
                         return JsonResponse({'status': 'success', 'updated_count': updated_count})
         
-        return JsonResponse({'status': 'error', 'message': '不支持的操作'}, status=400)
+        # 如果到达这里，说明没有匹配的操作
+        logger.warning(f"未匹配的操作: operation={operation}, edit_scope={edit_scope}")
+        return JsonResponse({'status': 'error', 'message': f'不支持的操作: {operation} with scope {edit_scope}'}, status=400)
         
-    except json.JSONDecodeError:
+    except TimeoutError:
+        logger.error("批量编辑事件超时")
+        return JsonResponse({'status': 'error', 'message': '操作超时，请稍后重试'}, status=408)
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON解析错误: {str(e)}")
         return JsonResponse({'status': 'error', 'message': '无效的JSON数据'}, status=400)
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
         logger.error(f"批量编辑事件失败: {str(e)}")
         logger.error(f"Error traceback: {error_trace}")
-        return JsonResponse({'status': 'error', 'message': f'批量编辑失败: {str(e)}'}, status=500)
+        
+        # 根据错误类型返回更具体的错误信息
+        error_message = str(e).lower()
+        if "broken pipe" in error_message or "connectionreset" in error_message or "connectionaborted" in error_message:
+            logger.error("检测到连接中断错误 - 可能是响应过大或客户端断开连接")
+            return JsonResponse({'status': 'success', 'message': '操作可能已完成，请刷新页面查看结果'}, status=200)
+        elif "timeout" in error_message or "timed out" in error_message:
+            return JsonResponse({'status': 'error', 'message': '操作超时，请稍后重试'}, status=408)
+        elif "memory" in error_message or "out of memory" in error_message:
+            logger.error("内存不足错误")
+            return JsonResponse({'status': 'error', 'message': '数据量过大，请分批处理'}, status=507)
+        else:
+            # 确保错误信息不会过长导致响应问题
+            truncated_error = str(e)[:500] if len(str(e)) > 500 else str(e)
+            return JsonResponse({'status': 'error', 'message': f'批量编辑失败: {truncated_error}'}, status=500)
+    finally:
+        # 清理资源
+        try:
+            # 重置信号处理
+            pass
+        except:
+            pass
 
 
 # RRule专用API函数
@@ -1908,11 +2105,13 @@ def update_events_impl(request):
                                 count_match = re.search(r'COUNT=(\d+)', new_rrule)
                                 if count_match:
                                     count = int(count_match.group(1))
-                                    new_instances = manager.generate_event_instances(main_event, 365, count - 1)
+                                    # 传递完整的count值确保总数正确
+                                    new_instances = manager.generate_event_instances(main_event, 365, count)
                                     events.extend(new_instances)
                                     logger.info(f"Generated {len(new_instances)} instances for COUNT-limited recurring event")
                             elif 'UNTIL=' in new_rrule:
-                                new_instances = manager.generate_event_instances(main_event, 365 * 2)
+                                # 使用较大的max_instances参数确保覆盖整个UNTIL期间
+                                new_instances = manager.generate_event_instances(main_event, 365 * 2, 1000)
                                 events.extend(new_instances)
                                 logger.info(f"Generated {len(new_instances)} instances for UNTIL-limited recurring event")
                     

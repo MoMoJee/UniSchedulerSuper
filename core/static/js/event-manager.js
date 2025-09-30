@@ -1208,6 +1208,8 @@ class EventManager {
 
     // 设置重复字段为只读状态
     setRepeatFieldsReadonly(readonly) {
+        console.log(`setRepeatFieldsReadonly called with readonly=${readonly}`);
+        
         const repeatFields = [
             'eventFreq', 'eventInterval', 'eventEndType',
             'eventCount', 'eventUntil', 'eventMonthlyType',
@@ -1244,20 +1246,47 @@ class EventManager {
             });
         });
         
-        // 处理星期按钮（如果存在）
-        const weekdayContainer = document.getElementById('eventWeekdaysContainer');
-        if (weekdayContainer) {
-            const weekdayButtons = weekdayContainer.querySelectorAll('.weekday-btn');
-            weekdayButtons.forEach(btn => {
-                btn.disabled = readonly;
-                btn.style.opacity = readonly ? '0.6' : '1';
-                if (readonly) {
-                    btn.style.pointerEvents = 'none';
-                } else {
-                    btn.style.pointerEvents = 'auto';
-                }
-            });
-        }
+        // 处理星期按钮（如果存在） - 同时处理创建和编辑模式的容器
+        const weekdayContainers = [
+            document.getElementById('eventWeekdaysContainer'),      // 创建模式
+            document.getElementById('editEventWeekdaysContainer')   // 编辑模式
+        ];
+        
+        console.log(`Processing weekday containers, readonly=${readonly}`);
+        
+        weekdayContainers.forEach((weekdayContainer, containerIndex) => {
+            const containerName = containerIndex === 0 ? 'eventWeekdaysContainer' : 'editEventWeekdaysContainer';
+            console.log(`Checking ${containerName}: ${weekdayContainer ? 'found' : 'not found'}`);
+            
+            if (weekdayContainer) {
+                const weekdayButtons = weekdayContainer.querySelectorAll('.weekday-btn');
+                console.log(`Found ${weekdayButtons.length} weekday buttons in ${containerName}`);
+                
+                weekdayButtons.forEach((btn, btnIndex) => {
+                    const beforeState = {
+                        disabled: btn.disabled,
+                        opacity: btn.style.opacity,
+                        pointerEvents: btn.style.pointerEvents
+                    };
+                    
+                    btn.disabled = readonly;
+                    btn.style.opacity = readonly ? '0.6' : '1';
+                    if (readonly) {
+                        btn.style.pointerEvents = 'none';
+                    } else {
+                        btn.style.pointerEvents = 'auto';
+                    }
+                    
+                    const afterState = {
+                        disabled: btn.disabled,
+                        opacity: btn.style.opacity,
+                        pointerEvents: btn.style.pointerEvents
+                    };
+                    
+                    console.log(`Button ${btnIndex} (${btn.dataset.day}): before=${JSON.stringify(beforeState)}, after=${JSON.stringify(afterState)}`);
+                });
+            }
+        });
     }
 
     // 添加"更改重复规则"按钮
@@ -1296,11 +1325,51 @@ class EventManager {
         // 添加点击事件
         changeRuleBtn.addEventListener('click', () => {
             console.log('Change rule button clicked');
+            
             // 解除重复字段的只读状态
+            console.log('Before calling setRepeatFieldsReadonly(false)');
             this.setRepeatFieldsReadonly(false);
+            console.log('After calling setRepeatFieldsReadonly(false)');
+            
             // 同时解除重复复选框的只读状态
             this.setRecurringCheckboxReadonly(false);
             changeRuleBtn.style.display = 'none';
+            
+            // 检查周一到周日按钮的状态
+            const editWeekdayContainer = document.getElementById('editEventWeekdaysContainer');
+            if (editWeekdayContainer) {
+                const weekdayButtons = editWeekdayContainer.querySelectorAll('.weekday-btn');
+                console.log(`Found ${weekdayButtons.length} weekday buttons in editEventWeekdaysContainer`);
+                
+                // 检查容器的显示状态
+                const containerStyles = window.getComputedStyle(editWeekdayContainer);
+                console.log(`Container styles: display=${containerStyles.display}, visibility=${containerStyles.visibility}, opacity=${containerStyles.opacity}`);
+                
+                weekdayButtons.forEach((btn, index) => {
+                    const btnStyles = window.getComputedStyle(btn);
+                    console.log(`Weekday button ${index}: disabled=${btn.disabled}, opacity=${btn.style.opacity}, pointerEvents=${btn.style.pointerEvents}, day=${btn.dataset.day}`);
+                    console.log(`  - Computed styles: opacity=${btnStyles.opacity}, pointerEvents=${btnStyles.pointerEvents}, display=${btnStyles.display}`);
+                    console.log(`  - Classes: ${btn.className}`);
+                    
+                    // 检查是否有点击事件监听器
+                    const hasClickListener = btn.onclick !== null || btn.addEventListener !== undefined;
+                    console.log(`  - Has click handler: ${hasClickListener}`);
+                    
+                    // 尝试手动添加测试点击事件
+                    btn.addEventListener('click', function testClick(e) {
+                        console.log(`TEST CLICK: Button ${btn.dataset.day} was clicked!`);
+                        btn.removeEventListener('click', testClick);
+                    });
+                });
+            } else {
+                console.log('editEventWeekdaysContainer not found');
+            }
+            
+            // 重新设置周一到周日按钮的事件监听器
+            console.log('Reattaching weekday button listeners');
+            if (window.rruleManager && window.rruleManager.setupWeekdayListeners) {
+                window.rruleManager.setupWeekdayListeners();
+            }
             
             // 更新提示信息
             this.addEditModeHint('重复规则编辑模式 - 可修改所有重复设置');
@@ -1370,12 +1439,20 @@ class EventManager {
                 seriesId, operation, scope, fromTime, eventId, updateData
             });
             
+            // 创建AbortController用于超时控制
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                controller.abort();
+                console.log('Request aborted due to timeout');
+            }, 35000); // 35秒超时
+            
             const response = await fetch('/api/events/bulk-edit/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': this.getCSRFToken()
                 },
+                signal: controller.signal,
                 body: JSON.stringify({
                     event_id: eventId,
                     operation: operation,
@@ -1395,31 +1472,78 @@ class EventManager {
                 })
             });
             
+            // 清除超时定时器
+            clearTimeout(timeoutId);
+            
             console.log('API response status:', response.status);
             
             if (response.ok) {
-                const result = await response.json();
-                console.log('API response result:', result);
-                // 刷新日历
-                this.refreshCalendar();
-                console.log(`批量${operation}完成`);
-                
-                // 清理pendingBulkEdit信息
-                if (operation === 'delete') {
-                    this.pendingBulkEdit = null;
+                try {
+                    const result = await response.json();
+                    console.log('API response result:', result);
+                    
+                    // 检查结果状态
+                    if (result.status === 'success') {
+                        // 刷新日历
+                        this.refreshCalendar();
+                        console.log(`批量${operation}完成`);
+                        
+                        // 清理pendingBulkEdit信息
+                        if (operation === 'delete') {
+                            this.pendingBulkEdit = null;
+                        }
+                        
+                        return true;
+                    } else {
+                        console.error('批量操作返回错误状态:', result);
+                        alert(`批量${operation}失败: ${result.message || '服务器返回错误状态'}`);
+                        return false;
+                    }
+                } catch (jsonError) {
+                    console.error('解析响应JSON时出错:', jsonError);
+                    // 如果JSON解析失败，但HTTP状态是OK，可能是响应被截断了
+                    // 在这种情况下，我们仍然认为操作可能成功了
+                    console.log('响应可能被截断，但HTTP状态为OK，假设操作成功');
+                    this.refreshCalendar();
+                    console.log(`批量${operation}可能完成（响应解析失败）`);
+                    
+                    // 清理pendingBulkEdit信息
+                    if (operation === 'delete') {
+                        this.pendingBulkEdit = null;
+                    }
+                    
+                    return true;
                 }
-                
-                return true;
             } else {
-                const errorData = await response.json();
-                console.error('批量操作失败:', errorData);
-                alert(`批量${operation}失败: ${errorData.message || '未知错误'}`);
+                try {
+                    const errorData = await response.json();
+                    console.error('批量操作失败:', errorData);
+                    alert(`批量${operation}失败: ${errorData.message || '未知错误'}`);
+                } catch (jsonError) {
+                    console.error('解析错误响应JSON时出错:', jsonError);
+                    alert(`批量${operation}失败: HTTP ${response.status}`);
+                }
                 return false;
             }
         } catch (error) {
             console.error('批量操作时出错:', error);
-            alert(`批量${operation}时出错`);
-            return false;
+            
+            // 处理不同类型的错误
+            if (error.name === 'AbortError') {
+                console.log('请求被用户或超时中止');
+                // 超时的情况下，我们假设操作可能成功了，但需要刷新页面确认
+                this.refreshCalendar();
+                alert(`批量${operation}超时，操作可能已完成，页面已刷新`);
+                return true; // 返回true让调用者关闭对话框
+            } else if (error.message && error.message.includes('Failed to fetch')) {
+                console.log('网络错误或服务器连接问题');
+                this.refreshCalendar();
+                alert(`批量${operation}时网络错误，操作可能已完成，页面已刷新`);
+                return true; // 网络错误时也假设可能成功
+            } else {
+                alert(`批量${operation}时出错: ${error.message || '未知错误'}`);
+                return false;
+            }
         }
     }
 

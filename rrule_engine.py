@@ -148,18 +148,35 @@ class RRuleSeries:
         # 按序号排序处理所有规则段
         for segment in sorted(self.segments, key=lambda s: s.sequence):
             try:
+                # 确保dtstart是naive datetime，避免时区问题
+                dtstart = segment.dtstart
+                if dtstart.tzinfo is not None:
+                    dtstart = dtstart.replace(tzinfo=None)
+                
+                # 处理rrule中的UNTIL值，确保时区一致性
+                processed_rrule = segment.rrule_str
+                if 'UNTIL=' in segment.rrule_str:
+                    import re
+                    until_match = re.search(r'UNTIL=([^;]+)', segment.rrule_str)
+                    if until_match:
+                        until_str = until_match.group(1)
+                        # 如果UNTIL是UTC格式（以Z结尾），转换为naive格式
+                        if until_str.endswith('Z'):
+                            until_naive = until_str[:-1]
+                            processed_rrule = segment.rrule_str.replace(f'UNTIL={until_str}', f'UNTIL={until_naive}')
+                
                 # 构建完整的rrule字符串
-                full_rrule = f"DTSTART:{segment.dtstart.strftime('%Y%m%dT%H%M%S')}\n"
-                full_rrule += f"RRULE:{segment.rrule_str}"
+                full_rrule = f"DTSTART:{dtstart.strftime('%Y%m%dT%H%M%S')}\n"
+                full_rrule += f"RRULE:{processed_rrule}"
                 
                 if segment.until:
                     # 确保UNTIL格式正确
-                    if 'UNTIL=' not in segment.rrule_str:
+                    if 'UNTIL=' not in processed_rrule:
                         until_str = segment.until.strftime('%Y%m%dT%H%M%S')
-                        full_rrule = full_rrule.replace('RRULE:', f'RRULE:').replace(segment.rrule_str, f"{segment.rrule_str};UNTIL={until_str}")
+                        full_rrule = full_rrule.replace('RRULE:', f'RRULE:').replace(processed_rrule, f"{processed_rrule};UNTIL={until_str}")
                 
                 # 解析并添加到rruleset
-                rule_obj = rrulestr(full_rrule, dtstart=segment.dtstart)
+                rule_obj = rrulestr(full_rrule, dtstart=dtstart)
                 rrset.rrule(rule_obj)  # type: ignore
                 
                 # 添加例外日期

@@ -4,19 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.3.20250924_0150&#10;正在升级 events 相关的功能">
-      <change afterPath="$PROJECT_DIR$/.idea/copilot.data.migration.agent.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/copilot.data.migration.ask.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/copilot.data.migration.ask2agent.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/copilot.data.migration.edit.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/UniSchedulerSuper.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/UniSchedulerSuper.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/UniSchedulerSuper/asgi.py" beforeDir="false" afterPath="$PROJECT_DIR$/UniSchedulerSuper/asgi.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/UniSchedulerSuper/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/UniSchedulerSuper/settings.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/UniSchedulerSuper/wsgi.py" beforeDir="false" afterPath="$PROJECT_DIR$/UniSchedulerSuper/wsgi.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai_chatting/ai_responder.py" beforeDir="false" afterPath="$PROJECT_DIR$/ai_chatting/ai_responder.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai_chatting/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/ai_chatting/views.py" afterDir="false" />
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.3.20250925_0145&#10;正在升级 events 相关的功能。现在删除功能、基础编辑功能貌似已经完成，接下来是 RRUle 编辑功能">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/js/event-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/event-manager.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/js/modal-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/modal-manager.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/js/rrule-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/rrule-manager.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/js/settings-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/settings-manager.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/tests.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/ttt.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/views_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rrule_engine.py" beforeDir="false" afterPath="$PROJECT_DIR$/rrule_engine.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -198,7 +196,10 @@
       <workItem from="1757654103865" duration="35518000" />
       <workItem from="1758198931480" duration="17665000" />
       <workItem from="1758628009469" duration="17000" />
-      <workItem from="1758638055813" duration="9662000" />
+      <workItem from="1758638055813" duration="11111000" />
+      <workItem from="1758737500947" duration="929000" />
+      <workItem from="1758786029684" duration="600000" />
+      <workItem from="1758804325528" duration="15032000" />
     </task>
     <task id="LOCAL-00001" summary="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
       <option name="closed" value="true" />
@@ -248,7 +249,15 @@
       <option name="project" value="LOCAL" />
       <updated>1758649863025</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="UniSchedulerSuper 1.5.3.20250925_0145&#10;正在升级 events 相关的功能。现在删除功能、基础编辑功能貌似已经完成，接下来是 RRUle 编辑功能">
+      <option name="closed" value="true" />
+      <created>1758735972112</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1758735972112</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -284,7 +293,8 @@
     <MESSAGE value="UniSchedulerSuper 1.5.3&#10;换用了新的日志器&#10;重构了reminder相关代码，整理视图函数" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20250923&#10;正在升级 events 相关的功能" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20250924_0150&#10;正在升级 events 相关的功能" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.3.20250924_0150&#10;正在升级 events 相关的功能" />
+    <MESSAGE value="UniSchedulerSuper 1.5.3.20250925_0145&#10;正在升级 events 相关的功能。现在删除功能、基础编辑功能貌似已经完成，接下来是 RRUle 编辑功能" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.3.20250925_0145&#10;正在升级 events 相关的功能。现在删除功能、基础编辑功能貌似已经完成，接下来是 RRUle 编辑功能" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_rrule_system.coverage" NAME="test_rrule_system 覆盖结果" MODIFIED="1756019650259" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

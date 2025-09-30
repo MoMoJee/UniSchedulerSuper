@@ -153,16 +153,38 @@ class RRuleManager {
     setupWeekdayListeners() {
         ['create', 'edit'].forEach(mode => {
             const prefix = mode === 'create' ? 'newEvent' : 'event';
-            const weekdayContainer = document.getElementById(`${prefix}WeekdaysContainer`);
+            // 使用正确的容器ID - 编辑模式使用editEventWeekdaysContainer
+            const weekdayContainerId = mode === 'create' ? `${prefix}WeekdaysContainer` : 'editEventWeekdaysContainer';
+            const weekdayContainer = document.getElementById(weekdayContainerId);
+            
+            console.log(`Setting up weekday listeners for ${mode} mode, container: ${weekdayContainerId}, found: ${!!weekdayContainer}`);
+            
             if (weekdayContainer) {
                 const weekdayButtons = weekdayContainer.querySelectorAll('.weekday-btn');
-                weekdayButtons.forEach(btn => {
-                    btn.addEventListener('click', (e) => {
+                console.log(`Found ${weekdayButtons.length} weekday buttons in ${weekdayContainerId}`);
+                
+                weekdayButtons.forEach((btn, index) => {
+                    // 移除已存在的监听器（如果有的话）
+                    const oldListener = btn._weekdayClickListener;
+                    if (oldListener) {
+                        btn.removeEventListener('click', oldListener);
+                    }
+                    
+                    // 创建新的监听器
+                    const newListener = (e) => {
+                        console.log(`Weekday button clicked: ${btn.dataset.day} in ${mode} mode`);
                         e.preventDefault();
                         this.toggleWeekdayButton(btn);
                         this.updateRulePreview(mode);
-                    });
+                    };
+                    
+                    // 保存监听器引用以便后续移除
+                    btn._weekdayClickListener = newListener;
+                    btn.addEventListener('click', newListener);
+                    console.log(`Added click listener to button ${index} (${btn.dataset.day})`);
                 });
+            } else {
+                console.log(`Weekday container ${weekdayContainerId} not found for ${mode} mode`);
             }
         });
     }

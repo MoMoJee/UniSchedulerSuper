@@ -701,6 +701,8 @@ class ModalManager {
 
     // 启用所有Events编辑字段
     enableAllEventEditFields() {
+        console.log('enableAllEventEditFields called');
+        
         const fields = [
             'eventTitle',
             'eventDescription',
@@ -736,11 +738,27 @@ class ModalManager {
 
         // 重置重复选项状态
         const repeatOptions = document.getElementById('editRepeatOptions');
+        const eventRecurringOptions = document.getElementById('editEventRecurringOptions');
+        
         if (repeatOptions) {
+            console.log('Enabling controls in editRepeatOptions (enableAllEventEditFields)');
             const repeatControls = repeatOptions.querySelectorAll('select, input, button');
+            console.log(`Found ${repeatControls.length} controls to enable in editRepeatOptions`);
             repeatControls.forEach(control => {
                 control.disabled = false;
                 control.style.opacity = '';
+            });
+        }
+        
+        // 也确保启用editEventRecurringOptions中的按钮
+        if (eventRecurringOptions) {
+            console.log('Enabling controls in editEventRecurringOptions (enableAllEventEditFields)');
+            const eventRecurringControls = eventRecurringOptions.querySelectorAll('select, input, button');
+            console.log(`Found ${eventRecurringControls.length} controls to enable in editEventRecurringOptions`);
+            eventRecurringControls.forEach(control => {
+                control.disabled = false;
+                control.style.opacity = '';
+                control.style.pointerEvents = 'auto';
             });
         }
 
@@ -809,9 +827,16 @@ class ModalManager {
 
     // 配置Events的"从此开始"默认模式
     configureEventFromThisDefaultMode() {
+        console.log('configureEventFromThisDefaultMode called');
+        
         // 禁用重复开关但保持原状态
         const repeatCheckbox = document.getElementById('eventRepeat');
         const repeatOptions = document.getElementById('editRepeatOptions');
+        const eventRecurringOptions = document.getElementById('editEventRecurringOptions');
+
+        console.log('repeatCheckbox found:', !!repeatCheckbox);
+        console.log('editRepeatOptions found:', !!repeatOptions);
+        console.log('editEventRecurringOptions found:', !!eventRecurringOptions);
 
         if (repeatCheckbox) {
             repeatCheckbox.disabled = true;
@@ -821,10 +846,23 @@ class ModalManager {
 
         // 禁用所有重复选项控件但保持显示
         if (repeatOptions) {
+            console.log('Disabling controls in editRepeatOptions');
             const repeatControls = repeatOptions.querySelectorAll('select, input, button');
-            repeatControls.forEach(control => {
+            console.log(`Found ${repeatControls.length} controls in editRepeatOptions`);
+            repeatControls.forEach((control, index) => {
+                console.log(`Control ${index}:`, control.tagName, control.id, control.className);
                 control.disabled = true;
                 control.style.opacity = '0.5';
+            });
+        }
+        
+        // 也检查editEventRecurringOptions容器
+        if (eventRecurringOptions) {
+            console.log('Also checking editEventRecurringOptions for buttons');
+            const eventRecurringControls = eventRecurringOptions.querySelectorAll('button');
+            console.log(`Found ${eventRecurringControls.length} buttons in editEventRecurringOptions`);
+            eventRecurringControls.forEach((btn, index) => {
+                console.log(`Button ${index}:`, btn.textContent.trim(), btn.className, 'disabled:', btn.disabled);
             });
         }
 

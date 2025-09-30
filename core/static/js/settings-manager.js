@@ -64,6 +64,17 @@ class SettingsManager {
 
     // 设置自动保存机制
     setupAutoSave() {
+        let lastSaveTime = 0;
+        const minSaveInterval = 1000; // 最小保存间隔1秒
+        
+        const throttledSave = () => {
+            const now = Date.now();
+            if (now - lastSaveTime >= minSaveInterval) {
+                lastSaveTime = now;
+                this.saveSettingsImmediate();
+            }
+        };
+        
         // 监听页面关闭时保存设置
         window.addEventListener('beforeunload', () => {
             this.saveSettingsImmediate();
@@ -72,7 +83,7 @@ class SettingsManager {
         // 监听页面隐藏时保存设置（切换标签页等）
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
-                this.saveSettingsImmediate();
+                throttledSave();
             }
         });
     }
