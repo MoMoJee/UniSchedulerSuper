@@ -178,6 +178,9 @@
                     <button class="btn btn-outline-primary btn-sm me-2" onclick="modalManager.openCreateEventModal()">
                         <i class="fas fa-plus me-1"></i>新建事件
                     </button>
+                    <button class="btn btn-outline-success btn-sm me-2" onclick="groupManager.showManageGroupsModal()">
+                        <i class="fas fa-layer-group me-1"></i>管理日程组
+                    </button>
                     <div class="btn-group" role="group">
                         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="eventManager.calendar.today()">今天</button>
                         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="eventManager.calendar.prev()">
@@ -1396,6 +1399,119 @@
         </div>
     </div>
 
+    <!-- 日程组管理模态框 -->
+    <!-- 日程组管理模态框（单模态框，多面板设计） -->
+    <div class="modal fade" id="manageGroupsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="groupModalTitle">
+                        <i class="fas fa-layer-group me-2"></i>管理日程组
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- 日程组列表面板 -->
+                    <div id="groupListPanel">
+                        <div class="mb-3">
+                            <button class="btn btn-success btn-sm" onclick="groupManager.showCreatePanel()">
+                                <i class="fas fa-plus me-1"></i>创建新日程组
+                            </button>
+                        </div>
+                        <div id="groupsList" class="list-group">
+                            <!-- 动态生成的日程组列表 -->
+                        </div>
+                    </div>
+
+                    <!-- 创建日程组面板 -->
+                    <div id="groupCreatePanel" style="display: none;">
+                        <div class="mb-3">
+                            <button class="btn btn-outline-secondary btn-sm" onclick="groupManager.showListPanel()">
+                                <i class="fas fa-arrow-left me-1"></i>返回列表
+                            </button>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newGroupName" class="form-label">组名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="newGroupName" placeholder="输入日程组名称">
+                        </div>
+                        <div class="mb-3">
+                            <label for="newGroupDescription" class="form-label">描述</label>
+                            <textarea class="form-control" id="newGroupDescription" rows="3" placeholder="输入日程组描述（可选）"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newGroupColor" class="form-label">颜色</label>
+                            <input type="color" class="form-control form-control-color" id="newGroupColor" value="#3788d8">
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-success" onclick="groupManager.createGroup()">
+                                <i class="fas fa-save me-1"></i>创建日程组
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 编辑日程组面板 -->
+                    <div id="groupEditPanel" style="display: none;">
+                        <div class="mb-3">
+                            <button class="btn btn-outline-secondary btn-sm" onclick="groupManager.showListPanel()">
+                                <i class="fas fa-arrow-left me-1"></i>返回列表
+                            </button>
+                        </div>
+                        <input type="hidden" id="editGroupId">
+                        <div class="mb-3">
+                            <label for="editGroupName" class="form-label">组名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="editGroupName" placeholder="输入日程组名称">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editGroupDescription" class="form-label">描述</label>
+                            <textarea class="form-control" id="editGroupDescription" rows="3" placeholder="输入日程组描述（可选）"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editGroupColor" class="form-label">颜色</label>
+                            <input type="color" class="form-control form-control-color" id="editGroupColor">
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-primary" onclick="groupManager.updateGroup()">
+                                <i class="fas fa-save me-1"></i>保存修改
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 删除日程组面板 -->
+                    <div id="groupDeletePanel" style="display: none;">
+                        <div class="mb-3">
+                            <button class="btn btn-outline-secondary btn-sm" onclick="groupManager.showListPanel()">
+                                <i class="fas fa-arrow-left me-1"></i>返回列表
+                            </button>
+                        </div>
+                        <input type="hidden" id="deleteGroupId">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>警告：</strong>此操作不可撤销！
+                        </div>
+                        <p class="mb-3">请选择删除方式：</p>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="deleteOption" id="deleteGroupOnly" value="group" checked>
+                            <label class="form-check-label" for="deleteGroupOnly">
+                                <i class="fas fa-folder-minus me-1"></i>只删除日程组（保留日程）
+                            </label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="deleteOption" id="deleteGroupAndEvents" value="all">
+                            <label class="form-check-label" for="deleteGroupAndEvents">
+                                <i class="fas fa-trash-alt me-1"></i>删除日程组及其所有日程
+                            </label>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-danger" onclick="groupManager.confirmDeleteGroup()">
+                                <i class="fas fa-trash me-1"></i>确认删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'fullcalendar_index.global.js' %}"></script>
@@ -1413,6 +1529,7 @@
     <script src="{% static 'js/reminder-manager.js' %}"></script>
     <script src="{% static 'js/rrule-manager.js' %}"></script>
     <script src="{% static 'js/modal-manager.js' %}"></script>
+    <script src="{% static 'js/group-manager.js' %}"></script>
     <script src="{% static 'js/event-manager.js' %}"></script>
     <script src="{% static 'js/todo-manager.js' %}"></script>
     
@@ -1579,6 +1696,7 @@
             window.eventManager.init();
             window.todoManager.init();
             window.reminderManager.init();
+            window.groupManager.init();
             
             // 初始化重复提醒UI事件监听器
             initRepeatReminderListeners();

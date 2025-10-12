@@ -2138,7 +2138,7 @@ class ModalManager {
             description: document.getElementById(`${prefix}Description`).value,
             importance: document.getElementById(`${prefix}Importance`).value,
             urgency: document.getElementById(`${prefix}Urgency`).value,
-            groupId: document.getElementById(`${prefix}GroupId`).value,
+            groupID: document.getElementById(`${prefix}GroupId`).value,
             ddl: document.getElementById(`${mode === 'create' ? 'creatEvent' : 'event'}Ddl`).value
         };
 

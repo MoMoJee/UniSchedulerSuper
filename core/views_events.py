@@ -1080,7 +1080,7 @@ def create_event_impl(request):
             'description': data.get('description', ''),
             'importance': data.get('importance'),
             'urgency': data.get('urgency'),
-            'group_id': data.get('groupId'),
+            'groupID': data.get('groupID'),
         }
         
         # 获取用户偏好设置
