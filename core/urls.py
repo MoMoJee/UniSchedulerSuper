@@ -28,6 +28,7 @@ urlpatterns = [
     path("get_calendar/check_modified_events", views.check_modified_events, name="check_modified_events"),
     path("get_calendar/change_view/", views.change_view, name="change_view"),
     path("get_calendar/user_settings/", views.user_settings, name="user_settings"),
+    path('api/events/bulk-edit/', views_events.bulk_edit_events_impl, name='bulk_edit_events'),
     
     # Reminders API
     path('api/reminders/', views.get_reminders, name='get_reminders'),
@@ -43,10 +44,7 @@ urlpatterns = [
     path('api/reminders/pending/', views.get_pending_reminders, name='get_pending_reminders'),
     path('api/reminders/maintain/', views.maintain_reminders, name='maintain_reminders'),
     path('api/reminders/mark-sent/', views.mark_notification_sent, name='mark_notification_sent'),
-    
-    # Events API
-    path('api/events/bulk-edit/', views_events.bulk_edit_events_impl, name='bulk_edit_events'),
-    
+
     # Todos API
     path('api/todos/', views.get_todos, name='get_todos'),
     path('api/todos/create/', views.create_todo, name='create_todo'),
@@ -56,4 +54,5 @@ urlpatterns = [
     
     # Other
     path("friendly_link/", views.friendly_link, name="friendly_link"),
+    path("three_body/", views.three_body, name="three_body"),
 ]

@@ -4,7 +4,6 @@ import datetime
 from typing import List
 import uuid
 import markdown
-import requests
 from datetime import timedelta
 
 try:
@@ -29,11 +28,10 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import logout
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 
 from .forms import RegisterForm
-from .models import UserData
 
 from logger import logger
 
@@ -198,7 +196,7 @@ def home(request):
     # 初始化 rrule_series_storage 。否则直接创建的时候不知道为啥会创建两个 rrule_series_storage，找半天找不到错在哪儿
     rrule_series_storage, created, result = UserData.get_or_initialize(request, new_key="rrule_series_storage")
 
-    return render(request, 'core/home_new.html', context)
+    return render(request, 'home_new.html', context)
 
 
 @login_required
@@ -380,24 +378,17 @@ def get_events(request):
     """获取events数据 - 委托给views_events中的实现"""
     return get_events_impl(request)
 
-
-
-
 @login_required
 @csrf_exempt
 def update_events(request):
     """更新事件 - 委托给views_events中的实现"""
     return update_events_impl(request)
 
-
-
 @login_required
 @csrf_exempt
 def create_event(request):
     """创建新事件 - 委托给views_events中的实现"""
     return create_event_impl(request)
-    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
-
 
 @csrf_exempt
 @login_required
@@ -509,7 +500,8 @@ def import_events(request):
 
         # 从指定网站获取日程数据（示例逻辑）
         try:
-            # 假设从某个网站获取日程数据
+            # 从MUC教务系统网站获取日程数据
+            from core.views_import_events import get_response_data
             imported_events = json.loads(get_response_data(cookie))  # 自定义函数，从网站获取数据
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
@@ -533,96 +525,6 @@ def import_events(request):
 
         return JsonResponse({'status': 'success'})
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
-
-
-
-
-def transform_json_data(json_str):
-    """
-    将输入的 JSON 字符串转换为指定格式。
-
-    参数:
-        json_str (str): 原始 JSON 字符串。
-
-    返回:
-        str: 转换后的 JSON 字符串。
-    """
-    try:
-        # 解析原始 JSON 数据
-        data = json.loads(json_str)
-
-        # 转换每个字典
-        transformed_data = []
-        for item in data:
-            # 确保时间字符串包含秒部分
-            start_time = item["start"]
-            end_time = item["end"]
-
-            if len(start_time.split(":")) == 2:  # 如果只有小时和分钟
-                start_time += ":00"
-            if len(end_time.split(":")) == 2:  # 如果只有小时和分钟
-                end_time += ":00"
-
-            transformed_item = {
-                "id": str(uuid.uuid4()),
-                "title": item["title"],
-                "start": datetime.datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S").isoformat().replace("+00:00", "Z"),
-                "end": datetime.datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S").isoformat().replace("+00:00", "Z"),
-                "description": item.get("showmsg", ""),  # 如果 showmsg 不存在，则为空字符串
-                "importance": "",
-                "urgency": "",
-                "groupID": "",
-                "ddl": "",
-                "last_modified": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            }
-            transformed_data.append(transformed_item)
-
-        # 将结果转换为 JSON 字符串
-        return json.dumps(transformed_data, ensure_ascii=False, indent=4)
-
-    except json.JSONDecodeError as e:
-        print(f"JSON 解析错误: {e}")
-        return None
-    except Exception as e:
-        print(f"转换错误: {e}")
-        return None
-
-def get_response_data(cookie):
-    cookie = cookie.strip()  # 去除首尾空格
-    cookie = cookie.replace(' ', '')  # 去除中间的空格
-
-# 目标 URL
-    url = "https://jwxs.muc.edu.cn/main/queryMyProctorFull"
-
-    # 请求头（根据浏览器提供的信息）
-    headers = {
-        "Cookie": cookie,
-        "Referer": "https://jwxs.muc.edu.cn/index",
-    }
-
-    # POST 请求的表单数据（根据实际需要填写）
-    response_data = {
-        "flag": "1"  # 示例数据，根据实际需求调整
-    }
-
-    # 发送 POST 请求
-    response = requests.post(url, headers=headers, data=response_data)
-
-    # 检查响应
-    if response.status_code == 200:
-        print("请求成功！")
-    else:
-        print(f"请求失败，状态码：{response.status_code}")
-        print("响应内容：")
-        print(response.text)  # 打印错误信息
-
-    if response.status_code == 200:
-        response_data = json.loads(response.text)["data"]
-
-
-    result = transform_json_data(response_data)
-
-    return result
 
 @login_required
 def outport_calendar(request):
@@ -773,11 +675,6 @@ def get_resources(request):
     resources = user_data.get_value()
     return JsonResponse(resources, safe=False)
 
-
-def friendly_link(request):
-    return render(request, 'memory.html')
-
-
 # ========== Reminder 相关 API ==========
 
 def get_reminders(request):
@@ -842,7 +739,7 @@ def get_pending_reminders(request):
     return get_pending_reminders_impl(request)
 
 
-# ========== Todo 相关 API ==========
+# ========== TO-DO 相关 API ==========
 
 @csrf_exempt
 def get_todos(request):
@@ -1033,3 +930,8 @@ def mark_notification_sent(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
+def three_body(request):
+    return render(request, 'three_body.html')
+
+def friendly_link(request):
+    return render(request, 'memory.html')

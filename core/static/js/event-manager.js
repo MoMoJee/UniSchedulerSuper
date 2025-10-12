@@ -685,20 +685,55 @@ class EventManager {
 
     // 获取未来事件选项
     getFutureEventOptions(seriesId) {
-        // 这里应该获取该系列的未来事件
-        // 简化实现，返回一些示例选项
-        const now = new Date();
+        // 从实际的事件数据中获取该系列的所有实例
         const options = [];
         
-        for (let i = 1; i <= 10; i++) {
-            const futureDate = new Date(now);
-            futureDate.setDate(now.getDate() + i * 7); // 每周
-            options.push({
-                value: futureDate.toISOString(),
-                label: futureDate.toLocaleDateString('zh-CN')
-            });
+        if (!seriesId || !this.events) {
+            console.warn('seriesId or events data not available');
+            return options;
         }
         
+        // 获取当前时间
+        const now = new Date();
+        
+        // 查找该系列的所有事件实例
+        const seriesEvents = this.events.filter(event => 
+            event.series_id === seriesId && 
+            event.start && 
+            !event.is_detached // 排除已分离的事件
+        );
+        
+        if (seriesEvents.length === 0) {
+            console.warn(`No events found for series ${seriesId}`);
+            return options;
+        }
+        
+        // 按开始时间排序
+        seriesEvents.sort((a, b) => {
+            const dateA = new Date(a.start);
+            const dateB = new Date(b.start);
+            return dateA - dateB;
+        });
+        
+        // 只返回当前时间之后的事件（包括当前）
+        const futureEvents = seriesEvents.filter(event => {
+            const eventDate = new Date(event.start);
+            return eventDate >= now || Math.abs(eventDate - now) < 24 * 60 * 60 * 1000; // 包括24小时内的事件
+        });
+        
+        // 如果没有未来事件，至少包括最后几个事件
+        const eventsToShow = futureEvents.length > 0 ? futureEvents : seriesEvents.slice(-5);
+        
+        // 转换为选项格式
+        eventsToShow.forEach(event => {
+            const eventDate = new Date(event.start);
+            options.push({
+                value: event.start, // 使用原始ISO格式时间字符串
+                label: `${eventDate.toLocaleDateString('zh-CN')} ${eventDate.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})}`
+            });
+        });
+        
+        console.log(`Found ${options.length} event instances for series ${seriesId}`);
         return options;
     }
 

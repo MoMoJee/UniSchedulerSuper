@@ -366,22 +366,24 @@ class EventsRRuleManager(IntegratedReminderManager):
                         continue
                     else:
                         logger.info(f"Series {series_id} COUNT: {current_count}/{count_limit}")
-                        # 只生成到达限制为止的实例
+                        # 生成足够的实例来达到目标数量
                         remaining_count = count_limit - current_count
-                        new_instances = self.generate_event_instances(main_event, 365, remaining_count)
+                        # 传递较大的max_instances来确保生成足够的实例
+                        # 因为generate_event_instances会过滤掉与主事件相同的时间
+                        new_instances = self.generate_event_instances(main_event, 365, remaining_count + 5)
                         
                         # 过滤掉已经存在的实例
                         existing_starts = {e['start'] for e in series_events}
                         truly_new_instances = []
                         
-                        for instance in new_instances[:remaining_count]:  # 确保不超过限制
-                            if instance['start'] not in existing_starts:
+                        for instance in new_instances:
+                            if instance['start'] not in existing_starts and len(truly_new_instances) < remaining_count:
                                 truly_new_instances.append(instance)
                         
                         if truly_new_instances:
                             events.extend(truly_new_instances)
                             new_instances_count += len(truly_new_instances)
-                            logger.info(f"Added {len(truly_new_instances)} new instances for COUNT-limited series {series_id}")
+                            logger.info(f"Added {len(truly_new_instances)} new instances for COUNT-limited series {series_id} (target: {remaining_count})")
                 continue
             
             if has_until:
@@ -888,11 +890,29 @@ class EventsRRuleManager(IntegratedReminderManager):
                 except:
                     logger.warning(f"Invalid start time format: {additional_updates.get('start')}, using cutoff_time")
             
-            # 3. 创建新的series
+            # 3. 对于复杂重复模式，查找下一个符合条件的时间点
+            needs_adjustment = self._is_complex_rrule(new_rrule)
+            if needs_adjustment:
+                adjusted_start_time = self._find_next_occurrence(new_rrule, new_start_time)
+                if adjusted_start_time:
+                    # 使用找到的时间点，但保留原始时间的时分秒
+                    original_hour = new_start_time.hour
+                    original_minute = new_start_time.minute
+                    original_second = new_start_time.second
+                    adjusted_start_time = adjusted_start_time.replace(
+                        hour=original_hour,
+                        minute=original_minute,
+                        second=original_second,
+                        microsecond=new_start_time.microsecond
+                    )
+                    new_start_time = adjusted_start_time
+                    logger.info(f"Adjusted new series start time to first valid occurrence: {new_start_time}")
+            
+            # 4. 创建新的series
             new_series_id = self.rrule_engine.create_series(new_rrule, new_start_time)
             logger.info(f"Created new series {new_series_id} for modified rule")
             
-            # 4. 处理所有事件
+            # 5. 处理所有事件
             for event in events:
                 if event.get('series_id') == series_id:
                     try:
@@ -1520,6 +1540,84 @@ def bulk_edit_events_impl(request):
                             # 非重复事件，直接更新
                             event.update(updates)
                             event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            
+                            # 检查是否正在将单个事件转换为重复事件
+                            if 'rrule' in updates and updates['rrule'] and 'FREQ=' in updates['rrule']:
+                                logger.info(f"Converting single event {event_id} to recurring event with rrule: {updates['rrule']}")
+                                
+                                # 确保事件有正确的重复事件标志
+                                event['is_recurring'] = True
+                                event['is_main_event'] = True
+                                event['is_detached'] = False
+                                event['recurrence_id'] = ''
+                                event['parent_event_id'] = ''
+                                
+                                # 获取或创建series_id
+                                series_id = event.get('series_id') or updates.get('series_id')
+                                
+                                try:
+                                    # 解析开始时间
+                                    start_time_str = event.get('start', '')
+                                    if start_time_str:
+                                        start_time = datetime.datetime.fromisoformat(start_time_str)
+                                        if start_time.tzinfo is not None:
+                                            start_time = start_time.replace(tzinfo=None)
+                                    else:
+                                        start_time = datetime.datetime.now()
+                                    
+                                    # 检查是否需要调整开始时间（对于复杂RRule）
+                                    new_rrule = updates['rrule']
+                                    needs_adjustment = manager._is_complex_rrule(new_rrule)
+                                    if needs_adjustment:
+                                        adjusted_start = manager._find_next_occurrence(new_rrule, start_time)
+                                        if adjusted_start:
+                                            # 保留原始时间的时分秒
+                                            adjusted_start = adjusted_start.replace(
+                                                hour=start_time.hour,
+                                                minute=start_time.minute,
+                                                second=start_time.second,
+                                                microsecond=start_time.microsecond
+                                            )
+                                            start_time = adjusted_start
+                                            # 更新事件的开始和结束时间
+                                            end_time_str = event.get('end', '')
+                                            if end_time_str:
+                                                end_time = datetime.datetime.fromisoformat(end_time_str)
+                                                if end_time.tzinfo is not None:
+                                                    end_time = end_time.replace(tzinfo=None)
+                                                duration = end_time - datetime.datetime.fromisoformat(event['start'])
+                                                event['start'] = adjusted_start.strftime("%Y-%m-%dT%H:%M:%S")
+                                                event['end'] = (adjusted_start + duration).strftime("%Y-%m-%dT%H:%M:%S")
+                                            logger.info(f"Adjusted start time to first valid occurrence: {start_time}")
+                                    
+                                    # 创建RRule系列（无论是否已有series_id，都要确保RRule引擎中有数据）
+                                    if series_id:
+                                        # 如果已有series_id，检查RRule引擎中是否存在
+                                        existing_series = manager.rrule_engine.get_series(series_id)
+                                        if not existing_series:
+                                            # RRule引擎中不存在，重新创建
+                                            logger.info(f"Series {series_id} not found in RRule engine, creating it")
+                                            # 使用已有的series_id创建系列
+                                            manager.rrule_engine.create_series(new_rrule, start_time)
+                                            # 但create_series会生成新的UID，我们需要手动设置
+                                            # 这是个问题，暂时使用create_series生成新的series_id
+                                            new_series_id = manager.rrule_engine.create_series(new_rrule, start_time)
+                                            event['series_id'] = new_series_id
+                                            logger.info(f"Created new series {new_series_id} (replaced old series_id)")
+                                        else:
+                                            logger.info(f"Series {series_id} already exists in RRule engine")
+                                    else:
+                                        # 没有series_id，创建新的
+                                        new_series_id = manager.rrule_engine.create_series(new_rrule, start_time)
+                                        event['series_id'] = new_series_id
+                                        logger.info(f"Created new series {new_series_id} for single-to-recurring conversion")
+                                    
+                                except Exception as create_error:
+                                    logger.error(f"Failed to create RRule series: {create_error}")
+                                    import traceback
+                                    traceback.print_exc()
+                                    # 继续处理，即使创建系列失败
+                            
                             logger.info(f"Updated single event {event_id}")
                         break
                 
@@ -2074,8 +2172,54 @@ def update_events_impl(request):
                     
                     # 如果添加了RRule，转换为重复事件
                     if new_rrule:
-                        # 生成系列ID
-                        series_id = str(uuid.uuid4())
+                        logger.info(f"Converting single event {event_id} to recurring with rrule: {new_rrule}")
+                        
+                        # 解析开始时间
+                        try:
+                            start_time = datetime.datetime.fromisoformat(new_start)
+                            if start_time.tzinfo is not None:
+                                start_time = start_time.replace(tzinfo=None)
+                        except:
+                            start_time = datetime.datetime.now()
+                        
+                        # 检查是否需要调整开始时间（对于复杂RRule）
+                        needs_adjustment = manager._is_complex_rrule(new_rrule)
+                        if needs_adjustment:
+                            adjusted_start = manager._find_next_occurrence(new_rrule, start_time)
+                            if adjusted_start:
+                                # 保留原始时间的时分秒
+                                adjusted_start = adjusted_start.replace(
+                                    hour=start_time.hour,
+                                    minute=start_time.minute,
+                                    second=start_time.second,
+                                    microsecond=start_time.microsecond
+                                )
+                                start_time = adjusted_start
+                                # 更新事件的开始和结束时间
+                                try:
+                                    end_time = datetime.datetime.fromisoformat(new_end)
+                                    if end_time.tzinfo is not None:
+                                        end_time = end_time.replace(tzinfo=None)
+                                    duration = end_time - datetime.datetime.fromisoformat(new_start)
+                                    new_start = adjusted_start.strftime("%Y-%m-%dT%H:%M:%S")
+                                    new_end = (adjusted_start + duration).strftime("%Y-%m-%dT%H:%M:%S")
+                                    events[i]['start'] = new_start
+                                    events[i]['end'] = new_end
+                                except:
+                                    pass
+                                logger.info(f"Adjusted start time to first valid occurrence: {start_time}")
+                        
+                        # 创建RRule系列
+                        series_id = manager.rrule_engine.create_series(new_rrule, start_time)
+                        logger.info(f"Created RRule series {series_id} in engine")
+                        
+                        # 验证系列是否成功创建
+                        verify_series = manager.rrule_engine.get_series(series_id)
+                        if verify_series:
+                            logger.info(f"Verified: Series {series_id} exists in RRule engine")
+                        else:
+                            logger.error(f"Failed to verify series {series_id} - series not found in engine!")
+                        
                         events[i].update({
                             'rrule': new_rrule,
                             'is_recurring': True,
@@ -2085,7 +2229,6 @@ def update_events_impl(request):
                         
                         # 生成重复实例
                         main_event = events[i]
-                        logger.info(f"Converting single event {event_id} to recurring with rrule: {new_rrule}")
                         
                         # 生成重复实例
                         if 'COUNT=' not in new_rrule and 'UNTIL=' not in new_rrule:
@@ -2158,4 +2301,4 @@ def update_events_impl(request):
             'status': 'error',
             'message': f'更新事件失败: {str(e)}'
         }, status=500)
-    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+
