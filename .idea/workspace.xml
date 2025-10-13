@@ -4,15 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.3.20251012_1748&#10;正在升级 events 相关的功能。&#10;修复了编辑单个日程为重复日程的时候只保存规则不生成实例的错误&#10;修复了前端“此及以后”模式复选框中日程货不对板的问题">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.3.20251013_0131&#10;升级（实际上是修复之前已经有了的）日程组管理功能：新增group-manager.js，支持日程组操作逻辑；更新模板及交互，整合创建、编辑、删除功能；">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/js/event-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/event-manager.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/static/js/modal-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/modal-manager.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/static/js/todo-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/todo-manager.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/templates/home_new.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/home_new.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/views_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/staticfiles/js/modal-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/js/modal-manager.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/js/event-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/js/event-manager.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -98,6 +97,7 @@
       <recent name="D:\PROJECTS\UniSchedulerSuper" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="D:\PROJECTS\UniSchedulerSuper\docs" />
       <recent name="D:\PROJECTS\UniSchedulerSuper\core" />
       <recent name="D:\PROJECTS\UniSchedulerSuper\core\templates" />
       <recent name="D:\PROJECTS\UniSchedulerSuper\core\templates\OldFiles" />
@@ -207,7 +207,7 @@
       <workItem from="1759394164518" duration="884000" />
       <workItem from="1759479239565" duration="91000" />
       <workItem from="1759934353777" duration="12254000" />
-      <workItem from="1760257440894" duration="12337000" />
+      <workItem from="1760257440894" duration="22515000" />
     </task>
     <task id="LOCAL-00001" summary="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
       <option name="closed" value="true" />
@@ -281,7 +281,15 @@
       <option name="project" value="LOCAL" />
       <updated>1760262544970</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="UniSchedulerSuper 1.5.3.20251013_0131&#10;升级（实际上是修复之前已经有了的）日程组管理功能：新增group-manager.js，支持日程组操作逻辑；更新模板及交互，整合创建、编辑、删除功能；">
+      <option name="closed" value="true" />
+      <created>1760290316325</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1760290316325</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -320,7 +328,8 @@
     <MESSAGE value="UniSchedulerSuper 1.5.3.20250925_0145&#10;正在升级 events 相关的功能。现在删除功能、基础编辑功能貌似已经完成，接下来是 RRUle 编辑功能" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20250930_1345&#10;正在升级 events 相关的功能。&#10;现在 RRule 编辑功能已经基本全部可用，待测试完毕和删除多余日志项后即可更新" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20251012_1748&#10;正在升级 events 相关的功能。&#10;修复了编辑单个日程为重复日程的时候只保存规则不生成实例的错误&#10;修复了前端“此及以后”模式复选框中日程货不对板的问题" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.3.20251012_1748&#10;正在升级 events 相关的功能。&#10;修复了编辑单个日程为重复日程的时候只保存规则不生成实例的错误&#10;修复了前端“此及以后”模式复选框中日程货不对板的问题" />
+    <MESSAGE value="UniSchedulerSuper 1.5.3.20251013_0131&#10;升级（实际上是修复之前已经有了的）日程组管理功能：新增group-manager.js，支持日程组操作逻辑；更新模板及交互，整合创建、编辑、删除功能；" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.3.20251013_0131&#10;升级（实际上是修复之前已经有了的）日程组管理功能：新增group-manager.js，支持日程组操作逻辑；更新模板及交互，整合创建、编辑、删除功能；" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_rrule_system.coverage" NAME="test_rrule_system 覆盖结果" MODIFIED="1756019650259" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

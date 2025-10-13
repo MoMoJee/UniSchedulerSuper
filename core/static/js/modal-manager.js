@@ -969,7 +969,7 @@ class ModalManager {
                 urgency: eventData.urgency,
                 start: this.toUTC(eventData.start),
                 end: this.toUTC(eventData.end),
-                groupID: eventData.groupId,
+                groupID: eventData.groupID,  // 使用 groupID (大写)
                 ddl: eventData.ddl ? this.toUTC(eventData.ddl) : ''
             };
             
@@ -1009,7 +1009,7 @@ class ModalManager {
                 eventData.description,
                 eventData.importance,
                 eventData.urgency,
-                eventData.groupId,  // 这里传的是groupId，updateEvent方法会正确处理
+                eventData.groupID,  // 使用 groupID (大写)
                 eventData.ddl ? this.toUTC(eventData.ddl) : '',
                 eventData.rrule
             );

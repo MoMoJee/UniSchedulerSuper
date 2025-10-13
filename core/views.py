@@ -371,7 +371,7 @@ def user_settings(request):
 
     return JsonResponse({'status': 'error', 'message': '只支持GET请求'}, status=405)
 
-
+# TODO 在编辑日程的 RRule规则时，events_rrule_series 貌似并不会跟着变，然而暂时没有造成出错
 
 @login_required
 def get_events(request):

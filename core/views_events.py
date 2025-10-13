@@ -1234,6 +1234,8 @@ def delete_event_impl(request):
                 if len(events) < original_count:
                     # 如果删除的是主事件，需要特殊处理
                     if target_event.get('is_main_event'):
+                        logger.info(f"[MAIN_EVENT_TRANSFER] Deleting main event {event_id} from series {series_id}, finding replacement...")
+                        
                         # 找到系列中的下一个实例作为新的主事件
                         series_events = [e for e in events if e.get('series_id') == series_id]
                         if series_events:
@@ -1243,10 +1245,14 @@ def delete_event_impl(request):
                             for i, event in enumerate(events):
                                 if event.get('id') == new_main_event['id']:
                                     events[i]['is_main_event'] = True
+                                    events[i]['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                    logger.info(f"[MAIN_EVENT_TRANSFER] Promoted event {new_main_event['id']} (start: {new_main_event['start']}) to main event for series {series_id}")
                                     break
                         else:
                             # 如果没有其他实例，系列被完全删除
-                            pass
+                            logger.info(f"[MAIN_EVENT_TRANSFER] No other events in series {series_id}, series will be empty")
+                    else:
+                        logger.info(f"Deleted single event instance {event_id} (not main event)")
                             
             elif delete_scope == 'all':
                 # 删除整个系列
@@ -1353,10 +1359,13 @@ def bulk_edit_events_impl(request):
             'groupID': data.get('groupID'),
             'ddl': data.get('ddl'),
         }
-        # 过滤掉None值
-        updates = {k: v for k, v in updates.items() if v is not None}
+        # 过滤掉None值和空字符串（title/description除外，它们允许为空）
+        updates = {k: v for k, v in updates.items() 
+                   if v is not None and (v != '' or k in ['title', 'description'])}
         
         logger.info(f"Bulk edit events - Operation: {operation}, Scope: {edit_scope}, Event ID: {event_id}, Series ID: {series_id}")
+        logger.info(f"[DEBUG] groupID from request: {data.get('groupID')}, type: {type(data.get('groupID'))}")
+        logger.info(f"[DEBUG] Filtered updates: {updates}")
         
         # 添加调试信息：检查事件数据结构
         logger.info(f"[DEBUG] Request data keys: {list(data.keys())}")
@@ -1508,22 +1517,85 @@ def bulk_edit_events_impl(request):
                     if event.get('id') == event_id:
                         # 检查是否是重复事件的实例
                         was_recurring = event.get('series_id') or event.get('rrule') or event.get('is_recurring')
+                        original_series_id = event.get('series_id', '')
                         
-                        if was_recurring:
-                            # 生成新的独立事件ID，避免与原系列冲突
-                            new_event_id = str(uuid.uuid4())
-                            logger.info(f"Detaching event {event_id} from series, assigning new ID: {new_event_id}")
+                        if was_recurring and original_series_id:
+                            # 关键步骤：给原系列添加EXDATE，防止自动生成逻辑补全这个日期
                             
-                            # 保留原系列信息作为参考
-                            original_series_id = event.get('series_id', '')
+                            # 1. 获取原始事件的时间，用于添加EXDATE
+                            target_event_time = None
+                            try:
+                                start_time_str = event.get('start')
+                                if start_time_str:
+                                    target_event_time = datetime.datetime.fromisoformat(start_time_str)
+                            except Exception as e:
+                                logger.error(f"Error parsing event start time: {e}")
+                            
+                            # 2. 添加EXDATE例外到原系列
+                            if target_event_time:
+                                manager.rrule_engine.delete_instance(original_series_id, target_event_time)
+                                logger.info(f"Added EXDATE for series {original_series_id} at {target_event_time}")
+                                
+                                # 3. 获取更新后的系列信息，包含EXDATE
+                                updated_series = manager.rrule_engine.get_series(original_series_id)
+                                if updated_series:
+                                    # 获取包含EXDATE的完整rrule字符串
+                                    segments_data = updated_series.get_segments_data()
+                                    if segments_data:
+                                        # 重新构建rrule字符串，包含EXDATE
+                                        main_segment = segments_data[0]  # 取第一个段
+                                        updated_rrule = main_segment['rrule_str']
+                                        
+                                        # 添加EXDATE信息
+                                        if main_segment.get('exdates'):
+                                            exdate_strs = []
+                                            for exdate in main_segment['exdates']:
+                                                if isinstance(exdate, str):
+                                                    exdate_strs.append(exdate)
+                                                else:
+                                                    exdate_strs.append(exdate.strftime('%Y%m%dT%H%M%S'))
+                                            if exdate_strs:
+                                                updated_rrule += ';EXDATE=' + ','.join(exdate_strs)
+                                        
+                                        logger.info(f"Updated rrule with EXDATE: {updated_rrule}")
+                                        
+                                        # 4. 更新events数组中所有同系列事件的rrule字段
+                                        for evt in events:
+                                            if evt.get('series_id') == original_series_id:
+                                                evt['rrule'] = updated_rrule
+                                                evt['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            
+                            # 5. 将UTC时间转换为本地时间格式（如果需要）
+                            if 'start' in updates and updates['start']:
+                                start_val = updates['start']
+                                if start_val.endswith('Z'):
+                                    utc_time = datetime.datetime.fromisoformat(start_val.replace('Z', '+00:00'))
+                                    local_time = utc_time - timedelta(hours=-8)
+                                    updates['start'] = local_time.strftime('%Y-%m-%dT%H:%M:%S')
+                            if 'end' in updates and updates['end']:
+                                end_val = updates['end']
+                                if end_val.endswith('Z'):
+                                    utc_time = datetime.datetime.fromisoformat(end_val.replace('Z', '+00:00'))
+                                    local_time = utc_time - timedelta(hours=-8)
+                                    updates['end'] = local_time.strftime('%Y-%m-%dT%H:%M:%S')
+                            
+                            # 6. 检查是否是主日程，如果是需要转移主日程标记
+                            was_main_event = event.get('is_main_event', False)
+                            
+                            # 更新事件数据并脱离系列
                             original_rrule = event.get('rrule', '')
                             
+                            # 过滤掉空值，避免覆盖原有数据（title/description除外）
+                            filtered_updates = {k: v for k, v in updates.items() 
+                                                if v != '' or k in ['title', 'description']}
+                            
                             # 更新事件数据
-                            event.update(updates)
+                            event.update(filtered_updates)
                             event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             
-                            # 标记为已脱离系列的独立事件
-                            event['id'] = new_event_id  # 分配新ID
+                            # 标记为例外事件，从系列中独立出去
+                            event['is_exception'] = True  # 标记为例外
+                            event['original_start'] = event.get('start')  # 保存原始时间
                             event['is_detached'] = True  # 标记为已脱离
                             event['rrule'] = ''  # 清除重复规则
                             event['is_recurring'] = False  # 不再是重复事件
@@ -1535,10 +1607,38 @@ def bulk_edit_events_impl(request):
                             event['original_rrule'] = original_rrule
                             event['detached_at'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             
-                            logger.info(f"Event {event_id} successfully detached from series {original_series_id} with new ID {new_event_id}")
+                            logger.info(f"Event {event_id} successfully isolated from series {original_series_id}")
+                            
+                            # 7. 如果独立的是主日程，需要将系列中的下一个事件提升为新主日程
+                            if was_main_event:
+                                logger.info(f"[MAIN_EVENT_TRANSFER] Event {event_id} was main event, finding replacement...")
+                                
+                                # 找到同系列的其他事件
+                                series_events = [e for e in events 
+                                                if e.get('series_id') == original_series_id 
+                                                and e.get('id') != event_id]
+                                
+                                if series_events:
+                                    # 按开始时间排序，选择最早的作为新主日程
+                                    series_events.sort(key=lambda x: x.get('start', ''))
+                                    new_main_event_id = series_events[0]['id']
+                                    
+                                    # 更新新主日程的标记
+                                    for evt in events:
+                                        if evt.get('id') == new_main_event_id:
+                                            evt['is_main_event'] = True
+                                            evt['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                            logger.info(f"[MAIN_EVENT_TRANSFER] Promoted event {new_main_event_id} (start: {evt.get('start')}) to main event for series {original_series_id}")
+                                            break
+                                else:
+                                    logger.warning(f"[MAIN_EVENT_TRANSFER] No other events in series {original_series_id}, series will be empty")
                         else:
                             # 非重复事件，直接更新
-                            event.update(updates)
+                            # 过滤掉空值，避免覆盖原有数据（title/description除外）
+                            filtered_updates = {k: v for k, v in updates.items() 
+                                                if v != '' or k in ['title', 'description']}
+                            
+                            event.update(filtered_updates)
                             event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             
                             # 检查是否正在将单个事件转换为重复事件
@@ -1665,7 +1765,10 @@ def bulk_edit_events_impl(request):
                     for event in events:
                         if event.get('series_id') == series_id or event.get('id') == event_id:
                             # 只更新非时间字段，保持原有的start/end时间
-                            update_data = {k: v for k, v in updates.items() if k not in ['start', 'end']}
+                            # 同时过滤空字符串，避免覆盖原有数据（title/description除外）
+                            update_data = {k: v for k, v in updates.items() 
+                                           if k not in ['start', 'end'] and 
+                                           (v != '' or k in ['title', 'description'])}
                             event.update(update_data)
                             event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             updated_count += 1
@@ -1722,7 +1825,10 @@ def bulk_edit_events_impl(request):
                                         logger.info(f"Checking event {event.get('id')} at {event_time_naive} >= {cutoff_time_naive}: {event_time_naive >= cutoff_time_naive}")
                                         if event_time_naive >= cutoff_time_naive:
                                             # 对于非RRule修改，只更新非时间字段，保持原有的start/end时间
-                                            update_data = {k: v for k, v in updates.items() if k not in ['rrule', 'start', 'end']}
+                                            # 同时过滤空字符串，避免覆盖原有数据（title/description除外）
+                                            update_data = {k: v for k, v in updates.items() 
+                                                           if k not in ['rrule', 'start', 'end'] and 
+                                                           (v != '' or k in ['title', 'description'])}
                                             logger.info(f"Updating event {event.get('id')} with: {update_data}")
                                             event.update(update_data)
                                             event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1821,7 +1927,10 @@ def bulk_edit_events_impl(request):
                                     logger.info(f"Checking event {event.get('id')} at {event_time_naive} >= {cutoff_time_naive}: {event_time_naive >= cutoff_time_naive}")
                                     if event_time_naive >= cutoff_time_naive:
                                         # 对于非RRule修改，排除start/end字段，保持原有时间
-                                        update_data = {k: v for k, v in updates.items() if k not in ['start', 'end']}
+                                        # 同时过滤空字符串，避免覆盖原有数据（title/description除外）
+                                        update_data = {k: v for k, v in updates.items() 
+                                                       if k not in ['start', 'end'] and 
+                                                       (v != '' or k in ['title', 'description'])}
                                         logger.info(f"Updating event {event.get('id')} with: {update_data}")
                                         event.update(update_data)
                                         event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -2061,11 +2170,69 @@ def update_events_impl(request):
         if is_recurring and series_id:
             # 重复事件的处理
             if rrule_change_scope == 'single':
-                # 仅修改单个实例 - 创建例外
+                # 仅修改单个实例 - 创建例外并独立出去
+                # 关键步骤：给原系列添加EXDATE，防止自动生成逻辑补全这个日期
+                
+                # 1. 获取原始事件的时间，用于添加EXDATE
+                target_event_time = None
+                try:
+                    start_time = target_event.get('start')
+                    if start_time:
+                        target_event_time = datetime.datetime.fromisoformat(start_time)
+                except Exception as e:
+                    logger.error(f"Error parsing event start time: {e}")
+                
+                # 2. 添加EXDATE例外到原系列
+                if target_event_time and series_id:
+                    manager.rrule_engine.delete_instance(series_id, target_event_time)
+                    logger.info(f"Added EXDATE for series {series_id} at {target_event_time}")
+                    
+                    # 3. 获取更新后的系列信息，包含EXDATE
+                    updated_series = manager.rrule_engine.get_series(series_id)
+                    if updated_series:
+                        # 获取包含EXDATE的完整rrule字符串
+                        segments_data = updated_series.get_segments_data()
+                        if segments_data:
+                            # 重新构建rrule字符串，包含EXDATE
+                            main_segment = segments_data[0]  # 取第一个段
+                            updated_rrule = main_segment['rrule_str']
+                            
+                            # 添加EXDATE信息
+                            if main_segment.get('exdates'):
+                                exdate_strs = []
+                                for exdate in main_segment['exdates']:
+                                    if isinstance(exdate, str):
+                                        exdate_strs.append(exdate)
+                                    else:
+                                        exdate_strs.append(exdate.strftime('%Y%m%dT%H%M%S'))
+                                if exdate_strs:
+                                    updated_rrule += ';EXDATE=' + ','.join(exdate_strs)
+                            
+                            logger.info(f"Updated rrule with EXDATE: {updated_rrule}")
+                            
+                            # 4. 更新events数组中所有同系列事件的rrule字段
+                            for event in events:
+                                if event.get('series_id') == series_id:
+                                    event['rrule'] = updated_rrule
+                                    event['last_modified'] = last_modified
+                
+                # 5. 创建独立的例外事件（在新时间）
+                # 将UTC时间转换为本地时间格式（如果需要）
+                formatted_start = new_start
+                formatted_end = new_end
+                if new_start and new_start.endswith('Z'):
+                    utc_time = datetime.datetime.fromisoformat(new_start.replace('Z', '+00:00'))
+                    local_time = utc_time - timedelta(hours=-8)
+                    formatted_start = local_time.strftime('%Y-%m-%dT%H:%M:%S')
+                if new_end and new_end.endswith('Z'):
+                    utc_time = datetime.datetime.fromisoformat(new_end.replace('Z', '+00:00'))
+                    local_time = utc_time - timedelta(hours=-8)
+                    formatted_end = local_time.strftime('%Y-%m-%dT%H:%M:%S')
+                
                 updated_event = target_event.copy()
                 updated_event.update({
-                    'start': new_start,
-                    'end': new_end,
+                    'start': formatted_start,
+                    'end': formatted_end,
                     'title': title,
                     'description': description,
                     'importance': importance,
@@ -2074,14 +2241,24 @@ def update_events_impl(request):
                     'ddl': ddl,
                     'last_modified': last_modified,
                     'is_exception': True,  # 标记为例外
-                    'original_start': target_event['start']  # 保存原始时间
+                    'original_start': target_event['start'],  # 保存原始时间
+                    'original_series_id': series_id,  # 保存原始系列ID（用于追溯）
+                    # 将事件从序列中独立出去
+                    'series_id': None,  # 移除系列ID
+                    'is_recurring': False,  # 标记为非重复事件
+                    'is_main_event': False,  # 不是主事件
+                    'rrule': None  # 移除RRule规则
                 })
                 
-                # 更新events中的数据
+                # 6. 更新events中的数据
                 for i, event in enumerate(events):
                     if event.get('id') == event_id:
                         events[i] = updated_event
                         break
+                
+                # 注意：由于我们已经给原系列添加了EXDATE，
+                # 原位置不会再自动生成实例，所以不需要创建"替换事件"
+                logger.info(f"Successfully isolated event {event_id} from series {series_id}")
                         
             elif rrule_change_scope == 'all':
                 # 修改整个系列
@@ -2155,12 +2332,24 @@ def update_events_impl(request):
                                 })
         else:
             # 单次事件的处理
+            # 将UTC时间转换为本地时间格式（如果需要）
+            formatted_start = new_start
+            formatted_end = new_end
+            if new_start and new_start.endswith('Z'):
+                utc_time = datetime.datetime.fromisoformat(new_start.replace('Z', '+00:00'))
+                local_time = utc_time - timedelta(hours=-8)
+                formatted_start = local_time.strftime('%Y-%m-%dT%H:%M:%S')
+            if new_end and new_end.endswith('Z'):
+                utc_time = datetime.datetime.fromisoformat(new_end.replace('Z', '+00:00'))
+                local_time = utc_time - timedelta(hours=-8)
+                formatted_end = local_time.strftime('%Y-%m-%dT%H:%M:%S')
+            
             updated_event = None
             for i, event in enumerate(events):
                 if event.get('id') == event_id:
                     events[i].update({
-                        'start': new_start,
-                        'end': new_end,
+                        'start': formatted_start,
+                        'end': formatted_end,
                         'title': title,
                         'description': description,
                         'importance': importance,

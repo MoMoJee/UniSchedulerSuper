@@ -42,32 +42,12 @@ class EventManager {
             
             // 事件拖拽
             eventDrop: (info) => {
-                this.updateEvent(
-                    info.event.id,
-                    info.event.start.toISOString(),
-                    info.event.end.toISOString(),
-                    info.event.title,
-                    info.event.extendedProps.description,
-                    info.event.extendedProps.importance,
-                    info.event.extendedProps.urgency,
-                    info.event.extendedProps.groupID,
-                    info.event.extendedProps.ddl
-                );
+                this.handleEventDragDrop(info, 'drop');
             },
             
             // 事件调整大小
             eventResize: (info) => {
-                this.updateEvent(
-                    info.event.id,
-                    info.event.start.toISOString(),
-                    info.event.end.toISOString(),
-                    info.event.title,
-                    info.event.extendedProps.description,
-                    info.event.extendedProps.importance,
-                    info.event.extendedProps.urgency,
-                    info.event.extendedProps.groupID,
-                    info.event.extendedProps.ddl
-                );
+                this.handleEventDragDrop(info, 'resize');
             },
             
             // 视图变化
@@ -321,6 +301,119 @@ class EventManager {
     getEventColor(groupID) {
         const group = this.groups.find(g => g.id === groupID);
         return group ? group.color : '#007bff';
+    }
+
+    /**
+     * 处理事件拖拽和调整大小
+     */
+    async handleEventDragDrop(info, actionType) {
+        const event = info.event;
+        const isRecurring = event.extendedProps.is_recurring;
+        const seriesId = event.extendedProps.series_id;
+        
+        console.log('拖拽/调整事件:', {
+            id: event.id,
+            title: event.title,
+            isRecurring: isRecurring,
+            seriesId: seriesId,
+            actionType: actionType
+        });
+        
+        // 如果是重复事件，显示确认对话框
+        if (isRecurring && seriesId) {
+            const actionText = actionType === 'drop' ? '移动' : '调整大小';
+            const formatDate = (date) => {
+                return date.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            };
+            
+            const confirmed = confirm(
+                `您正在${actionText}一个重复日程中的单个实例。\n\n` +
+                `日程标题：${event.title}\n` +
+                `原始时间：${formatDate(info.oldEvent.start)}\n` +
+                `新时间：${formatDate(event.start)}\n\n` +
+                `此操作将把这个实例从重复序列中独立出去，成为一个单独的例外日程。\n\n` +
+                `是否确认此操作？`
+            );
+            
+            if (!confirmed) {
+                // 用户取消，恢复事件
+                info.revert();
+                return;
+            }
+        }
+        
+        // 执行更新
+        const success = await this.updateEventDrag(
+            event.id,
+            event.start.toISOString(),
+            event.end ? event.end.toISOString() : null,
+            event.title,
+            event.extendedProps.description,
+            event.extendedProps.importance,
+            event.extendedProps.urgency,
+            event.extendedProps.groupID,
+            event.extendedProps.ddl,
+            isRecurring && seriesId ? 'single' : undefined
+        );
+        
+        if (!success) {
+            // 更新失败，恢复事件
+            info.revert();
+        }
+    }
+
+    /**
+     * 更新事件（拖拽专用，包含 rrule_change_scope 参数）
+     */
+    async updateEventDrag(eventId, newStart, newEnd, title, description, importance, urgency, groupID, ddl, rruleChangeScope = 'single') {
+        try {
+            // 构建事件数据
+            const eventData = {
+                eventId: eventId,
+                title: title,
+                newStart: newStart,
+                newEnd: newEnd,
+                description: description,
+                importance: importance,
+                urgency: urgency,
+                groupID: groupID,
+                ddl: ddl,
+                rrule_change_scope: rruleChangeScope
+            };
+
+            console.log('通过拖拽更新事件:', eventData);
+
+            const response = await fetch('/get_calendar/update_events/', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify(eventData)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok && result.status === 'success') {
+                console.log('事件更新成功');
+                this.refreshCalendar();
+                return true;
+            } else {
+                console.error('更新事件失败:', result.message || result.error);
+                alert(`更新失败: ${result.message || result.error || '未知错误'}`);
+                return false;
+            }
+        } catch (error) {
+            console.error('更新事件时出错:', error);
+            alert(`更新失败: ${error.message || '网络错误'}`);
+            return false;
+        }
     }
 
     // 更新事件
