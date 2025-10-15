@@ -319,6 +319,37 @@ class EventManager {
             actionType: actionType
         });
         
+        // 检查截止时间限制
+        const ddl = event.extendedProps.ddl;
+        if (ddl) {
+            const ddlDate = new Date(ddl);
+            const newEnd = event.end ? new Date(event.end) : new Date(event.start);
+            
+            if (newEnd > ddlDate) {
+                // 超过截止时间，弹回并提示
+                const formatDateTime = (date) => {
+                    return date.toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                };
+                
+                alert(
+                    `❌ 操作失败：日程结束时间不能超过截止时间！\n\n` +
+                    `日程标题：${event.title}\n` +
+                    `新结束时间：${formatDateTime(newEnd)}\n` +
+                    `截止时间：${formatDateTime(ddlDate)}\n\n` +
+                    `请将日程安排在截止时间之前。`
+                );
+                
+                info.revert();
+                return;
+            }
+        }
+        
         // 如果是重复事件，显示确认对话框
         if (isRecurring && seriesId) {
             const actionText = actionType === 'drop' ? '移动' : '调整大小';

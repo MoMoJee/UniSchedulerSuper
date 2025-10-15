@@ -36,6 +36,34 @@ class ModalManager {
             }
         });
 
+        // 重复日程复选框监听（创建模态框）
+        const newEventIsRecurring = document.getElementById('newEventIsRecurring');
+        if (newEventIsRecurring) {
+            newEventIsRecurring.addEventListener('change', () => {
+                this.updateDdlInputType('create');
+            });
+        }
+
+        // End时间变化监听（创建模态框）- 重复日程模式下同步ddl日期
+        const newEventEnd = document.getElementById('newEventEnd');
+        if (newEventEnd) {
+            newEventEnd.addEventListener('change', () => {
+                if (document.getElementById('newEventIsRecurring')?.checked) {
+                    this.syncDdlWithEnd('create');
+                }
+            });
+        }
+
+        // End时间变化监听（编辑模态框）- 重复日程模式下同步ddl日期
+        const eventEnd = document.getElementById('eventEnd');
+        if (eventEnd) {
+            eventEnd.addEventListener('change', () => {
+                if (document.getElementById('eventRepeat')?.checked) {
+                    this.syncDdlWithEnd('edit');
+                }
+            });
+        }
+
         // 表单提交事件
         this.setupFormSubmitListeners();
     }
@@ -129,6 +157,12 @@ class ModalManager {
     closeAllModals() {
         // 清理自定义控件
         this.cleanupCustomControls();
+        
+        // 重置ddl控件类型为默认（下次打开时会根据日程类型重新设置）
+        const creatEventDdl = document.getElementById('creatEventDdl');
+        const eventDdl = document.getElementById('eventDdl');
+        if (creatEventDdl) creatEventDdl.type = 'datetime-local';
+        if (eventDdl) eventDdl.type = 'datetime-local';
         
         // 清理事件编辑状态
         if (window.eventManager) {
@@ -270,9 +304,11 @@ class ModalManager {
         }
 
         // 设置时间
-        document.getElementById('newEventStart').value = startStr;
-        document.getElementById('newEventEnd').value = endStr;
-        document.getElementById('creatEventDdl').value = endStr;
+    document.getElementById('newEventStart').value = startStr;
+    document.getElementById('newEventEnd').value = endStr;
+    document.getElementById('creatEventDdl').value = endStr;
+    // 初始化ddl控件类型
+    this.updateDdlInputType('create');
 
         // 清除表单
         this.clearEventForm();
@@ -309,6 +345,9 @@ class ModalManager {
         document.getElementById('eventEnd').value = this.toLocalTime(event.end);
         document.getElementById('eventDescription').value = event.extendedProps.description || '';
         document.getElementById('eventDdl').value = event.extendedProps.ddl ? this.toLocalTime(event.extendedProps.ddl) : '';
+        
+        // 初始化ddl控件类型
+        this.updateDdlInputType('edit', event.extendedProps.rrule);
 
         // 设置重要性紧急性
         this.setImportanceUrgency(
@@ -364,6 +403,81 @@ class ModalManager {
         }
 
         this.showModal('editEventModal');
+    }
+
+    // 切换ddl控件类型（mode: 'create'|'edit', rrule可选）
+    updateDdlInputType(mode, rruleStr) {
+        let isRecurring = false;
+        if (mode === 'create') {
+            isRecurring = document.getElementById('newEventIsRecurring')?.checked;
+        } else {
+            // 编辑时优先用传入的rrule
+            if (rruleStr && rruleStr.trim() !== '') {
+                isRecurring = true;
+            } else {
+                isRecurring = document.getElementById('eventRepeat')?.checked;
+            }
+        }
+        
+        const ddlInput = document.getElementById(mode === 'create' ? 'creatEventDdl' : 'eventDdl');
+        const endInput = document.getElementById(mode === 'create' ? 'newEventEnd' : 'eventEnd');
+        if (!ddlInput) return;
+        
+        const currentType = ddlInput.type;
+        const currentValue = ddlInput.value;
+        
+        if (isRecurring) {
+            // 切换为只允许选时间
+            if (currentType !== 'time') {
+                // 从 datetime-local 切换到 time，保留时间部分
+                if (currentValue) {
+                    const timePart = currentValue.split('T')[1] || currentValue;
+                    ddlInput.type = 'time';
+                    ddlInput.value = timePart.length > 5 ? timePart.substring(0, 5) : timePart;
+                } else {
+                    ddlInput.type = 'time';
+                }
+            }
+        } else {
+            // 切换为完整日期时间
+            if (currentType !== 'datetime-local') {
+                // 从 time 切换到 datetime-local，拼接end日期
+                if (currentValue && endInput && endInput.value) {
+                    const endDate = endInput.value.split('T')[0];
+                    const timePart = currentValue.length > 5 ? currentValue.substring(0, 5) : currentValue;
+                    ddlInput.type = 'datetime-local';
+                    ddlInput.value = `${endDate}T${timePart}`;
+                } else {
+                    ddlInput.type = 'datetime-local';
+                }
+            }
+        }
+    }
+
+    // 同步ddl日期与end日期（重复日程模式下）
+    syncDdlWithEnd(mode) {
+        const endInput = document.getElementById(mode === 'create' ? 'newEventEnd' : 'eventEnd');
+        const ddlInput = document.getElementById(mode === 'create' ? 'creatEventDdl' : 'eventDdl');
+        if (!endInput || !ddlInput) return;
+        
+        const endValue = endInput.value;
+        if (!endValue) return;
+        
+        // 获取当前ddl时间部分（如果有）
+        let ddlTime = '23:59'; // 默认时间
+        if (ddlInput.value) {
+            const t = ddlInput.value.split('T')[1] || ddlInput.value;
+            ddlTime = t.length > 5 ? t.substring(0, 5) : t;
+        }
+        
+        // 如果是time类型，直接保持
+        if (ddlInput.type === 'time') {
+            ddlInput.value = ddlTime;
+        } else {
+            // 如果是datetime-local类型，拼接日期
+            const endDate = endValue.split('T')[0];
+            ddlInput.value = `${endDate}T${ddlTime}`;
+        }
     }
 
     // 设置重复事件信息显示
@@ -442,6 +556,9 @@ class ModalManager {
     // 处理重复事件复选框变化（专门为Events编辑设计）
     handleRecurringCheckboxChange(event) {
         console.log('handleRecurringCheckboxChange called for event editing');
+        
+        // 根据复选框状态更新ddl控件类型
+        this.updateDdlInputType('edit');
         
         // 检查是否正在进行批量编辑
         if (window.eventManager && window.eventManager.pendingBulkEdit) {
@@ -929,12 +1046,16 @@ class ModalManager {
         try {
             const eventData = this.getEventFormData('create');
             
+            console.log('[CREATE EVENT] Raw eventData from form:', eventData);
+            
             // 将时间转换为标准格式再发送给后端
             eventData.start = this.toUTC(eventData.start);
             eventData.end = this.toUTC(eventData.end);
             if (eventData.ddl) {
                 eventData.ddl = this.toUTC(eventData.ddl);
             }
+            
+            console.log('[CREATE EVENT] Converted eventData (UTC):', eventData);
 
             const success = await eventManager.createEvent(eventData);
 
@@ -970,13 +1091,10 @@ class ModalManager {
                 start: this.toUTC(eventData.start),
                 end: this.toUTC(eventData.end),
                 groupID: eventData.groupID,  // 使用 groupID (大写)
-                ddl: eventData.ddl ? this.toUTC(eventData.ddl) : ''
+                ddl: eventData.ddl ? this.toUTC(eventData.ddl) : '',
+                // 始终包含rrule字段，即使为空（空字符串表示取消重复）
+                rrule: eventData.rrule || ''
             };
-            
-            // 只有当rrule确实存在且不为空时才包含在更新数据中
-            if (eventData.rrule && eventData.rrule.trim() !== '') {
-                updateData.rrule = eventData.rrule;
-            }
             
             console.log('handleUpdateEvent - updateData:', updateData);
             
@@ -2147,6 +2265,18 @@ class ModalManager {
             data.rrule = window.rruleManager.buildRRule(mode);
         }
 
+        // 如果是重复日程，强制ddl日期与end日期一致，只保留时间部分
+        if ((data.rrule && data.rrule.trim() !== '') || document.getElementById(mode === 'create' ? 'newEventIsRecurring' : 'eventRepeat')?.checked) {
+            if (data.ddl) {
+                // 只保留时间部分
+                let ddlTime = data.ddl;
+                if (ddlTime.includes('T')) ddlTime = ddlTime.split('T')[1];
+                if (ddlTime.length > 5) ddlTime = ddlTime.substring(0,5);
+                const endDate = data.end.split('T')[0];
+                data.ddl = `${endDate}T${ddlTime}`;
+            }
+        }
+
         return data;
     }
 
@@ -2235,6 +2365,32 @@ class ModalManager {
         // 基本验证
         if (!data.title.trim() || !data.start || !data.end) {
             return false;
+        }
+
+        // 截止时间验证：如果设置了截止时间，必须 >= 结束时间
+        if (data.ddl) {
+            const endDate = new Date(data.end);
+            const ddlDate = new Date(data.ddl);
+            
+            if (ddlDate < endDate) {
+                const formatDateTime = (date) => {
+                    return date.toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                };
+                
+                alert(
+                    `❌ 表单验证失败：截止时间不能早于结束时间！\n\n` +
+                    `结束时间：${formatDateTime(endDate)}\n` +
+                    `截止时间：${formatDateTime(ddlDate)}\n\n` +
+                    `请将截止时间设置在结束时间之后，或清空截止时间字段。`
+                );
+                return false;
+            }
         }
 
         // RRule验证

@@ -495,10 +495,28 @@ class EventsRRuleManager(IntegratedReminderManager):
                     continue
                     
                 instance = main_event.copy()
+                instance_end = (instance_time + duration).strftime("%Y-%m-%dT%H:%M:%S")
+                
+                # 处理ddl：如果主事件有ddl，提取时间部分，并与当前实例的end日期组合
+                instance_ddl = ''
+                if main_event.get('ddl'):
+                    try:
+                        main_ddl = main_event['ddl']
+                        if 'T' in main_ddl:
+                            ddl_time_part = main_ddl.split('T')[1]
+                            instance_end_date = instance_end.split('T')[0]
+                            instance_ddl = f"{instance_end_date}T{ddl_time_part}"
+                        else:
+                            instance_ddl = main_event['ddl']
+                    except Exception as e:
+                        logger.warning(f"Failed to generate ddl for instance: {e}")
+                        instance_ddl = ''
+                
                 instance.update({
                     'id': str(uuid.uuid4()),
                     'start': instance_time.strftime("%Y-%m-%dT%H:%M:%S"),
-                    'end': (instance_time + duration).strftime("%Y-%m-%dT%H:%M:%S"),
+                    'end': instance_end,
+                    'ddl': instance_ddl,
                     'is_main_event': False,
                     'recurrence_id': instance_time.strftime("%Y%m%dT%H%M%S"),
                     'last_modified': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -587,10 +605,28 @@ class EventsRRuleManager(IntegratedReminderManager):
                         current_time += timedelta(days=interval)
                         continue
                     instance = main_event.copy()
+                    instance_end = (current_time + duration).strftime("%Y-%m-%dT%H:%M:%S")
+                    
+                    # 处理ddl：如果主事件有ddl，提取时间部分，并与当前实例的end日期组合
+                    instance_ddl = ''
+                    if main_event.get('ddl'):
+                        try:
+                            main_ddl = main_event['ddl']
+                            if 'T' in main_ddl:
+                                ddl_time_part = main_ddl.split('T')[1]
+                                instance_end_date = instance_end.split('T')[0]
+                                instance_ddl = f"{instance_end_date}T{ddl_time_part}"
+                            else:
+                                instance_ddl = main_event['ddl']
+                        except Exception as e:
+                            logger.warning(f"Failed to generate ddl for DAILY instance: {e}")
+                            instance_ddl = ''
+                    
                     instance.update({
                         'id': str(uuid.uuid4()),
                         'start': dt_str,
-                        'end': (current_time + duration).strftime("%Y-%m-%dT%H:%M:%S"),
+                        'end': instance_end,
+                        'ddl': instance_ddl,
                         'is_main_event': False,
                         'recurrence_id': current_time.strftime("%Y%m%dT%H%M%S"),
                         'last_modified': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -612,10 +648,28 @@ class EventsRRuleManager(IntegratedReminderManager):
                         current_time += timedelta(weeks=interval)
                         continue
                     instance = main_event.copy()
+                    instance_end = (current_time + duration).strftime("%Y-%m-%dT%H:%M:%S")
+                    
+                    # 处理ddl：如果主事件有ddl，提取时间部分，并与当前实例的end日期组合
+                    instance_ddl = ''
+                    if main_event.get('ddl'):
+                        try:
+                            main_ddl = main_event['ddl']
+                            if 'T' in main_ddl:
+                                ddl_time_part = main_ddl.split('T')[1]
+                                instance_end_date = instance_end.split('T')[0]
+                                instance_ddl = f"{instance_end_date}T{ddl_time_part}"
+                            else:
+                                instance_ddl = main_event['ddl']
+                        except Exception as e:
+                            logger.warning(f"Failed to generate ddl for WEEKLY instance: {e}")
+                            instance_ddl = ''
+                    
                     instance.update({
                         'id': str(uuid.uuid4()),
                         'start': dt_str,
-                        'end': (current_time + duration).strftime("%Y-%m-%dT%H:%M:%S"),
+                        'end': instance_end,
+                        'ddl': instance_ddl,
                         'is_main_event': False,
                         'recurrence_id': current_time.strftime("%Y%m%dT%H%M%S"),
                         'last_modified': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -673,10 +727,28 @@ class EventsRRuleManager(IntegratedReminderManager):
                             if count_limit and len(instances) >= count_limit - 1:
                                 break
                             instance = main_event.copy()
+                            instance_end = (current_time + duration).strftime("%Y-%m-%dT%H:%M:%S")
+                            
+                            # 处理ddl：如果主事件有ddl，提取时间部分，并与当前实例的end日期组合
+                            instance_ddl = ''
+                            if main_event.get('ddl'):
+                                try:
+                                    main_ddl = main_event['ddl']
+                                    if 'T' in main_ddl:
+                                        ddl_time_part = main_ddl.split('T')[1]
+                                        instance_end_date = instance_end.split('T')[0]
+                                        instance_ddl = f"{instance_end_date}T{ddl_time_part}"
+                                    else:
+                                        instance_ddl = main_event['ddl']
+                                except Exception as e:
+                                    logger.warning(f"Failed to generate ddl for MONTHLY instance: {e}")
+                                    instance_ddl = ''
+                            
                             instance.update({
                                 'id': str(uuid.uuid4()),
                                 'start': dt_str,
-                                'end': (current_time + duration).strftime("%Y-%m-%dT%H:%M:%S"),
+                                'end': instance_end,
+                                'ddl': instance_ddl,
                                 'is_main_event': False,
                                 'recurrence_id': current_time.strftime("%Y%m%dT%H%M%S"),
                                 'last_modified': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -719,10 +791,30 @@ class EventsRRuleManager(IntegratedReminderManager):
                 
                 if instance_start not in existing_times:
                     new_event = main_event.copy()
+                    
+                    # 处理ddl：如果主事件有ddl，提取时间部分，并与当前实例的end日期组合
+                    instance_ddl = ''
+                    if main_event.get('ddl'):
+                        try:
+                            # 从主事件的ddl中提取时间部分（HH:MM:SS）
+                            main_ddl = main_event['ddl']
+                            if 'T' in main_ddl:
+                                ddl_time_part = main_ddl.split('T')[1]  # 获取时间部分
+                                # 从instance_end中提取日期部分
+                                instance_end_date = instance_end.split('T')[0]
+                                # 组合：当前实例的日期 + 主事件ddl的时间
+                                instance_ddl = f"{instance_end_date}T{ddl_time_part}"
+                            else:
+                                instance_ddl = main_event['ddl']
+                        except Exception as e:
+                            logger.warning(f"Failed to generate ddl for instance: {e}")
+                            instance_ddl = ''
+                    
                     new_event.update({
                         'id': str(uuid.uuid4()),
                         'start': instance_start,
                         'end': instance_end,
+                        'ddl': instance_ddl,  # 使用计算后的ddl
                         'is_main_event': False,
                         'recurrence_id': instance_start,
                         'parent_event_id': main_event['id'],
@@ -950,17 +1042,37 @@ class EventsRRuleManager(IntegratedReminderManager):
                     elif event_time == cutoff_time:
                         # 这是修改起点，创建新的主事件
                         new_main_event = main_event.copy()
+                        new_end_time = new_start_time + (datetime.datetime.fromisoformat(main_event['end']) - datetime.datetime.fromisoformat(main_event['start']))
+                        
                         new_main_event.update({
                             'id': str(uuid.uuid4()),
                             'series_id': new_series_id,
                             'rrule': new_rrule,
                             'start': new_start_time.strftime("%Y-%m-%dT%H:%M:%S"),
-                            'end': (new_start_time + (datetime.datetime.fromisoformat(main_event['end']) - datetime.datetime.fromisoformat(main_event['start']))).strftime("%Y-%m-%dT%H:%M:%S"),
+                            'end': new_end_time.strftime("%Y-%m-%dT%H:%M:%S"),
                             'is_main_event': True,
                             'last_modified': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         })
+                        
                         if additional_updates:
-                            new_main_event.update({k: v for k, v in additional_updates.items() if k not in ['start', 'end', 'rrule']})
+                            # 处理additional_updates，排除start/end/rrule/ddl
+                            filtered_updates = {k: v for k, v in additional_updates.items() 
+                                              if k not in ['start', 'end', 'rrule', 'ddl']}
+                            new_main_event.update(filtered_updates)
+                            
+                            # 特殊处理ddl：如果有ddl更新，需要使用新的end日期
+                            if 'ddl' in additional_updates:
+                                ddl_value = additional_updates['ddl']
+                                if ddl_value and 'T' in ddl_value:
+                                    # 提取时间部分
+                                    ddl_time_part = ddl_value.split('T')[1]
+                                    # 使用新的end日期
+                                    new_end_str = new_end_time.strftime("%Y-%m-%dT%H:%M:%S")
+                                    new_end_date = new_end_str.split('T')[0]
+                                    # 组合：新end的日期 + ddl的时间
+                                    new_main_event['ddl'] = f"{new_end_date}T{ddl_time_part}"
+                                else:
+                                    new_main_event['ddl'] = ddl_value
                         
                         updated_events.append(new_main_event)
                         logger.info(f"Created new main event {new_main_event['id']} for new series {new_series_id}")
@@ -1092,10 +1204,16 @@ def create_event_impl(request):
         
         user_preference = user_preference_data.get_value() or {}
         
-        # 根据用户设置处理DDL
-        if user_preference.get("auto_ddl", False):
-            event_data['ddl'] = data.get('ddl', '')
+        # 处理DDL - 如果用户传了ddl就使用，否则根据用户设置决定
+        ddl_from_request = data.get('ddl', '')
+        if ddl_from_request:
+            # 用户明确设置了ddl，直接使用
+            event_data['ddl'] = ddl_from_request
+        elif user_preference.get("auto_ddl", False):
+            # 用户未设置ddl，但启用了auto_ddl，使用end时间
+            event_data['ddl'] = data.get('end', '')
         else:
+            # 用户未设置ddl，且未启用auto_ddl
             event_data['ddl'] = ''
             
         # 处理RRule相关数据
@@ -1359,12 +1477,15 @@ def bulk_edit_events_impl(request):
             'groupID': data.get('groupID'),
             'ddl': data.get('ddl'),
         }
-        # 过滤掉None值和空字符串（title/description除外，它们允许为空）
+        # 过滤掉None值和空字符串（title/description/ddl/rrule除外，它们允许为空）
+        # ddl允许为空表示清除截止时间
+        # rrule允许为空表示取消重复
         updates = {k: v for k, v in updates.items() 
-                   if v is not None and (v != '' or k in ['title', 'description'])}
+                   if v is not None and (v != '' or k in ['title', 'description', 'ddl', 'rrule'])}
         
         logger.info(f"Bulk edit events - Operation: {operation}, Scope: {edit_scope}, Event ID: {event_id}, Series ID: {series_id}")
         logger.info(f"[DEBUG] groupID from request: {data.get('groupID')}, type: {type(data.get('groupID'))}")
+        logger.info(f"[DEBUG] ddl from request: {data.get('ddl')}, type: {type(data.get('ddl'))}")
         logger.info(f"[DEBUG] Filtered updates: {updates}")
         
         # 添加调试信息：检查事件数据结构
@@ -1455,7 +1576,88 @@ def bulk_edit_events_impl(request):
                                     event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 
                 # 从events数组中移除该实例
+                # 先检查是否删除的是主事件，如果是需要转移主事件标记
+                deleted_event_info = None
+                for event in events:
+                    if event.get('id') == event_id:
+                        deleted_event_info = {
+                            'was_main_event': event.get('is_main_event', False),
+                            'series_id': event.get('series_id', '')
+                        }
+                        break
+                
                 updated_events = manager.delete_event_instance(events, event_id, series_id or '')
+                
+                # 如果删除的是主事件，需要转移主事件标记
+                if deleted_event_info and deleted_event_info['was_main_event'] and deleted_event_info['series_id']:
+                    logger.info(f"[MAIN_EVENT_TRANSFER] Deleted event {event_id} was main event, finding replacement...")
+                    
+                    # 找到同系列的其他事件
+                    series_events = [e for e in updated_events 
+                                    if e.get('series_id') == deleted_event_info['series_id']]
+                    
+                    if series_events:
+                        # 按开始时间排序，选择最早的作为新主日程
+                        series_events.sort(key=lambda x: x.get('start', ''))
+                        new_main_event_id = series_events[0]['id']
+                        
+                        # 更新新主日程的标记
+                        for evt in updated_events:
+                            if evt.get('id') == new_main_event_id:
+                                evt['is_main_event'] = True
+                                evt['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                logger.info(f"[MAIN_EVENT_TRANSFER] Promoted event {new_main_event_id} (start: {evt.get('start')}) to main event for series {deleted_event_info['series_id']}")
+                                break
+                    else:
+                        logger.warning(f"[MAIN_EVENT_TRANSFER] No other events in series {deleted_event_info['series_id']} after deletion, will generate new main event")
+                        
+                        # 如果没有其他实例，立即生成下一个实例作为新主事件
+                        # 先获取被删除事件的信息
+                        deleted_event = None
+                        for event in events:
+                            if event.get('id') == event_id:
+                                deleted_event = event
+                                break
+                        
+                        if deleted_event and deleted_event.get('rrule'):
+                            try:
+                                # 解析删除事件的时间
+                                deleted_start_str = deleted_event.get('start', '')
+                                if deleted_start_str:
+                                    deleted_start = datetime.datetime.fromisoformat(deleted_start_str)
+                                    if deleted_start.tzinfo is not None:
+                                        deleted_start = deleted_start.replace(tzinfo=None)
+                                    
+                                    # 生成下一个实例作为新主事件
+                                    logger.info(f"[MAIN_EVENT_TRANSFER] Generating next instance as new main event...")
+                                    
+                                    # 创建一个临时主事件用于生成
+                                    temp_main_event = deleted_event.copy()
+                                    temp_main_event['id'] = str(uuid.uuid4())
+                                    temp_main_event['is_main_event'] = True
+                                    temp_main_event['is_recurring'] = True
+                                    temp_main_event['is_detached'] = False
+                                    
+                                    # 生成1个新实例（下一个）
+                                    new_instances = manager.generate_event_instances(
+                                        temp_main_event,
+                                        start_date=deleted_start + timedelta(days=1),  # 从明天开始
+                                        end_date=deleted_start + timedelta(days=90),   # 未来90天
+                                        max_instances=1  # 只生成1个
+                                    )
+                                    
+                                    if new_instances:
+                                        # 将第一个新实例标记为主事件
+                                        new_instances[0]['is_main_event'] = True
+                                        updated_events.extend(new_instances)
+                                        logger.info(f"[MAIN_EVENT_TRANSFER] Generated new main event {new_instances[0]['id']} (start: {new_instances[0].get('start')})")
+                                    else:
+                                        logger.error(f"[MAIN_EVENT_TRANSFER] Failed to generate new main event for series {deleted_event_info['series_id']}")
+                            except Exception as gen_error:
+                                logger.error(f"[MAIN_EVENT_TRANSFER] Error generating new main event: {gen_error}")
+                                import traceback
+                                traceback.print_exc()
+                
                 # 直接保存，不调用process_event_data避免自动生成
                 user_events_data.set_value(updated_events)
                 return JsonResponse({'status': 'success'})
@@ -1631,7 +1833,50 @@ def bulk_edit_events_impl(request):
                                             logger.info(f"[MAIN_EVENT_TRANSFER] Promoted event {new_main_event_id} (start: {evt.get('start')}) to main event for series {original_series_id}")
                                             break
                                 else:
-                                    logger.warning(f"[MAIN_EVENT_TRANSFER] No other events in series {original_series_id}, series will be empty")
+                                    logger.warning(f"[MAIN_EVENT_TRANSFER] No other events in series {original_series_id}, will generate new main event")
+                                    
+                                    # 如果没有其他实例，立即生成下一个实例作为新主事件
+                                    # 获取原始rrule（未分离前的）
+                                    if original_rrule:
+                                        try:
+                                            # 解析当前事件的时间
+                                            current_start_str = event.get('start', '')
+                                            if current_start_str:
+                                                current_start = datetime.datetime.fromisoformat(current_start_str)
+                                                if current_start.tzinfo is not None:
+                                                    current_start = current_start.replace(tzinfo=None)
+                                                
+                                                # 生成下一个实例作为新主事件
+                                                logger.info(f"[MAIN_EVENT_TRANSFER] Generating next instance as new main event...")
+                                                
+                                                # 创建一个临时主事件用于生成
+                                                temp_main_event = event.copy()
+                                                temp_main_event['id'] = str(uuid.uuid4())
+                                                temp_main_event['is_main_event'] = True
+                                                temp_main_event['is_recurring'] = True
+                                                temp_main_event['is_detached'] = False
+                                                temp_main_event['series_id'] = original_series_id
+                                                temp_main_event['rrule'] = original_rrule
+                                                
+                                                # 生成1个新实例（下一个）
+                                                new_instances = manager.generate_event_instances(
+                                                    temp_main_event,
+                                                    start_date=current_start + timedelta(days=1),  # 从明天开始
+                                                    end_date=current_start + timedelta(days=90),   # 未来90天
+                                                    max_instances=1  # 只生成1个
+                                                )
+                                                
+                                                if new_instances:
+                                                    # 将第一个新实例标记为主事件
+                                                    new_instances[0]['is_main_event'] = True
+                                                    events.extend(new_instances)
+                                                    logger.info(f"[MAIN_EVENT_TRANSFER] Generated new main event {new_instances[0]['id']} (start: {new_instances[0].get('start')})")
+                                                else:
+                                                    logger.error(f"[MAIN_EVENT_TRANSFER] Failed to generate new main event for series {original_series_id}")
+                                        except Exception as gen_error:
+                                            logger.error(f"[MAIN_EVENT_TRANSFER] Error generating new main event: {gen_error}")
+                                            import traceback
+                                            traceback.print_exc()
                         else:
                             # 非重复事件，直接更新
                             # 过滤掉空值，避免覆盖原有数据（title/description除外）
@@ -1659,26 +1904,26 @@ def bulk_edit_events_impl(request):
                                     # 解析开始时间
                                     start_time_str = event.get('start', '')
                                     if start_time_str:
-                                        start_time = datetime.datetime.fromisoformat(start_time_str)
-                                        if start_time.tzinfo is not None:
-                                            start_time = start_time.replace(tzinfo=None)
+                                        event_start_time = datetime.datetime.fromisoformat(start_time_str)
+                                        if event_start_time.tzinfo is not None:
+                                            event_start_time = event_start_time.replace(tzinfo=None)
                                     else:
-                                        start_time = datetime.datetime.now()
+                                        event_start_time = datetime.datetime.now()
                                     
                                     # 检查是否需要调整开始时间（对于复杂RRule）
                                     new_rrule = updates['rrule']
                                     needs_adjustment = manager._is_complex_rrule(new_rrule)
                                     if needs_adjustment:
-                                        adjusted_start = manager._find_next_occurrence(new_rrule, start_time)
+                                        adjusted_start = manager._find_next_occurrence(new_rrule, event_start_time)
                                         if adjusted_start:
                                             # 保留原始时间的时分秒
                                             adjusted_start = adjusted_start.replace(
-                                                hour=start_time.hour,
-                                                minute=start_time.minute,
-                                                second=start_time.second,
-                                                microsecond=start_time.microsecond
+                                                hour=event_start_time.hour,
+                                                minute=event_start_time.minute,
+                                                second=event_start_time.second,
+                                                microsecond=event_start_time.microsecond
                                             )
-                                            start_time = adjusted_start
+                                            event_start_time = adjusted_start
                                             # 更新事件的开始和结束时间
                                             end_time_str = event.get('end', '')
                                             if end_time_str:
@@ -1688,7 +1933,7 @@ def bulk_edit_events_impl(request):
                                                 duration = end_time - datetime.datetime.fromisoformat(event['start'])
                                                 event['start'] = adjusted_start.strftime("%Y-%m-%dT%H:%M:%S")
                                                 event['end'] = (adjusted_start + duration).strftime("%Y-%m-%dT%H:%M:%S")
-                                            logger.info(f"Adjusted start time to first valid occurrence: {start_time}")
+                                            logger.info(f"Adjusted start time to first valid occurrence: {event_start_time}")
                                     
                                     # 创建RRule系列（无论是否已有series_id，都要确保RRule引擎中有数据）
                                     if series_id:
@@ -1698,17 +1943,17 @@ def bulk_edit_events_impl(request):
                                             # RRule引擎中不存在，重新创建
                                             logger.info(f"Series {series_id} not found in RRule engine, creating it")
                                             # 使用已有的series_id创建系列
-                                            manager.rrule_engine.create_series(new_rrule, start_time)
+                                            manager.rrule_engine.create_series(new_rrule, event_start_time)
                                             # 但create_series会生成新的UID，我们需要手动设置
                                             # 这是个问题，暂时使用create_series生成新的series_id
-                                            new_series_id = manager.rrule_engine.create_series(new_rrule, start_time)
+                                            new_series_id = manager.rrule_engine.create_series(new_rrule, event_start_time)
                                             event['series_id'] = new_series_id
                                             logger.info(f"Created new series {new_series_id} (replaced old series_id)")
                                         else:
                                             logger.info(f"Series {series_id} already exists in RRule engine")
                                     else:
                                         # 没有series_id，创建新的
-                                        new_series_id = manager.rrule_engine.create_series(new_rrule, start_time)
+                                        new_series_id = manager.rrule_engine.create_series(new_rrule, event_start_time)
                                         event['series_id'] = new_series_id
                                         logger.info(f"Created new series {new_series_id} for single-to-recurring conversion")
                                     
@@ -1765,10 +2010,39 @@ def bulk_edit_events_impl(request):
                     for event in events:
                         if event.get('series_id') == series_id or event.get('id') == event_id:
                             # 只更新非时间字段，保持原有的start/end时间
-                            # 同时过滤空字符串，避免覆盖原有数据（title/description除外）
+                            # 同时过滤空字符串，避免覆盖原有数据（title/description/ddl/rrule除外）
                             update_data = {k: v for k, v in updates.items() 
-                                           if k not in ['start', 'end'] and 
-                                           (v != '' or k in ['title', 'description'])}
+                                           if k not in ['start', 'end', 'ddl'] and 
+                                           (v != '' or k in ['title', 'description', 'rrule'])}
+                            
+                            # 特殊处理rrule：如果rrule为空，表示取消重复，需要清除相关字段
+                            if 'rrule' in updates and updates['rrule'] == '':
+                                update_data['rrule'] = ''
+                                update_data['is_recurring'] = False
+                                update_data['is_main_event'] = False
+                                update_data['series_id'] = ''
+                                update_data['recurrence_id'] = ''
+                                update_data['parent_event_id'] = ''
+                                logger.info(f"Clearing recurring fields for event {event.get('id')}")
+                            
+                            # 特殊处理ddl：如果更新中有ddl，需要重新计算每个实例的ddl
+                            if 'ddl' in updates:
+                                ddl_value = updates['ddl']
+                                if ddl_value and 'T' in ddl_value:
+                                    # 提取时间部分
+                                    ddl_time_part = ddl_value.split('T')[1]
+                                    # 从当前事件的end中提取日期部分
+                                    event_end = event.get('end', '')
+                                    if event_end and 'T' in event_end:
+                                        event_end_date = event_end.split('T')[0]
+                                        # 组合：当前事件的日期 + 更新的时间
+                                        update_data['ddl'] = f"{event_end_date}T{ddl_time_part}"
+                                    else:
+                                        update_data['ddl'] = ddl_value
+                                else:
+                                    # ddl为空或格式不正确，直接使用
+                                    update_data['ddl'] = ddl_value
+                            
                             event.update(update_data)
                             event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             updated_count += 1
@@ -1785,8 +2059,10 @@ def bulk_edit_events_impl(request):
                         logger.info(f"RRule detected in updates: {updates.get('rrule')}")
                         # 检查RRule是否真的发生了变化
                         new_rrule = updates.get('rrule')
-                        if not new_rrule:
-                            return JsonResponse({'status': 'error', 'message': 'RRule是必填项'}, status=400)
+                        
+                        # 允许空rrule（表示取消重复）
+                        # if not new_rrule:
+                        #     return JsonResponse({'status': 'error', 'message': 'RRule是必填项'}, status=400)
                         
                         # 找到当前序列的原始RRule进行比较
                         original_rrule = None
@@ -1825,10 +2101,29 @@ def bulk_edit_events_impl(request):
                                         logger.info(f"Checking event {event.get('id')} at {event_time_naive} >= {cutoff_time_naive}: {event_time_naive >= cutoff_time_naive}")
                                         if event_time_naive >= cutoff_time_naive:
                                             # 对于非RRule修改，只更新非时间字段，保持原有的start/end时间
-                                            # 同时过滤空字符串，避免覆盖原有数据（title/description除外）
+                                            # 同时过滤空字符串，避免覆盖原有数据（title/description/ddl除外）
                                             update_data = {k: v for k, v in updates.items() 
-                                                           if k not in ['rrule', 'start', 'end'] and 
+                                                           if k not in ['rrule', 'start', 'end', 'ddl'] and 
                                                            (v != '' or k in ['title', 'description'])}
+                                            
+                                            # 特殊处理ddl：如果更新中有ddl，需要重新计算每个实例的ddl
+                                            if 'ddl' in updates:
+                                                ddl_value = updates['ddl']
+                                                if ddl_value and 'T' in ddl_value:
+                                                    # 提取时间部分
+                                                    ddl_time_part = ddl_value.split('T')[1]
+                                                    # 从当前事件的end中提取日期部分
+                                                    event_end = event.get('end', '')
+                                                    if event_end and 'T' in event_end:
+                                                        event_end_date = event_end.split('T')[0]
+                                                        # 组合：当前事件的日期 + 更新的时间
+                                                        update_data['ddl'] = f"{event_end_date}T{ddl_time_part}"
+                                                    else:
+                                                        update_data['ddl'] = ddl_value
+                                                else:
+                                                    # ddl为空或格式不正确，直接使用
+                                                    update_data['ddl'] = ddl_value
+                                            
                                             logger.info(f"Updating event {event.get('id')} with: {update_data}")
                                             event.update(update_data)
                                             event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1841,8 +2136,79 @@ def bulk_edit_events_impl(request):
                             user_events_data.set_value(events)
                             return JsonResponse({'status': 'success', 'updated_count': updated_count})
                         
-                        # RRule确实发生了变化 - 需要创建新序列
+                        # RRule确实发生了变化
                         logger.info(f"Modifying recurring rule from {cutoff_time} for event series {series_id}")
+                        
+                        # 特殊处理：如果new_rrule为空，表示取消重复（结束重复系列）
+                        # 逻辑：保留当前被选中的这一个日程（转换为单个），删除之后的所有日程
+                        if new_rrule == '':
+                            logger.info(f"Canceling recurrence from {cutoff_time} for event series {series_id}")
+                            logger.info(f"Will keep current event and delete future events")
+                            
+                            # 确保时区一致性
+                            if cutoff_time.tzinfo is not None:
+                                cutoff_time_naive = cutoff_time.replace(tzinfo=None)
+                            else:
+                                cutoff_time_naive = cutoff_time
+                            
+                            # 找到当前被选中的事件及之后的事件
+                            current_event = None
+                            events_to_delete = []
+                            
+                            for event in events:
+                                if (event.get('series_id') == series_id and event.get('start')):
+                                    try:
+                                        event_time = datetime.datetime.fromisoformat(event['start'])
+                                        if event_time.tzinfo is not None:
+                                            event_time_naive = event_time.replace(tzinfo=None)
+                                        else:
+                                            event_time_naive = event_time
+                                        
+                                        # 当前及之后的事件
+                                        if event_time_naive >= cutoff_time_naive:
+                                            # 第一个遇到的（时间最早的）就是当前事件
+                                            if current_event is None:
+                                                current_event = event
+                                                logger.info(f"Found current event to keep: {event.get('id')} at {event_time_naive}")
+                                            else:
+                                                # 之后的事件标记为删除
+                                                events_to_delete.append(event.get('id'))
+                                                logger.info(f"Marking future event for deletion: {event.get('id')} at {event_time_naive}")
+                                    except Exception as e:
+                                        logger.error(f"Error parsing event time: {e}")
+                            
+                            # 将当前事件转换为单个日程
+                            if current_event:
+                                current_event['rrule'] = ''
+                                current_event['is_recurring'] = False
+                                current_event['is_main_event'] = False
+                                current_event['series_id'] = ''
+                                current_event['recurrence_id'] = ''
+                                current_event['parent_event_id'] = ''
+                                current_event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                logger.info(f"Converted current event to single event")
+                            
+                            # 删除未来的事件
+                            original_count = len(events)
+                            events = [e for e in events if e.get('id') not in events_to_delete]
+                            deleted_count = original_count - len(events)
+                            logger.info(f"Deleted {deleted_count} future events")
+                            
+                            # 截断RRule系列
+                            if series_id:
+                                try:
+                                    manager.rrule_engine.truncate_series_until(series_id, cutoff_time_naive)
+                                    logger.info(f"Truncated series {series_id} until {cutoff_time_naive}")
+                                except Exception as truncate_error:
+                                    logger.warning(f"Failed to truncate series: {truncate_error}")
+                            
+                            user_events_data.set_value(events)
+                            return JsonResponse({
+                                'status': 'success', 
+                                'message': f'已结束重复系列，保留当前日程，删除了{deleted_count}个未来日程'
+                            })
+                        
+                        # 否则，RRule改变为新的非空值 - 需要创建新序列
                         
                         # 检查是否有新的start时间，如果有，使用它作为新系列的起始时间
                         new_start_time = cutoff_time
@@ -1927,10 +2293,30 @@ def bulk_edit_events_impl(request):
                                     logger.info(f"Checking event {event.get('id')} at {event_time_naive} >= {cutoff_time_naive}: {event_time_naive >= cutoff_time_naive}")
                                     if event_time_naive >= cutoff_time_naive:
                                         # 对于非RRule修改，排除start/end字段，保持原有时间
-                                        # 同时过滤空字符串，避免覆盖原有数据（title/description除外）
+                                        # 同时过滤空字符串，避免覆盖原有数据（title/description/ddl除外）
+                                        # 注意：rrule已在上面的分支中处理，这里不应该包含rrule
                                         update_data = {k: v for k, v in updates.items() 
-                                                       if k not in ['start', 'end'] and 
+                                                       if k not in ['rrule', 'start', 'end', 'ddl'] and 
                                                        (v != '' or k in ['title', 'description'])}
+                                        
+                                        # 特殊处理ddl：如果更新中有ddl，需要重新计算每个实例的ddl
+                                        if 'ddl' in updates:
+                                            ddl_value = updates['ddl']
+                                            if ddl_value and 'T' in ddl_value:
+                                                # 提取时间部分
+                                                ddl_time_part = ddl_value.split('T')[1]
+                                                # 从当前事件的end中提取日期部分
+                                                event_end = event.get('end', '')
+                                                if event_end and 'T' in event_end:
+                                                    event_end_date = event_end.split('T')[0]
+                                                    # 组合：当前事件的日期 + 更新的时间
+                                                    update_data['ddl'] = f"{event_end_date}T{ddl_time_part}"
+                                                else:
+                                                    update_data['ddl'] = ddl_value
+                                            else:
+                                                # ddl为空或格式不正确，直接使用
+                                                update_data['ddl'] = ddl_value
+                                        
                                         logger.info(f"Updating event {event.get('id')} with: {update_data}")
                                         event.update(update_data)
                                         event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
