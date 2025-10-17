@@ -4,11 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.3.20251013_2033&#10;修复了编辑日程系列的首个时导致后续日程找不到主日程的问题&#10;修复了拖拽编辑日程时自动补全新日程的问题&#10;修复了日程组编辑的相关问题（该死的前端 groupID 大小写错误）">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.3.&#10;修复了 DDL 设置不生效的问题&#10;优化了 DDL 对重复事件的适配&#10;修复了重复日程无法截断为单个日程的问题&#10;修复了删除重复日程的第一个（仅此模式）后主事件消失的问题">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/static/js/event-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/event-manager.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/css/css初始化.css" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/css/home-styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/css/home-styles.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/css/home.css" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/core/static/js/modal-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/modal-manager.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/static/js/settings-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/settings-manager.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/home_new.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/home_new.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/views_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
     </list>
@@ -207,7 +209,7 @@
       <workItem from="1759479239565" duration="91000" />
       <workItem from="1759934353777" duration="12254000" />
       <workItem from="1760257440894" duration="23560000" />
-      <workItem from="1760435046776" duration="15627000" />
+      <workItem from="1760435046776" duration="20455000" />
     </task>
     <task id="LOCAL-00001" summary="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
       <option name="closed" value="true" />
@@ -297,7 +299,15 @@
       <option name="project" value="LOCAL" />
       <updated>1760358867594</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="UniSchedulerSuper 1.5.3.&#10;修复了 DDL 设置不生效的问题&#10;优化了 DDL 对重复事件的适配&#10;修复了重复日程无法截断为单个日程的问题&#10;修复了删除重复日程的第一个（仅此模式）后主事件消失的问题">
+      <option name="closed" value="true" />
+      <created>1760554324007</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1760554324007</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -338,7 +348,8 @@
     <MESSAGE value="UniSchedulerSuper 1.5.3.20251012_1748&#10;正在升级 events 相关的功能。&#10;修复了编辑单个日程为重复日程的时候只保存规则不生成实例的错误&#10;修复了前端“此及以后”模式复选框中日程货不对板的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20251013_0131&#10;升级（实际上是修复之前已经有了的）日程组管理功能：新增group-manager.js，支持日程组操作逻辑；更新模板及交互，整合创建、编辑、删除功能；" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20251013_2033&#10;修复了编辑日程系列的首个时导致后续日程找不到主日程的问题&#10;修复了拖拽编辑日程时自动补全新日程的问题&#10;修复了日程组编辑的相关问题（该死的前端 groupID 大小写错误）" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.3.20251013_2033&#10;修复了编辑日程系列的首个时导致后续日程找不到主日程的问题&#10;修复了拖拽编辑日程时自动补全新日程的问题&#10;修复了日程组编辑的相关问题（该死的前端 groupID 大小写错误）" />
+    <MESSAGE value="UniSchedulerSuper 1.5.3.&#10;修复了 DDL 设置不生效的问题&#10;优化了 DDL 对重复事件的适配&#10;修复了重复日程无法截断为单个日程的问题&#10;修复了删除重复日程的第一个（仅此模式）后主事件消失的问题" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.3.&#10;修复了 DDL 设置不生效的问题&#10;优化了 DDL 对重复事件的适配&#10;修复了重复日程无法截断为单个日程的问题&#10;修复了删除重复日程的第一个（仅此模式）后主事件消失的问题" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_rrule_system.coverage" NAME="test_rrule_system 覆盖结果" MODIFIED="1756019650259" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

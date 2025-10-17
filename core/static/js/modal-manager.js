@@ -2161,15 +2161,31 @@ class ModalManager {
     // 设置重要性紧急性
     setImportanceUrgency(importance, urgency, mode = 'create') {
         const prefix = mode === 'create' ? 'newEvent' : 'event';
+        const modalId = mode === 'create' ? 'createEventModal' : 'editEventModal';
 
-        document.getElementById(`${prefix}Importance`).value = importance || '';
-        document.getElementById(`${prefix}Urgency`).value = urgency || '';
+        // 设置隐藏字段的值
+        const importanceField = document.getElementById(`${prefix}Importance`);
+        const urgencyField = document.getElementById(`${prefix}Urgency`);
+        
+        if (importanceField) importanceField.value = importance || '';
+        if (urgencyField) urgencyField.value = urgency || '';
 
-        // 更新按钮状态
-        document.querySelectorAll('.matrix-button').forEach(btn => {
+        // 只更新当前模态框内的按钮状态
+        const modal = document.getElementById(modalId);
+        if (!modal) {
+            console.error(`Modal ${modalId} not found`);
+            return;
+        }
+        
+        const buttons = modal.querySelectorAll('.matrix-button');
+        buttons.forEach(btn => {
             btn.classList.remove('selected');
-            if (btn.dataset.importance === importance && btn.dataset.urgency === urgency) {
+            // 如果有值，且匹配当前值，则选中
+            if (importance && urgency && 
+                btn.dataset.importance === importance && 
+                btn.dataset.urgency === urgency) {
                 btn.classList.add('selected');
+                console.log(`Selected button for ${importance}/${urgency} in ${mode} modal`);
             }
         });
     }
@@ -2451,29 +2467,55 @@ class ModalManager {
 
 // 重要性紧急性矩阵按钮点击处理
 function setImportanceUrgency(importance, urgency, button) {
+    // 检查当前按钮是否已被选中
     const isAlreadySelected = button.classList.contains('selected');
-
-    // 清除所有按钮的选中状态
-    document.querySelectorAll('.matrix-button').forEach(btn => {
+    
+    // 找到当前按钮所在的矩阵容器
+    const matrixContainer = button.closest('.importance-urgency-matrix');
+    if (!matrixContainer) {
+        console.error('Cannot find matrix container');
+        return;
+    }
+    
+    // 只清除当前矩阵容器内的按钮选中状态
+    matrixContainer.querySelectorAll('.matrix-button').forEach(btn => {
         btn.classList.remove('selected');
     });
-
+    
+    // 找到当前模态框（通过向上查找）
+    const modal = button.closest('.modal');
+    if (!modal) {
+        console.error('Cannot find modal container');
+        return;
+    }
+    
+    // 根据模态框找到对应的隐藏字段
+    const importanceField = modal.querySelector('input[id$="Importance"]');
+    const urgencyField = modal.querySelector('input[id$="Urgency"]');
+    
     if (!isAlreadySelected) {
+        // 选中当前按钮
         button.classList.add('selected');
-
+        
         // 设置隐藏字段值
-        const importanceField = document.querySelector('input[id$="Importance"]');
-        const urgencyField = document.querySelector('input[id$="Urgency"]');
-
-        if (importanceField) importanceField.value = importance;
-        if (urgencyField) urgencyField.value = urgency;
+        if (importanceField) {
+            importanceField.value = importance;
+            console.log(`Set importance to: ${importance}`);
+        }
+        if (urgencyField) {
+            urgencyField.value = urgency;
+            console.log(`Set urgency to: ${urgency}`);
+        }
     } else {
-        // 清除隐藏字段值
-        const importanceField = document.querySelector('input[id$="Importance"]');
-        const urgencyField = document.querySelector('input[id$="Urgency"]');
-
-        if (importanceField) importanceField.value = '';
-        if (urgencyField) urgencyField.value = '';
+        // 取消选中，清除值
+        if (importanceField) {
+            importanceField.value = '';
+            console.log('Cleared importance');
+        }
+        if (urgencyField) {
+            urgencyField.value = '';
+            console.log('Cleared urgency');
+        }
     }
 }
 

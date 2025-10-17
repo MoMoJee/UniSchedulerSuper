@@ -1477,11 +1477,12 @@ def bulk_edit_events_impl(request):
             'groupID': data.get('groupID'),
             'ddl': data.get('ddl'),
         }
-        # 过滤掉None值和空字符串（title/description/ddl/rrule除外，它们允许为空）
+        # 过滤掉None值和空字符串（title/description/ddl/rrule/importance/urgency除外，它们允许为空）
         # ddl允许为空表示清除截止时间
         # rrule允许为空表示取消重复
+        # importance/urgency允许为空表示清除重要性/紧急性标记
         updates = {k: v for k, v in updates.items() 
-                   if v is not None and (v != '' or k in ['title', 'description', 'ddl', 'rrule'])}
+                   if v is not None and (v != '' or k in ['title', 'description', 'ddl', 'rrule', 'importance', 'urgency'])}
         
         logger.info(f"Bulk edit events - Operation: {operation}, Scope: {edit_scope}, Event ID: {event_id}, Series ID: {series_id}")
         logger.info(f"[DEBUG] groupID from request: {data.get('groupID')}, type: {type(data.get('groupID'))}")
@@ -1787,9 +1788,10 @@ def bulk_edit_events_impl(request):
                             # 更新事件数据并脱离系列
                             original_rrule = event.get('rrule', '')
                             
-                            # 过滤掉空值，避免覆盖原有数据（title/description除外）
+                            # 过滤掉空值，避免覆盖原有数据（title/description/importance/urgency除外）
+                            # importance/urgency允许为空，以便清除重要性和紧急性
                             filtered_updates = {k: v for k, v in updates.items() 
-                                                if v != '' or k in ['title', 'description']}
+                                                if v != '' or k in ['title', 'description', 'importance', 'urgency']}
                             
                             # 更新事件数据
                             event.update(filtered_updates)
@@ -1879,9 +1881,10 @@ def bulk_edit_events_impl(request):
                                             traceback.print_exc()
                         else:
                             # 非重复事件，直接更新
-                            # 过滤掉空值，避免覆盖原有数据（title/description除外）
+                            # 过滤掉空值，避免覆盖原有数据（title/description/importance/urgency除外）
+                            # importance/urgency允许为空，以便清除重要性和紧急性
                             filtered_updates = {k: v for k, v in updates.items() 
-                                                if v != '' or k in ['title', 'description']}
+                                                if v != '' or k in ['title', 'description', 'importance', 'urgency']}
                             
                             event.update(filtered_updates)
                             event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
