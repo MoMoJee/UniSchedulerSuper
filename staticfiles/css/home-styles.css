@@ -1134,3 +1134,43 @@ body {
     border-left: 4px solid #6c757d !important;
     opacity: 0.8 !important;
 }
+
+/* 日历中的提醒事件样式 */
+.fc-event.reminder-event {
+    opacity: 0.75;
+    border-style: dashed !important;
+    border-width: 2px !important;
+}
+
+.fc-event.reminder-event:hover {
+    opacity: 0.9;
+    cursor: pointer;
+}
+
+.fc-event.reminder-event .fc-event-title {
+    font-style: italic;
+}
+
+/* 提醒详情卡片样式 */
+.reminder-detail-card {
+    padding: 15px;
+}
+
+.reminder-detail-card h6 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0;
+}
+
+.reminder-detail-card .text-muted {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.reminder-detail-card code {
+    background-color: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.9rem;
+}
+

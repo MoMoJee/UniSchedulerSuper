@@ -28,6 +28,36 @@ body {
     border: 1px solid #ddd;
 }
 
+/* 时间段选择高亮样式 - 半透明蓝色 */
+.fc-highlight {
+    background-color: rgba(13, 110, 253, 0.15) !important; /* 半透明蓝色 */
+    border: 2px solid rgba(13, 110, 253, 0.4) !important;
+}
+
+/* FullCalendar 的各种选择高亮元素 */
+.fc .fc-highlight {
+    background-color: rgba(13, 110, 253, 0.15) !important;
+    border: 2px solid rgba(13, 110, 253, 0.4) !important;
+}
+
+.fc-timegrid .fc-highlight,
+.fc-daygrid .fc-highlight {
+    background-color: rgba(13, 110, 253, 0.15) !important;
+    border: 2px solid rgba(13, 110, 253, 0.4) !important;
+}
+
+/* 时间网格中的选择背景 */
+.fc-timegrid-col.fc-day-today .fc-highlight {
+    background-color: rgba(13, 110, 253, 0.2) !important;
+}
+
+/* 矩形选择模式的高亮样式 */
+.fc-highlight.rectangle-selection {
+    background-color: rgba(32, 201, 151, 0.15) !important; /* 半透明绿色 */
+    border: 2px solid rgba(32, 201, 151, 0.4) !important;
+}
+
+
 /* 让整个时间网格容器填满空间但不直接滚动 */
 .fc-timegrid {
     flex: 1 !important; /* 占满剩余空间 */
@@ -1135,6 +1165,45 @@ body {
     opacity: 0.8 !important;
 }
 
+/* 日历中的提醒事件样式 */
+.fc-event.reminder-event {
+    opacity: 0.75;
+    border-style: dashed !important;
+    border-width: 2px !important;
+}
+
+.fc-event.reminder-event:hover {
+    opacity: 0.9;
+    cursor: pointer;
+}
+
+.fc-event.reminder-event .fc-event-title {
+    font-style: italic;
+}
+
+/* 提醒详情卡片样式 */
+.reminder-detail-card {
+    padding: 15px;
+}
+
+.reminder-detail-card h6 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0;
+}
+
+.reminder-detail-card .text-muted {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.reminder-detail-card code {
+    background-color: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.9rem;
+}
+
 /* ==================== 重要性紧急性矩阵样式 ==================== */
 .importance-urgency-matrix {
   display: flex;
@@ -1204,5 +1273,167 @@ body {
   background-color: #6c757d;
   border-color: #6c757d;
   box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+}
+
+/* ==================== 时间段选择对话框样式 ==================== */
+.selection-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.selection-dialog {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  min-width: 400px;
+  max-width: 500px;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.selection-dialog-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.selection-dialog-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+
+.selection-dialog-close {
+  font-size: 28px;
+  color: #999;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.selection-dialog-close:hover {
+  color: #333;
+}
+
+.selection-dialog-body {
+  padding: 24px;
+}
+
+.selection-info {
+  margin-bottom: 16px;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.selection-info strong {
+  color: #495057;
+  font-weight: 600;
+}
+
+.duration-info {
+  color: #6c757d;
+  font-size: 13px;
+}
+
+.selection-mode {
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.mode-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.mode-rectangle {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.mode-continuous {
+  background-color: #cfe2ff;
+  color: #084298;
+}
+
+.selection-options {
+  display: flex;
+  gap: 12px;
+}
+
+.selection-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.selection-btn i {
+  font-size: 16px;
+}
+
+.selection-btn.btn-primary {
+  background-color: #0d6efd;
+  color: white;
+}
+
+.selection-btn.btn-primary:hover {
+  background-color: #0b5ed7;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
+}
+
+.selection-btn.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.selection-btn.btn-secondary:hover {
+  background-color: #5c636a;
 }
 

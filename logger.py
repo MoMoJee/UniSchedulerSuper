@@ -5,6 +5,9 @@ import os
 import sys
 import traceback
 from pathlib import Path
+import threading
+import time
+import psutil
 
 
 class ProjectLogger:
@@ -12,14 +15,22 @@ class ProjectLogger:
 
     _instance = None
     _initialized = False
+    _monitor_thread = None
+    _monitor_stop_event = None
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         if not self._initialized:
+            if kwargs.get('if_start_monitor_thread'):
+                if isinstance(kwargs.get('if_start_monitor_thread'), bool):
+                    self.if_start_monitor_thread = kwargs['if_start_monitor_thread']
+            else:
+                self.if_start_monitor_thread = False
+
             self._setup_logger()
             ProjectLogger._initialized = True
 
@@ -45,6 +56,11 @@ class ProjectLogger:
 
         # 设置日志格式
         self._setup_formatter()
+
+        # 启动监控线程
+        if self.if_start_monitor_thread:
+            self._start_monitor_thread()
+
     @staticmethod
     def _get_project_root() -> Path:
         """获取项目根目录"""
@@ -229,7 +245,100 @@ class ProjectLogger:
         kwargs['exc_info'] = True
         self._log(logging.ERROR, message, *args, **kwargs)
 
+    def _start_monitor_thread(self):
+        """启动监控线程"""
+        if ProjectLogger._monitor_thread is None or not ProjectLogger._monitor_thread.is_alive():
+            ProjectLogger._monitor_stop_event = threading.Event()
+            ProjectLogger._monitor_thread = threading.Thread(
+                target=self._monitor_loop,
+                daemon=True,
+                name="LoggerMonitorThread"
+            )
+            ProjectLogger._monitor_thread.start()
 
+    def _stop_monitor_thread(self):
+        """停止监控线程"""
+        if ProjectLogger._monitor_stop_event:
+            ProjectLogger._monitor_stop_event.set()
+        if ProjectLogger._monitor_thread:
+            ProjectLogger._monitor_thread.join(timeout=1)
+
+    def _monitor_loop(self):
+        """监控循环 - 每5分钟检测一次"""
+        while not ProjectLogger._monitor_stop_event.is_set():
+            try:
+                self._detect_caller_processes()
+            except Exception as e:
+                # 使用底层logger避免递归
+                self.logger.debug(f"监控线程异常: {e}", extra={'source_path': 'logger.py'})
+
+            # 等待5分钟或直到停止事件触发
+            ProjectLogger._monitor_stop_event.wait(timeout=300)  # 300秒 = 5分钟
+
+    def _detect_caller_processes(self):
+        """检测正在调用日志器的进程"""
+        current_pid = os.getpid()
+        caller_processes = []
+
+        try:
+            current_process = psutil.Process(current_pid)
+            log_file_path = str(self.log_file)
+
+            # 收集当前进程信息
+            process_info = {
+                'pid': current_pid,
+                'name': current_process.name(),
+                'cmdline': ' '.join(current_process.cmdline()),
+                'cwd': current_process.cwd(),
+                'create_time': time.strftime('%Y-%m-%d %H:%M:%S', 
+                                            time.localtime(current_process.create_time()))
+            }
+            caller_processes.append(process_info)
+
+            # 检查是否有其他进程打开了日志文件
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'cwd']):
+                try:
+                    if proc.pid == current_pid:
+                        continue
+
+                    # 检查进程打开的文件
+                    for file in proc.open_files():
+                        if file.path == log_file_path:
+                            proc_info = {
+                                'pid': proc.pid,
+                                'name': proc.info['name'],
+                                'cmdline': ' '.join(proc.info['cmdline']) if proc.info['cmdline'] else '',
+                                'cwd': proc.info['cwd'] if proc.info['cwd'] else 'N/A',
+                                'create_time': time.strftime('%Y-%m-%d %H:%M:%S',
+                                                            time.localtime(proc.create_time()))
+                            }
+                            caller_processes.append(proc_info)
+                            break
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    continue
+
+            # 记录检测结果
+            if caller_processes:
+                report_lines = ["=== 日志器使用状态检测 ==="]
+                report_lines.append(f"检测时间: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+                report_lines.append(f"发现 {len(caller_processes)} 个进程正在使用日志器:")
+
+                for idx, proc in enumerate(caller_processes, 1):
+                    report_lines.append(f"\n进程 #{idx}:")
+                    report_lines.append(f"  PID: {proc['pid']}")
+                    report_lines.append(f"  名称: {proc['name']}")
+                    report_lines.append(f"  命令行: {proc['cmdline']}")
+                    report_lines.append(f"  工作目录: {proc['cwd']}")
+                    report_lines.append(f"  启动时间: {proc['create_time']}")
+
+                report_lines.append("=" * 50)
+                report = "\n".join(report_lines)
+
+                # 直接使用底层logger记录,避免递归调用
+                self.logger.debug(report, extra={'source_path': 'logger.py'})
+
+        except Exception as e:
+            self.logger.debug(f"检测进程时出错: {e}", extra={'source_path': 'logger.py'})
 
     def set_console_level(self, level: int):
         """设置控制台日志等级"""

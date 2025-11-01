@@ -811,6 +811,13 @@ class ReminderManager {
                 await this.loadReminders();
                 // 重新应用当前筛选器设置
                 this.applyFilters();
+                
+                // 确保日历视图刷新
+                if (window.eventManager && window.eventManager.calendar) {
+                    console.log('updateReminder成功后刷新日历');
+                    window.eventManager.calendar.refetchEvents();
+                }
+                
                 return true;
             }
         } catch (error) {
@@ -1121,6 +1128,13 @@ class ReminderManager {
                 await this.loadReminders();
                 // 重新应用当前筛选器设置
                 this.applyFilters();
+                
+                // 确保日历视图刷新
+                if (window.eventManager && window.eventManager.calendar) {
+                    console.log('dismissReminder成功后刷新日历');
+                    window.eventManager.calendar.refetchEvents();
+                }
+                
                 return true;
             }
         } catch (error) {
@@ -1145,6 +1159,13 @@ class ReminderManager {
                 await this.loadReminders();
                 // 重新应用当前筛选器设置
                 this.applyFilters();
+                
+                // 确保日历视图刷新
+                if (window.eventManager && window.eventManager.calendar) {
+                    console.log('completeReminder成功后刷新日历');
+                    window.eventManager.calendar.refetchEvents();
+                }
+                
                 return true;
             }
         } catch (error) {
@@ -1202,6 +1223,13 @@ class ReminderManager {
         }
         
         this.renderReminders(filters);
+        
+        // 同步刷新日历视图中的提醒显示
+        if (window.eventManager && window.eventManager.calendar) {
+            console.log('刷新日历视图中的提醒');
+            window.eventManager.calendar.refetchEvents();
+        }
+        
         console.log('=== 提醒筛选器 applyFilters() 方法执行完成 ===');
     }
 
@@ -1284,6 +1312,13 @@ class ReminderManager {
                 await this.loadReminders();
                 // 重新应用当前筛选器设置
                 this.applyFilters();
+                
+                // 确保日历视图刷新
+                if (window.eventManager && window.eventManager.calendar) {
+                    console.log('performBulkOperation成功后刷新日历');
+                    window.eventManager.calendar.refetchEvents();
+                }
+                
                 console.log(`批量${operation}完成`);
                 return true;
             } else {
@@ -1434,8 +1469,9 @@ class ReminderManager {
                     reminder.is_snoozed = true;
                 }
                 
-                // 重新渲染列表以反映更改
-                this.renderReminders();
+                // 重新加载提醒数据并应用筛选器（会同时刷新左下角列表和日历）
+                await this.loadReminders();
+                this.applyFilters();
                 
                 // 显示成功消息
                 const snoozeText = this.formatTriggerTime(snoozeUntil.toISOString());
@@ -1542,6 +1578,13 @@ class ReminderManager {
                 await this.loadReminders();
                 // 重新应用当前筛选器设置
                 this.applyFilters();
+                
+                // 确保日历视图刷新
+                if (window.eventManager && window.eventManager.calendar) {
+                    console.log('updateReminderStatus成功后刷新日历');
+                    window.eventManager.calendar.refetchEvents();
+                }
+                
                 return true;
             }
         } catch (error) {

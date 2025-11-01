@@ -42,11 +42,23 @@ class EventManager {
             
             // 事件拖拽
             eventDrop: (info) => {
+                // 检查是否是提醒事件
+                if (info.event.extendedProps.isReminder) {
+                    alert('提醒不支持拖拽操作，请在提醒管理界面中编辑');
+                    info.revert();
+                    return;
+                }
                 this.handleEventDragDrop(info, 'drop');
             },
             
             // 事件调整大小
             eventResize: (info) => {
+                // 检查是否是提醒事件
+                if (info.event.extendedProps.isReminder) {
+                    alert('提醒不支持调整大小操作，请在提醒管理界面中编辑');
+                    info.revert();
+                    return;
+                }
                 this.handleEventDragDrop(info, 'resize');
             },
             
@@ -64,7 +76,12 @@ class EventManager {
             eventClick: (info) => {
                 console.log('FullCalendar eventClick触发:', info);
                 try {
-                    this.handleEventEdit(info.event);
+                    // 检查是否是提醒事件
+                    if (info.event.extendedProps.isReminder) {
+                        this.handleReminderClick(info.event);
+                    } else {
+                        this.handleEventEdit(info.event);
+                    }
                 } catch (error) {
                     console.error('打开编辑事件模态框时出错:', error);
                 }
@@ -84,7 +101,17 @@ class EventManager {
             
             // 移除aspectRatio，让日历填满整个容器
             headerToolbar: {
-                right: 'timeGridDay,dayGridMonth,timeGridWeek,listWeek'
+                right: 'timeGridTwoDay,dayGridMonth,timeGridWeek,listWeek'
+            },
+            
+            // 自定义视图：两天日视图
+            views: {
+                timeGridTwoDay: {
+                    type: 'timeGrid',
+                    duration: { days: 2 },      // 显示2天
+                    dateIncrement: { days: 1 }, // 每次前进/后退1天
+                    buttonText: '2日'
+                }
             },
             
             // 获取事件数据
@@ -94,6 +121,31 @@ class EventManager {
                         successCallback(events);
                     })
                     .catch(error => failureCallback(error));
+            },
+            
+            // 自定义事件内容渲染（用于修改提醒的时间显示）
+            eventContent: (arg) => {
+                // 如果是提醒事件，自定义显示格式
+                if (arg.event.extendedProps.isReminder) {
+                    const startTime = arg.event.start;
+                    const timeStr = startTime.toLocaleTimeString('zh-CN', { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        hour12: false 
+                    });
+                    
+                    return {
+                        html: `
+                            <div class="fc-event-main-frame">
+                                <div class="fc-event-title-container">
+                                    <div class="fc-event-title fc-sticky">${timeStr} ${arg.event.title}</div>
+                                </div>
+                            </div>
+                        `
+                    };
+                }
+                // 普通事件使用默认渲染
+                return true;
             }
         });
         
@@ -173,6 +225,10 @@ class EventManager {
 
     // 强制设置FullCalendar的滚动属性
     forceScrollable() {
+        // 获取当前视图类型
+        const currentView = this.calendar ? this.calendar.view.type : null;
+        console.log('当前视图类型:', currentView);
+        
         // 找到真正的时间网格滚动容器（包含时间槽的那个）
         const timegridScrollers = document.querySelectorAll('.fc-timegrid-body .fc-scroller, .fc-scroller:has(.fc-timegrid-slots)');
         timegridScrollers.forEach((scroller) => {
@@ -185,16 +241,6 @@ class EventManager {
             console.log('设置时间网格滚动容器（真正的）:', scroller);
         });
         
-        // 查找包含 fc-daygrid-body 的滚动器（这些是全天槽）
-        const daygridScrollers = document.querySelectorAll('.fc-scroller:has(.fc-daygrid-body)');
-        daygridScrollers.forEach((scroller) => {
-            scroller.style.setProperty('overflow', 'hidden', 'important');
-            scroller.style.setProperty('max-height', '50px', 'important');
-            scroller.style.setProperty('height', '50px', 'important');
-            scroller.style.setProperty('flex', '0 0 50px', 'important');
-            console.log('设置全天槽滚动器（包含daygrid-body）:', scroller);
-        });
-        
         // 更通用的方法：检查滚动器内容来判断类型
         const allScrollers = document.querySelectorAll('.fc-scroller');
         allScrollers.forEach((scroller) => {
@@ -202,7 +248,7 @@ class EventManager {
             const hasDaygridBody = scroller.querySelector('.fc-daygrid-body');
             
             if (hasTimegridSlots) {
-                // 这是时间网格滚动器
+                // 这是时间网格滚动器（周视图/日视图）
                 scroller.style.overflowY = 'auto';
                 scroller.style.overflowX = 'hidden';
                 scroller.style.maxHeight = 'none';
@@ -210,12 +256,23 @@ class EventManager {
                 scroller.style.flex = '1';
                 console.log('识别并设置时间网格滚动器:', scroller);
             } else if (hasDaygridBody) {
-                // 这是全天槽滚动器
-                scroller.style.setProperty('overflow', 'hidden', 'important');
-                scroller.style.setProperty('max-height', '50px', 'important');
-                scroller.style.setProperty('height', '50px', 'important');
-                scroller.style.setProperty('flex', '0 0 50px', 'important');
-                console.log('识别并设置全天槽滚动器:', scroller);
+                // 检查是否是月视图
+                if (currentView === 'dayGridMonth') {
+                    // 月视图：让daygrid-body正常显示，可以滚动
+                    scroller.style.overflowY = 'auto';
+                    scroller.style.overflowX = 'hidden';
+                    scroller.style.maxHeight = 'none';
+                    scroller.style.height = '100%';
+                    scroller.style.flex = '1';
+                    console.log('识别并设置月视图滚动器（允许完整显示）:', scroller);
+                } else {
+                    // 其他视图中的全天槽：限制高度为50px
+                    scroller.style.setProperty('overflow', 'hidden', 'important');
+                    scroller.style.setProperty('max-height', '50px', 'important');
+                    scroller.style.setProperty('height', '50px', 'important');
+                    scroller.style.setProperty('flex', '0 0 50px', 'important');
+                    console.log('识别并设置全天槽滚动器（限制高度）:', scroller);
+                }
             }
         });
         
@@ -260,7 +317,12 @@ class EventManager {
                 this.calendar.setOption('eventClick', (info) => {
                     console.log('新的eventClick回调被触发:', info);
                     try {
-                        this.handleEventEdit(info.event);
+                        // 检查是否是提醒事件
+                        if (info.event.extendedProps.isReminder) {
+                            this.handleReminderClick(info.event);
+                        } else {
+                            this.handleEventEdit(info.event);
+                        }
                     } catch (error) {
                         console.error('处理事件编辑时出错:', error);
                     }
@@ -278,6 +340,7 @@ class EventManager {
     // 获取事件数据
     async fetchEvents(start, end) {
         try {
+            // 获取日程数据
             const response = await fetch('/get_calendar/events/');
             const data = await response.json();
             
@@ -285,16 +348,153 @@ class EventManager {
             this.groups = data.events_groups;
             window.events_groups = this.groups; // 保持兼容性
             
-            // 为事件添加颜色
-            return this.events.map(event => ({
-                ...event,
-                backgroundColor: this.getEventColor(event.groupID),
-                borderColor: this.getEventColor(event.groupID)
-            }));
+            // 获取提醒数据
+            const reminderResponse = await fetch('/api/reminders/');
+            const reminderData = await reminderResponse.json();
+            const reminders = reminderData.reminders || [];
+            
+            // 获取左下角提醒框的所有筛选器设置
+            const statusFilter = document.getElementById('reminderStatusFilter')?.value || 'active';
+            const priorityFilter = document.getElementById('reminderPriorityFilter')?.value || 'all';
+            const typeFilter = document.getElementById('reminderTypeFilter')?.value || 'all';
+            
+            console.log('日历fetchEvents - 筛选器设置:', {
+                status: statusFilter,
+                priority: priorityFilter,
+                type: typeFilter
+            });
+            
+            // 根据筛选器过滤提醒（与左下角提醒框保持一致，不包括时间筛选）
+            const filteredReminders = reminders.filter(reminder => {
+                // 状态筛选
+                if (statusFilter && statusFilter !== 'all') {
+                    if (statusFilter === 'snoozed') {
+                        // 检查是否是延后状态
+                        if (!reminder.status.startsWith('snoozed_')) return false;
+                    } else {
+                        if (reminder.status !== statusFilter) return false;
+                    }
+                }
+                
+                // 优先级筛选
+                if (priorityFilter && priorityFilter !== 'all') {
+                    if (reminder.priority !== priorityFilter) return false;
+                }
+                
+                // 类型筛选（单次/重复）
+                if (typeFilter && typeFilter !== 'all') {
+                    const hasRRule = reminder.rrule && reminder.rrule.includes('FREQ=');
+                    if (typeFilter === 'recurring' && !hasRRule) return false;
+                    if (typeFilter === 'single' && hasRRule) return false;
+                    if (typeFilter === 'detached' && !reminder.is_detached) return false;
+                }
+                
+                return true;
+            });
+            
+            // 将提醒转换为日历事件格式
+            const reminderEvents = filteredReminders
+                .map(reminder => {
+                    // 使用 trigger_time 或 snooze_until（如果被延后）
+                    const triggerTime = new Date(reminder.snooze_until || reminder.trigger_time);
+                    const endTime = new Date(triggerTime.getTime() + 30 * 60 * 1000); // 30分钟后
+                    const now = new Date();
+                    
+                    // 判断是否超时（只有active状态才判断超时）
+                    const isOverdue = reminder.status === 'active' && triggerTime < now;
+                    
+                    // 获取状态颜色（背景色）
+                    const statusColor = this.getReminderStatusColor(reminder.status, isOverdue);
+                    
+                    // 获取优先级颜色（边框色）
+                    const priorityColor = this.getReminderPriorityBorderColor(reminder.priority);
+                    
+                    return {
+                        id: `reminder_${reminder.id}`, // 添加前缀以区分
+                        title: `🔔 ${reminder.title}`,
+                        start: triggerTime.toISOString(),
+                        end: endTime.toISOString(),
+                        backgroundColor: statusColor,
+                        borderColor: priorityColor,
+                        display: 'block',
+                        extendedProps: {
+                            isReminder: true,
+                            reminderId: reminder.id,
+                            reminderData: reminder,
+                            description: reminder.description || '',
+                            priority: reminder.priority,
+                            status: reminder.status,
+                            isOverdue: isOverdue
+                        },
+                        classNames: ['reminder-event'] // 添加特殊class用于样式
+                    };
+                });
+            
+            // 合并日程和提醒事件
+            const allEvents = [
+                ...this.events.map(event => ({
+                    ...event,
+                    backgroundColor: this.getEventColor(event.groupID),
+                    borderColor: this.getEventColor(event.groupID)
+                })),
+                ...reminderEvents
+            ];
+            
+            return allEvents;
         } catch (error) {
             console.error('Error fetching events:', error);
             return [];
         }
+    }
+    
+    // 获取提醒颜色（根据优先级）- 旧版本，保留以兼容
+    getReminderColor(priority) {
+        const colorMap = {
+            'urgent': 'rgba(220, 53, 69, 0.6)',    // 红色半透明
+            'high': 'rgba(255, 193, 7, 0.6)',      // 黄色半透明
+            'normal': 'rgba(0, 123, 255, 0.6)',    // 蓝色半透明
+            'low': 'rgba(108, 117, 125, 0.6)',     // 灰色半透明
+            'debug': 'rgba(111, 66, 193, 0.6)'     // 紫色半透明
+        };
+        return colorMap[priority] || 'rgba(0, 123, 255, 0.6)';
+    }
+    
+    // 获取提醒优先级边框颜色（不透明，与左下角提醒框一致）
+    getReminderPriorityBorderColor(priority) {
+        const colorMap = {
+            'urgent': '#dc3545',   // 红色 - 紧急
+            'high': '#fd7e14',     // 橙色 - 高
+            'normal': '#007bff',   // 蓝色 - 普通
+            'low': '#6c757d',      // 灰色 - 低
+            'debug': '#6f42c1'     // 紫色 - 调试
+        };
+        return colorMap[priority] || '#007bff';
+    }
+    
+    // 获取提醒状态背景颜色
+    getReminderStatusColor(status, isOverdue) {
+        // 如果是active状态且超时，返回红色
+        if (status === 'active' && isOverdue) {
+            return 'rgba(220, 53, 69, 0.6)';  // 红色半透明 - 超时
+        }
+        
+        // 根据状态返回颜色
+        const colorMap = {
+            'active': 'rgba(0, 123, 255, 0.6)',        // 蓝色半透明 - 正在进行中
+            'completed': 'rgba(40, 167, 69, 0.6)',     // 绿色半透明 - 已完成
+            'dismissed': 'rgba(108, 117, 125, 0.5)',   // 灰色半透明 - 已忽略
+            'snoozed_15m': 'rgba(255, 193, 7, 0.6)',   // 黄色半透明 - 延后
+            'snoozed_1h': 'rgba(255, 193, 7, 0.6)',    // 黄色半透明 - 延后
+            'snoozed_1d': 'rgba(255, 193, 7, 0.6)',    // 黄色半透明 - 延后
+            'snoozed_custom': 'rgba(255, 193, 7, 0.6)' // 黄色半透明 - 延后
+        };
+        
+        // 所有延后状态都返回黄色
+        if (status && status.startsWith('snoozed_')) {
+            return 'rgba(255, 193, 7, 0.6)';
+        }
+        
+        return colorMap[status] || 'rgba(0, 123, 255, 0.6)';
     }
 
     // 获取事件颜色
@@ -678,6 +878,299 @@ class EventManager {
             console.log('Treating as single event');
             modalManager.openEditEventModal(eventInfo);
         }
+    }
+    
+    // 处理提醒点击事件 - 显示提醒详情和操作按钮
+    handleReminderClick(eventInfo) {
+        const reminderData = eventInfo.extendedProps.reminderData;
+        const reminderId = eventInfo.extendedProps.reminderId;
+        
+        console.log('Reminder clicked:', reminderData);
+        
+        // 打开提醒详情模态框
+        const modal = document.getElementById('reminderDetailModal');
+        const contentDiv = document.getElementById('reminderDetailContent');
+        
+        if (!modal || !contentDiv) {
+            console.error('提醒详情模态框未找到');
+            return;
+        }
+        
+        // 生成提醒详情HTML（复用 reminder-manager.js 的样式）
+        const triggerTime = new Date(reminderData.snooze_until || reminderData.trigger_time);
+        const formattedTime = this.formatReminderTime(triggerTime);
+        const priorityIcon = this.getPriorityIcon(reminderData.priority);
+        const status = reminderData.status || 'active';
+        
+        // 构建状态按钮
+        const completedClass = status === 'completed' ? 'btn-success active' : 'btn-outline-success';
+        const dismissedClass = status === 'dismissed' ? 'btn-secondary active' : 'btn-outline-secondary';
+        
+        // 构建延后按钮
+        const isSnoozing = status && status.startsWith('snoozed_');
+        let snoozeButtons = '';
+        if (isSnoozing) {
+            const snoozeType = status.replace('snoozed_', '');
+            let snoozeText = this.getSnoozeText(snoozeType, reminderData.snooze_until);
+            snoozeButtons = `
+                <div class="d-inline-flex gap-2">
+                    <button class="btn btn-sm btn-warning active" disabled>${snoozeText}</button>
+                    <button class="btn btn-sm btn-outline-warning" onclick="eventManager.cancelReminderSnooze('${reminderId}')">取消延后</button>
+                </div>
+            `;
+        } else {
+            snoozeButtons = `
+                <div class="dropdown d-inline-block">
+                    <button class="btn btn-sm btn-info dropdown-toggle" type="button" id="snoozeDropdown" data-bs-toggle="dropdown">
+                        延后
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="eventManager.snoozeReminderFromCalendar('${reminderId}', '15m'); return false;">15分钟后</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="eventManager.snoozeReminderFromCalendar('${reminderId}', '1h'); return false;">1小时后</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="eventManager.snoozeReminderFromCalendar('${reminderId}', '1d'); return false;">一天后</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="eventManager.customSnoozeReminder('${reminderId}'); return false;">自定义</a></li>
+                    </ul>
+                </div>
+            `;
+        }
+        
+        contentDiv.innerHTML = `
+            <div class="reminder-detail-card">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <h6 class="mb-0">${priorityIcon} ${reminderData.title}</h6>
+                </div>
+                
+                <div class="mb-3">
+                    <p class="text-muted mb-1"><i class="far fa-clock me-2"></i>提醒时间</p>
+                    <p class="mb-0">${formattedTime}</p>
+                </div>
+                
+                ${reminderData.description ? `
+                <div class="mb-3">
+                    <p class="text-muted mb-1"><i class="far fa-file-alt me-2"></i>内容</p>
+                    <p class="mb-0">${reminderData.description}</p>
+                </div>
+                ` : ''}
+                
+                ${reminderData.rrule ? `
+                <div class="mb-3">
+                    <p class="text-muted mb-1"><i class="fas fa-repeat me-2"></i>重复规则</p>
+                    <p class="mb-0"><code>${reminderData.rrule}</code></p>
+                </div>
+                ` : ''}
+                
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <button class="btn btn-sm ${completedClass}" onclick="eventManager.toggleReminderStatus('${reminderId}', 'completed')">
+                        <i class="fas fa-check me-1"></i>完成
+                    </button>
+                    <button class="btn btn-sm ${dismissedClass}" onclick="eventManager.toggleReminderStatus('${reminderId}', 'dismissed')">
+                        <i class="fas fa-times me-1"></i>忽略
+                    </button>
+                    ${snoozeButtons}
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-primary" onclick="eventManager.editReminderFromCalendar('${reminderId}')">
+                        <i class="fas fa-edit me-1"></i>编辑
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="eventManager.deleteReminderFromCalendar('${reminderId}')">
+                        <i class="fas fa-trash me-1"></i>删除
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // 显示模态框（使用与其他模态框一致的显示方式）
+        modal.style.display = 'block';
+        modal.classList.add('show');
+        
+        // 禁用日历交互，防止在查看提醒时误触发其他操作
+        if (window.eventManager && window.eventManager.calendar) {
+            window.eventManager.calendar.setOption('selectable', false);
+            window.eventManager.calendar.setOption('selectMirror', false);
+        }
+    }
+    
+    // 格式化提醒时间
+    formatReminderTime(date) {
+        return date.toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            weekday: 'short'
+        });
+    }
+    
+    // 获取优先级图标
+    getPriorityIcon(priority) {
+        const iconMap = {
+            'urgent': '🔥',
+            'high': '❗',
+            'normal': '🔔',
+            'low': '🔕',
+            'debug': '🐛'
+        };
+        return iconMap[priority] || '🔔';
+    }
+    
+    // 获取延后文本
+    getSnoozeText(snoozeType, snoozeUntil) {
+        switch (snoozeType) {
+            case '15m':
+                return '15分钟后';
+            case '1h':
+                return '1小时后';
+            case '1d':
+                return '一天后';
+            case 'custom':
+                if (snoozeUntil) {
+                    return this.formatReminderTime(new Date(snoozeUntil));
+                }
+                return '已延后';
+            default:
+                return '已延后';
+        }
+    }
+    
+    // 切换提醒状态（完成/忽略）
+    async toggleReminderStatus(reminderId, targetStatus) {
+        try {
+            const response = await fetch('/api/reminders/update-status/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify({
+                    id: reminderId,
+                    status: targetStatus
+                })
+            });
+            
+            if (response.ok) {
+                // 关闭模态框
+                modalManager.closeAllModals();
+                // 重新加载日历
+                this.calendar.refetchEvents();
+                // 通知 reminder-manager 也刷新
+                if (window.reminderManager) {
+                    await window.reminderManager.loadReminders();
+                    window.reminderManager.applyFilters();
+                }
+            } else {
+                alert('更新提醒状态失败');
+            }
+        } catch (error) {
+            console.error('Error updating reminder status:', error);
+            alert('更新提醒状态时出错');
+        }
+    }
+    
+    // 延后提醒
+    async snoozeReminderFromCalendar(reminderId, duration) {
+        // 调用 reminderManager 的方法
+        if (window.reminderManager) {
+            await window.reminderManager.snoozeReminder(reminderId, duration);
+            // 关闭模态框
+            modalManager.closeAllModals();
+            // 重新加载日历
+            this.calendar.refetchEvents();
+        } else {
+            alert('提醒管理器未初始化');
+        }
+    }
+    
+    // 取消延后
+    async cancelReminderSnooze(reminderId) {
+        if (window.reminderManager) {
+            await window.reminderManager.cancelSnooze(reminderId);
+            modalManager.closeAllModals();
+            this.calendar.refetchEvents();
+        } else {
+            alert('提醒管理器未初始化');
+        }
+    }
+    
+    // 自定义延后
+    customSnoozeReminder(reminderId) {
+        if (window.reminderManager) {
+            window.reminderManager.customSnooze(reminderId);
+        } else {
+            alert('提醒管理器未初始化');
+        }
+    }
+    
+    // 编辑提醒
+    editReminderFromCalendar(reminderId) {
+        modalManager.closeAllModals();
+        // 调用 modal-manager 的编辑提醒方法
+        if (window.modalManager) {
+            // 需要先获取提醒数据
+            fetch('/api/reminders/')
+                .then(res => res.json())
+                .then(data => {
+                    const reminder = data.reminders.find(r => r.id === reminderId);
+                    if (reminder) {
+                        // 检查是否是重复提醒
+                        if (reminder.rrule && reminder.series_id) {
+                            // 调用提醒管理器的批量编辑对话框
+                            if (window.reminderManager) {
+                                reminderManager.showBulkEditDialog(
+                                    reminder.id,
+                                    reminder.series_id,
+                                    'edit'
+                                );
+                            } else {
+                                console.error('reminderManager not available');
+                                modalManager.openEditReminderModal(reminder);
+                            }
+                        } else {
+                            // 单个提醒，直接编辑
+                            modalManager.openEditReminderModal(reminder);
+                        }
+                    }
+                })
+                .catch(err => console.error('Error loading reminder:', err));
+        }
+    }
+    
+    // 删除提醒
+    async deleteReminderFromCalendar(reminderId) {
+        if (!confirm('确定要删除这个提醒吗？')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/reminders/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify({ id: reminderId })
+            });
+            
+            if (response.ok) {
+                modalManager.closeAllModals();
+                this.calendar.refetchEvents();
+                if (window.reminderManager) {
+                    await window.reminderManager.loadReminders();
+                    window.reminderManager.applyFilters();
+                }
+            } else {
+                alert('删除提醒失败');
+            }
+        } catch (error) {
+            console.error('Error deleting reminder:', error);
+            alert('删除提醒时出错');
+        }
+    }
+    
+    // 获取CSRF Token
+    getCSRFToken() {
+        return window.CSRF_TOKEN || '';
     }
 
     // 检查是否是重复事件，显示删除范围选择器
