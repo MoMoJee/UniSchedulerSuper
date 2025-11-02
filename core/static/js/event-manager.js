@@ -22,11 +22,35 @@ class EventManager {
     initCalendar() {
         const calendarEl = document.getElementById('calendar');
         
+        // 从用户设置中读取每周起始日,默认为周一(1)
+        const weekStartsOn = window.userSettings?.week_starts_on || 1;
+        
+        // 从settingsManager获取保存的视图状态
+        const savedView = window.settingsManager?.getCategorySettings('calendarView') || {};
+        
+        // 确定初始视图: 优先使用保存的视图,否则使用默认视图,最后回退到周视图
+        let initialView = 'timeGridWeek'; // 最后的回退值
+        if (savedView.viewType) {
+            initialView = savedView.viewType; // 刷新页面场景
+            console.log('使用保存的视图类型:', initialView);
+        } else if (window.userSettings?.calendar_view_default) {
+            initialView = window.userSettings.calendar_view_default; // 重新登录场景
+            console.log('使用默认视图类型:', initialView);
+        }
+        
+        // 确定初始日期: 使用保存的日期,否则使用今天
+        const initialDate = savedView.currentDate || undefined; // undefined让FullCalendar使用今天
+        if (initialDate) {
+            console.log('使用保存的日期:', initialDate);
+        }
+        
         this.calendar = new FullCalendar.Calendar(calendarEl, {
             height: '100%', // 使用100%高度填满容器
             locale: 'zh-cn',
             allDayText: '全天',
-            initialView: 'timeGridWeek',
+            initialView: initialView, // 使用计算出的初始视图
+            initialDate: initialDate, // 使用保存的日期(如果有)
+            firstDay: weekStartsOn, // 设置每周起始日: 0=周日, 1=周一, ..., 6=周六
             editable: true,
             nowIndicator: true,
             slotMinTime: '00:00', // 显示从0点开始

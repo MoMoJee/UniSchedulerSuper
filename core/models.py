@@ -706,7 +706,7 @@ DATA_SCHEMA = {
             },
         },
     },
-    "setting": {
+    "setting": {  # TODO 一个古老的没啥用的实现
         "type": dict,
         "nullable": False,
         "default": {},
@@ -740,7 +740,40 @@ DATA_SCHEMA = {
         "nullable": False,
         "default": {},
         "items": {
+            "week_number_periods": {
+                "type": list,
+                "nullable": False,
+                "default": [],
+                "items": {
+                    "name": {
+                        "type": str,
+                        "nullable": False,
+                        "default": "默认学期",
+                    },
+                    "year": {
+                        "type": int,
+                        "nullable": False,
+                        "default": 2024,
+                    },
+                    "month": {
+                        "type": int,
+                        "nullable": False,
+                        "default": 2,
+                    },
+                    "day": {
+                        "type": int,
+                        "nullable": False,
+                        "default": 24,
+                    },
+                },
+            },
+            "show_week_number": {
+                "type": bool,
+                "nullable": False,
+                "default": True,
+            },
             "week_number_start": {
+                # 保留旧字段用于向后兼容,新代码使用week_number_periods
                 "type": dict,
                 "nullable": False,
                 "default":  {},
@@ -788,6 +821,80 @@ DATA_SCHEMA = {
                         "default": [],
                     },
                 },
+            },
+            # 新增：日程偏好设置
+            "default_event_duration": {
+                "type": int,
+                "nullable": False,
+                "default": 60,  # 默认60分钟
+            },
+            "work_hours_start": {
+                "type": str,
+                "nullable": False,
+                "default": "09:00",
+            },
+            "work_hours_end": {
+                "type": str,
+                "nullable": False,
+                "default": "18:00",
+            },
+            "show_weekends": {
+                "type": bool,
+                "nullable": False,
+                "default": True,
+            },
+            "week_starts_on": {
+                "type": int,
+                "nullable": False,
+                "default": 1,  # 0=周日, 1=周一
+            },
+            # 新增：显示偏好
+            "calendar_view_default": {
+                "type": str,
+                "nullable": False,
+                "default": "dayGridMonth",  # dayGridMonth, timeGridWeek, timeGridDay
+            },
+            "theme": {
+                "type": str,
+                "nullable": False,
+                "default": "light",  # light, dark, auto
+            },
+            "show_completed_events": {
+                "type": bool,
+                "nullable": False,
+                "default": True,
+            },
+            "event_color_by": {
+                "type": str,
+                "nullable": False,
+                "default": "default",  # default, priority, type
+            },
+            # 新增：提醒设置
+            "reminder_enabled": {
+                "type": bool,
+                "nullable": False,
+                "default": True,
+            },
+            "default_reminder_time": {
+                "type": int,
+                "nullable": False,
+                "default": 15,  # 提前15分钟
+            },
+            "reminder_sound": {
+                "type": bool,
+                "nullable": False,
+                "default": True,
+            },
+            # 新增：AI设置
+            "ai_enabled": {
+                "type": bool,
+                "nullable": False,
+                "default": True,
+            },
+            "ai_auto_suggest": {
+                "type": bool,
+                "nullable": False,
+                "default": False,
             },
         },
     },

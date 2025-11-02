@@ -129,6 +129,12 @@ def user_logout(request):
 
 
 @login_required
+def help_page(request):
+    """帮助文档页面"""
+    return render(request, 'help.html')
+
+
+@login_required
 def user_data(request):
     user_data = UserData.objects.filter(user=request.user)
     return render(request, 'user_data.html', {'user_data': user_data})
@@ -155,12 +161,8 @@ def home(request):
     user_preference_data.set_value(user_preference)
     # 很显然，如果你执行了检查，那么请把检查结果保存
 
-    week_number_start = user_preference["week_number_start"]
-    start_date = datetime.date(datetime.date.today().year, week_number_start["month"], week_number_start["day"])
-    # 计算当前日期与起始日期之间的天数差
-    delta = datetime.date.today() - start_date
-    # 计算是第几周（假设每周7天）
-    week_number = delta.days // 7 + 1
+    # 周数计算已迁移到前端JavaScript - 2025-11-02
+    # 前端会根据用户设置的week_number_start自动计算并显示
 
     # 获取事件组数据
     user_data_groups, created = UserData.objects.get_or_create(
@@ -178,7 +180,6 @@ def home(request):
     # 创建一个上下文字典
     context = {
         "datetime": datetime.datetime.now(),
-        "currentWeek": week_number,
         'user': request.user,  # 传递用户对象，方便在模板中使用 {{ request.user.username }}
         'events_groups': json.dumps(events_groups)  # 传递事件组数据到前端
     }
@@ -353,23 +354,105 @@ def add_8_hours_to_time_string(time_str):
 @login_required
 @csrf_exempt
 def user_settings(request):
+    """用户设置API - 处理获取和保存用户偏好设置"""
     if request.method == 'GET':
         try:
-            # 尝试获取新的界面设置
-            user_data, created, result = UserData().get_or_initialize(request=request, new_key="user_interface_settings")
-            if user_data and hasattr(user_data, 'get_value'):
-                interface_settings = user_data.get_value()
-                if interface_settings:
-                    return JsonResponse(interface_settings, status=200)
+            # 获取用户偏好设置
+            user_preference_data, created, result = UserData().get_or_initialize(
+                request=request, 
+                new_key="user_preference"
+            )
             
-            # 如果没有新设置，返回空对象，让前端使用默认值
-            return JsonResponse({}, status=200)
+            if user_preference_data and hasattr(user_preference_data, 'get_value'):
+                preferences = user_preference_data.get_value()
+                if preferences:
+                    # 数据迁移：如果只有旧的week_number_start但没有week_number_periods,自动迁移
+                    if ('week_number_start' in preferences and 
+                        preferences.get('week_number_start') and 
+                        not preferences.get('week_number_periods')):
+                        old_start = preferences['week_number_start']
+                        preferences['week_number_periods'] = [{
+                            'name': '默认学期',
+                            'month': old_start.get('month', 2),
+                            'day': old_start.get('day', 24)
+                        }]
+                        # 保存迁移后的数据
+                        user_preference_data.set_value(preferences)
+                    
+                    # 确保show_week_number字段存在
+                    if 'show_week_number' not in preferences:
+                        preferences['show_week_number'] = True
+                    
+                    return JsonResponse(preferences, status=200)
+            
+            # 返回默认值
+            return JsonResponse({
+                'week_number_start': {'month': 2, 'day': 24},
+                'week_number_periods': [{'name': '默认学期', 'month': 2, 'day': 24}],
+                'show_week_number': True,
+                'auto_ddl': True,
+                'default_event_duration': 60,
+                'work_hours_start': '09:00',
+                'work_hours_end': '18:00',
+                'show_weekends': True,
+                'week_starts_on': 1,
+                'calendar_view_default': 'dayGridMonth',
+                'theme': 'light',
+                'show_completed_events': True,
+                'event_color_by': 'default',
+                'reminder_enabled': True,
+                'default_reminder_time': 15,
+                'reminder_sound': True,
+                'ai_enabled': True,
+                'ai_auto_suggest': False,
+            }, status=200)
             
         except Exception as e:
-            # 如果出错，返回空对象
-            return JsonResponse({}, status=200)
-
-    return JsonResponse({'status': 'error', 'message': '只支持GET请求'}, status=405)
+            return JsonResponse({
+                'status': 'error', 
+                'message': f'获取设置失败: {str(e)}'
+            }, status=500)
+    
+    elif request.method == 'POST':
+        try:
+            # 解析请求数据
+            data = json.loads(request.body)
+            
+            # 获取当前设置
+            user_preference_data, created, result = UserData().get_or_initialize(
+                request=request, 
+                new_key="user_preference"
+            )
+            
+            if not user_preference_data or not hasattr(user_preference_data, 'set_value'):
+                return JsonResponse({
+                    'status': 'error',
+                    'message': '无法获取用户设置数据'
+                }, status=500)
+            
+            # 更新设置（使用 DATA_SCHEMA 验证）
+            user_preference_data.set_value(data, check=True)
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': '设置已保存'
+            }, status=200)
+            
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'status': 'error',
+                'message': '无效的JSON数据'
+            }, status=400)
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'保存设置失败: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({
+        'status': 'error', 
+        'message': '只支持GET和POST请求'
+    }, status=405)
 
 # TODO 在编辑日程的 RRule规则时，events_rrule_series 貌似并不会跟着变，然而暂时没有造成出错
 

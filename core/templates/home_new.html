@@ -48,10 +48,10 @@
                         用户
                     </a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>设置</a></li>
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-question-circle me-2"></i>帮助</a></li>
+                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#settingsModal"><i class="fas fa-cog me-2"></i>设置</a></li>
+                        <li><a class="dropdown-item" href="{% url 'help_page' %}"><i class="fas fa-question-circle me-2"></i>帮助</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-sign-out-alt me-2"></i>退出</a></li>
+                        <li><a class="dropdown-item" href="{% url 'user_logout' %}"><i class="fas fa-sign-out-alt me-2"></i>退出</a></li>
                     </ul>
                 </div>
             </div>
@@ -1533,6 +1533,286 @@
         </div>
     </div>
 
+    <!-- 用户设置模态框 -->
+    <div class="modal fade" id="settingsModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-cog me-2"></i>用户设置
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Tabs 导航 -->
+                    <ul class="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#basic-settings" type="button" role="tab">
+                                <i class="fas fa-user-cog me-2"></i>基本设置
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="schedule-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#schedule-settings" type="button" role="tab">
+                                <i class="fas fa-calendar-alt me-2"></i>日程偏好
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="display-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#display-settings" type="button" role="tab">
+                                <i class="fas fa-palette me-2"></i>显示偏好
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="reminder-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#reminder-settings" type="button" role="tab">
+                                <i class="fas fa-bell me-2"></i>提醒设置
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="ai-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#ai-settings" type="button" role="tab">
+                                <i class="fas fa-robot me-2"></i>AI 设置
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tabs 内容 -->
+                    <div class="tab-content" id="settingsTabContent">
+                        <!-- 基本设置 -->
+                        <div class="tab-pane fade show active" id="basic-settings" role="tabpanel">
+                            <h6 class="mb-3 text-primary"><i class="fas fa-cog me-2"></i>周数显示设置</h6>
+                            
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="showWeekNumber" checked>
+                                        <label class="form-check-label" for="showWeekNumber">
+                                            <strong>显示周数</strong>
+                                        </label>
+                                    </div>
+                                    <small class="text-muted">在日历标题旁显示"第N周"徽章</small>
+                                </div>
+                                
+                                <div class="col-12">
+                                    <hr>
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <label class="form-label mb-0">
+                                            <strong>学期/周期设置</strong>
+                                        </label>
+                                        <button type="button" class="btn btn-sm btn-primary" onclick="addWeekPeriod()">
+                                            <i class="fas fa-plus me-1"></i>添加学期
+                                        </button>
+                                    </div>
+                                    <small class="text-muted d-block mb-3">
+                                        设置多个学期的起始日期,系统会自动选择最近的学期计算周数。
+                                        例如: 春季学期(2月24日)、秋季学期(9月1日)
+                                    </small>
+                                    
+                                    <!-- 周期列表容器 -->
+                                    <div id="weekPeriodsList" class="mb-3">
+                                        <!-- 周期项会动态添加到这里 -->
+                                    </div>
+                                    
+                                    <div class="alert alert-warning mb-0">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <strong>注意：</strong>
+                                        <ul class="mb-0 mt-2">
+                                            <li>如果当前日期找不到任何学期起始日期,将不显示周数</li>
+                                            <li>系统会向前查找距离最近的起始日期</li>
+                                            <li>至少需要添加一个学期才能显示周数</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 日程偏好 -->
+                        <div class="tab-pane fade" id="schedule-settings" role="tabpanel">
+                            <h6 class="mb-3 text-primary"><i class="fas fa-sliders-h me-2"></i>日程默认设置</h6>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="defaultEventDuration" class="form-label">
+                                        默认日程时长（分钟）
+                                        <span class="badge bg-secondary">即将推出</span>
+                                    </label>
+                                    <input type="number" class="form-control" id="defaultEventDuration" 
+                                           min="5" max="480" step="5" value="60" disabled>
+                                    <small class="text-muted">新建日程的默认持续时间</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="weekStartsOn" class="form-label">
+                                        每周起始日
+                                    </label>
+                                    <select class="form-select" id="weekStartsOn">
+                                        <option value="0">周日</option>
+                                        <option value="1" selected>周一</option>
+                                        <option value="2">周二</option>
+                                        <option value="3">周三</option>
+                                        <option value="4">周四</option>
+                                        <option value="5">周五</option>
+                                        <option value="6">周六</option>
+                                    </select>
+                                    <small class="text-muted">日历和周数计算的起始日</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="workHoursStart" class="form-label">
+                                        工作时间 - 开始
+                                        <span class="badge bg-secondary">即将推出</span>
+                                    </label>
+                                    <input type="time" class="form-control" id="workHoursStart" value="09:00" disabled>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="workHoursEnd" class="form-label">
+                                        工作时间 - 结束
+                                        <span class="badge bg-secondary">即将推出</span>
+                                    </label>
+                                    <input type="time" class="form-control" id="workHoursEnd" value="18:00" disabled>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="autoDdl" checked>
+                                        <label class="form-check-label" for="autoDdl">
+                                            自动将日程结束时间设置为截止时间
+                                        </label>
+                                    </div>
+                                    <small class="text-muted">新建日程时，自动将结束时间填入DDL字段</small>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="showWeekends" checked>
+                                        <label class="form-check-label" for="showWeekends">
+                                            日历显示周末
+                                        </label>
+                                    </div>
+                                    <small class="text-muted">在日历视图中显示或隐藏周六和周日</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 显示偏好 -->
+                        <div class="tab-pane fade" id="display-settings" role="tabpanel">
+                            <h6 class="mb-3 text-primary"><i class="fas fa-eye me-2"></i>界面显示</h6>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="calendarViewDefault" class="form-label">
+                                        默认日历视图
+                                    </label>
+                                    <select class="form-select" id="calendarViewDefault">
+                                        <option value="dayGridMonth" selected>月视图</option>
+                                        <option value="timeGridWeek">周视图</option>
+                                        <option value="timeGridDay">日视图</option>
+                                        <option value="listWeek">列表视图</option>
+                                    </select>
+                                    <small class="text-muted">重新登录时使用的视图,刷新页面会保留当前视图</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="theme" class="form-label">
+                                        主题模式
+                                        <span class="badge bg-secondary">即将推出</span>
+                                    </label>
+                                    <select class="form-select" id="theme" disabled>
+                                        <option value="light" selected>浅色模式</option>
+                                        <option value="dark">深色模式</option>
+                                        <option value="auto">跟随系统</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="eventColorBy" class="form-label">
+                                        日程颜色方案
+                                        <span class="badge bg-secondary">即将推出</span>
+                                    </label>
+                                    <select class="form-select" id="eventColorBy" disabled>
+                                        <option value="default" selected>默认</option>
+                                        <option value="priority">按优先级</option>
+                                        <option value="type">按类型</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="showCompletedEvents" checked disabled>
+                                        <label class="form-check-label" for="showCompletedEvents">
+                                            显示已完成的日程
+                                            <span class="badge bg-secondary">即将推出</span>
+                                        </label>
+                                    </div>
+                                    <small class="text-muted">在日历中显示或隐藏已标记为完成的日程</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 提醒设置 -->
+                        <div class="tab-pane fade" id="reminder-settings" role="tabpanel">
+                            <h6 class="mb-3 text-primary"><i class="fas fa-clock me-2"></i>提醒选项</h6>
+                            
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="reminderEnabled" checked disabled>
+                                        <label class="form-check-label" for="reminderEnabled">
+                                            启用提醒弹窗通知
+                                            <span class="badge bg-secondary">即将推出</span>
+                                        </label>
+                                    </div>
+                                    <small class="text-muted">提醒到期时是否弹出浏览器通知</small>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="reminderSound" checked disabled>
+                                        <label class="form-check-label" for="reminderSound">
+                                            提醒声音
+                                            <span class="badge bg-secondary">即将推出</span>
+                                        </label>
+                                    </div>
+                                    <small class="text-muted">提醒时播放提示音</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI 设置 -->
+                        <div class="tab-pane fade" id="ai-settings" role="tabpanel">
+                            <h6 class="mb-3 text-primary"><i class="fas fa-brain me-2"></i>AI 助手选项</h6>
+                            
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="aiEnabled" checked disabled>
+                                        <label class="form-check-label" for="aiEnabled">
+                                            启用 AI 功能
+                                            <span class="badge bg-secondary">即将推出</span>
+                                        </label>
+                                    </div>
+                                    <small class="text-muted">启用或关闭所有 AI 相关功能</small>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="aiAutoSuggest" disabled>
+                                        <label class="form-check-label" for="aiAutoSuggest">
+                                            AI 自动建议
+                                            <span class="badge bg-secondary">即将推出</span>
+                                        </label>
+                                    </div>
+                                    <small class="text-muted">AI 会自动分析你的日程并提供优化建议</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>取消
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveSettings">
+                        <i class="fas fa-save me-1"></i>保存设置
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'fullcalendar_index.global.js' %}"></script>
@@ -1708,13 +1988,18 @@
 
     <!-- 页面初始化 -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // 首先初始化设置管理器
-            settingsManager.init();
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 首先初始化设置管理器并等待加载完成
+            await settingsManager.init();
+            console.log('✅ 设置管理器初始化完成');
+            
+            // 立即加载用户设置到全局变量（不显示在UI上）
+            await loadUserSettingsToGlobal();
+            console.log('✅ 用户设置已加载到全局变量');
             
             // 初始化各个管理器
             window.modalManager.init();
-            window.eventManager.init();
+            window.eventManager.init(); // 此时settingsManager已有数据,可以正确设置initialView和initialDate
             window.todoManager.init();
             window.reminderManager.init();
             window.groupManager.init();
@@ -1735,8 +2020,718 @@
                 }, 500);
             }, 100);
             
+            // 初始化用户设置功能
+            initUserSettings();
+            
+            // 初始化周数显示功能
+            initWeekNumberDisplay();
+            
             console.log('UniSchedulerSuper 系统已初始化完成');
         });
+        
+        // ==================== 用户设置管理 ====================
+        
+        // 加载用户设置到全局变量（页面初始化时调用）
+        async function loadUserSettingsToGlobal() {
+            try {
+                const response = await fetch('/get_calendar/user_settings/', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const settings = await response.json();
+                // 将设置保存到全局变量
+                window.userSettings = settings;
+                console.log('✅ 用户设置已加载到全局变量:', window.userSettings);
+            } catch (error) {
+                console.error('加载用户设置失败:', error);
+                // 设置默认值
+                window.userSettings = {
+                    auto_ddl: true,  // 默认启用自动DDL
+                    show_weekends: true,
+                    calendar_view_default: 'dayGridMonth'
+                };
+                console.log('使用默认设置:', window.userSettings);
+            }
+        }
+        
+        function initUserSettings() {
+            // 当设置模态框打开时，加载当前设置
+            const settingsModal = document.getElementById('settingsModal');
+            if (settingsModal) {
+                settingsModal.addEventListener('show.bs.modal', loadUserSettings);
+            }
+            
+            // 保存设置按钮
+            const saveBtn = document.getElementById('saveSettings');
+            if (saveBtn) {
+                saveBtn.addEventListener('click', saveUserSettings);
+            }
+            
+            // 初始化 tooltips
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+        
+        // 加载用户设置
+        function loadUserSettings() {
+            fetch('/get_calendar/user_settings/', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(settings => {
+                console.log('加载的设置:', settings);
+                
+                // 辅助函数：安全设置元素值（跳过不存在或被禁用的元素）
+                function safeSetValue(id, value) {
+                    const element = document.getElementById(id);
+                    if (element && !element.disabled) {
+                        element.value = value;
+                    }
+                }
+                
+                function safeSetChecked(id, value) {
+                    const element = document.getElementById(id);
+                    if (element && !element.disabled) {
+                        element.checked = value;
+                    }
+                }
+                
+                // 基本设置 - 周数显示
+                safeSetChecked('showWeekNumber', settings.show_week_number !== false);
+                
+                // 加载周期列表
+                loadWeekPeriods(settings.week_number_periods || []);
+                
+                // 日程偏好（大部分已禁用）
+                safeSetValue('defaultEventDuration', settings.default_event_duration || 60);
+                safeSetValue('weekStartsOn', settings.week_starts_on || 1);
+                safeSetValue('workHoursStart', settings.work_hours_start || '09:00');
+                safeSetValue('workHoursEnd', settings.work_hours_end || '18:00');
+                safeSetChecked('autoDdl', settings.auto_ddl !== false);
+                safeSetChecked('showWeekends', settings.show_weekends !== false);
+                
+                // 显示偏好
+                safeSetValue('calendarViewDefault', settings.calendar_view_default || 'dayGridMonth');
+                safeSetValue('theme', settings.theme || 'light');
+                safeSetValue('eventColorBy', settings.event_color_by || 'default');
+                safeSetChecked('showCompletedEvents', settings.show_completed_events !== false);
+                
+                // 提醒设置
+                safeSetChecked('reminderEnabled', settings.reminder_enabled !== false);
+                safeSetChecked('reminderSound', settings.reminder_sound !== false);
+                
+                // AI 设置
+                safeSetChecked('aiEnabled', settings.ai_enabled !== false);
+                safeSetChecked('aiAutoSuggest', settings.ai_auto_suggest === true);
+                
+                // 将设置保存到全局变量,供其他模块使用
+                window.userSettings = settings;
+                console.log('用户设置已保存到 window.userSettings:', window.userSettings);
+            })
+            .catch(error => {
+                console.error('加载设置失败:', error);
+                showToast('加载设置失败，将使用默认值', 'warning');
+                // 即使加载失败,也设置默认值
+                window.userSettings = {
+                    auto_ddl: true,  // 默认启用自动DDL
+                    show_weekends: true,
+                    calendar_view_default: 'dayGridMonth'
+                };
+            });
+        }
+        
+        // ==================== 周期管理功能 ====================
+        
+        /**
+         * 加载周期列表到UI
+         */
+        function loadWeekPeriods(periods) {
+            const container = document.getElementById('weekPeriodsList');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            if (!periods || periods.length === 0) {
+                // 显示空状态
+                container.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        还没有添加任何学期,点击"添加学期"按钮开始设置
+                    </div>
+                `;
+                return;
+            }
+            
+            // 渲染每个周期
+            periods.forEach((period, index) => {
+                const periodCard = document.createElement('div');
+                periodCard.className = 'card mb-2';
+                periodCard.innerHTML = `
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <label class="form-label small">学期名称</label>
+                                <input type="text" class="form-control form-control-sm" 
+                                       value="${period.name || ''}" 
+                                       onchange="updatePeriodName(${index}, this.value)"
+                                       placeholder="例如: 2024秋季">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">年份</label>
+                                <input type="number" class="form-control form-control-sm" 
+                                       value="${period.year || new Date().getFullYear()}" 
+                                       min="2000" max="2100"
+                                       onchange="updatePeriodYear(${index}, this.value)">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">月份</label>
+                                <select class="form-select form-select-sm" 
+                                        onchange="updatePeriodMonth(${index}, this.value)">
+                                    ${generateMonthOptions(period.month)}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">日期</label>
+                                <input type="number" class="form-control form-control-sm" 
+                                       value="${period.day || 1}" 
+                                       min="1" max="31"
+                                       onchange="updatePeriodDay(${index}, this.value)">
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="button" class="btn btn-sm btn-danger w-100" 
+                                        onclick="removeWeekPeriod(${index})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(periodCard);
+            });
+        }
+        
+        /**
+         * 生成月份选项
+         */
+        function generateMonthOptions(selectedMonth) {
+            const months = [
+                '1月', '2月', '3月', '4月', '5月', '6月',
+                '7月', '8月', '9月', '10月', '11月', '12月'
+            ];
+            return months.map((name, index) => {
+                const value = index + 1;
+                const selected = value === selectedMonth ? 'selected' : '';
+                return `<option value="${value}" ${selected}>${name}</option>`;
+            }).join('');
+        }
+        
+        /**
+         * 添加新周期
+         */
+        function addWeekPeriod() {
+            const settings = window.userSettings || {};
+            const periods = settings.week_number_periods || [];
+            
+            // 添加新周期,默认使用当前年份
+            periods.push({
+                name: '新学期',
+                year: new Date().getFullYear(),
+                month: 2,
+                day: 24
+            });
+            
+            // 更新设置
+            settings.week_number_periods = periods;
+            window.userSettings = settings;
+            
+            // 重新加载UI
+            loadWeekPeriods(periods);
+        }
+        
+        /**
+         * 删除周期
+         */
+        function removeWeekPeriod(index) {
+            if (!confirm('确定要删除这个学期吗?')) {
+                return;
+            }
+            
+            const settings = window.userSettings || {};
+            const periods = settings.week_number_periods || [];
+            
+            periods.splice(index, 1);
+            settings.week_number_periods = periods;
+            window.userSettings = settings;
+            
+            loadWeekPeriods(periods);
+        }
+        
+        /**
+         * 更新周期名称
+         */
+        function updatePeriodName(index, value) {
+            const settings = window.userSettings || {};
+            const periods = settings.week_number_periods || [];
+            
+            if (periods[index]) {
+                periods[index].name = value;
+                settings.week_number_periods = periods;
+                window.userSettings = settings;
+            }
+        }
+        
+        /**
+         * 更新周期年份
+         */
+        function updatePeriodYear(index, value) {
+            const settings = window.userSettings || {};
+            const periods = settings.week_number_periods || [];
+            
+            if (periods[index]) {
+                periods[index].year = parseInt(value);
+                settings.week_number_periods = periods;
+                window.userSettings = settings;
+            }
+        }
+        
+        /**
+         * 更新周期月份
+         */
+        function updatePeriodMonth(index, value) {
+            const settings = window.userSettings || {};
+            const periods = settings.week_number_periods || [];
+            
+            if (periods[index]) {
+                periods[index].month = parseInt(value);
+                settings.week_number_periods = periods;
+                window.userSettings = settings;
+            }
+        }
+        
+        /**
+         * 更新周期日期
+         */
+        function updatePeriodDay(index, value) {
+            const settings = window.userSettings || {};
+            const periods = settings.week_number_periods || [];
+            
+            if (periods[index]) {
+                periods[index].day = parseInt(value);
+                settings.week_number_periods = periods;
+                window.userSettings = settings;
+            }
+        }
+        
+        /**
+         * 获取当前周期配置
+         */
+        function getWeekPeriods() {
+            const settings = window.userSettings || {};
+            return settings.week_number_periods || [];
+        }
+        
+        // 保存用户设置
+        function saveUserSettings() {
+            // 辅助函数：安全获取元素值（跳过不存在或被禁用的元素）
+            function safeGetValue(id, defaultValue) {
+                const element = document.getElementById(id);
+                if (element && !element.disabled) {
+                    return element.value;
+                }
+                return defaultValue;
+            }
+            
+            function safeGetChecked(id, defaultValue) {
+                const element = document.getElementById(id);
+                if (element && !element.disabled) {
+                    return element.checked;
+                }
+                return defaultValue;
+            }
+            
+            function safeGetIntValue(id, defaultValue) {
+                const element = document.getElementById(id);
+                if (element && !element.disabled) {
+                    return parseInt(element.value);
+                }
+                return defaultValue;
+            }
+            
+            const settings = {
+                // 新的多周期系统
+                week_number_periods: getWeekPeriods(),
+                show_week_number: safeGetChecked('showWeekNumber', true),
+                // 保留旧字段以兼容历史数据
+                week_number_start: {
+                    month: safeGetIntValue('weekNumberStartMonth', 2),
+                    day: safeGetIntValue('weekNumberStartDay', 24)
+                },
+                auto_ddl: safeGetChecked('autoDdl', true),
+                default_event_duration: safeGetIntValue('defaultEventDuration', 60),
+                work_hours_start: safeGetValue('workHoursStart', '09:00'),
+                work_hours_end: safeGetValue('workHoursEnd', '18:00'),
+                show_weekends: safeGetChecked('showWeekends', true),
+                week_starts_on: safeGetIntValue('weekStartsOn', 1),
+                calendar_view_default: safeGetValue('calendarViewDefault', 'dayGridMonth'),
+                theme: safeGetValue('theme', 'light'),
+                show_completed_events: safeGetChecked('showCompletedEvents', true),
+                event_color_by: safeGetValue('eventColorBy', 'default'),
+                reminder_enabled: safeGetChecked('reminderEnabled', true),
+                default_reminder_time: 15,  // 固定默认值，因为UI中已删除该字段
+                reminder_sound: safeGetChecked('reminderSound', true),
+                ai_enabled: safeGetChecked('aiEnabled', true),
+                ai_auto_suggest: safeGetChecked('aiAutoSuggest', false),
+                prompt_scene_presets: []  // 暂时保留空数组，未来可扩展
+            };
+            
+            console.log('保存的设置:', settings);
+            
+            fetch('/get_calendar/user_settings/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': window.CSRF_TOKEN
+                },
+                body: JSON.stringify(settings)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('设置保存成功:', data);
+                showToast('设置已保存', 'success');
+                
+                // 更新全局设置变量
+                window.userSettings = settings;
+                console.log('✅ 全局设置已更新:', window.userSettings);
+                
+                // 关闭模态框
+                const modalElement = document.getElementById('settingsModal');
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                }
+                
+                // 应用某些立即生效的设置
+                applyImmediateSettings(settings);
+            })
+            .catch(error => {
+                console.error('保存设置失败:', error);
+                showToast('保存失败，请重试', 'danger');
+            });
+        }
+        
+        // 应用立即生效的设置
+        function applyImmediateSettings(settings) {
+            // 检查日历实例是否存在
+            const calendarInstance = window.eventManager?.calendar;
+            
+            if (!calendarInstance) {
+                console.log('日历实例尚未初始化，设置将在下次页面加载时生效');
+                return;
+            }
+            
+            // ⚠️ 注意：不在这里应用 calendar_view_default
+            // 因为 settings-manager.js 会在页面刷新时恢复用户上次的视图和日期
+            // calendar_view_default 只在重新登录(没有保存的视图状态)时使用
+            
+            // 应用周起始日设置
+            if (settings.week_starts_on !== undefined) {
+                try {
+                    calendarInstance.setOption('firstDay', settings.week_starts_on);
+                    console.log('周起始日已更新为:', settings.week_starts_on);
+                    
+                    // 更新周数显示(因为周数计算依赖于周起始日)
+                    updateWeekNumberDisplay();
+                } catch (error) {
+                    console.error('更新周起始日失败:', error);
+                }
+            }
+            
+            // 应用周末显示设置
+            if (settings.show_weekends !== undefined) {
+                try {
+                    calendarInstance.setOption('weekends', settings.show_weekends);
+                    console.log('周末显示已更新为:', settings.show_weekends);
+                } catch (error) {
+                    console.error('更新周末显示失败:', error);
+                }
+            }
+        }
+        
+        // ==================== 周数显示管理 ====================
+        
+        /**
+         * 获取某个日期所在周的开始日期
+         * @param {Date} date - 输入日期
+         * @param {number} weekStartsOn - 每周起始日(0=周日, 1=周一, ..., 6=周六)
+         * @returns {Date} 该周的开始日期
+         */
+        function getWeekStart(date, weekStartsOn = 1) {
+            const d = new Date(date);
+            const day = d.getDay(); // 0=周日, 1=周一, ..., 6=周六
+            const diff = (day - weekStartsOn + 7) % 7; // 计算距离周起始日的天数
+            d.setDate(d.getDate() - diff);
+            d.setHours(0, 0, 0, 0); // 重置到当天00:00:00
+            return d;
+        }
+        
+        /**
+         * 查找最近的周数起始日期
+         * @param {Date} date - 要查找的基准日期
+         * @param {Array} periods - 周数起始时间数组 [{name, year, month, day}]
+         * @param {number} weekStartsOn - 每周起始日(0=周日, 1=周一, ..., 6=周六)
+         * @returns {Object|null} {period, startDate, weekNumber} 或 null(找不到)
+         */
+        function findNearestPeriod(date, periods, weekStartsOn = 1) {
+            if (!periods || periods.length === 0) {
+                return null;
+            }
+            
+            let nearestPeriod = null;
+            let nearestStartDate = null;
+            let minDistance = Infinity;
+            
+            // 遍历所有起始时间,使用配置的年份
+            for (const period of periods) {
+                // 使用配置的年月日创建起始日期
+                const startDate = new Date(period.year, period.month - 1, period.day);
+                
+                // 只考虑在当前日期之前或等于的起始日期
+                if (startDate <= date) {
+                    const distance = date - startDate;
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        nearestPeriod = period;
+                        nearestStartDate = startDate;
+                    }
+                }
+            }
+            
+            // 如果找到了最近的起始日期,计算周数
+            if (nearestPeriod && nearestStartDate) {
+                // 找到起始日期所在周的开始
+                const periodWeekStart = getWeekStart(nearestStartDate, weekStartsOn);
+                
+                // 找到目标日期所在周的开始
+                const targetWeekStart = getWeekStart(date, weekStartsOn);
+                
+                // 计算两个周开始日期之间的天数差
+                const diffTime = targetWeekStart - periodWeekStart;
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                
+                // 计算经过了多少完整的周,加1得到当前是第几周
+                const weekNumber = Math.floor(diffDays / 7) + 1;
+                
+                return {
+                    period: nearestPeriod,
+                    startDate: nearestStartDate,
+                    weekNumber: weekNumber
+                };
+            }
+            
+            return null;
+        }
+        
+        /**
+         * 计算当前日期是第几周(新版本 - 支持多起始时间和每周起始日)
+         * @param {Date} date - 要计算的日期
+         * @returns {Object|null} {period, weekNumber} 或 null(找不到起始时间)
+         */
+        function calculateWeekNumber(date = new Date()) {
+            // 检查用户设置
+            const settings = window.userSettings || {};
+            
+            // 检查是否禁用周数显示
+            if (settings.show_week_number === false) {
+                return null;
+            }
+            
+            // 获取每周起始日配置,默认为周一(1)
+            const weekStartsOn = settings.week_starts_on !== undefined ? settings.week_starts_on : 1;
+            
+            // 优先使用新的week_number_periods
+            let periods = settings.week_number_periods;
+            
+            // 如果没有periods但有旧的week_number_start,进行兼容处理
+            if ((!periods || periods.length === 0) && settings.week_number_start) {
+                periods = [{
+                    name: '默认学期',
+                    year: new Date().getFullYear(), // 使用当前年份
+                    month: settings.week_number_start.month || 2,
+                    day: settings.week_number_start.day || 24
+                }];
+            }
+            
+            // 查找最近的起始时间,传入weekStartsOn参数
+            const result = findNearestPeriod(date, periods, weekStartsOn);
+            
+            if (result) {
+                return {
+                    period: result.period,
+                    weekNumber: result.weekNumber
+                };
+            }
+            
+            return null;
+        }
+        
+        /**
+         * 更新日历标题旁边的周数显示
+         */
+        function updateWeekNumberDisplay() {
+            // 获取日历实例
+            const calendarInstance = window.eventManager?.calendar;
+            if (!calendarInstance) {
+                console.warn('日历实例不存在，无法更新周数显示');
+                return;
+            }
+            
+            // 获取当前视图
+            const currentView = calendarInstance.view;
+            const viewType = currentView.type;
+            
+            // 查找或创建周数显示元素
+            let weekBadge = document.getElementById('weekNumberBadge');
+            const toolbarTitle = document.querySelector('.fc-toolbar-title');
+            
+            if (!toolbarTitle) {
+                console.warn('未找到日历标题元素');
+                return;
+            }
+            
+            // 计算周数显示内容
+            let badgeText = '';
+            
+            if (viewType === 'dayGridMonth') {
+                // 月视图: 显示第X周-第Y周
+                const startDate = currentView.activeStart;
+                const endDate = new Date(currentView.activeEnd.getTime() - 1); // 减1天,因为activeEnd是下个月第一天
+                
+                const startResult = calculateWeekNumber(startDate);
+                const endResult = calculateWeekNumber(endDate);
+                
+                if (startResult && endResult) {
+                    if (startResult.weekNumber === endResult.weekNumber) {
+                        badgeText = `第 ${startResult.weekNumber} 周`;
+                    } else {
+                        badgeText = `第 ${startResult.weekNumber}-${endResult.weekNumber} 周`;
+                    }
+                    // 如果学期名称相同,显示学期名
+                    if (startResult.period.name === endResult.period.name && startResult.period.name !== '默认学期') {
+                        badgeText += ` (${startResult.period.name})`;
+                    }
+                }
+            } else {
+                // 周视图/日视图: 显示单个周数
+                const currentDate = calendarInstance.getDate();
+                const result = calculateWeekNumber(currentDate);
+                
+                if (result) {
+                    badgeText = `第 ${result.weekNumber} 周`;
+                    // 显示学期名称(如果不是默认学期)
+                    if (result.period.name && result.period.name !== '默认学期') {
+                        badgeText += ` (${result.period.name})`;
+                    }
+                }
+            }
+            
+            // 如果没有周数信息,隐藏徽章
+            if (!badgeText) {
+                if (weekBadge) {
+                    weekBadge.style.display = 'none';
+                }
+                console.log('当前日期不在任何学期范围内,不显示周数');
+                return;
+            }
+            
+            if (!weekBadge) {
+                // 创建周数徽章元素
+                weekBadge = document.createElement('span');
+                weekBadge.id = 'weekNumberBadge';
+                weekBadge.className = 'badge bg-primary ms-3';
+                weekBadge.style.fontSize = '0.9rem';
+                weekBadge.style.verticalAlign = 'middle';
+                
+                // 插入到标题后面
+                toolbarTitle.appendChild(weekBadge);
+            }
+            
+            // 显示徽章并更新文本
+            weekBadge.style.display = '';
+            weekBadge.textContent = badgeText;
+            console.log(`✅ 周数已更新: ${badgeText}`);
+        }
+        
+        /**
+         * 初始化周数显示功能
+         */
+        function initWeekNumberDisplay() {
+            // 等待日历初始化完成
+            const checkCalendar = setInterval(() => {
+                if (window.eventManager?.calendar) {
+                    clearInterval(checkCalendar);
+                    
+                    // 首次显示周数
+                    setTimeout(() => {
+                        updateWeekNumberDisplay();
+                    }, 500);
+                    
+                    // 监听日历视图变化
+                    const calendarInstance = window.eventManager.calendar;
+                    
+                    // 使用FullCalendar的datesSet事件监听日期变化
+                    calendarInstance.on('datesSet', function(info) {
+                        console.log('日历视图已变化，更新周数');
+                        updateWeekNumberDisplay();
+                    });
+                    
+                    console.log('✅ 周数显示功能已初始化');
+                }
+            }, 100);
+            
+            // 30秒后停止检查（防止无限循环）
+            setTimeout(() => {
+                clearInterval(checkCalendar);
+            }, 30000);
+        }
+        
+        // 显示提示消息（Toast）
+        function showToast(message, type = 'info') {
+            // 创建 Toast 元素
+            const toastHTML = `
+                <div class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            
+            // 添加到页面
+            document.body.insertAdjacentHTML('beforeend', toastHTML);
+            
+            // 获取刚添加的最后一个 toast 元素
+            const toastElements = document.querySelectorAll('.toast');
+            const toastElement = toastElements[toastElements.length - 1];
+            
+            // 初始化并显示 Toast
+            const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
+            toast.show();
+            
+            // 自动移除 DOM 元素
+            setTimeout(() => {
+                toastElement.remove();
+            }, 4000);
+        }
         
         // 初始化重复提醒相关的事件监听器
         function initRepeatReminderListeners() {

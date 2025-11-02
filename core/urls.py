@@ -12,6 +12,7 @@ urlpatterns = [
     path('user_logout/', views.user_logout, name='user_logout'),
     path('user_data/', views.user_data, name='user_data'),
     path('user_preferences/', views.user_preferences, name='user_preferences'),
+    path('help/', views.help_page, name='help_page'),
     
     # Events API
     path('get_calendar/events/', views.get_events, name='get_events'),

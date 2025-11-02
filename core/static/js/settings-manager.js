@@ -29,8 +29,8 @@ class SettingsManager {
     }
 
     // 初始化设置管理器
-    init() {
-        this.loadSettings();
+    async init() {
+        await this.loadSettings();
         this.setupAutoSave();
         // console.log('设置管理器已初始化，当前设置:', this.settings);
     }
@@ -340,36 +340,14 @@ class SettingsManager {
 
     // 应用日历视图设置
     applyCalendarView() {
-        const calendarSettings = this.settings.calendarView;
-        // console.log('应用日历视图设置:', calendarSettings);
+        // ⚠️ 注意：initialView 和 initialDate 已在 event-manager.js 的 initCalendar() 中处理
+        // 这里不再需要重复应用，避免二次设置导致的问题
         
-        if (window.eventManager?.calendar) {
-            // console.log('日历实例存在，开始应用设置');
-            
-            // 设置视图类型
-            if (calendarSettings.viewType) {
-                // console.log('切换到视图类型:', calendarSettings.viewType);
-                try {
-                    window.eventManager.calendar.changeView(calendarSettings.viewType);
-                    // console.log('视图类型设置成功');
-                } catch (error) {
-                    console.error('设置视图类型失败:', error);
-                }
-            }
-            
-            // 设置当前日期
-            if (calendarSettings.currentDate) {
-                // console.log('设置日期为:', calendarSettings.currentDate);
-                try {
-                    window.eventManager.calendar.gotoDate(calendarSettings.currentDate);
-                    // console.log('日期设置成功');
-                } catch (error) {
-                    console.error('设置日期失败:', error);
-                }
-            }
-        } else {
-            console.warn('日历实例不存在，无法应用日历设置');
-        }
+        const calendarSettings = this.settings.calendarView;
+        console.log('日历视图已在初始化时应用:', calendarSettings);
+        
+        // 如果需要在日历初始化后做额外处理,可以在这里添加
+        // 但通常不需要,因为 initialView 和 initialDate 已经正确设置
     }
 
     // 应用面板布局设置

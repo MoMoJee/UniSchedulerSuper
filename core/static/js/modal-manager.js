@@ -306,7 +306,18 @@ class ModalManager {
         // 设置时间
     document.getElementById('newEventStart').value = startStr;
     document.getElementById('newEventEnd').value = endStr;
-    document.getElementById('creatEventDdl').value = endStr;
+    
+    // 根据用户设置决定是否自动填充DDL
+    // 默认启用自动DDL功能（当设置未加载或auto_ddl为true时）
+    const autoDdlEnabled = !window.userSettings || window.userSettings.auto_ddl !== false;
+    if (autoDdlEnabled) {
+        document.getElementById('creatEventDdl').value = endStr;
+        console.log('自动DDL已启用: 截止时间已设置为结束时间', endStr);
+    } else {
+        document.getElementById('creatEventDdl').value = '';
+        console.log('自动DDL已禁用: 截止时间留空');
+    }
+    
     // 初始化ddl控件类型
     this.updateDdlInputType('create');
 
