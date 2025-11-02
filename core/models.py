@@ -857,7 +857,7 @@ DATA_SCHEMA = {
             "theme": {
                 "type": str,
                 "nullable": False,
-                "default": "light",  # light, dark, auto
+                "default": "auto",  # light, dark, auto, china-red, warm-pastel, cool-pastel, macaron, dopamine, forest, sunset, ocean, sakura, cyberpunk
             },
             "show_completed_events": {
                 "type": bool,
