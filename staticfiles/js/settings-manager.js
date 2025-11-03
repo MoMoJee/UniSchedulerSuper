@@ -14,6 +14,20 @@ class SettingsManager {
                 timeRange: 'today',
                 statusFilter: 'active'
             },
+            calendarFilters: {
+                quadrants: {
+                    importantUrgent: true,
+                    importantNotUrgent: true,
+                    notImportantUrgent: true,
+                    notImportantNotUrgent: true
+                },
+                hasDDL: true,
+                noDDL: true,
+                isRecurring: true,
+                notRecurring: true,
+                groups: [], // 空数组表示显示所有分组
+                showReminders: true
+            },
             calendarView: {
                 viewType: 'timeGridWeek',
                 currentDate: new Date().toISOString().split('T')[0]
@@ -29,10 +43,10 @@ class SettingsManager {
     }
 
     // 初始化设置管理器
-    init() {
-        this.loadSettings();
+    async init() {
+        await this.loadSettings();
         this.setupAutoSave();
-        console.log('设置管理器已初始化，当前设置:', this.settings);
+        // console.log('设置管理器已初始化，当前设置:', this.settings);
     }
 
     // 从localStorage和服务器加载设置
@@ -43,7 +57,7 @@ class SettingsManager {
             if (localSettings) {
                 const parsed = JSON.parse(localSettings);
                 this.settings = { ...this.settings, ...parsed };
-                console.log('从localStorage加载设置:', parsed);
+                // console.log('从localStorage加载设置:', parsed);
             }
 
             // 异步从服务器加载最新设置
@@ -54,7 +68,7 @@ class SettingsManager {
                     this.settings = { ...this.settings, ...serverSettings };
                     // 同步到localStorage
                     localStorage.setItem('userInterfaceSettings', JSON.stringify(this.settings));
-                    console.log('从服务器同步设置:', serverSettings);
+                    // console.log('从服务器同步设置:', serverSettings);
                 }
             }
         } catch (error) {
@@ -64,6 +78,17 @@ class SettingsManager {
 
     // 设置自动保存机制
     setupAutoSave() {
+        let lastSaveTime = 0;
+        const minSaveInterval = 1000; // 最小保存间隔1秒
+        
+        const throttledSave = () => {
+            const now = Date.now();
+            if (now - lastSaveTime >= minSaveInterval) {
+                lastSaveTime = now;
+                this.saveSettingsImmediate();
+            }
+        };
+        
         // 监听页面关闭时保存设置
         window.addEventListener('beforeunload', () => {
             this.saveSettingsImmediate();
@@ -72,7 +97,7 @@ class SettingsManager {
         // 监听页面隐藏时保存设置（切换标签页等）
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
-                this.saveSettingsImmediate();
+                throttledSave();
             }
         });
     }
@@ -100,7 +125,7 @@ class SettingsManager {
         // 防抖保存到服务器
         this.debouncedSaveToServer();
         
-        console.log(`设置已更新: ${category}.${key} = ${value}`, this.settings);
+        // console.log(`设置已更新: ${category}.${key} = ${value}`, this.settings);
     }
 
     // 批量更新设置
@@ -113,7 +138,7 @@ class SettingsManager {
         // 防抖保存到服务器
         this.debouncedSaveToServer();
         
-        console.log(`批量更新设置: ${category}`, settings, '完整设置:', this.settings);
+        // console.log(`批量更新设置: ${category}`, settings, '完整设置:', this.settings);
     }
 
     // 防抖保存到服务器
@@ -137,8 +162,8 @@ class SettingsManager {
     // 保存设置到服务器
     async saveToServer() {
         try {
-            console.log('开始保存设置到服务器:', this.settings);
-            console.log('CSRF Token:', this.getCSRFToken());
+            // console.log('开始保存设置到服务器:', this.settings);
+            // console.log('CSRF Token:', this.getCSRFToken());
             const response = await fetch('/get_calendar/change_view/', {
                 method: 'POST',
                 headers: {
@@ -150,7 +175,7 @@ class SettingsManager {
             
             if (response.ok) {
                 const result = await response.json();
-                console.log('设置已保存到服务器:', result);
+                // console.log('设置已保存到服务器:', result);
             } else {
                 const errorText = await response.text();
                 console.warn('保存设置到服务器失败:', response.status, response.statusText, errorText);
@@ -205,7 +230,7 @@ class SettingsManager {
 
     // 应用设置到界面
     applySettings() {
-        console.log('开始应用设置到界面:', this.settings);
+        // console.log('开始应用设置到界面:', this.settings);
         
         // 应用待办筛选设置
         this.applyTodoFilters();
@@ -219,7 +244,7 @@ class SettingsManager {
         // 应用面板布局设置
         this.applyPanelLayout();
         
-        console.log('设置应用完成');
+        // console.log('设置应用完成');
     }
 
     // 应用待办筛选设置
@@ -241,32 +266,32 @@ class SettingsManager {
 
     // 应用提醒筛选设置
     applyReminderFilters() {
-        console.log('=== 开始应用提醒筛选设置 ===');
-        console.log('当前完整设置对象:', this.settings);
-        console.log('提醒筛选设置:', this.settings.reminderFilters);
+        // console.log('=== 开始应用提醒筛选设置 ===');
+        // console.log('当前完整设置对象:', this.settings);
+        // console.log('提醒筛选设置:', this.settings.reminderFilters);
         
         const filters = this.settings.reminderFilters;
-        console.log('应用提醒筛选设置:', filters);
-        console.log('filters 类型:', typeof filters);
-        console.log('filters 是否为undefined:', filters === undefined);
-        console.log('filters 是否为null:', filters === null);
-        console.log('filters 是否为空对象:', filters && Object.keys(filters).length === 0);
+        // console.log('应用提醒筛选设置:', filters);
+        // console.log('filters 类型:', typeof filters);
+        // console.log('filters 是否为undefined:', filters === undefined);
+        // console.log('filters 是否为null:', filters === null);
+        // console.log('filters 是否为空对象:', filters && Object.keys(filters).length === 0);
         
         if (!filters) {
-            console.log('警告：没有找到 reminderFilters 设置');
+            // console.log('警告：没有找到 reminderFilters 设置');
             return;
         }
         
         if (window.reminderManager) {
-            console.log('找到 reminderManager，开始设置DOM元素');
+            // console.log('找到 reminderManager，开始设置DOM元素');
             
             // 时间范围筛选
             if (filters.timeRange) {
                 const timeRangeSelect = document.querySelector('#reminderTimeRange');
                 if (timeRangeSelect) {
-                    console.log('设置时间范围从', timeRangeSelect.value, '到', filters.timeRange);
+                    // console.log('设置时间范围从', timeRangeSelect.value, '到', filters.timeRange);
                     timeRangeSelect.value = filters.timeRange;
-                    console.log('设置时间范围完成，当前值:', timeRangeSelect.value);
+                    // console.log('设置时间范围完成，当前值:', timeRangeSelect.value);
                 } else {
                     console.warn('未找到 #reminderTimeRange 元素');
                 }
@@ -277,7 +302,7 @@ class SettingsManager {
                 const statusSelect = document.querySelector('#reminderStatusFilter');
                 if (statusSelect) {
                     statusSelect.value = filters.status;
-                    console.log('设置状态筛选为:', filters.status);
+                    // console.log('设置状态筛选为:', filters.status);
                 }
             }
             
@@ -286,7 +311,7 @@ class SettingsManager {
                 const prioritySelect = document.querySelector('#reminderPriorityFilter');
                 if (prioritySelect) {
                     prioritySelect.value = filters.priority;
-                    console.log('设置优先级筛选为:', filters.priority);
+                    // console.log('设置优先级筛选为:', filters.priority);
                 }
             }
             
@@ -295,22 +320,22 @@ class SettingsManager {
                 const typeSelect = document.querySelector('#reminderTypeFilter');
                 if (typeSelect) {
                     typeSelect.value = filters.type;
-                    console.log('设置类型筛选为:', filters.type);
+                    // console.log('设置类型筛选为:', filters.type);
                 }
             }
             
             // 触发筛选
             setTimeout(() => {
-                console.log('=== 准备触发筛选器应用 ===');
-                console.log('使用的筛选设置:', filters);
-                console.log('filters 是否为空:', !filters);
-                console.log('filters 的值:', JSON.stringify(filters));
-                console.log('window.reminderManager 状态:', !!window.reminderManager);
+                // console.log('=== 准备触发筛选器应用 ===');
+                // console.log('使用的筛选设置:', filters);
+                // console.log('filters 是否为空:', !filters);
+                // console.log('filters 的值:', JSON.stringify(filters));
+                // console.log('window.reminderManager 状态:', !!window.reminderManager);
                 if (window.reminderManager && filters) {
-                    console.log('调用 reminderManager.applyFilters() 并传入参数');
+                    // console.log('调用 reminderManager.applyFilters() 并传入参数');
                     window.reminderManager.applyFilters(filters);
-                    console.log('reminderManager.applyFilters() 调用完成');
-                    console.log('✅ 提醒筛选器初始化成功');
+                    // console.log('reminderManager.applyFilters() 调用完成');
+                    // console.log('✅ 提醒筛选器初始化成功');
                 } else {
                     console.error('无法应用筛选:', {
                         hasReminderManager: !!window.reminderManager,
@@ -318,47 +343,25 @@ class SettingsManager {
                         filters: filters
                     });
                 }
-                console.log('=== 筛选器应用触发完成 ===');
+                // console.log('=== 筛选器应用触发完成 ===');
             }, 100);
         } else {
             console.error('window.reminderManager 不存在，无法应用筛选设置');
         }
         
-        console.log('=== 应用提醒筛选设置完成 ===');
+        // console.log('=== 应用提醒筛选设置完成 ===');
     }
 
     // 应用日历视图设置
     applyCalendarView() {
-        const calendarSettings = this.settings.calendarView;
-        console.log('应用日历视图设置:', calendarSettings);
+        // ⚠️ 注意：initialView 和 initialDate 已在 event-manager.js 的 initCalendar() 中处理
+        // 这里不再需要重复应用，避免二次设置导致的问题
         
-        if (window.eventManager?.calendar) {
-            console.log('日历实例存在，开始应用设置');
-            
-            // 设置视图类型
-            if (calendarSettings.viewType) {
-                console.log('切换到视图类型:', calendarSettings.viewType);
-                try {
-                    window.eventManager.calendar.changeView(calendarSettings.viewType);
-                    console.log('视图类型设置成功');
-                } catch (error) {
-                    console.error('设置视图类型失败:', error);
-                }
-            }
-            
-            // 设置当前日期
-            if (calendarSettings.currentDate) {
-                console.log('设置日期为:', calendarSettings.currentDate);
-                try {
-                    window.eventManager.calendar.gotoDate(calendarSettings.currentDate);
-                    console.log('日期设置成功');
-                } catch (error) {
-                    console.error('设置日期失败:', error);
-                }
-            }
-        } else {
-            console.warn('日历实例不存在，无法应用日历设置');
-        }
+        const calendarSettings = this.settings.calendarView;
+        console.log('日历视图已在初始化时应用:', calendarSettings);
+        
+        // 如果需要在日历初始化后做额外处理,可以在这里添加
+        // 但通常不需要,因为 initialView 和 initialDate 已经正确设置
     }
 
     // 应用面板布局设置
@@ -381,6 +384,27 @@ class SettingsManager {
     // 监听提醒筛选变化
     onReminderFilterChange(filterType, value) {
         this.updateSetting('reminderFilters', filterType, value);
+    }
+
+    // 监听日历筛选变化
+    onCalendarFilterChange(filterType, value) {
+        this.updateSetting('calendarFilters', filterType, value);
+        // 筛选变化时立即刷新日历
+        if (window.eventManager) {
+            window.eventManager.refreshCalendar();
+        }
+    }
+
+    // 应用日历筛选设置
+    applyCalendarFilters() {
+        const filters = this.settings.calendarFilters;
+        if (!filters) {
+            console.warn('警告：没有找到 calendarFilters 设置');
+            return;
+        }
+        
+        console.log('应用日历筛选设置:', filters);
+        // 筛选会在fetchEvents时自动应用，这里不需要额外操作
     }
 
     // 监听日历视图变化

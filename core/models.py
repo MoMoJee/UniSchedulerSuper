@@ -485,6 +485,70 @@ DATA_SCHEMA = {
                     },
                 },
             },
+            "calendarFilters": {
+                "type": dict,
+                "nullable": False,
+                "default": {},
+                "items": {
+                    "quadrants": {
+                        "type": dict,
+                        "nullable": False,
+                        "default": {},
+                        "items": {
+                            "importantUrgent": {
+                                "type": bool,
+                                "nullable": False,
+                                "default": True,
+                            },
+                            "importantNotUrgent": {
+                                "type": bool,
+                                "nullable": False,
+                                "default": True,
+                            },
+                            "notImportantUrgent": {
+                                "type": bool,
+                                "nullable": False,
+                                "default": True,
+                            },
+                            "notImportantNotUrgent": {
+                                "type": bool,
+                                "nullable": False,
+                                "default": True,
+                            },
+                        },
+                    },
+                    "hasDDL": {
+                        "type": bool,
+                        "nullable": False,
+                        "default": True,
+                    },
+                    "noDDL": {
+                        "type": bool,
+                        "nullable": False,
+                        "default": True,
+                    },
+                    "isRecurring": {
+                        "type": bool,
+                        "nullable": False,
+                        "default": True,
+                    },
+                    "notRecurring": {
+                        "type": bool,
+                        "nullable": False,
+                        "default": True,
+                    },
+                    "groups": {
+                        "type": list,
+                        "nullable": False,
+                        "default": [],
+                    },
+                    "showReminders": {
+                        "type": bool,
+                        "nullable": False,
+                        "default": True,
+                    },
+                },
+            },
             "calendarView": {
                 "type": dict,
                 "nullable": False,

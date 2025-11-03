@@ -14,6 +14,20 @@ class SettingsManager {
                 timeRange: 'today',
                 statusFilter: 'active'
             },
+            calendarFilters: {
+                quadrants: {
+                    importantUrgent: true,
+                    importantNotUrgent: true,
+                    notImportantUrgent: true,
+                    notImportantNotUrgent: true
+                },
+                hasDDL: true,
+                noDDL: true,
+                isRecurring: true,
+                notRecurring: true,
+                groups: [], // 空数组表示显示所有分组
+                showReminders: true
+            },
             calendarView: {
                 viewType: 'timeGridWeek',
                 currentDate: new Date().toISOString().split('T')[0]
@@ -370,6 +384,27 @@ class SettingsManager {
     // 监听提醒筛选变化
     onReminderFilterChange(filterType, value) {
         this.updateSetting('reminderFilters', filterType, value);
+    }
+
+    // 监听日历筛选变化
+    onCalendarFilterChange(filterType, value) {
+        this.updateSetting('calendarFilters', filterType, value);
+        // 筛选变化时立即刷新日历
+        if (window.eventManager) {
+            window.eventManager.refreshCalendar();
+        }
+    }
+
+    // 应用日历筛选设置
+    applyCalendarFilters() {
+        const filters = this.settings.calendarFilters;
+        if (!filters) {
+            console.warn('警告：没有找到 calendarFilters 设置');
+            return;
+        }
+        
+        console.log('应用日历筛选设置:', filters);
+        // 筛选会在fetchEvents时自动应用，这里不需要额外操作
     }
 
     // 监听日历视图变化

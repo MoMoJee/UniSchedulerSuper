@@ -1,12 +1,921 @@
-/* CSS 变量定义 */
-:root {
+/* ============================================
+   CSS 变量定义 - 主题系统
+   ============================================ */
+
+/* 浅色主题 (默认) */
+:root,
+[data-theme="light"] {
+    /* 基础背景色 */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #e9ecef;
+    --bg-body: #f5f5f5;
+    
+    /* 文本颜色 */
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --text-muted: #adb5bd;
+    --text-inverse: #ffffff;
+    
+    /* 边框颜色 */
+    --border-color: #dee2e6;
+    --border-light: #e9ecef;
+    --border-dark: #ced4da;
+    
+    /* 品牌色 */
+    --primary: #0d6efd;
+    --primary-hover: #0b5ed7;
+    --primary-rgb: 13, 110, 253;
+    --success: #198754;
+    --success-rgb: 25, 135, 84;
+    --danger: #dc3545;
+    --danger-rgb: 220, 53, 69;
+    --warning: #ffc107;
+    --warning-rgb: 255, 193, 7;
+    --info: #0dcaf0;
+    --info-rgb: 13, 202, 240;
+    
+    /* 组件颜色 */
+    --card-bg: #ffffff;
+    --card-shadow: rgba(0, 0, 0, 0.1);
+    --modal-bg: #ffffff;
+    --modal-backdrop: rgba(0, 0, 0, 0.5);
+    --input-bg: #ffffff;
+    --input-border: #ced4da;
+    --input-focus-border: #86b7fe;
+    --input-disabled-bg: #e9ecef;
+    
+    /* Navbar */
+    --navbar-bg: #0d6efd;
+    --navbar-text: #ffffff;
+    
+    /* FullCalendar */
+    --fc-bg: #ffffff;
+    --fc-border: #ddd;
+    --fc-event-bg: #3788d8;
+    --fc-event-border: #3788d8;
+    --fc-event-text: #ffffff;
+    --fc-today-bg: rgba(255, 220, 40, 0.15);
+    --fc-highlight: rgba(13, 110, 253, 0.15);
+    --fc-highlight-border: rgba(13, 110, 253, 0.4);
+    
+    /* Buttons */
+    --button-bg: #f8f9fa;
+    --button-text: #212529;
+    --button-hover-bg: #e9ecef;
+    --button-hover-text: #212529;
+    --bg-hover: #f8f9fa;
+    
+    /* Scrollbar */
+    --scrollbar-track: #f1f1f1;
+    --scrollbar-thumb: #888;
+    --scrollbar-thumb-hover: #555;
+    
+    /* 兼容旧变量 */
     --background-color: #ffffff;
-    --border-color: #e9ecef;
     --text-color: #333333;
     --primary-color: #007bff;
 }
 
-/* 全局样式 */
+/* 深色主题 */
+[data-theme="dark"] {
+    /* 基础背景色 - 使用深灰色而非纯黑 */
+    --bg-primary: #1a1d23;
+    --bg-secondary: #22252b;
+    --bg-tertiary: #2c3038;
+    --bg-body: #13151a;
+    
+    /* 文本颜色 - 降低对比度保护眼睛 */
+    --text-primary: #e8eaed;
+    --text-secondary: #9aa0a6;
+    --text-muted: #6c757d;
+    --text-inverse: #212529;
+    
+    /* 边框颜色 - 微妙的分隔 */
+    --border-color: #3c4043;
+    --border-light: #32353a;
+    --border-dark: #4a4d55;
+    
+    /* 品牌色 - 调整以适应深色背景 */
+    --primary: #4d9fff;
+    --primary-hover: #6bb0ff;
+    --primary-rgb: 77, 159, 255;
+    --success: #34a853;
+    --success-rgb: 52, 168, 83;
+    --danger: #ea4335;
+    --danger-rgb: 234, 67, 53;
+    --warning: #fbbc04;
+    --warning-rgb: 251, 188, 4;
+    --info: #4fc3f7;
+    --info-rgb: 79, 195, 247;
+    
+    /* 组件颜色 */
+    --card-bg: #22252b;
+    --card-shadow: rgba(0, 0, 0, 0.3);
+    --modal-bg: #2c3038;
+    --modal-backdrop: rgba(0, 0, 0, 0.7);
+    --input-bg: #32353a;
+    --input-border: #3c4043;
+    --input-focus-border: #4d9fff;
+    --input-disabled-bg: #2c3038;
+    
+    /* Navbar */
+    --navbar-bg: #1a1d23;
+    --navbar-text: #e8eaed;
+    
+    /* FullCalendar */
+    --fc-bg: #22252b;
+    --fc-border: #3c4043;
+    --fc-event-bg: #4d9fff;
+    --fc-event-border: #4d9fff;
+    --fc-event-text: #ffffff;
+    --fc-today-bg: rgba(251, 188, 4, 0.1);
+    --fc-highlight: rgba(77, 159, 255, 0.2);
+    --fc-highlight-border: rgba(77, 159, 255, 0.5);
+    
+    /* Buttons */
+    --button-bg: #2c3038;
+    --button-text: #e8eaed;
+    --button-hover-bg: #3c4043;
+    --button-hover-text: #ffffff;
+    --bg-hover: #32353a;
+    
+    /* Scrollbar */
+    --scrollbar-track: #2c3038;
+    --scrollbar-thumb: #4a4d55;
+    --scrollbar-thumb-hover: #5a5d65;
+    
+    /* 兼容旧变量 */
+    --background-color: #1a1d23;
+    --text-color: #e8eaed;
+    --primary-color: #4d9fff;
+}
+
+/* 中国红主题 - 以中国国旗配色为灵感 */
+[data-theme="china-red"] {
+    /* 基础背景色 - 温暖的米白和浅红 */
+    --bg-primary: #fffef8;
+    --bg-secondary: #fff5f0;
+    --bg-tertiary: #ffe8e0;
+    --bg-body: #fef9f5;
+    
+    /* 文本颜色 */
+    --text-primary: #3d1f1f;
+    --text-secondary: #8b4513;
+    --text-muted: #b8866d;
+    --text-inverse: #ffffff;
+    
+    /* 边框颜色 */
+    --border-color: #ffd4c4;
+    --border-light: #ffe0d4;
+    --border-dark: #ffbaa0;
+    
+    /* 品牌色 - 中国红和金黄 */
+    --primary: #de2910;
+    --primary-hover: #c41e0b;
+    --primary-rgb: 222, 41, 16;
+    --success: #ffde00;
+    --success-rgb: 255, 222, 0;
+    --danger: #de2910;
+    --danger-rgb: 222, 41, 16;
+    --warning: #ff8800;
+    --warning-rgb: 255, 136, 0;
+    --info: #ff6b6b;
+    --info-rgb: 255, 107, 107;
+    
+    /* 组件颜色 */
+    --card-bg: #ffffff;
+    --card-shadow: rgba(222, 41, 16, 0.15);
+    --modal-bg: #fffef8;
+    --modal-backdrop: rgba(61, 31, 31, 0.6);
+    --input-bg: #ffffff;
+    --input-border: #ffd4c4;
+    --input-focus-border: #de2910;
+    --input-disabled-bg: #fff5f0;
+    
+    /* Navbar */
+    --navbar-bg: #de2910;
+    --navbar-text: #ffde00;
+    
+    /* FullCalendar */
+    --fc-bg: #fffef8;
+    --fc-border: #ffd4c4;
+    --fc-event-bg: #de2910;
+    --fc-event-border: #c41e0b;
+    --fc-event-text: #ffffff;
+    --fc-today-bg: rgba(255, 222, 0, 0.2);
+    --fc-highlight: rgba(222, 41, 16, 0.15);
+    --fc-highlight-border: rgba(222, 41, 16, 0.4);
+    
+    /* Buttons */
+    --button-bg: #fff5f0;
+    --button-text: #3d1f1f;
+    --button-hover-bg: #ffe8e0;
+    --button-hover-text: #3d1f1f;
+    --bg-hover: #fff5f0;
+    
+    /* Scrollbar */
+    --scrollbar-track: #fff5f0;
+    --scrollbar-thumb: #de2910;
+    --scrollbar-thumb-hover: #c41e0b;
+    
+    /* 兼容旧变量 */
+    --background-color: #fffef8;
+    --text-color: #3d1f1f;
+    --primary-color: #de2910;
+}
+
+/* 淡暖色主题 - 粉色、淡红、淡黄、淡橙的柔和组合 */
+[data-theme="warm-pastel"] {
+    /* 基础背景色 - 温柔的粉白色系 */
+    --bg-primary: #fff9f9;
+    --bg-secondary: #fff0f3;
+    --bg-tertiary: #ffe8ee;
+    --bg-body: #fffcfc;
+    
+    /* 文本颜色 */
+    --text-primary: #5a4a4a;
+    --text-secondary: #8b7070;
+    --text-muted: #b09999;
+    --text-inverse: #ffffff;
+    
+    /* 边框颜色 */
+    --border-color: #ffd4dd;
+    --border-light: #ffe0e8;
+    --border-dark: #ffb8cc;
+    
+    /* 品牌色 - 柔和的暖色调 */
+    --primary: #ff9eb6;
+    --primary-hover: #ff7fa1;
+    --primary-rgb: 255, 158, 182;
+    --success: #ffcc99;
+    --success-rgb: 255, 204, 153;
+    --danger: #ff8a9a;
+    --danger-rgb: 255, 138, 154;
+    --warning: #ffd699;
+    --warning-rgb: 255, 214, 153;
+    --info: #ffb3d9;
+    --info-rgb: 255, 179, 217;
+    
+    /* 组件颜色 */
+    --card-bg: #ffffff;
+    --card-shadow: rgba(255, 158, 182, 0.15);
+    --modal-bg: #fff9f9;
+    --modal-backdrop: rgba(90, 74, 74, 0.5);
+    --input-bg: #ffffff;
+    --input-border: #ffd4dd;
+    --input-focus-border: #ff9eb6;
+    --input-disabled-bg: #fff0f3;
+    
+    /* Navbar */
+    --navbar-bg: #ff9eb6;
+    --navbar-text: #ffffff;
+    
+    /* FullCalendar */
+    --fc-bg: #fff9f9;
+    --fc-border: #ffd4dd;
+    --fc-event-bg: #ff9eb6;
+    --fc-event-border: #ff7fa1;
+    --fc-event-text: #ffffff;
+    --fc-today-bg: rgba(255, 214, 153, 0.25);
+    --fc-highlight: rgba(255, 158, 182, 0.2);
+    --fc-highlight-border: rgba(255, 158, 182, 0.4);
+    
+    /* Buttons */
+    --button-bg: #fff0f3;
+    --button-text: #5a4a4a;
+    --button-hover-bg: #ffe8ee;
+    --button-hover-text: #5a4a4a;
+    --bg-hover: #fff0f3;
+    
+    /* Scrollbar */
+    --scrollbar-track: #fff0f3;
+    --scrollbar-thumb: #ff9eb6;
+    --scrollbar-thumb-hover: #ff7fa1;
+    
+    /* 兼容旧变量 */
+    --background-color: #fff9f9;
+    --text-color: #5a4a4a;
+    --primary-color: #ff9eb6;
+}
+
+/* 淡冷色主题 - 薄荷绿、天蓝、淡灰的清爽组合 */
+[data-theme="cool-pastel"] {
+    /* 基础背景色 - 清新的浅蓝绿色系 */
+    --bg-primary: #f8fcfc;
+    --bg-secondary: #f0f8f8;
+    --bg-tertiary: #e8f4f4;
+    --bg-body: #fafefe;
+    
+    /* 文本颜色 */
+    --text-primary: #3d4f4f;
+    --text-secondary: #6a8080;
+    --text-muted: #95aaaa;
+    --text-inverse: #ffffff;
+    
+    /* 边框颜色 */
+    --border-color: #d0e8e8;
+    --border-light: #ddf0f0;
+    --border-dark: #b8dddd;
+    
+    /* 品牌色 - 清新的冷色调 */
+    --primary: #45d5ac;
+    --primary-hover: #70dada;
+    --primary-rgb: 126, 200, 200;
+    --success: #8fd9b6;
+    --success-rgb: 143, 217, 182;
+    --danger: #d49999;
+    --danger-rgb: 212, 153, 153;
+    --warning: #c8d47e;
+    --warning-rgb: 200, 212, 126;
+    --info: #99c8d4;
+    --info-rgb: 153, 200, 212;
+    
+    /* 组件颜色 */
+    --card-bg: #ffffff;
+    --card-shadow: rgba(126, 200, 200, 0.15);
+    --modal-bg: #f8fcfc;
+    --modal-backdrop: rgba(61, 79, 79, 0.5);
+    --input-bg: #ffffff;
+    --input-border: #d0e8e8;
+    --input-focus-border: #7ec8c8;
+    --input-disabled-bg: #f0f8f8;
+    
+    /* Navbar */
+    --navbar-bg: #7ec8c8;
+    --navbar-text: #ffffff;
+    
+    /* FullCalendar */
+    --fc-bg: #f8fcfc;
+    --fc-border: #d0e8e8;
+    --fc-event-bg: #7ec8c8;
+    --fc-event-border: #5eb8b8;
+    --fc-event-text: #ffffff;
+    --fc-today-bg: rgba(200, 212, 126, 0.25);
+    --fc-highlight: rgba(126, 200, 200, 0.2);
+    --fc-highlight-border: rgba(126, 200, 200, 0.4);
+    
+    /* Buttons */
+    --button-bg: #f0f8f8;
+    --button-text: #3d4f4f;
+    --button-hover-bg: #e8f4f4;
+    --button-hover-text: #3d4f4f;
+    --bg-hover: #f0f8f8;
+    
+    /* Scrollbar */
+    --scrollbar-track: #f0f8f8;
+    --scrollbar-thumb: #7ec8c8;
+    --scrollbar-thumb-hover: #5eb8b8;
+    
+    /* 兼容旧变量 */
+    --background-color: #f8fcfc;
+    --text-color: #3d4f4f;
+    --primary-color: #7ec8c8;
+}
+
+/* 马卡龙主题 - 柔和甜美的马卡龙色系 */
+[data-theme="macaron"] {
+    /* 基础背景色 - 奶油般的浅色 */
+    --bg-primary: #fefcf9;
+    --bg-secondary: #faf6f0;
+    --bg-tertiary: #f5f0e8;
+    --bg-body: #fffef9;
+    
+    /* 文本颜色 */
+    --text-primary: #4a4032;
+    --text-secondary: #7a6d5a;
+    --text-muted: #a69b88;
+    --text-inverse: #ffffff;
+    
+    /* 边框颜色 */
+    --border-color: #e8dfd0;
+    --border-light: #f0e8d8;
+    --border-dark: #ddd4c0;
+    
+    /* 品牌色 - 马卡龙甜美色系 */
+    --primary: #c8a8d4;
+    --primary-hover: #b890c8;
+    --primary-rgb: 200, 168, 212;
+    --success: #a8d4b8;
+    --success-rgb: 168, 212, 184;
+    --danger: #f4a8b8;
+    --danger-rgb: 244, 168, 184;
+    --warning: #f4d4a8;
+    --warning-rgb: 244, 212, 168;
+    --info: #a8c8e8;
+    --info-rgb: 168, 200, 232;
+    
+    /* 组件颜色 */
+    --card-bg: #ffffff;
+    --card-shadow: rgba(200, 168, 212, 0.2);
+    --modal-bg: #fefcf9;
+    --modal-backdrop: rgba(74, 64, 50, 0.5);
+    --input-bg: #ffffff;
+    --input-border: #e8dfd0;
+    --input-focus-border: #c8a8d4;
+    --input-disabled-bg: #faf6f0;
+    
+    /* Navbar */
+    --navbar-bg: #c8a8d4;
+    --navbar-text: #ffffff;
+    
+    /* FullCalendar */
+    --fc-bg: #fefcf9;
+    --fc-border: #e8dfd0;
+    --fc-event-bg: #c8a8d4;
+    --fc-event-border: #b890c8;
+    --fc-event-text: #ffffff;
+    --fc-today-bg: rgba(244, 212, 168, 0.3);
+    --fc-highlight: rgba(200, 168, 212, 0.2);
+    --fc-highlight-border: rgba(200, 168, 212, 0.4);
+    
+    /* Buttons */
+    --button-bg: #faf6f0;
+    --button-text: #4a4032;
+    --button-hover-bg: #f5f0e8;
+    --button-hover-text: #4a4032;
+    --bg-hover: #faf6f0;
+    
+    /* Scrollbar */
+    --scrollbar-track: #faf6f0;
+    --scrollbar-thumb: #c8a8d4;
+    --scrollbar-thumb-hover: #b890c8;
+    
+    /* 兼容旧变量 */
+    --background-color: #fefcf9;
+    --text-color: #4a4032;
+    --primary-color: #c8a8d4;
+}
+
+/* 多巴胺主题 - 高饱和度鲜艳色彩 */
+[data-theme="dopamine"] {
+    /* 基础背景色 - 明亮的浅色背景 */
+    --bg-primary: #ffffff;
+    --bg-secondary: #fff8e1;
+    --bg-tertiary: #fff3cd;
+    --bg-body: #fffef5;
+    
+    /* 文本颜色 */
+    --text-primary: #1a1a1a;
+    --text-secondary: #4a4a4a;
+    --text-muted: #7a7a7a;
+    --text-inverse: #ffffff;
+    
+    /* 边框颜色 */
+    --border-color: #ffe082;
+    --border-light: #ffecb3;
+    --border-dark: #ffd54f;
+    
+    /* 品牌色 - 鲜艳高饱和度 */
+    --primary: #ff6b35;
+    --primary-hover: #ff5216;
+    --primary-rgb: 255, 107, 53;
+    --success: #00d9ff;
+    --success-rgb: 0, 217, 255;
+    --danger: #ff006e;
+    --danger-rgb: 255, 0, 110;
+    --warning: #ffbe0b;
+    --warning-rgb: 255, 190, 11;
+    --info: #8338ec;
+    --info-rgb: 131, 56, 236;
+    
+    /* 组件颜色 */
+    --card-bg: #ffffff;
+    --card-shadow: rgba(255, 107, 53, 0.25);
+    --modal-bg: #ffffff;
+    --modal-backdrop: rgba(26, 26, 26, 0.6);
+    --input-bg: #ffffff;
+    --input-border: #ffe082;
+    --input-focus-border: #ff6b35;
+    --input-disabled-bg: #fff8e1;
+    
+    /* Navbar */
+    --navbar-bg: linear-gradient(135deg, #ff6b35 0%, #ff006e 50%, #8338ec 100%);
+    --navbar-text: #ffffff;
+    
+    /* FullCalendar */
+    --fc-bg: #ffffff;
+    --fc-border: #ffe082;
+    --fc-event-bg: #ff6b35;
+    --fc-event-border: #ff5216;
+    --fc-event-text: #ffffff;
+    --fc-today-bg: rgba(255, 190, 11, 0.3);
+    --fc-highlight: rgba(255, 107, 53, 0.2);
+    --fc-highlight-border: rgba(255, 107, 53, 0.5);
+    
+    /* Buttons */
+    --button-bg: #fff8e1;
+    --button-text: #1a1a1a;
+    --button-hover-bg: #fff3cd;
+    --button-hover-text: #1a1a1a;
+    --bg-hover: #fff8e1;
+    
+    /* Gradients for special effects */
+    --gradient-primary: linear-gradient(135deg, #ff6b35 0%, #ff006e 50%, #8338ec 100%);
+    --gradient-hover: linear-gradient(135deg, #ff5216 0%, #e6005f 50%, #7230d0 100%);
+    
+    /* Scrollbar */
+    --scrollbar-track: #fff8e1;
+    --scrollbar-thumb: #ff6b35;
+    --scrollbar-thumb-hover: #ff5216;
+    
+    /* 兼容旧变量 */
+    --background-color: #ffffff;
+    --text-color: #1a1a1a;
+    --primary-color: #ff6b35;
+}
+
+/* 森林主题 - 自然绿色护眼系 */
+[data-theme="forest"] {
+    /* 基础背景色 - 深浅绿色 */
+    --bg-primary: #f4f9f4;
+    --bg-secondary: #e8f5e8;
+    --bg-tertiary: #d4edd4;
+    --bg-body: #f8fdf8;
+    
+    /* 文本颜色 */
+    --text-primary: #2d4a2d;
+    --text-secondary: #4a6b4a;
+    --text-muted: #6b8b6b;
+    --text-inverse: #ffffff;
+    
+    /* 边框颜色 */
+    --border-color: #c8e6c8;
+    --border-light: #d4edd4;
+    --border-dark: #b8ddb8;
+    
+    /* 品牌色 - 绿色系 */
+    --primary: #2e7d32;
+    --primary-hover: #1b5e20;
+    --primary-rgb: 46, 125, 50;
+    --success: #66bb6a;
+    --success-rgb: 102, 187, 106;
+    --danger: #8d6e63;
+    --danger-rgb: 141, 110, 99;
+    --warning: #ffb74d;
+    --warning-rgb: 255, 183, 77;
+    --info: #4db6ac;
+    --info-rgb: 77, 182, 172;
+    
+    /* 组件颜色 */
+    --card-bg: #ffffff;
+    --card-shadow: rgba(46, 125, 50, 0.15);
+    --modal-bg: #f4f9f4;
+    --modal-backdrop: rgba(45, 74, 45, 0.6);
+    --input-bg: #ffffff;
+    --input-border: #c8e6c8;
+    --input-focus-border: #2e7d32;
+    --input-disabled-bg: #e8f5e8;
+    
+    /* Navbar */
+    --navbar-bg: #2e7d32;
+    --navbar-text: #ffffff;
+    
+    /* FullCalendar */
+    --fc-bg: #f4f9f4;
+    --fc-border: #c8e6c8;
+    --fc-event-bg: #2e7d32;
+    --fc-event-border: #1b5e20;
+    --fc-event-text: #ffffff;
+    --fc-today-bg: rgba(255, 183, 77, 0.2);
+    --fc-highlight: rgba(46, 125, 50, 0.15);
+    --fc-highlight-border: rgba(46, 125, 50, 0.4);
+    
+    /* Buttons */
+    --button-bg: #e8f5e8;
+    --button-text: #2d4a2d;
+    --button-hover-bg: #d4edd4;
+    --button-hover-text: #2d4a2d;
+    --bg-hover: #e8f5e8;
+    
+    /* Scrollbar */
+    --scrollbar-track: #e8f5e8;
+    --scrollbar-thumb: #2e7d32;
+    --scrollbar-thumb-hover: #1b5e20;
+    
+    /* 兼容旧变量 */
+    --background-color: #f4f9f4;
+    --text-color: #2d4a2d;
+    --primary-color: #2e7d32;
+}
+
+/* 日落主题 - 温暖渐变黄昏系 */
+[data-theme="sunset"] {
+    /* 基础背景色 - 温暖黄昏色 */
+    --bg-primary: #fff4e6;
+    --bg-secondary: #ffe8d1;
+    --bg-tertiary: #ffd4b8;
+    --bg-body: #fff9f0;
+    
+    /* 文本颜色 */
+    --text-primary: #5d3a1a;
+    --text-secondary: #8b5a2b;
+    --text-muted: #a67c52;
+    --text-inverse: #ffffff;
+    
+    /* 边框颜色 */
+    --border-color: #ffcca3;
+    --border-light: #ffd4b8;
+    --border-dark: #ffb88a;
+    
+    /* 品牌色 - 日落暖色 */
+    --primary: #ff6f3c;
+    --primary-hover: #ff5722;
+    --primary-rgb: 255, 111, 60;
+    --success: #ffb84d;
+    --success-rgb: 255, 184, 77;
+    --danger: #ff5252;
+    --danger-rgb: 255, 82, 82;
+    --warning: #ffa726;
+    --warning-rgb: 255, 167, 38;
+    --info: #ff8a80;
+    --info-rgb: 255, 138, 128;
+    
+    /* 组件颜色 */
+    --card-bg: #ffffff;
+    --card-shadow: rgba(255, 111, 60, 0.2);
+    --modal-bg: #fff4e6;
+    --modal-backdrop: rgba(93, 58, 26, 0.6);
+    --input-bg: #ffffff;
+    --input-border: #ffcca3;
+    --input-focus-border: #ff6f3c;
+    --input-disabled-bg: #ffe8d1;
+    
+    /* Navbar - 日落渐变 */
+    --navbar-bg: linear-gradient(135deg, #ff6f3c 0%, #ff8a65 50%, #ffb74d 100%);
+    --navbar-text: #ffffff;
+    
+    /* FullCalendar */
+    --fc-bg: #fff4e6;
+    --fc-border: #ffcca3;
+    --fc-event-bg: #ff6f3c;
+    --fc-event-border: #ff5722;
+    --fc-event-text: #ffffff;
+    --fc-today-bg: rgba(255, 167, 38, 0.25);
+    --fc-highlight: rgba(255, 111, 60, 0.2);
+    --fc-highlight-border: rgba(255, 111, 60, 0.4);
+    
+    /* Buttons */
+    --button-bg: #ffe8d1;
+    --button-text: #5d3a1a;
+    --button-hover-bg: #ffd4b8;
+    --button-hover-text: #5d3a1a;
+    --bg-hover: #ffe8d1;
+    
+    /* Gradients for special effects */
+    --gradient-primary: linear-gradient(135deg, #ff6f3c 0%, #ff8a65 50%, #ffb74d 100%);
+    --gradient-hover: linear-gradient(135deg, #ff5722 0%, #ff7043 50%, #ffa726 100%);
+    
+    /* Scrollbar */
+    --scrollbar-track: #ffe8d1;
+    --scrollbar-thumb: #ff6f3c;
+    --scrollbar-thumb-hover: #ff5722;
+    
+    /* 兼容旧变量 */
+    --background-color: #fff4e6;
+    --text-color: #5d3a1a;
+    --primary-color: #ff6f3c;
+}
+
+/* 海洋主题 - 深蓝海洋专业系 */
+[data-theme="ocean"] {
+    /* 基础背景色 - 深海蓝色 */
+    --bg-primary: #e3f2fd;
+    --bg-secondary: #bbdefb;
+    --bg-tertiary: #90caf9;
+    --bg-body: #e8f4f8;
+    
+    /* 文本颜色 */
+    --text-primary: #0d47a1;
+    --text-secondary: #1565c0;
+    --text-muted: #1976d2;
+    --text-inverse: #ffffff;
+    
+    /* 边框颜色 */
+    --border-color: #90caf9;
+    --border-light: #bbdefb;
+    --border-dark: #64b5f6;
+    
+    /* 品牌色 - 海洋蓝色 */
+    --primary: #0277bd;
+    --primary-hover: #01579b;
+    --primary-rgb: 2, 119, 189;
+    --success: #00acc1;
+    --success-rgb: 0, 172, 193;
+    --danger: #ef5350;
+    --danger-rgb: 239, 83, 80;
+    --warning: #ffa726;
+    --warning-rgb: 255, 167, 38;
+    --info: #29b6f6;
+    --info-rgb: 41, 182, 246;
+    
+    /* 组件颜色 */
+    --card-bg: #ffffff;
+    --card-shadow: rgba(2, 119, 189, 0.2);
+    --modal-bg: #e3f2fd;
+    --modal-backdrop: rgba(13, 71, 161, 0.7);
+    --input-bg: #ffffff;
+    --input-border: #90caf9;
+    --input-focus-border: #0277bd;
+    --input-disabled-bg: #bbdefb;
+    
+    /* Navbar - 海洋渐变 */
+    --navbar-bg: linear-gradient(135deg, #0277bd 0%, #0288d1 50%, #03a9f4 100%);
+    --navbar-text: #ffffff;
+    
+    /* FullCalendar */
+    --fc-bg: #e3f2fd;
+    --fc-border: #90caf9;
+    --fc-event-bg: #0277bd;
+    --fc-event-border: #01579b;
+    --fc-event-text: #ffffff;
+    --fc-today-bg: rgba(255, 167, 38, 0.2);
+    --fc-highlight: rgba(2, 119, 189, 0.2);
+    --fc-highlight-border: rgba(2, 119, 189, 0.5);
+    
+    /* Buttons */
+    --button-bg: #bbdefb;
+    --button-text: #0d47a1;
+    --button-hover-bg: #90caf9;
+    --button-hover-text: #0d47a1;
+    --bg-hover: #bbdefb;
+    
+    /* Gradients for special effects */
+    --gradient-primary: linear-gradient(135deg, #0277bd 0%, #0288d1 50%, #03a9f4 100%);
+    --gradient-hover: linear-gradient(135deg, #01579b 0%, #0277bd 50%, #0288d1 100%);
+    
+    /* Scrollbar */
+    --scrollbar-track: #bbdefb;
+    --scrollbar-thumb: #0277bd;
+    --scrollbar-thumb-hover: #01579b;
+    
+    /* 兼容旧变量 */
+    --background-color: #e3f2fd;
+    --text-color: #0d47a1;
+    --primary-color: #0277bd;
+}
+
+/* 樱花主题 - 日式和风优雅系 */
+[data-theme="sakura"] {
+    /* 基础背景色 - 樱花粉白 */
+    --bg-primary: #fff5f7;
+    --bg-secondary: #ffe4e9;
+    --bg-tertiary: #ffd4dd;
+    --bg-body: #fffafb;
+    
+    /* 文本颜色 */
+    --text-primary: #4a2c2c;
+    --text-secondary: #7a5252;
+    --text-muted: #9a7272;
+    --text-inverse: #ffffff;
+    
+    /* 边框颜色 */
+    --border-color: #ffccd9;
+    --border-light: #ffd4dd;
+    --border-dark: #ffb8ca;
+    
+    /* 品牌色 - 樱花色系 */
+    --primary: #ec407a;
+    --primary-hover: #d81b60;
+    --primary-rgb: 236, 64, 122;
+    --success: #81c784;
+    --success-rgb: 129, 199, 132;
+    --danger: #e57373;
+    --danger-rgb: 229, 115, 115;
+    --warning: #ffb74d;
+    --warning-rgb: 255, 183, 77;
+    --info: #f48fb1;
+    --info-rgb: 244, 143, 177;
+    
+    /* 组件颜色 */
+    --card-bg: #ffffff;
+    --card-shadow: rgba(236, 64, 122, 0.15);
+    --modal-bg: #fff5f7;
+    --modal-backdrop: rgba(74, 44, 44, 0.5);
+    --input-bg: #ffffff;
+    --input-border: #ffccd9;
+    --input-focus-border: #ec407a;
+    --input-disabled-bg: #ffe4e9;
+    
+    /* Navbar */
+    --navbar-bg: #ec407a;
+    --navbar-text: #ffffff;
+    
+    /* FullCalendar */
+    --fc-bg: #fff5f7;
+    --fc-border: #ffccd9;
+    --fc-event-bg: #ec407a;
+    --fc-event-border: #d81b60;
+    --fc-event-text: #ffffff;
+    --fc-today-bg: rgba(255, 183, 77, 0.2);
+    --fc-highlight: rgba(236, 64, 122, 0.15);
+    --fc-highlight-border: rgba(236, 64, 122, 0.4);
+    
+    /* Buttons */
+    --button-bg: #ffe4e9;
+    --button-text: #4a2c2c;
+    --button-hover-bg: #ffd4dd;
+    --button-hover-text: #4a2c2c;
+    --bg-hover: #ffe4e9;
+    
+    /* Scrollbar */
+    --scrollbar-track: #ffe4e9;
+    --scrollbar-thumb: #ec407a;
+    --scrollbar-thumb-hover: #d81b60;
+    
+    /* 兼容旧变量 */
+    --background-color: #fff5f7;
+    --text-color: #4a2c2c;
+    --primary-color: #ec407a;
+}
+
+/* 赛博朋克主题 - 未来科技霓虹系 */
+[data-theme="cyberpunk"] {
+    /* 基础背景色 - 深紫黑 */
+    --bg-primary: #0a0e27;
+    --bg-secondary: #1a1e3e;
+    --bg-tertiary: #2a2e4e;
+    --bg-body: #050814;
+    
+    /* 文本颜色 - 荧光色 */
+    --text-primary: #0097ae;
+    --text-secondary: #80deea;
+    --text-muted: #4dd0e1;
+    --text-inverse: #0a0e27;
+    
+    /* 边框颜色 - 霓虹蓝 */
+    --border-color: #00e5ff;
+    --border-light: #18ffff;
+    --border-dark: #00b8d4;
+    
+    /* 品牌色 - 霓虹色系 */
+    --primary: #00e5ff;
+    --primary-hover: #00b8d4;
+    --primary-rgb: 0, 229, 255;
+    --success: #00ff41;
+    --success-rgb: 0, 255, 65;
+    --danger: #ff2a6d;
+    --danger-rgb: 255, 42, 109;
+    --warning: #ffd600;
+    --warning-rgb: 255, 214, 0;
+    --info: #d500f9;
+    --info-rgb: 213, 0, 249;
+    
+    /* 组件颜色 */
+    --card-bg: #1a1e3e;
+    --card-shadow: rgba(0, 229, 255, 0.3);
+    --modal-bg: #1a1e3e;
+    --modal-backdrop: rgba(5, 8, 20, 0.9);
+    --input-bg: #0a0e27;
+    --input-border: #00e5ff;
+    --input-focus-border: #00ff41;
+    --input-disabled-bg: #2a2e4e;
+    
+    /* Navbar - 霓虹渐变 */
+    --navbar-bg: linear-gradient(135deg, #00e5ff 0%, #d500f9 50%, #ff2a6d 100%);
+    --navbar-text: #ffffff;
+    
+    /* FullCalendar */
+    --fc-bg: #0a0e27;
+    --fc-border: #00e5ff;
+    --fc-event-bg: #00e5ff;
+    --fc-event-border: #00b8d4;
+    --fc-event-text: #0a0e27;
+    --fc-today-bg: rgba(255, 214, 0, 0.15);
+    --fc-highlight: rgba(0, 229, 255, 0.2);
+    --fc-highlight-border: rgba(0, 229, 255, 0.6);
+    
+    /* Buttons */
+    --button-bg: #1a1e3e;
+    --button-text: #00e5ff;
+    --button-hover-bg: #2a2e4e;
+    --button-hover-text: #00ff41;
+    --bg-hover: #2a2e4e;
+    
+    /* Gradients for special effects */
+    --gradient-primary: linear-gradient(135deg, #00e5ff 0%, #d500f9 50%, #ff2a6d 100%);
+    --gradient-hover: linear-gradient(135deg, #00b8d4 0%, #aa00ff 50%, #e91e63 100%);
+    
+    /* Scrollbar */
+    --scrollbar-track: #1a1e3e;
+    --scrollbar-thumb: #00e5ff;
+    --scrollbar-thumb-hover: #00ff41;
+    
+    /* 兼容旧变量 */
+    --background-color: #0a0e27;
+    --text-color: #ab00ff;
+    --primary-color: #00e5ff;
+}
+
+/* ============================================
+   全局样式
+   ============================================ */
+
+/* 平滑过渡 */
+html {
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
 * {
     box-sizing: border-box;
 }
@@ -14,19 +923,191 @@
 body {
     margin: 0;
     font-family: 'Arial', sans-serif;
-    background-color: #f5f5f5;
+    background-color: var(--bg-body);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ============================================
+   通用组件样式 - 使用CSS变量
+   ============================================ */
+
+/* Bootstrap组件使用CSS变量 */
+.card {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.modal-content {
+    background-color: var(--modal-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.modal-header {
+    border-bottom-color: var(--border-color);
+}
+
+.modal-footer {
+    background-color: var(--modal-bg);
+    border-top-color: var(--border-color);
+}
+
+.form-control,
+.form-select {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: var(--input-bg);
+    border-color: var(--input-focus-border);
+    color: var(--text-primary);
+}
+
+.input-group-text {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+}
+
+/* Dropdown */
+.dropdown-menu {
+    background-color: var(--modal-bg);
+    border-color: var(--border-color);
+}
+
+.dropdown-item {
+    color: var(--text-primary);
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.dropdown-divider {
+    border-top-color: var(--border-color);
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: var(--text-inverse);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+/* List Group */
+.list-group-item {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+/* Navbar */
+.navbar {
+    background: var(--navbar-bg) !important;
+}
+
+.navbar .nav-link {
+    color: var(--navbar-text) !important;
 }
 
 /* FullCalendar 基础样式确保 */
 .fc {
     direction: ltr;
     text-align: left;
+    background-color: var(--fc-bg);
+    color: var(--text-primary);
 }
 
 .fc-theme-standard td,
 .fc-theme-standard th {
-    border: 1px solid #ddd;
+    border: 1px solid var(--fc-border);
 }
+
+.fc-scrollgrid {
+    border-color: var(--fc-border) !important;
+}
+
+.fc-col-header-cell {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.fc-daygrid-day,
+.fc-timegrid-slot {
+    background-color: var(--fc-bg);
+}
+
+.fc-day-today {
+    background-color: var(--fc-today-bg) !important;
+}
+
+/* 确保今天的背景色在所有视图中都生效 */
+.fc .fc-day-today,
+.fc-daygrid-day.fc-day-today,
+.fc-timegrid-col.fc-day-today {
+    background-color: var(--fc-today-bg) !important;
+}
+
+/* 今天的日期数字也加上轻微的强调 */
+.fc .fc-day-today .fc-daygrid-day-number {
+    font-weight: 600 !important;
+}
+
+/* 列表视图中今天的行 */
+.fc .fc-list-day.fc-day-today,
+.fc .fc-list-day.fc-day-today .fc-list-day-cushion {
+    background-color: var(--fc-today-bg) !important;
+    font-weight: 600 !important;
+}
+
+/* 移除事件的强制颜色设置，让事件使用自己的backgroundColor和borderColor */
+/* .fc-event {
+    background-color: var(--fc-event-bg);
+    border-color: var(--fc-event-border);
+    color: var(--fc-event-text);
+} */
+
+/* 时间段选择高亮样式 */
+.fc-highlight {
+    background-color: var(--fc-highlight) !important;
+    border: 2px solid var(--fc-highlight-border) !important;
+}
+
+/* FullCalendar 的各种选择高亮元素 */
+.fc .fc-highlight {
+    background-color: var(--fc-highlight) !important;
+    border: 2px solid var(--fc-highlight-border) !important;
+}
+
+.fc-timegrid .fc-highlight,
+.fc-daygrid .fc-highlight {
+    background-color: var(--fc-highlight) !important;
+    border: 2px solid var(--fc-highlight-border) !important;
+}
+
+/* 时间网格中的选择背景 */
+.fc-timegrid-col.fc-day-today .fc-highlight {
+    background-color: var(--fc-highlight) !important;
+}
+
+/* 矩形选择模式的高亮样式 */
+.fc-highlight.rectangle-selection {
+    background-color: rgba(32, 201, 151, 0.15) !important; /* 半透明绿色 */
+    border: 2px solid rgba(32, 201, 151, 0.4) !important;
+}
+
 
 /* 让整个时间网格容器填满空间但不直接滚动 */
 .fc-timegrid {
@@ -40,16 +1121,16 @@ body {
 /* 确保日历容器有足够的高度 */
 #calendar {
     min-height: 600px;
-    background: white;
+    background: var(--bg-secondary);
     border-radius: 8px;
     padding: 20px;
 }
 
 /* 头部样式 */
 .header {
-    background: white;
+    background: var(--bg-primary);
     padding: 15px 0;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px var(--card-shadow);
     margin-bottom: 20px;
 }
 
@@ -496,13 +1577,13 @@ body {
 
 .modal-header {
     padding: 20px 24px 16px;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-shrink: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: var(--primary);
+    color: var(--text-inverse);
     border-radius: 12px 12px 0 0;
 }
 
@@ -739,18 +1820,41 @@ body {
     overflow: hidden !important;
 }
 
-.fc-view-harness {
+/* 默认禁用view-harness滚动，周视图和日视图不需要 */
+.fc-timeGridWeek-view .fc-view-harness,
+.fc-timeGridDay-view .fc-view-harness,
+.fc-timeGrid-view .fc-view-harness {
     overflow: hidden !important;
 }
 
-/* 禁用日历的滚动 */
+/* 月视图view-harness允许滚动 */
+.fc-dayGridMonth-view .fc-view-harness {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* 默认禁用滚动，但月视图除外 */
 .fc-scroller {
     overflow-y: hidden !important;
     overflow-x: hidden !important;
 }
 
+/* 月视图启用滚动 - 使用多个选择器确保生效 */
+.fc-dayGridMonth-view .fc-scroller,
+.fc-dayGridMonth-view .fc-daygrid-body,
+.fc-dayGridMonth-view .fc-scroller-liquid,
+.fc-dayGridMonth-view .fc-scroller-harness {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
 .fc-daygrid-body {
     overflow: hidden !important;
+}
+
+/* 月视图的daygrid-body启用滚动 */
+.fc-dayGridMonth-view .fc-daygrid-body {
+    overflow: auto !important;
 }
 
 /* 确保日历适应固定高度 */
@@ -1173,4 +2277,1110 @@ body {
     border-radius: 3px;
     font-size: 0.9rem;
 }
+
+/* ==================== 重要性紧急性矩阵样式 ==================== */
+.importance-urgency-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.matrix-row {
+  display: flex;
+  gap: 8px;
+}
+
+.matrix-button {
+  flex: 1;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 2px solid #dee2e6;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #495057;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.matrix-button:hover {
+  border-color: #0d6efd;
+  background-color: #f8f9fa;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.matrix-button:active {
+  transform: translateY(0);
+}
+
+.matrix-button.selected {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(13, 110, 253, 0.3);
+}
+
+/* 四象限不同颜色 */
+.matrix-button.important-urgent.selected {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.matrix-button.important-not-urgent.selected {
+  background-color: #fd7e14;
+  border-color: #fd7e14;
+  box-shadow: 0 2px 8px rgba(253, 126, 20, 0.3);
+}
+
+.matrix-button.not-important-urgent.selected {
+  background-color: #ffc107;
+  border-color: #ffc107;
+  color: #000000;
+  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+}
+
+.matrix-button.not-important-not-urgent.selected {
+  background-color: #6c757d;
+  border-color: #6c757d;
+  box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+}
+
+/* ==================== 时间段选择对话框样式 ==================== */
+.selection-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.selection-dialog {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  min-width: 400px;
+  max-width: 500px;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.selection-dialog-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.selection-dialog-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+
+.selection-dialog-close {
+  font-size: 28px;
+  color: #999;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.selection-dialog-close:hover {
+  color: #333;
+}
+
+.selection-dialog-body {
+  padding: 24px;
+}
+
+.selection-info {
+  margin-bottom: 16px;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.selection-info strong {
+  color: #495057;
+  font-weight: 600;
+}
+
+.duration-info {
+  color: #6c757d;
+  font-size: 13px;
+}
+
+.selection-mode {
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.mode-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.mode-rectangle {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.mode-continuous {
+  background-color: #cfe2ff;
+  color: #084298;
+}
+
+.selection-options {
+  display: flex;
+  gap: 12px;
+}
+
+.selection-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.selection-btn i {
+  font-size: 16px;
+}
+
+.selection-btn.btn-primary {
+  background-color: #0d6efd;
+  color: white;
+}
+
+.selection-btn.btn-primary:hover {
+  background-color: #0b5ed7;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
+}
+
+.selection-btn.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.selection-btn.btn-secondary:hover {
+  background-color: #5c636a;
+}
+
+
+/* ============================================
+   主题组件适配 (适用于所有主题)
+   ============================================ */
+
+/* Bootstrap组件 */
+[data-theme="dark"] .card,
+[data-theme="china-red"] .card,
+[data-theme="warm-pastel"] .card,
+[data-theme="cool-pastel"] .card,
+[data-theme="macaron"] .card,
+[data-theme="dopamine"] .card {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+[data-theme="dark"] .modal-content,
+[data-theme="china-red"] .modal-content,
+[data-theme="warm-pastel"] .modal-content,
+[data-theme="cool-pastel"] .modal-content,
+[data-theme="macaron"] .modal-content,
+[data-theme="dopamine"] .modal-content {
+    background-color: var(--modal-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .modal-header,
+[data-theme="china-red"] .modal-header,
+[data-theme="warm-pastel"] .modal-header,
+[data-theme="cool-pastel"] .modal-header,
+[data-theme="macaron"] .modal-header,
+[data-theme="dopamine"] .modal-header {
+    border-bottom-color: var(--border-color);
+}
+
+/* 为有渐变navbar的主题添加渐变modal-header */
+[data-theme="dopamine"] .modal-header {
+    background: linear-gradient(135deg, #ff6b35 0%, #ff006e 50%, #8338ec 100%);
+}
+
+[data-theme="sunset"] .modal-header {
+    background: linear-gradient(135deg, #ff6f3c 0%, #ff8a65 50%, #ffb74d 100%);
+}
+
+[data-theme="ocean"] .modal-header {
+    background: linear-gradient(135deg, #0277bd 0%, #0288d1 50%, #03a9f4 100%);
+}
+
+[data-theme="cyberpunk"] .modal-header {
+    background: linear-gradient(135deg, #00e5ff 0%, #d500f9 50%, #ff2a6d 100%);
+}
+
+[data-theme="dark"] .modal-footer,
+[data-theme="china-red"] .modal-footer,
+[data-theme="warm-pastel"] .modal-footer,
+[data-theme="cool-pastel"] .modal-footer,
+[data-theme="macaron"] .modal-footer,
+[data-theme="dopamine"] .modal-footer {
+    background-color: var(--modal-bg);
+    border-top-color: var(--border-color);
+}
+
+/* 表单组件 */
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    background-color: var(--input-bg);
+    border-color: var(--input-focus-border);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.25rem rgba(var(--primary-rgb), 0.25);
+}
+
+[data-theme="dark"] .form-control:disabled,
+[data-theme="dark"] .form-select:disabled {
+    background-color: var(--input-disabled-bg);
+}
+
+[data-theme="dark"] .form-control::placeholder {
+    color: var(--text-muted);
+}
+
+/* 输入组 */
+[data-theme="dark"] .input-group-text {
+    background-color: var(--bg-tertiary);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+}
+
+/* 导航栏 */
+[data-theme="dark"] .navbar {
+    background-color: var(--navbar-bg) !important;
+}
+
+[data-theme="dark"] .navbar-brand,
+[data-theme="dark"] .navbar .nav-link {
+    color: var(--navbar-text) !important;
+}
+
+[data-theme="dark"] .dropdown-menu {
+    background-color: var(--modal-bg);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .dropdown-item {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .dropdown-item:hover,
+[data-theme="dark"] .dropdown-item:focus {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .dropdown-divider {
+    border-top-color: var(--border-color);
+}
+
+/* 按钮 */
+[data-theme="dark"] .btn-primary {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] .btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .btn-outline-secondary:hover {
+    background-color: var(--bg-tertiary);
+    border-color: var(--border-dark);
+    color: var(--text-primary);
+}
+
+/* 徽章 */
+[data-theme="dark"] .badge {
+    color: var(--text-inverse);
+}
+
+/* Toast/Alert */
+[data-theme="dark"] .alert {
+    border-color: var(--border-color);
+}
+
+/* Tab导航 */
+[data-theme="dark"] .nav-tabs {
+    border-bottom-color: var(--border-color);
+}
+
+[data-theme="dark"] .nav-tabs .nav-link {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .nav-tabs .nav-link:hover {
+    border-color: var(--border-light) var(--border-light) var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .nav-tabs .nav-link.active {
+    background-color: var(--bg-primary);
+    border-color: var(--border-color) var(--border-color) var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* FullCalendar深色模式 */
+[data-theme="dark"] #calendar {
+    background: var(--bg-secondary); /* 使用稍深的背景而非纯白 */
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .fc {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .fc-theme-standard td,
+[data-theme="dark"] .fc-theme-standard th {
+    border-color: var(--fc-border);
+}
+
+[data-theme="dark"] .fc-scrollgrid {
+    border-color: var(--fc-border);
+}
+
+[data-theme="dark"] .fc-col-header-cell {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .fc-daygrid-day {
+    background-color: var(--bg-secondary);
+}
+
+[data-theme="dark"] .fc-day-today {
+    background-color: var(--fc-today-bg) !important;
+}
+
+/* 移除深色主题下事件的强制颜色设置 */
+/* [data-theme="dark"] .fc-event {
+    background-color: var(--fc-event-bg);
+    border-color: var(--fc-event-border);
+    color: var(--fc-event-text);
+    opacity: 0.85;
+} */
+
+[data-theme="dark"] .fc-event:hover {
+    opacity: 1; /* 悬停时恢复完整亮度 */
+}
+
+[data-theme="dark"] .fc-timegrid-slot {
+    border-color: var(--fc-border);
+}
+
+[data-theme="dark"] .fc-timegrid-axis {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .fc-toolbar-title {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .fc .fc-button-primary {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] .fc .fc-button-primary:hover {
+    background-color: var(--primary-hover);
+}
+
+[data-theme="dark"] .fc-highlight {
+    background-color: var(--fc-highlight) !important;
+    border-color: var(--fc-highlight-border) !important;
+}
+
+/* 自定义滚动条 */
+[data-theme="dark"] ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 5px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+/* 面板容器 */
+[data-theme="dark"] .left-panel,
+[data-theme="dark"] .right-panel {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .section-header {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-bottom-color: var(--border-color);
+}
+
+/* AI聊天区域 */
+[data-theme="dark"] .chat-messages {
+    background-color: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .welcome-message {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .welcome-message i {
+    color: var(--primary);
+}
+
+[data-theme="dark"] .chat-input-area textarea {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .chat-input-area textarea:focus {
+    background-color: var(--input-bg);
+    border-color: var(--input-focus-border);
+}
+
+/* 待办和提醒卡片 */
+[data-theme="dark"] .todo-item,
+[data-theme="dark"] .reminder-item {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .todo-item:hover,
+[data-theme="dark"] .reminder-item:hover {
+    background-color: var(--bg-tertiary);
+}
+
+/* 紧急提醒深色模式 */
+[data-theme="dark"] .reminder-item.urgent {
+    background-color: rgba(220, 53, 69, 0.15) !important;
+    border-left-color: #ea4335 !important;
+}
+
+[data-theme="dark"] .reminder-item.urgent .reminder-priority {
+    color: #ea4335 !important;
+}
+
+/* 提醒和待办标题颜色 */
+[data-theme="dark"] .section-header h6 {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .todo-item .title,
+[data-theme="dark"] .reminder-item .title {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .todo-item .meta,
+[data-theme="dark"] .reminder-item .meta {
+    color: var(--text-secondary);
+}
+
+/* 重要紧急性矩阵深色模式 */
+[data-theme="dark"] .importance-urgency-matrix {
+    background-color: transparent;
+}
+
+[data-theme="dark"] .matrix-button {
+    background-color: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .matrix-button:hover {
+    background-color: var(--bg-primary);
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] .matrix-button.selected {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: #ffffff;
+}
+
+/* 保持四象限的特定颜色 */
+[data-theme="dark"] .matrix-button.important-urgent.selected {
+    background-color: #ea4335;
+    border-color: #ea4335;
+}
+
+[data-theme="dark"] .matrix-button.important-not-urgent.selected {
+    background-color: #fd7e14;
+    border-color: #fd7e14;
+}
+
+[data-theme="dark"] .matrix-button.not-important-urgent.selected {
+    background-color: #fbbc04;
+    border-color: #fbbc04;
+    color: #000000;
+}
+
+[data-theme="dark"] .matrix-button.not-important-not-urgent.selected {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+/* 选择对话框 */
+[data-theme="dark"] .selection-dialog {
+    background: var(--modal-bg);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .selection-dialog h5 {
+    color: var(--text-primary);
+}
+
+/* 文本颜色 */
+[data-theme="dark"] .text-muted {
+    color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .text-secondary {
+    color: var(--text-secondary) !important;
+}
+
+/* 小文本 */
+[data-theme="dark"] small {
+    color: var(--text-muted);
+}
+
+/* 边框 */
+[data-theme="dark"] hr {
+    border-color: var(--border-color);
+    opacity: 1;
+}
+
+/* 日程组列表 */
+[data-theme="dark"] .list-group-item {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .list-group-item h6 {
+    color: var(--text-primary);
+}
+
+/* 日历筛选下拉菜单样式 */
+.calendar-filter-dropdown {
+    position: absolute;
+    z-index: 1050;
+    min-width: 280px;
+    max-width: 350px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 16px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.calendar-filter-dropdown .filter-section {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.calendar-filter-dropdown .filter-section:last-of-type {
+    border-bottom: none;
+}
+
+.calendar-filter-dropdown .filter-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.calendar-filter-dropdown .form-check {
+    margin-bottom: 8px;
+}
+
+.calendar-filter-dropdown .form-check-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.calendar-filter-dropdown .form-check-input {
+    cursor: pointer;
+    border-color: var(--border-color);
+}
+
+.calendar-filter-dropdown .form-check-input:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+.calendar-filter-dropdown .group-color-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-left: 4px;
+}
+
+.calendar-filter-dropdown .filter-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.calendar-filter-dropdown .filter-actions .btn {
+    flex: 1;
+}
+
+.calendar-filter-dropdown .text-muted {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 8px;
+    display: block;
+}
+
+/* 筛选按钮样式优化 */
+.fc-calendarFilterButton-button {
+    background: var(--primary) !important;
+    color: white !important;
+    border: none !important;
+    padding: 0.375rem 0.75rem !important;
+    border-radius: 4px !important;
+    font-size: 0.875rem !important;
+    transition: all 0.2s ease !important;
+}
+
+.fc-calendarFilterButton-button:hover {
+    background: var(--primary-hover) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.fc-calendarFilterButton-button:active {
+    transform: translateY(0);
+}
+
+/* 暗色主题适配 */
+[data-theme="dark"] .calendar-filter-dropdown {
+    background: var(--card-bg);
+    border-color: var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .calendar-filter-dropdown .filter-title {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .calendar-filter-dropdown .form-check-label {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .calendar-filter-dropdown .form-check-input {
+    background-color: var(--input-bg);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .calendar-filter-dropdown .form-check-input:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* =====================================
+   FullCalendar 主题适配优化
+   ===================================== */
+
+/* 工具栏按钮统一样式 */
+.fc .fc-button {
+    background: var(--button-bg) !important;
+    color: var(--button-text) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 6px !important;
+    padding: 0.4rem 0.8rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+.fc .fc-button:hover:not(:disabled) {
+    background: var(--button-hover-bg) !important;
+    color: var(--button-hover-text) !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-1px);
+}
+
+.fc .fc-button:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+.fc .fc-button:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+}
+
+/* 激活状态的按钮（当前选中的视图） */
+.fc .fc-button-active {
+    background: var(--primary) !important;
+    color: white !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.3) !important;
+}
+
+.fc .fc-button-active:hover {
+    background: var(--primary-hover) !important;
+    color: white !important;
+}
+
+/* 主要按钮样式（如今天按钮） */
+.fc .fc-button-primary {
+    background: var(--primary) !important;
+    color: white !important;
+    border-color: var(--primary) !important;
+}
+
+.fc .fc-button-primary:hover:not(:disabled) {
+    background: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
+}
+
+/* 工具栏标题 */
+.fc .fc-toolbar-title {
+    color: var(--text-primary) !important;
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
+}
+
+/* 周数徽章主题适配 */
+#weekNumberBadge {
+    background-color: var(--primary) !important;
+    color: var(--text-inverse) !important;
+    border: 1px solid var(--primary) !important;
+}
+
+/* 日期数字样式 */
+.fc .fc-daygrid-day-number,
+.fc .fc-col-header-cell-cushion,
+.fc .fc-timegrid-slot-label-cushion {
+    color: var(--text-primary) !important;
+    font-weight: 500 !important;
+    text-decoration: none !important;
+}
+
+/* 星期标题 */
+.fc .fc-col-header-cell-cushion {
+    padding: 8px 4px !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    color: var(--text-secondary) !important;
+    text-decoration: none !important;
+}
+
+/* 日期单元格 */
+.fc .fc-daygrid-day-top {
+    color: var(--text-primary) !important;
+}
+
+.fc .fc-daygrid-day-number {
+    padding: 4px 8px !important;
+    font-size: 0.9rem !important;
+    text-decoration: none !important;
+}
+
+/* 今天的日期数字高亮 */
+.fc .fc-day-today .fc-daygrid-day-number,
+.fc .fc-day-today .fc-col-header-cell-cushion {
+    color: var(--primary) !important;
+    font-weight: 700 !important;
+    text-decoration: none !important;
+}
+
+/* 所有链接移除下划线 */
+.fc a {
+    text-decoration: none !important;
+}
+
+/* 时间轴标签 */
+.fc .fc-timegrid-axis-cushion {
+    color: var(--text-secondary) !important;
+    font-size: 0.75rem !important;
+}
+
+/* 列表视图样式 */
+.fc .fc-list-day-cushion {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+.fc .fc-list-event-time,
+.fc .fc-list-event-title {
+    color: var(--text-primary) !important;
+}
+
+.fc .fc-list-event:hover td {
+    background: var(--bg-hover) !important;
+}
+
+/* 列表视图表格 */
+.fc .fc-list-table {
+    background: var(--bg-primary) !important;
+}
+
+.fc .fc-list-event-dot {
+    border-color: inherit !important;
+}
+
+.fc .fc-list-event td {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+.fc .fc-list-day th {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
+.fc .fc-list-empty {
+    background: var(--bg-primary) !important;
+    color: var(--text-secondary) !important;
+}
+
+/* 列表视图滚动支持 */
+.fc-listWeek-view .fc-scroller,
+.fc-list-view .fc-scroller,
+.fc .fc-list {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    height: 100% !important;
+    max-height: none !important;
+}
+
+.fc-listWeek-view .fc-view-harness,
+.fc-list-view .fc-view-harness {
+    height: 100% !important;
+    overflow-y: auto !important;
+}
+
+/* 网格边框颜色 */
+.fc .fc-scrollgrid,
+.fc .fc-scrollgrid td,
+.fc .fc-scrollgrid th {
+    border-color: var(--border-color) !important;
+}
+
+/* 当前时间指示线 */
+.fc .fc-timegrid-now-indicator-line {
+    border-color: var(--primary) !important;
+    border-width: 2px !important;
+}
+
+.fc .fc-timegrid-now-indicator-arrow {
+    border-color: var(--primary) !important;
+}
+
+/* 更多事件链接 */
+.fc .fc-daygrid-more-link {
+    color: var(--primary) !important;
+    font-weight: 500 !important;
+}
+
+.fc .fc-daygrid-more-link:hover {
+    color: var(--primary-hover) !important;
+    text-decoration: underline !important;
+}
+
+/* 弹出层（更多事件） */
+.fc .fc-popover {
+    background: var(--card-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.fc .fc-popover-header {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+.fc .fc-popover-body {
+    color: var(--text-primary) !important;
+}
+
+/* 月视图周数 */
+.fc .fc-daygrid-week-number {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-secondary) !important;
+}
+
+.fc .fc-daygrid-week-number a {
+    color: var(--text-secondary) !important;
+}
+
+/* 非当前月的日期 */
+.fc .fc-day-other .fc-daygrid-day-number {
+    color: var(--text-muted) !important;
+    opacity: 0.5 !important;
+}
+
+/* 所有主题通用的渐变效果优化 */
+.fc .fc-button {
+    background: linear-gradient(135deg, var(--button-bg), var(--button-bg)) !important;
+}
+
+.fc .fc-button-active,
+.fc .fc-button-primary {
+    background: var(--button-bg) !important;
+    color: var(--button-text) !important;
+    border-color: var(--primary) !important;
+}
+
+/* 为创意主题添加特殊效果 */
+[data-theme="dopamine"] .fc .fc-button-active,
+[data-theme="dopamine"] .fc .fc-button-primary,
+[data-theme="sunset"] .fc .fc-button-active,
+[data-theme="sunset"] .fc .fc-button-primary,
+[data-theme="ocean"] .fc .fc-button-active,
+[data-theme="ocean"] .fc .fc-button-primary,
+[data-theme="cyberpunk"] .fc .fc-button-active,
+[data-theme="cyberpunk"] .fc .fc-button-primary {
+    background: var(--gradient-primary) !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.4) !important;
+}
+
+[data-theme="dopamine"] .fc .fc-button:hover,
+[data-theme="sunset"] .fc .fc-button:hover,
+[data-theme="ocean"] .fc .fc-button:hover,
+[data-theme="cyberpunk"] .fc .fc-button:hover {
+    background: var(--gradient-hover) !important;
+    box-shadow: 0 6px 16px rgba(var(--primary-rgb), 0.5) !important;
+}
+
+/* 确保日历容器使用主题背景 */
+.fc {
+    background: var(--bg-primary) !important;
+}
+
+/* 日期单元格背景 - 但不覆盖今天的背景 */
+.fc .fc-daygrid-day:not(.fc-day-today),
+.fc .fc-timegrid-col:not(.fc-day-today) {
+    background: var(--bg-primary) !important;
+}
+
+.fc .fc-col-header-cell {
+    background: var(--bg-secondary) !important;
+}
+
+/* 周末样式（可选） */
+.fc .fc-day-sat,
+.fc .fc-day-sun {
+    background: var(--bg-secondary) !important;
+}
+
+/* 滚动条样式 */
+.fc .fc-scroller::-webkit-scrollbar {
+    width: 8px !important;
+    height: 8px !important;
+}
+
+.fc .fc-scroller::-webkit-scrollbar-track {
+    background: var(--scrollbar-track) !important;
+}
+
+.fc .fc-scroller::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb) !important;
+    border-radius: 4px !important;
+}
+
+.fc .fc-scroller::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover) !important;
+}
+
+
 

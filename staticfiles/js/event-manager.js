@@ -22,11 +22,36 @@ class EventManager {
     initCalendar() {
         const calendarEl = document.getElementById('calendar');
         
+        // 从用户设置中读取每周起始日,默认为周一(1)
+        const weekStartsOn = window.userSettings?.week_starts_on || 1;
+        
+        // 从settingsManager获取保存的视图状态
+        const savedView = window.settingsManager?.getCategorySettings('calendarView') || {};
+        
+        // 确定初始视图: 优先使用保存的视图,否则使用默认视图,最后回退到周视图
+        let initialView = 'timeGridWeek'; // 最后的回退值
+        if (savedView.viewType) {
+            initialView = savedView.viewType; // 刷新页面场景
+            console.log('使用保存的视图类型:', initialView);
+        } else if (window.userSettings?.calendar_view_default) {
+            initialView = window.userSettings.calendar_view_default; // 重新登录场景
+            console.log('使用默认视图类型:', initialView);
+        }
+        
+        // 确定初始日期: 使用保存的日期,否则使用今天
+        const initialDate = savedView.currentDate || undefined; // undefined让FullCalendar使用今天
+        if (initialDate) {
+            console.log('使用保存的日期:', initialDate);
+        }
+        
         this.calendar = new FullCalendar.Calendar(calendarEl, {
             height: '100%', // 使用100%高度填满容器
             locale: 'zh-cn',
             allDayText: '全天',
-            initialView: 'timeGridWeek',
+            initialView: initialView, // 使用计算出的初始视图
+            initialDate: initialDate, // 使用保存的日期(如果有)
+            firstDay: weekStartsOn, // 设置每周起始日: 0=周日, 1=周一, ..., 6=周六
+            weekNumbers: true, // 启用周数显示（在月视图左侧显示周数）
             editable: true,
             nowIndicator: true,
             slotMinTime: '00:00', // 显示从0点开始
@@ -38,6 +63,21 @@ class EventManager {
                 daysOfWeek: [1, 2, 3, 4, 5, 6, 0],
                 startTime: '10:00',
                 endTime: '23:00',
+            },
+            
+            // 自定义按钮文字
+            buttonText: {
+                today: '今天',
+                month: '月',
+                week: '周',
+                day: '日',
+                list: '列表'
+            },
+            
+            // 自定义星期名称
+            dayHeaderContent: (args) => {
+                const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+                return dayNames[args.date.getDay()];
             },
             
             // 事件拖拽
@@ -101,7 +141,18 @@ class EventManager {
             
             // 移除aspectRatio，让日历填满整个容器
             headerToolbar: {
-                right: 'timeGridTwoDay,dayGridMonth,timeGridWeek,listWeek'
+                right: 'calendarFilterButton,timeGridTwoDay,dayGridMonth,timeGridWeek,listWeek'
+            },
+            
+            // 自定义按钮
+            customButtons: {
+                calendarFilterButton: {
+                    text: '筛选',
+                    hint: '日历筛选',
+                    click: () => {
+                        this.toggleFilterDropdown();
+                    }
+                }
             },
             
             // 自定义视图：两天日视图
@@ -431,7 +482,7 @@ class EventManager {
                 });
             
             // 合并日程和提醒事件
-            const allEvents = [
+            let allEvents = [
                 ...this.events.map(event => ({
                     ...event,
                     backgroundColor: this.getEventColor(event.groupID),
@@ -440,11 +491,90 @@ class EventManager {
                 ...reminderEvents
             ];
             
+            // 应用日历筛选
+            allEvents = this.applyCalendarFilters(allEvents);
+            
             return allEvents;
         } catch (error) {
             console.error('Error fetching events:', error);
             return [];
         }
+    }
+    
+    /**
+     * 应用日历筛选条件
+     * @param {Array} events - 待筛选的事件数组
+     * @returns {Array} 筛选后的事件数组
+     */
+    applyCalendarFilters(events) {
+        // 从设置管理器获取筛选配置
+        const filters = window.settingsManager?.settings?.calendarFilters;
+        
+        if (!filters) {
+            console.log('未找到日历筛选配置，显示所有事件');
+            return events;
+        }
+        
+        console.log('应用日历筛选:', filters);
+        
+        return events.filter(event => {
+            // 提醒事件只受 showReminders 控制
+            if (event.extendedProps?.isReminder) {
+                return filters.showReminders;
+            }
+            
+            // 普通事件的筛选逻辑
+            
+            // 1. 检查象限筛选（重要性 + 紧急性）
+            const quadrant = this.getEventQuadrant(event.importance, event.urgency);
+            if (!filters.quadrants[quadrant]) {
+                return false;
+            }
+            
+            // 2. 检查DDL筛选
+            const hasDDL = event.ddl && event.ddl.trim() !== '';
+            if (hasDDL && !filters.hasDDL) {
+                return false;
+            }
+            if (!hasDDL && !filters.noDDL) {
+                return false;
+            }
+            
+            // 3. 检查重复事件筛选
+            const isRecurring = event.rrule && event.rrule.includes('FREQ=');
+            if (isRecurring && !filters.isRecurring) {
+                return false;
+            }
+            if (!isRecurring && !filters.notRecurring) {
+                return false;
+            }
+            
+            // 4. 检查分组筛选
+            if (filters.groups && filters.groups.length > 0) {
+                // 如果指定了分组列表，只显示这些分组
+                if (!filters.groups.includes(event.groupID)) {
+                    return false;
+                }
+            }
+            
+            return true;
+        });
+    }
+    
+    /**
+     * 根据重要性和紧急性获取象限
+     * @param {string} importance - 重要性: 'important' 或 'not-important'
+     * @param {string} urgency - 紧急性: 'urgent' 或 'not-urgent'
+     * @returns {string} 象限名称
+     */
+    getEventQuadrant(importance, urgency) {
+        const isImportant = importance === 'important';
+        const isUrgent = urgency === 'urgent';
+        
+        if (isImportant && isUrgent) return 'importantUrgent';
+        if (isImportant && !isUrgent) return 'importantNotUrgent';
+        if (!isImportant && isUrgent) return 'notImportantUrgent';
+        return 'notImportantNotUrgent';
     }
     
     // 获取提醒颜色（根据优先级）- 旧版本，保留以兼容
@@ -518,6 +648,37 @@ class EventManager {
             seriesId: seriesId,
             actionType: actionType
         });
+        
+        // 检查截止时间限制
+        const ddl = event.extendedProps.ddl;
+        if (ddl) {
+            const ddlDate = new Date(ddl);
+            const newEnd = event.end ? new Date(event.end) : new Date(event.start);
+            
+            if (newEnd > ddlDate) {
+                // 超过截止时间，弹回并提示
+                const formatDateTime = (date) => {
+                    return date.toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                };
+                
+                alert(
+                    `❌ 操作失败：日程结束时间不能超过截止时间！\n\n` +
+                    `日程标题：${event.title}\n` +
+                    `新结束时间：${formatDateTime(newEnd)}\n` +
+                    `截止时间：${formatDateTime(ddlDate)}\n\n` +
+                    `请将日程安排在截止时间之前。`
+                );
+                
+                info.revert();
+                return;
+            }
+        }
         
         // 如果是重复事件，显示确认对话框
         if (isRecurring && seriesId) {
@@ -1074,36 +1235,35 @@ class EventManager {
     // 编辑提醒
     editReminderFromCalendar(reminderId) {
         modalManager.closeAllModals();
-        
-        // 需要先获取提醒数据以判断是否为重复提醒
-        fetch('/api/reminders/')
-            .then(res => res.json())
-            .then(data => {
-                const reminder = data.reminders.find(r => r.id === reminderId);
-                if (!reminder) {
-                    alert('提醒不存在');
-                    return;
-                }
-                
-                // 判断是否为重复提醒
-                if (reminder.rrule && reminder.series_id) {
-                    // 重复提醒，显示范围选择对话框
-                    if (window.reminderManager) {
-                        window.reminderManager.showBulkEditDialog(reminderId, reminder.series_id, 'edit');
-                    } else {
-                        alert('提醒管理器未初始化');
+        // 调用 modal-manager 的编辑提醒方法
+        if (window.modalManager) {
+            // 需要先获取提醒数据
+            fetch('/api/reminders/')
+                .then(res => res.json())
+                .then(data => {
+                    const reminder = data.reminders.find(r => r.id === reminderId);
+                    if (reminder) {
+                        // 检查是否是重复提醒
+                        if (reminder.rrule && reminder.series_id) {
+                            // 调用提醒管理器的批量编辑对话框
+                            if (window.reminderManager) {
+                                reminderManager.showBulkEditDialog(
+                                    reminder.id,
+                                    reminder.series_id,
+                                    'edit'
+                                );
+                            } else {
+                                console.error('reminderManager not available');
+                                modalManager.openEditReminderModal(reminder);
+                            }
+                        } else {
+                            // 单个提醒，直接编辑
+                            modalManager.openEditReminderModal(reminder);
+                        }
                     }
-                } else {
-                    // 单次提醒，直接打开编辑对话框
-                    if (window.modalManager) {
-                        modalManager.openEditReminderModal(reminder);
-                    }
-                }
-            })
-            .catch(err => {
-                console.error('Error loading reminder:', err);
-                alert('加载提醒数据失败');
-            });
+                })
+                .catch(err => console.error('Error loading reminder:', err));
+        }
     }
     
     // 删除提醒
@@ -2169,6 +2329,7 @@ class EventManager {
         }
     }
 
+
     // 获取CSRF Token
     getCSRFToken() {
         // 首先尝试从window.CSRF_TOKEN获取
@@ -2184,6 +2345,179 @@ class EventManager {
         const metaToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         return metaToken || '';
     }
+    
+    /**
+     * 切换筛选下拉菜单的显示/隐藏
+     */
+    toggleFilterDropdown() {
+        const dropdown = document.getElementById('calendarFilterDropdown');
+        if (!dropdown) return;
+        
+        const isVisible = dropdown.style.display !== 'none';
+        
+        if (isVisible) {
+            dropdown.style.display = 'none';
+        } else {
+            // 显示下拉菜单
+            dropdown.style.display = 'block';
+            
+            // 定位到筛选按钮下方
+            const filterButton = document.querySelector('.fc-calendarFilterButton-button');
+            if (filterButton) {
+                const rect = filterButton.getBoundingClientRect();
+                const calendarRect = document.getElementById('calendar').getBoundingClientRect();
+                
+                dropdown.style.top = (rect.bottom - calendarRect.top + 5) + 'px';
+                dropdown.style.right = (calendarRect.right - rect.right) + 'px';
+            }
+            
+            // 加载当前筛选设置到UI
+            this.loadFiltersToUI();
+            
+            // 更新日程组列表
+            this.updateGroupFilterList();
+        }
+        
+        // 点击外部关闭下拉菜单
+        if (!isVisible) {
+            setTimeout(() => {
+                const closeHandler = (e) => {
+                    if (!dropdown.contains(e.target) && !e.target.closest('.fc-calendarFilterButton-button')) {
+                        dropdown.style.display = 'none';
+                        document.removeEventListener('click', closeHandler);
+                    }
+                };
+                document.addEventListener('click', closeHandler);
+            }, 100);
+        }
+    }
+    
+    /**
+     * 加载当前筛选设置到UI
+     */
+    loadFiltersToUI() {
+        const filters = window.settingsManager?.settings?.calendarFilters;
+        if (!filters) return;
+        
+        // 象限筛选
+        document.getElementById('filter-important-urgent').checked = filters.quadrants.importantUrgent;
+        document.getElementById('filter-important-not-urgent').checked = filters.quadrants.importantNotUrgent;
+        document.getElementById('filter-not-important-urgent').checked = filters.quadrants.notImportantUrgent;
+        document.getElementById('filter-not-important-not-urgent').checked = filters.quadrants.notImportantNotUrgent;
+        
+        // DDL筛选
+        document.getElementById('filter-has-ddl').checked = filters.hasDDL;
+        document.getElementById('filter-no-ddl').checked = filters.noDDL;
+        
+        // 重复事件筛选
+        document.getElementById('filter-recurring').checked = filters.isRecurring;
+        document.getElementById('filter-not-recurring').checked = filters.notRecurring;
+        
+        // 提醒筛选
+        document.getElementById('filter-show-reminders').checked = filters.showReminders;
+    }
+    
+    /**
+     * 更新日程组筛选列表
+     */
+    updateGroupFilterList() {
+        const groupList = document.getElementById('groupFilterList');
+        if (!groupList || !this.groups) return;
+        
+        const filters = window.settingsManager?.settings?.calendarFilters;
+        const selectedGroups = filters?.groups || [];
+        
+        groupList.innerHTML = '';
+        
+        this.groups.forEach(group => {
+            const checkbox = document.createElement('div');
+            checkbox.className = 'form-check';
+            checkbox.innerHTML = `
+                <input class="form-check-input group-filter-checkbox" 
+                       type="checkbox" 
+                       id="filter-group-${group.id}" 
+                       value="${group.id}"
+                       ${selectedGroups.length === 0 || selectedGroups.includes(group.id) ? 'checked' : ''}>
+                <label class="form-check-label" for="filter-group-${group.id}">
+                    <span class="group-color-dot" style="background-color: ${group.color}"></span>
+                    ${group.name}
+                </label>
+            `;
+            groupList.appendChild(checkbox);
+        });
+    }
+    
+    /**
+     * 从UI应用筛选设置
+     */
+    applyFiltersFromUI() {
+        // 读取UI中的筛选设置
+        const filters = {
+            quadrants: {
+                importantUrgent: document.getElementById('filter-important-urgent').checked,
+                importantNotUrgent: document.getElementById('filter-important-not-urgent').checked,
+                notImportantUrgent: document.getElementById('filter-not-important-urgent').checked,
+                notImportantNotUrgent: document.getElementById('filter-not-important-not-urgent').checked
+            },
+            hasDDL: document.getElementById('filter-has-ddl').checked,
+            noDDL: document.getElementById('filter-no-ddl').checked,
+            isRecurring: document.getElementById('filter-recurring').checked,
+            notRecurring: document.getElementById('filter-not-recurring').checked,
+            showReminders: document.getElementById('filter-show-reminders').checked,
+            groups: []
+        };
+        
+        // 收集选中的日程组
+        const groupCheckboxes = document.querySelectorAll('.group-filter-checkbox:checked');
+        groupCheckboxes.forEach(cb => {
+            filters.groups.push(cb.value);
+        });
+        
+        // 如果所有日程组都选中，则清空数组（表示显示所有）
+        if (groupCheckboxes.length === this.groups.length) {
+            filters.groups = [];
+        }
+        
+        // 更新设置
+        window.settingsManager.updateCategorySettings('calendarFilters', filters);
+        
+        // 刷新日历
+        this.refreshCalendar();
+        
+        // 隐藏下拉菜单
+        document.getElementById('calendarFilterDropdown').style.display = 'none';
+    }
+    
+    /**
+     * 重置筛选为默认值
+     */
+    resetFilters() {
+        const defaultFilters = {
+            quadrants: {
+                importantUrgent: true,
+                importantNotUrgent: true,
+                notImportantUrgent: true,
+                notImportantNotUrgent: true
+            },
+            hasDDL: true,
+            noDDL: true,
+            isRecurring: true,
+            notRecurring: true,
+            showReminders: true,
+            groups: []
+        };
+        
+        // 更新设置
+        window.settingsManager.updateCategorySettings('calendarFilters', defaultFilters);
+        
+        // 刷新UI
+        this.loadFiltersToUI();
+        this.updateGroupFilterList();
+        
+        // 刷新日历
+        this.refreshCalendar();
+    }
 }
 
 // 事件管理器类已定义，实例将在HTML中创建
+

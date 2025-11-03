@@ -121,6 +121,14 @@ class TodoManager {
         div.draggable = true;
         div.dataset.todoId = todo.id;
         
+        // 如果有日程组，应用日程组颜色
+        if (todo.groupID && window.groupManager) {
+            const group = window.groupManager.getGroupById(todo.groupID);
+            if (group) {
+                div.style.borderLeft = `4px solid ${group.color}`;
+            }
+        }
+        
         const priorityIcon = this.getPriorityIcon(todo.importance, todo.urgency);
         const dueDateStr = todo.due_date ? this.formatDueDate(todo.due_date) : '';
         

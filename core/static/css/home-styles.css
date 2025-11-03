@@ -59,6 +59,13 @@
     --fc-highlight: rgba(13, 110, 253, 0.15);
     --fc-highlight-border: rgba(13, 110, 253, 0.4);
     
+    /* Buttons */
+    --button-bg: #f8f9fa;
+    --button-text: #212529;
+    --button-hover-bg: #e9ecef;
+    --button-hover-text: #212529;
+    --bg-hover: #f8f9fa;
+    
     /* Scrollbar */
     --scrollbar-track: #f1f1f1;
     --scrollbar-thumb: #888;
@@ -125,6 +132,13 @@
     --fc-today-bg: rgba(251, 188, 4, 0.1);
     --fc-highlight: rgba(77, 159, 255, 0.2);
     --fc-highlight-border: rgba(77, 159, 255, 0.5);
+    
+    /* Buttons */
+    --button-bg: #2c3038;
+    --button-text: #e8eaed;
+    --button-hover-bg: #3c4043;
+    --button-hover-text: #ffffff;
+    --bg-hover: #32353a;
     
     /* Scrollbar */
     --scrollbar-track: #2c3038;
@@ -193,6 +207,13 @@
     --fc-highlight: rgba(222, 41, 16, 0.15);
     --fc-highlight-border: rgba(222, 41, 16, 0.4);
     
+    /* Buttons */
+    --button-bg: #fff5f0;
+    --button-text: #3d1f1f;
+    --button-hover-bg: #ffe8e0;
+    --button-hover-text: #3d1f1f;
+    --bg-hover: #fff5f0;
+    
     /* Scrollbar */
     --scrollbar-track: #fff5f0;
     --scrollbar-thumb: #de2910;
@@ -259,6 +280,13 @@
     --fc-today-bg: rgba(255, 214, 153, 0.25);
     --fc-highlight: rgba(255, 158, 182, 0.2);
     --fc-highlight-border: rgba(255, 158, 182, 0.4);
+    
+    /* Buttons */
+    --button-bg: #fff0f3;
+    --button-text: #5a4a4a;
+    --button-hover-bg: #ffe8ee;
+    --button-hover-text: #5a4a4a;
+    --bg-hover: #fff0f3;
     
     /* Scrollbar */
     --scrollbar-track: #fff0f3;
@@ -327,6 +355,13 @@
     --fc-highlight: rgba(126, 200, 200, 0.2);
     --fc-highlight-border: rgba(126, 200, 200, 0.4);
     
+    /* Buttons */
+    --button-bg: #f0f8f8;
+    --button-text: #3d4f4f;
+    --button-hover-bg: #e8f4f4;
+    --button-hover-text: #3d4f4f;
+    --bg-hover: #f0f8f8;
+    
     /* Scrollbar */
     --scrollbar-track: #f0f8f8;
     --scrollbar-thumb: #7ec8c8;
@@ -393,6 +428,13 @@
     --fc-today-bg: rgba(244, 212, 168, 0.3);
     --fc-highlight: rgba(200, 168, 212, 0.2);
     --fc-highlight-border: rgba(200, 168, 212, 0.4);
+    
+    /* Buttons */
+    --button-bg: #faf6f0;
+    --button-text: #4a4032;
+    --button-hover-bg: #f5f0e8;
+    --button-hover-text: #4a4032;
+    --bg-hover: #faf6f0;
     
     /* Scrollbar */
     --scrollbar-track: #faf6f0;
@@ -461,6 +503,17 @@
     --fc-highlight: rgba(255, 107, 53, 0.2);
     --fc-highlight-border: rgba(255, 107, 53, 0.5);
     
+    /* Buttons */
+    --button-bg: #fff8e1;
+    --button-text: #1a1a1a;
+    --button-hover-bg: #fff3cd;
+    --button-hover-text: #1a1a1a;
+    --bg-hover: #fff8e1;
+    
+    /* Gradients for special effects */
+    --gradient-primary: linear-gradient(135deg, #ff6b35 0%, #ff006e 50%, #8338ec 100%);
+    --gradient-hover: linear-gradient(135deg, #ff5216 0%, #e6005f 50%, #7230d0 100%);
+    
     /* Scrollbar */
     --scrollbar-track: #fff8e1;
     --scrollbar-thumb: #ff6b35;
@@ -527,6 +580,13 @@
     --fc-today-bg: rgba(255, 183, 77, 0.2);
     --fc-highlight: rgba(46, 125, 50, 0.15);
     --fc-highlight-border: rgba(46, 125, 50, 0.4);
+    
+    /* Buttons */
+    --button-bg: #e8f5e8;
+    --button-text: #2d4a2d;
+    --button-hover-bg: #d4edd4;
+    --button-hover-text: #2d4a2d;
+    --bg-hover: #e8f5e8;
     
     /* Scrollbar */
     --scrollbar-track: #e8f5e8;
@@ -595,6 +655,17 @@
     --fc-highlight: rgba(255, 111, 60, 0.2);
     --fc-highlight-border: rgba(255, 111, 60, 0.4);
     
+    /* Buttons */
+    --button-bg: #ffe8d1;
+    --button-text: #5d3a1a;
+    --button-hover-bg: #ffd4b8;
+    --button-hover-text: #5d3a1a;
+    --bg-hover: #ffe8d1;
+    
+    /* Gradients for special effects */
+    --gradient-primary: linear-gradient(135deg, #ff6f3c 0%, #ff8a65 50%, #ffb74d 100%);
+    --gradient-hover: linear-gradient(135deg, #ff5722 0%, #ff7043 50%, #ffa726 100%);
+    
     /* Scrollbar */
     --scrollbar-track: #ffe8d1;
     --scrollbar-thumb: #ff6f3c;
@@ -661,6 +732,17 @@
     --fc-today-bg: rgba(255, 167, 38, 0.2);
     --fc-highlight: rgba(2, 119, 189, 0.2);
     --fc-highlight-border: rgba(2, 119, 189, 0.5);
+    
+    /* Buttons */
+    --button-bg: #bbdefb;
+    --button-text: #0d47a1;
+    --button-hover-bg: #90caf9;
+    --button-hover-text: #0d47a1;
+    --bg-hover: #bbdefb;
+    
+    /* Gradients for special effects */
+    --gradient-primary: linear-gradient(135deg, #0277bd 0%, #0288d1 50%, #03a9f4 100%);
+    --gradient-hover: linear-gradient(135deg, #01579b 0%, #0277bd 50%, #0288d1 100%);
     
     /* Scrollbar */
     --scrollbar-track: #bbdefb;
@@ -729,6 +811,13 @@
     --fc-highlight: rgba(236, 64, 122, 0.15);
     --fc-highlight-border: rgba(236, 64, 122, 0.4);
     
+    /* Buttons */
+    --button-bg: #ffe4e9;
+    --button-text: #4a2c2c;
+    --button-hover-bg: #ffd4dd;
+    --button-hover-text: #4a2c2c;
+    --bg-hover: #ffe4e9;
+    
     /* Scrollbar */
     --scrollbar-track: #ffe4e9;
     --scrollbar-thumb: #ec407a;
@@ -795,6 +884,17 @@
     --fc-today-bg: rgba(255, 214, 0, 0.15);
     --fc-highlight: rgba(0, 229, 255, 0.2);
     --fc-highlight-border: rgba(0, 229, 255, 0.6);
+    
+    /* Buttons */
+    --button-bg: #1a1e3e;
+    --button-text: #00e5ff;
+    --button-hover-bg: #2a2e4e;
+    --button-hover-text: #00ff41;
+    --bg-hover: #2a2e4e;
+    
+    /* Gradients for special effects */
+    --gradient-primary: linear-gradient(135deg, #00e5ff 0%, #d500f9 50%, #ff2a6d 100%);
+    --gradient-hover: linear-gradient(135deg, #00b8d4 0%, #aa00ff 50%, #e91e63 100%);
     
     /* Scrollbar */
     --scrollbar-track: #1a1e3e;
@@ -953,11 +1053,31 @@ body {
     background-color: var(--fc-today-bg) !important;
 }
 
-.fc-event {
+/* 确保今天的背景色在所有视图中都生效 */
+.fc .fc-day-today,
+.fc-daygrid-day.fc-day-today,
+.fc-timegrid-col.fc-day-today {
+    background-color: var(--fc-today-bg) !important;
+}
+
+/* 今天的日期数字也加上轻微的强调 */
+.fc .fc-day-today .fc-daygrid-day-number {
+    font-weight: 600 !important;
+}
+
+/* 列表视图中今天的行 */
+.fc .fc-list-day.fc-day-today,
+.fc .fc-list-day.fc-day-today .fc-list-day-cushion {
+    background-color: var(--fc-today-bg) !important;
+    font-weight: 600 !important;
+}
+
+/* 移除事件的强制颜色设置，让事件使用自己的backgroundColor和borderColor */
+/* .fc-event {
     background-color: var(--fc-event-bg);
     border-color: var(--fc-event-border);
     color: var(--fc-event-text);
-}
+} */
 
 /* 时间段选择高亮样式 */
 .fc-highlight {
@@ -1700,18 +1820,41 @@ body {
     overflow: hidden !important;
 }
 
-.fc-view-harness {
+/* 默认禁用view-harness滚动，周视图和日视图不需要 */
+.fc-timeGridWeek-view .fc-view-harness,
+.fc-timeGridDay-view .fc-view-harness,
+.fc-timeGrid-view .fc-view-harness {
     overflow: hidden !important;
 }
 
-/* 禁用日历的滚动 */
+/* 月视图view-harness允许滚动 */
+.fc-dayGridMonth-view .fc-view-harness {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* 默认禁用滚动，但月视图除外 */
 .fc-scroller {
     overflow-y: hidden !important;
     overflow-x: hidden !important;
 }
 
+/* 月视图启用滚动 - 使用多个选择器确保生效 */
+.fc-dayGridMonth-view .fc-scroller,
+.fc-dayGridMonth-view .fc-daygrid-body,
+.fc-dayGridMonth-view .fc-scroller-liquid,
+.fc-dayGridMonth-view .fc-scroller-harness {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
 .fc-daygrid-body {
     overflow: hidden !important;
+}
+
+/* 月视图的daygrid-body启用滚动 */
+.fc-dayGridMonth-view .fc-daygrid-body {
+    overflow: auto !important;
 }
 
 /* 确保日历适应固定高度 */
@@ -2580,12 +2723,13 @@ body {
     background-color: var(--fc-today-bg) !important;
 }
 
-[data-theme="dark"] .fc-event {
+/* 移除深色主题下事件的强制颜色设置 */
+/* [data-theme="dark"] .fc-event {
     background-color: var(--fc-event-bg);
     border-color: var(--fc-event-border);
     color: var(--fc-event-text);
-    opacity: 0.85; /* 降低对比度,使颜色更柔和 */
-}
+    opacity: 0.85;
+} */
 
 [data-theme="dark"] .fc-event:hover {
     opacity: 1; /* 悬停时恢复完整亮度 */
@@ -2796,5 +2940,447 @@ body {
 [data-theme="dark"] .list-group-item h6 {
     color: var(--text-primary);
 }
+
+/* 日历筛选下拉菜单样式 */
+.calendar-filter-dropdown {
+    position: absolute;
+    z-index: 1050;
+    min-width: 280px;
+    max-width: 350px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 16px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.calendar-filter-dropdown .filter-section {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.calendar-filter-dropdown .filter-section:last-of-type {
+    border-bottom: none;
+}
+
+.calendar-filter-dropdown .filter-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.calendar-filter-dropdown .form-check {
+    margin-bottom: 8px;
+}
+
+.calendar-filter-dropdown .form-check-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.calendar-filter-dropdown .form-check-input {
+    cursor: pointer;
+    border-color: var(--border-color);
+}
+
+.calendar-filter-dropdown .form-check-input:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+.calendar-filter-dropdown .group-color-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-left: 4px;
+}
+
+.calendar-filter-dropdown .filter-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.calendar-filter-dropdown .filter-actions .btn {
+    flex: 1;
+}
+
+.calendar-filter-dropdown .text-muted {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 8px;
+    display: block;
+}
+
+/* 筛选按钮样式优化 */
+.fc-calendarFilterButton-button {
+    background: var(--primary) !important;
+    color: white !important;
+    border: none !important;
+    padding: 0.375rem 0.75rem !important;
+    border-radius: 4px !important;
+    font-size: 0.875rem !important;
+    transition: all 0.2s ease !important;
+}
+
+.fc-calendarFilterButton-button:hover {
+    background: var(--primary-hover) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.fc-calendarFilterButton-button:active {
+    transform: translateY(0);
+}
+
+/* 暗色主题适配 */
+[data-theme="dark"] .calendar-filter-dropdown {
+    background: var(--card-bg);
+    border-color: var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .calendar-filter-dropdown .filter-title {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .calendar-filter-dropdown .form-check-label {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .calendar-filter-dropdown .form-check-input {
+    background-color: var(--input-bg);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .calendar-filter-dropdown .form-check-input:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* =====================================
+   FullCalendar 主题适配优化
+   ===================================== */
+
+/* 工具栏按钮统一样式 */
+.fc .fc-button {
+    background: var(--button-bg) !important;
+    color: var(--button-text) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 6px !important;
+    padding: 0.4rem 0.8rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+.fc .fc-button:hover:not(:disabled) {
+    background: var(--button-hover-bg) !important;
+    color: var(--button-hover-text) !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-1px);
+}
+
+.fc .fc-button:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+.fc .fc-button:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+}
+
+/* 激活状态的按钮（当前选中的视图） */
+.fc .fc-button-active {
+    background: var(--primary) !important;
+    color: white !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.3) !important;
+}
+
+.fc .fc-button-active:hover {
+    background: var(--primary-hover) !important;
+    color: white !important;
+}
+
+/* 主要按钮样式（如今天按钮） */
+.fc .fc-button-primary {
+    background: var(--primary) !important;
+    color: white !important;
+    border-color: var(--primary) !important;
+}
+
+.fc .fc-button-primary:hover:not(:disabled) {
+    background: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
+}
+
+/* 工具栏标题 */
+.fc .fc-toolbar-title {
+    color: var(--text-primary) !important;
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
+}
+
+/* 周数徽章主题适配 */
+#weekNumberBadge {
+    background-color: var(--primary) !important;
+    color: var(--text-inverse) !important;
+    border: 1px solid var(--primary) !important;
+}
+
+/* 日期数字样式 */
+.fc .fc-daygrid-day-number,
+.fc .fc-col-header-cell-cushion,
+.fc .fc-timegrid-slot-label-cushion {
+    color: var(--text-primary) !important;
+    font-weight: 500 !important;
+    text-decoration: none !important;
+}
+
+/* 星期标题 */
+.fc .fc-col-header-cell-cushion {
+    padding: 8px 4px !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    color: var(--text-secondary) !important;
+    text-decoration: none !important;
+}
+
+/* 日期单元格 */
+.fc .fc-daygrid-day-top {
+    color: var(--text-primary) !important;
+}
+
+.fc .fc-daygrid-day-number {
+    padding: 4px 8px !important;
+    font-size: 0.9rem !important;
+    text-decoration: none !important;
+}
+
+/* 今天的日期数字高亮 */
+.fc .fc-day-today .fc-daygrid-day-number,
+.fc .fc-day-today .fc-col-header-cell-cushion {
+    color: var(--primary) !important;
+    font-weight: 700 !important;
+    text-decoration: none !important;
+}
+
+/* 所有链接移除下划线 */
+.fc a {
+    text-decoration: none !important;
+}
+
+/* 时间轴标签 */
+.fc .fc-timegrid-axis-cushion {
+    color: var(--text-secondary) !important;
+    font-size: 0.75rem !important;
+}
+
+/* 列表视图样式 */
+.fc .fc-list-day-cushion {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+.fc .fc-list-event-time,
+.fc .fc-list-event-title {
+    color: var(--text-primary) !important;
+}
+
+.fc .fc-list-event:hover td {
+    background: var(--bg-hover) !important;
+}
+
+/* 列表视图表格 */
+.fc .fc-list-table {
+    background: var(--bg-primary) !important;
+}
+
+.fc .fc-list-event-dot {
+    border-color: inherit !important;
+}
+
+.fc .fc-list-event td {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+.fc .fc-list-day th {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
+.fc .fc-list-empty {
+    background: var(--bg-primary) !important;
+    color: var(--text-secondary) !important;
+}
+
+/* 列表视图滚动支持 */
+.fc-listWeek-view .fc-scroller,
+.fc-list-view .fc-scroller,
+.fc .fc-list {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    height: 100% !important;
+    max-height: none !important;
+}
+
+.fc-listWeek-view .fc-view-harness,
+.fc-list-view .fc-view-harness {
+    height: 100% !important;
+    overflow-y: auto !important;
+}
+
+/* 网格边框颜色 */
+.fc .fc-scrollgrid,
+.fc .fc-scrollgrid td,
+.fc .fc-scrollgrid th {
+    border-color: var(--border-color) !important;
+}
+
+/* 当前时间指示线 */
+.fc .fc-timegrid-now-indicator-line {
+    border-color: var(--primary) !important;
+    border-width: 2px !important;
+}
+
+.fc .fc-timegrid-now-indicator-arrow {
+    border-color: var(--primary) !important;
+}
+
+/* 更多事件链接 */
+.fc .fc-daygrid-more-link {
+    color: var(--primary) !important;
+    font-weight: 500 !important;
+}
+
+.fc .fc-daygrid-more-link:hover {
+    color: var(--primary-hover) !important;
+    text-decoration: underline !important;
+}
+
+/* 弹出层（更多事件） */
+.fc .fc-popover {
+    background: var(--card-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.fc .fc-popover-header {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+.fc .fc-popover-body {
+    color: var(--text-primary) !important;
+}
+
+/* 月视图周数 */
+.fc .fc-daygrid-week-number {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-secondary) !important;
+}
+
+.fc .fc-daygrid-week-number a {
+    color: var(--text-secondary) !important;
+}
+
+/* 非当前月的日期 */
+.fc .fc-day-other .fc-daygrid-day-number {
+    color: var(--text-muted) !important;
+    opacity: 0.5 !important;
+}
+
+/* 所有主题通用的渐变效果优化 */
+.fc .fc-button {
+    background: linear-gradient(135deg, var(--button-bg), var(--button-bg)) !important;
+}
+
+.fc .fc-button-active,
+.fc .fc-button-primary {
+    background: var(--button-bg) !important;
+    color: var(--button-text) !important;
+    border-color: var(--primary) !important;
+}
+
+/* 为创意主题添加特殊效果 */
+[data-theme="dopamine"] .fc .fc-button-active,
+[data-theme="dopamine"] .fc .fc-button-primary,
+[data-theme="sunset"] .fc .fc-button-active,
+[data-theme="sunset"] .fc .fc-button-primary,
+[data-theme="ocean"] .fc .fc-button-active,
+[data-theme="ocean"] .fc .fc-button-primary,
+[data-theme="cyberpunk"] .fc .fc-button-active,
+[data-theme="cyberpunk"] .fc .fc-button-primary {
+    background: var(--gradient-primary) !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.4) !important;
+}
+
+[data-theme="dopamine"] .fc .fc-button:hover,
+[data-theme="sunset"] .fc .fc-button:hover,
+[data-theme="ocean"] .fc .fc-button:hover,
+[data-theme="cyberpunk"] .fc .fc-button:hover {
+    background: var(--gradient-hover) !important;
+    box-shadow: 0 6px 16px rgba(var(--primary-rgb), 0.5) !important;
+}
+
+/* 确保日历容器使用主题背景 */
+.fc {
+    background: var(--bg-primary) !important;
+}
+
+/* 日期单元格背景 - 但不覆盖今天的背景 */
+.fc .fc-daygrid-day:not(.fc-day-today),
+.fc .fc-timegrid-col:not(.fc-day-today) {
+    background: var(--bg-primary) !important;
+}
+
+.fc .fc-col-header-cell {
+    background: var(--bg-secondary) !important;
+}
+
+/* 周末样式（可选） */
+.fc .fc-day-sat,
+.fc .fc-day-sun {
+    background: var(--bg-secondary) !important;
+}
+
+/* 滚动条样式 */
+.fc .fc-scroller::-webkit-scrollbar {
+    width: 8px !important;
+    height: 8px !important;
+}
+
+.fc .fc-scroller::-webkit-scrollbar-track {
+    background: var(--scrollbar-track) !important;
+}
+
+.fc .fc-scroller::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb) !important;
+    border-radius: 4px !important;
+}
+
+.fc .fc-scroller::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover) !important;
+}
+
 
 

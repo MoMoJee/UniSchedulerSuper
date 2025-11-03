@@ -949,21 +949,30 @@ class ReminderManager {
 
     // 编辑提醒
     editReminder(reminderId, seriesId) {
+        console.log('=== editReminder called ===');
+        console.log('reminderId:', reminderId, 'seriesId:', seriesId);
+        
         const reminder = this.reminders.find(r => r.id === reminderId);
         if (!reminder) return;
+        
+        console.log('Found reminder:', reminder);
         
         // 检查是否是重复提醒 - 改进逻辑：有rrule就认为是重复提醒
         const hasRrule = reminder.rrule && reminder.rrule.includes('FREQ=');
         const seriesReminders = this.reminders.filter(r => r.series_id === seriesId && r.rrule && r.rrule.includes('FREQ='));
         
+        console.log('hasRrule:', hasRrule, 'is_detached:', reminder.is_detached);
+        
         if (hasRrule && !reminder.is_detached) {
             // 这是重复提醒，显示选择对话框（即使只有一个实例）
+            console.log('Showing bulk edit dialog for recurring reminder');
             this.showBulkEditDialog(reminderId, seriesId, 'edit');
         } else {
             // 单独提醒，直接编辑
+            console.log('Opening edit modal for single reminder');
             modalManager.openEditReminderModal(reminder);
         }
-        }
+    }
     
 
     // 删除提醒
@@ -1226,7 +1235,12 @@ class ReminderManager {
 
     // 执行批量编辑
     async executeBulkEdit(reminderId, seriesId, operation) {
+        console.log('=== executeBulkEdit called ===');
+        console.log('reminderId:', reminderId, 'seriesId:', seriesId, 'operation:', operation);
+        
         const scope = document.querySelector('input[name="editScope"]:checked')?.value;
+        console.log('Selected scope:', scope);
+        
         if (!scope) {
             alert('请选择操作范围');
             return;
@@ -1240,15 +1254,20 @@ class ReminderManager {
             fromTime = reminder?.trigger_time;
         }
         
+        console.log('fromTime:', fromTime);
+        
         if (operation === 'edit') {
             // 关闭批量对话框，打开编辑对话框
+            console.log('Closing bulk edit modal and opening edit modal');
             this.closeBulkEditModal();
             
             // 保存批量编辑信息到临时变量
             this.pendingBulkEdit = { reminderId, seriesId, scope, fromTime };
+            console.log('Set pendingBulkEdit:', this.pendingBulkEdit);
             
             // 打开编辑对话框
             const reminder = this.reminders.find(r => r.id === reminderId);
+            console.log('Opening edit reminder modal with reminder:', reminder);
             modalManager.openEditReminderModal(reminder);
         } else if (operation === 'delete') {
             if (confirm(`确定要删除选定范围的提醒吗？`)) {
@@ -1584,16 +1603,36 @@ class ReminderManager {
 
 // 重复提醒UI处理函数
 function toggleRepeatOptions(mode) {
-    const repeatCheckbox = document.getElementById(mode === 'new' ? 'newReminderRepeat' : 'reminderRepeat');
-    const repeatOptions = document.getElementById(mode === 'new' ? 'newRepeatOptions' : 'editRepeatOptions');
-    const scopeSelection = mode === 'edit' ? document.getElementById('editScopeSelection') : null;
+    console.log('=== toggleRepeatOptions called with mode:', mode);
+    
+    let repeatCheckbox, repeatOptions, scopeSelection;
+    
+    if (mode === 'editEvent') {
+        // Events编辑模式
+        repeatCheckbox = document.getElementById('eventRepeat');
+        repeatOptions = document.getElementById('editEventRecurringOptions');
+        scopeSelection = document.getElementById('editEventRecurringInfo');
+    } else {
+        // Reminder模式
+        repeatCheckbox = document.getElementById(mode === 'new' ? 'newReminderRepeat' : 'reminderRepeat');
+        repeatOptions = document.getElementById(mode === 'new' ? 'newRepeatOptions' : 'editRepeatOptions');
+        scopeSelection = mode === 'edit' ? document.getElementById('editScopeSelection') : null;
+    }
+    
+    console.log('toggleRepeatOptions - repeatCheckbox:', {
+        id: repeatCheckbox?.id,
+        checked: repeatCheckbox?.checked,
+        disabled: repeatCheckbox?.disabled
+    });
     
     // 如果重复按钮被禁用，则不允许操作
     if (repeatCheckbox && repeatCheckbox.disabled) {
+        console.log('repeatCheckbox is disabled, returning');
         return;
     }
     
     if (repeatCheckbox && repeatCheckbox.checked) {
+        console.log('repeatCheckbox is checked, showing options');
         repeatOptions.style.display = 'block';
         if (mode === 'edit' && scopeSelection) {
             // 检查当前提醒是否是重复提醒的一部分
@@ -1609,6 +1648,32 @@ function toggleRepeatOptions(mode) {
             } else {
                 scopeSelection.style.display = 'none';
                 updateEditScopeFields('all'); // 新建重复，允许所有编辑
+            }
+        } else if (mode === 'editEvent' && scopeSelection) {
+            // Events编辑模式的范围选择逻辑
+            // 检查当前事件是否已经是重复事件的一部分
+            const currentEvent = window.modalManager && window.modalManager.currentEvent;
+            if (currentEvent && currentEvent.extendedProps) {
+                const eventData = currentEvent.extendedProps;
+                const hasRRule = eventData.rrule && eventData.rrule.includes('FREQ=');
+                const hasSeriesId = eventData.series_id && eventData.series_id.trim() !== '';
+                
+                // 只有当事件已经是重复事件时才显示范围选择器
+                if ((hasRRule || hasSeriesId) && !eventData.is_detached) {
+                    scopeSelection.style.display = 'block';
+                    // 监听范围选择变化
+                    document.querySelectorAll('input[name="editEventScope"]').forEach(radio => {
+                        radio.addEventListener('change', function() {
+                            updateEventEditScopeFields(this.value);
+                        });
+                    });
+                } else {
+                    // 新建重复事件或已分离的事件，不显示范围选择器
+                    scopeSelection.style.display = 'none';
+                }
+            } else {
+                // 无法获取事件数据，不显示范围选择器
+                scopeSelection.style.display = 'none';
             }
         }
         updateRepeatPreview(mode);
@@ -1702,13 +1767,17 @@ function updateMonthlyOptions(mode) {
 window.updateMonthlyOptions = updateMonthlyOptions;
 
 function updateEditScopeFields(scope) {
+    console.log('updateEditScopeFields called with scope:', scope);
+    
     // 根据编辑范围启用/禁用字段
     const fields = [
         'editRepeatFreq', 'editRepeatInterval', 'editMonthlyType', 'editRepeatUntil',
         'editMO', 'editTU', 'editWE', 'editTH', 'editFR', 'editSA', 'editSU'
     ];
     
-    const enableRepeatFields = scope === 'all' || scope === 'future';
+    // 只有在"仅此提醒"模式下才禁用重复字段，其他模式都应该允许编辑重复选项
+    const enableRepeatFields = scope !== 'this_only';
+    console.log('enableRepeatFields will be:', enableRepeatFields, 'for scope:', scope);
     
     fields.forEach(fieldId => {
         const field = document.getElementById(fieldId);
@@ -1732,6 +1801,17 @@ function updateEditScopeFields(scope) {
 }
 
 function updateRepeatPreview(mode) {
+    // Events模式的简化处理
+    if (mode === 'editEvent') {
+        const eventRepeatCheckbox = document.getElementById('eventRepeat');
+        // Events编辑模式目前主要是显示/隐藏重复选项，不需要复杂的预览
+        if (eventRepeatCheckbox && eventRepeatCheckbox.checked) {
+            console.log('Event repeat checkbox is checked, repeat options should be visible');
+        }
+        return;
+    }
+    
+    // Reminder模式的原有逻辑
     const prefix = mode === 'new' ? 'new' : 'reminder';
     const previewElement = document.getElementById(mode === 'new' ? 'newRepeatPreview' : 'reminderRepeatPreview');
     
@@ -1911,11 +1991,15 @@ function buildRruleFromUI(mode) {
 }
 
 function parseRruleToUI(rrule, mode) {
+    console.log('=== parseRruleToUI called ===');
+    console.log('rrule:', rrule, 'mode:', mode);
+    
     const prefix = mode === 'new' ? 'new' : 'reminder';
     
     if (!rrule) {
         // 关闭重复选项
         const repeatCheckbox = document.getElementById(`${prefix}${mode === 'new' ? 'ReminderRepeat' : 'Repeat'}`);
+        console.log('No rrule, disabling repeat checkbox:', repeatCheckbox?.id);
         if (repeatCheckbox) {
             repeatCheckbox.checked = false;
             toggleRepeatOptions(mode);
@@ -1925,9 +2009,12 @@ function parseRruleToUI(rrule, mode) {
     
     // 启用重复选项
     const repeatCheckbox = document.getElementById(`${prefix}${mode === 'new' ? 'ReminderRepeat' : 'Repeat'}`);
+    console.log('Found rrule, enabling repeat checkbox:', repeatCheckbox?.id);
     if (repeatCheckbox) {
+        console.log('Setting repeatCheckbox.checked = true');
         repeatCheckbox.checked = true;
         toggleRepeatOptions(mode);
+        console.log('After setting, repeatCheckbox.checked:', repeatCheckbox.checked);
     }
     
     // 解析RRULE
@@ -1939,15 +2026,32 @@ function parseRruleToUI(rrule, mode) {
         ruleObj[key] = value;
     });
     
+    console.log('Parsed ruleObj:', ruleObj);
+    
     // 设置频率
     if (ruleObj.FREQ) {
-        document.getElementById(`${prefix}RepeatFreq`).value = ruleObj.FREQ;
-        updateRepeatOptions(mode);
+        const freqElementId = `${prefix}RepeatFreq`;
+        const freqElement = document.getElementById(freqElementId);
+        console.log(`Setting frequency: ${freqElementId} = ${ruleObj.FREQ}`, freqElement);
+        if (freqElement) {
+            freqElement.value = ruleObj.FREQ;
+            updateRepeatOptions(mode);
+            console.log('Frequency set and updateRepeatOptions called');
+        } else {
+            console.error('Frequency element not found:', freqElementId);
+        }
     }
     
     // 设置间隔
     if (ruleObj.INTERVAL) {
-        document.getElementById(`${prefix}RepeatInterval`).value = ruleObj.INTERVAL;
+        const intervalElementId = `${prefix}RepeatInterval`;
+        const intervalElement = document.getElementById(intervalElementId);
+        console.log(`Setting interval: ${intervalElementId} = ${ruleObj.INTERVAL}`, intervalElement);
+        if (intervalElement) {
+            intervalElement.value = ruleObj.INTERVAL;
+        } else {
+            console.error('Interval element not found:', intervalElementId);
+        }
     }
     
     // 设置星期几和月重复方式
@@ -2056,5 +2160,6 @@ function parseRruleToUI(rrule, mode) {
 window.updateMonthlyOptions = updateMonthlyOptions;
 window.toggleRepeatOptions = toggleRepeatOptions;
 window.updateRepeatOptions = updateRepeatOptions;
+window.parseRruleToUI = parseRruleToUI;
 
 // 提醒管理器类已定义，实例将在HTML中创建
