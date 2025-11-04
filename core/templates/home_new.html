@@ -1940,6 +1940,7 @@
     <script src="{% static 'js/group-manager.js' %}?v=20251104-002"></script>
     <script src="{% static 'js/event-manager.js' %}?v=20251104-002"></script>
     <script src="{% static 'js/todo-manager.js' %}?v=20251104-002"></script>
+    <script src="{% static 'js/calendar-touch-swipe.js' %}?v=20251104-003"></script>
     
     <!-- AI助手模块 -->
     <script>
@@ -2113,6 +2114,15 @@
             window.todoManager.init();
             window.reminderManager.init();
             window.groupManager.init();
+            
+            // 初始化日历触屏滑动功能
+            // 等待日历渲染完成后再启用触屏滑动
+            setTimeout(() => {
+                if (window.eventManager && window.eventManager.calendar && window.CalendarTouchSwipe) {
+                    window.calendarSwipe = new CalendarTouchSwipe(window.eventManager.calendar);
+                    console.log('✅ 日历触屏滑动功能已启用');
+                }
+            }, 800);
             
             // 初始化重复提醒UI事件监听器
             initRepeatReminderListeners();

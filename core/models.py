@@ -858,7 +858,7 @@ DATA_SCHEMA = {
                 # TODO 布尔值的检查会出现 if <bool> 的愚蠢错误
                 "type": bool,
                 "nullable": True,
-                "default": True,
+                "default": False,
             },
             "prompt_scene_presets": {
                 "type": list,
