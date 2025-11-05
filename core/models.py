@@ -171,12 +171,12 @@ DATA_SCHEMA = {
             "importance": {
                 "type": str,
                 "nullable": False,
-                "default": "medium",  # critical|high|medium|low
+                "default": "",  # important|not-important (与Events保持一致)
             },
             "urgency": {
                 "type": str,
                 "nullable": False,
-                "default": "normal",  # urgent|normal|not-urgent
+                "default": "",  # urgent|not-urgent (与Events保持一致)
             },
             "tags": {
                 "type": list,

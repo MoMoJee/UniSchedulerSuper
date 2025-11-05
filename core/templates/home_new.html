@@ -30,6 +30,43 @@
             height: 0 !important;
             overflow: hidden !important;
         }
+        
+        /* TODO详情模态框样式 */
+        .todo-detail-info {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .detail-row {
+            display: flex;
+            gap: 15px;
+            padding: 10px;
+            background-color: var(--bg-secondary, #f8f9fa);
+            border-radius: 6px;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: var(--text-secondary, #6c757d);
+            min-width: 100px;
+            flex-shrink: 0;
+        }
+        
+        .detail-value {
+            flex: 1;
+            color: var(--text-primary, #212529);
+            word-break: break-word;
+        }
+        
+        #todoDetailTitle {
+            font-weight: 600;
+            color: var(--text-primary, #212529);
+        }
+        
+        #todoDetailPriority {
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -955,22 +992,37 @@
                         <input type="number" class="form-control" id="newTodoEstimatedDuration" min="1">
                     </div>
                     
-                    <div class="col-md-6">
-                        <label for="newTodoImportance" class="form-label">重要性</label>
-                        <select class="form-select" id="newTodoImportance">
-                            <option value="low">低</option>
-                            <option value="medium" selected>中</option>
-                            <option value="high">高</option>
-                        </select>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <label for="newTodoUrgency" class="form-label">紧急性</label>
-                        <select class="form-select" id="newTodoUrgency">
-                            <option value="low">低</option>
-                            <option value="normal" selected>普通</option>
-                            <option value="high">高</option>
-                        </select>
+                    <!-- 重要性紧急性矩阵 -->
+                    <div class="col-12">
+                        <label class="form-label">重要性 / 紧急性</label>
+                        <div class="importance-urgency-matrix">
+                            <div class="matrix-row">
+                                <button type="button" class="matrix-button important-urgent" 
+                                        data-importance="important" data-urgency="urgent"
+                                        onclick="setImportanceUrgency('important', 'urgent', this)">
+                                    重要紧急
+                                </button>
+                                <button type="button" class="matrix-button important-not-urgent" 
+                                        data-importance="important" data-urgency="not-urgent"
+                                        onclick="setImportanceUrgency('important', 'not-urgent', this)">
+                                    重要不紧急
+                                </button>
+                            </div>
+                            <div class="matrix-row">
+                                <button type="button" class="matrix-button not-important-urgent" 
+                                        data-importance="not-important" data-urgency="urgent"
+                                        onclick="setImportanceUrgency('not-important', 'urgent', this)">
+                                    不重要紧急
+                                </button>
+                                <button type="button" class="matrix-button not-important-not-urgent" 
+                                        data-importance="not-important" data-urgency="not-urgent"
+                                        onclick="setImportanceUrgency('not-important', 'not-urgent', this)">
+                                    不重要不紧急
+                                </button>
+                            </div>
+                        </div>
+                        <input type="hidden" id="newTodoImportance">
+                        <input type="hidden" id="newTodoUrgency">
                     </div>
                     
                     <div class="col-12">
@@ -1023,22 +1075,37 @@
                         <input type="number" class="form-control" id="todoEstimatedDuration" min="1">
                     </div>
                     
-                    <div class="col-md-6">
-                        <label for="todoImportance" class="form-label">重要性</label>
-                        <select class="form-select" id="todoImportance">
-                            <option value="low">低</option>
-                            <option value="medium">中</option>
-                            <option value="high">高</option>
-                        </select>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <label for="todoUrgency" class="form-label">紧急性</label>
-                        <select class="form-select" id="todoUrgency">
-                            <option value="low">低</option>
-                            <option value="normal">普通</option>
-                            <option value="high">高</option>
-                        </select>
+                    <!-- 重要性紧急性矩阵 -->
+                    <div class="col-12">
+                        <label class="form-label">重要性 / 紧急性</label>
+                        <div class="importance-urgency-matrix">
+                            <div class="matrix-row">
+                                <button type="button" class="matrix-button important-urgent" 
+                                        data-importance="important" data-urgency="urgent"
+                                        onclick="setImportanceUrgency('important', 'urgent', this)">
+                                    重要紧急
+                                </button>
+                                <button type="button" class="matrix-button important-not-urgent" 
+                                        data-importance="important" data-urgency="not-urgent"
+                                        onclick="setImportanceUrgency('important', 'not-urgent', this)">
+                                    重要不紧急
+                                </button>
+                            </div>
+                            <div class="matrix-row">
+                                <button type="button" class="matrix-button not-important-urgent" 
+                                        data-importance="not-important" data-urgency="urgent"
+                                        onclick="setImportanceUrgency('not-important', 'urgent', this)">
+                                    不重要紧急
+                                </button>
+                                <button type="button" class="matrix-button not-important-not-urgent" 
+                                        data-importance="not-important" data-urgency="not-urgent"
+                                        onclick="setImportanceUrgency('not-important', 'not-urgent', this)">
+                                    不重要不紧急
+                                </button>
+                            </div>
+                        </div>
+                        <input type="hidden" id="todoImportance">
+                        <input type="hidden" id="todoUrgency">
                     </div>
                     
                     <div class="col-12">
@@ -1060,6 +1127,67 @@
                     <button type="submit" class="btn btn-primary" onclick="modalManager.handleUpdateTodo()">更新待办</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- 待办事项详情模态框 -->
+    <div class="modal" id="todoDetailModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i><span id="todoDetailTitle"></span>
+                </h5>
+                <span class="close" onclick="todoManager.closeTodoDetailModal()">&times;</span>
+            </div>
+            
+            <div class="modal-body">
+                <div class="todo-detail-info">
+                    <div class="detail-row">
+                        <div class="detail-label">
+                            <i class="fas fa-flag me-2"></i>优先级
+                        </div>
+                        <div class="detail-value" id="todoDetailPriority"></div>
+                    </div>
+                    
+                    <div class="detail-row" id="todoDetailGroupRow" style="display: none;">
+                        <div class="detail-label">
+                            <i class="fas fa-folder me-2"></i>日程组
+                        </div>
+                        <div class="detail-value" id="todoDetailGroup"></div>
+                    </div>
+                    
+                    <div class="detail-row" id="todoDetailDescriptionRow" style="display: none;">
+                        <div class="detail-label">
+                            <i class="fas fa-align-left me-2"></i>描述
+                        </div>
+                        <div class="detail-value" id="todoDetailDescription" style="white-space: pre-wrap;"></div>
+                    </div>
+                    
+                    <div class="detail-row" id="todoDetailDurationRow" style="display: none;">
+                        <div class="detail-label">
+                            <i class="fas fa-clock me-2"></i>预计耗时
+                        </div>
+                        <div class="detail-value" id="todoDetailDuration"></div>
+                    </div>
+                    
+                    <div class="detail-row" id="todoDetailDueDateRow" style="display: none;">
+                        <div class="detail-label">
+                            <i class="fas fa-calendar-times me-2"></i>截止时间
+                        </div>
+                        <div class="detail-value" id="todoDetailDueDate"></div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #dee2e6;">
+                    <button type="button" class="btn btn-secondary" onclick="todoManager.closeTodoDetailModal()">关闭</button>
+                    <button type="button" class="btn btn-primary" id="todoDetailEditBtn">
+                        <i class="fas fa-edit me-1"></i>编辑
+                    </button>
+                    <button type="button" class="btn btn-danger" id="todoDetailDeleteBtn">
+                        <i class="fas fa-trash me-1"></i>删除
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1448,21 +1576,146 @@
     </div>
 
     <!-- 提醒详情模态框（从日历点击时打开）-->
+    <!-- 提醒详情模态框（从日历或列表点击时打开）-->
     <div class="modal" id="reminderDetailModal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 550px;">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="fas fa-bell me-2"></i>提醒详情
+                    <i class="fas fa-bell me-2"></i><span id="reminderDetailTitle"></span>
                 </h5>
-                <span class="close">&times;</span>
+                <span class="close" onclick="eventManager.closeReminderDetailModal()">&times;</span>
             </div>
             
-            <div class="modal-body" id="reminderDetailContent">
-                <!-- 动态内容将由JavaScript填充 -->
+            <div class="modal-body">
+                <div class="reminder-detail-info">
+                    <!-- 优先级 -->
+                    <div class="detail-row">
+                        <div class="detail-label">
+                            <i class="fas fa-flag me-2"></i>优先级
+                        </div>
+                        <div class="detail-value" id="reminderDetailPriority"></div>
+                    </div>
+                    
+                    <!-- 提醒时间 -->
+                    <div class="detail-row">
+                        <div class="detail-label">
+                            <i class="far fa-clock me-2"></i>提醒时间
+                        </div>
+                        <div class="detail-value" id="reminderDetailTime"></div>
+                    </div>
+                    
+                    <!-- 描述（仅在有内容时显示）-->
+                    <div class="detail-row" id="reminderDetailDescriptionRow" style="display: none;">
+                        <div class="detail-label">
+                            <i class="far fa-file-alt me-2"></i>描述
+                        </div>
+                        <div class="detail-value" id="reminderDetailDescription" style="white-space: pre-wrap;"></div>
+                    </div>
+                    
+                    <!-- 重复规则（仅在有时显示）-->
+                    <div class="detail-row" id="reminderDetailRRuleRow" style="display: none;">
+                        <div class="detail-label">
+                            <i class="fas fa-repeat me-2"></i>重复规则
+                        </div>
+                        <div class="detail-value" id="reminderDetailRRule" style="font-family: monospace; font-size: 0.9em;"></div>
+                    </div>
+                    
+                    <!-- 提前提醒（仅在有时显示）-->
+                    <div class="detail-row" id="reminderDetailAdvanceRow" style="display: none;">
+                        <div class="detail-label">
+                            <i class="fas fa-bell-plus me-2"></i>提前提醒
+                        </div>
+                        <div class="detail-value" id="reminderDetailAdvance"></div>
+                    </div>
+                </div>
+                
+                <!-- 状态和延后按钮 -->
+                <div class="d-flex flex-wrap gap-2 mt-3 mb-3" id="reminderDetailStatusButtons">
+                    <!-- 动态填充 -->
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="modal-footer" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #dee2e6;">
+                    <button type="button" class="btn btn-secondary" onclick="eventManager.closeReminderDetailModal()">关闭</button>
+                    <button type="button" class="btn btn-primary" id="reminderDetailEditBtn">
+                        <i class="fas fa-edit me-1"></i>编辑
+                    </button>
+                    <button type="button" class="btn btn-danger" id="reminderDetailDeleteBtn">
+                        <i class="fas fa-trash me-1"></i>删除
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 日程详情模态框（预览模式）-->
+    <div class="modal" id="eventDetailModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-calendar-day me-2"></i><span id="eventDetailTitle"></span>
+                </h5>
+                <span class="close" onclick="eventManager.closeEventDetailModal()">&times;</span>
             </div>
             
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="modalManager.closeAllModals()">关闭</button>
+            <div class="modal-body">
+                <div class="event-detail-info">
+                    <!-- 时间 -->
+                    <div class="detail-row">
+                        <div class="detail-label">
+                            <i class="far fa-clock me-2"></i>时间
+                        </div>
+                        <div class="detail-value" id="eventDetailTime"></div>
+                    </div>
+                    
+                    <!-- 日程组（仅在有时显示）-->
+                    <div class="detail-row" id="eventDetailGroupRow" style="display: none;">
+                        <div class="detail-label">
+                            <i class="fas fa-folder me-2"></i>日程组
+                        </div>
+                        <div class="detail-value" id="eventDetailGroup"></div>
+                    </div>
+                    
+                    <!-- 重要性/紧急性 -->
+                    <div class="detail-row" id="eventDetailPriorityRow" style="display: none;">
+                        <div class="detail-label">
+                            <i class="fas fa-flag me-2"></i>优先级
+                        </div>
+                        <div class="detail-value" id="eventDetailPriority"></div>
+                    </div>
+                    
+                    <!-- 描述（仅在有内容时显示）-->
+                    <div class="detail-row" id="eventDetailDescriptionRow" style="display: none;">
+                        <div class="detail-label">
+                            <i class="far fa-file-alt me-2"></i>描述
+                        </div>
+                        <div class="detail-value" id="eventDetailDescription" style="white-space: pre-wrap;"></div>
+                    </div>
+                    
+                    <!-- DDL（仅在有时显示）-->
+                    <div class="detail-row" id="eventDetailDdlRow" style="display: none;">
+                        <div class="detail-label">
+                            <i class="fas fa-flag-checkered me-2"></i>截止时间
+                        </div>
+                        <div class="detail-value" id="eventDetailDdl"></div>
+                    </div>
+                    
+                    <!-- 重复规则（仅在有时显示）-->
+                    <div class="detail-row" id="eventDetailRRuleRow" style="display: none;">
+                        <div class="detail-label">
+                            <i class="fas fa-repeat me-2"></i>重复规则
+                        </div>
+                        <div class="detail-value" id="eventDetailRRule" style="font-family: monospace; font-size: 0.9em;"></div>
+                    </div>
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="modal-footer" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #dee2e6;">
+                    <button type="button" class="btn btn-secondary" onclick="eventManager.closeEventDetailModal()">关闭</button>
+                    <button type="button" class="btn btn-primary" id="eventDetailEditBtn">
+                        <i class="fas fa-edit me-1"></i>编辑
+                    </button>
+                </div>
             </div>
         </div>
     </div>

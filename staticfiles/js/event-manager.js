@@ -9,6 +9,151 @@ class EventManager {
     // 初始化事件管理器
     init() {
         this.initCalendar();
+        this.setupTodoDropZone();
+    }
+
+    // 设置TODO拖拽到日历的监听
+    setupTodoDropZone() {
+        const calendarEl = document.getElementById('calendar');
+        if (!calendarEl) return;
+
+        // 允许放置
+        calendarEl.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        });
+
+        // 处理放置
+        calendarEl.addEventListener('drop', (e) => {
+            e.preventDefault();
+            
+            try {
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                
+                // 检查是否是TODO项
+                if (data.type === 'todo') {
+                    this.handleTodoDropToCalendar(data);
+                }
+            } catch (error) {
+                console.error('处理拖拽数据时出错:', error);
+            }
+        });
+    }
+
+    // 处理TODO拖拽到日历
+    handleTodoDropToCalendar(todoData) {
+        console.log('TODO拖拽到日历:', todoData);
+        
+        // 转换TODO数据为Event格式
+        const eventData = this.convertTodoToEvent(todoData);
+        
+        // 打开创建Event模态框并自动填充数据
+        this.openCreateEventModalWithTodoData(eventData);
+    }
+
+    // 将TODO数据转换为Event数据
+    convertTodoToEvent(todoData) {
+        // 计算起始时间：当前时间 + 1小时
+        const now = new Date();
+        const startTime = new Date(now.getTime() + 60 * 60 * 1000);
+        
+        // 计算结束时间：起始时间 + 预计耗时
+        let endTime;
+        if (todoData.estimatedDuration) {
+            const duration = this.parseDuration(todoData.estimatedDuration);
+            endTime = new Date(startTime.getTime() + duration);
+        } else {
+            // 默认1小时
+            endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+        }
+        
+        return {
+            title: todoData.title,
+            todoId: todoData.id,  // 保存TODO的ID
+            groupID: todoData.groupID,
+            description: todoData.description,
+            startTime: this.formatDateTimeLocal(startTime),
+            endTime: this.formatDateTimeLocal(endTime),
+            ddl: todoData.dueDate ? this.formatDateTimeLocal(new Date(todoData.dueDate)) : '',
+            importance: todoData.importance,
+            urgency: todoData.urgency
+        };
+    }
+
+    // 解析时长字符串（如 "2h", "30m", "1.5h"）
+    parseDuration(durationStr) {
+        if (!durationStr) return 60 * 60 * 1000; // 默认1小时
+        
+        const match = durationStr.match(/^([\d.]+)\s*([hm])$/i);
+        if (!match) return 60 * 60 * 1000;
+        
+        const value = parseFloat(match[1]);
+        const unit = match[2].toLowerCase();
+        
+        if (unit === 'h') {
+            return value * 60 * 60 * 1000; // 小时转毫秒
+        } else if (unit === 'm') {
+            return value * 60 * 1000; // 分钟转毫秒
+        }
+        
+        return 60 * 60 * 1000;
+    }
+
+    // 格式化日期时间为本地时间格式（YYYY-MM-DDTHH:mm）
+    formatDateTimeLocal(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    // 打开创建Event模态框并填充TODO数据
+    openCreateEventModalWithTodoData(eventData) {
+        if (!window.modalManager) {
+            console.error('ModalManager未初始化');
+            return;
+        }
+        
+        // 标记这个事件来源于TODO转换，并保存TODO的ID
+        window.modalManager.fromTodoConversion = true;
+        window.modalManager.sourceTodoId = eventData.todoId;
+        
+        // 先打开模态框
+        window.modalManager.openCreateEventModal(eventData.startTime, eventData.endTime);
+        
+        // 延迟填充其他数据，确保模态框已完全打开
+        setTimeout(() => {
+            // 填充标题
+            const titleInput = document.getElementById('newEventTitle');
+            if (titleInput) titleInput.value = eventData.title;
+            
+            // 填充描述
+            const descInput = document.getElementById('newEventDescription');
+            if (descInput) descInput.value = eventData.description;
+            
+            // 填充DDL
+            if (eventData.ddl) {
+                const ddlInput = document.getElementById('creatEventDdl');
+                if (ddlInput) ddlInput.value = eventData.ddl;
+            }
+            
+            // 填充日程组
+            if (eventData.groupID) {
+                const groupSelect = document.getElementById('newEventGroupId');
+                if (groupSelect) groupSelect.value = eventData.groupID;
+            }
+            
+            // 设置重要性和紧急性
+            if (eventData.importance && eventData.urgency && window.modalManager) {
+                window.modalManager.setImportanceUrgency(
+                    eventData.importance, 
+                    eventData.urgency, 
+                    'create'
+                );
+            }
+        }, 100);
     }
 
     // 加载事件数据
@@ -120,10 +265,11 @@ class EventManager {
                     if (info.event.extendedProps.isReminder) {
                         this.handleReminderClick(info.event);
                     } else {
-                        this.handleEventEdit(info.event);
+                        // 普通事件，打开详情预览
+                        this.openEventDetailModal(info.event);
                     }
                 } catch (error) {
-                    console.error('打开编辑事件模态框时出错:', error);
+                    console.error('打开事件详情模态框时出错:', error);
                 }
             },
             
@@ -372,10 +518,11 @@ class EventManager {
                         if (info.event.extendedProps.isReminder) {
                             this.handleReminderClick(info.event);
                         } else {
-                            this.handleEventEdit(info.event);
+                            // 普通事件，打开详情预览
+                            this.openEventDetailModal(info.event);
                         }
                     } catch (error) {
-                        console.error('处理事件编辑时出错:', error);
+                        console.error('处理事件点击时出错:', error);
                     }
                 });
                 
@@ -982,6 +1129,165 @@ class EventManager {
     }
 
     // 检查是否是重复事件，显示编辑范围选择器
+    // 打开事件详情模态框（预览模式）
+    openEventDetailModal(eventInfo) {
+        console.log('Opening event detail modal:', eventInfo);
+        
+        const modal = document.getElementById('eventDetailModal');
+        if (!modal) {
+            console.error('事件详情模态框未找到');
+            return;
+        }
+        
+        const eventData = eventInfo.extendedProps || {};
+        
+        // 设置标题
+        const titleElement = document.getElementById('eventDetailTitle');
+        if (titleElement) {
+            titleElement.textContent = eventInfo.title || '';
+        }
+        
+        // 设置时间
+        const timeElement = document.getElementById('eventDetailTime');
+        if (timeElement) {
+            const startTime = new Date(eventInfo.start);
+            const endTime = eventInfo.end ? new Date(eventInfo.end) : null;
+            const formattedStart = startTime.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                weekday: 'short'
+            });
+            if (endTime) {
+                const formattedEnd = endTime.toLocaleString('zh-CN', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                timeElement.textContent = `${formattedStart} - ${formattedEnd}`;
+            } else {
+                timeElement.textContent = formattedStart;
+            }
+        }
+        
+        // 设置日程组（仅在有时显示）
+        const groupElement = document.getElementById('eventDetailGroup');
+        const groupRow = document.getElementById('eventDetailGroupRow');
+        if (eventData.groupID && window.groupManager) {
+            const group = window.groupManager.getGroupById(eventData.groupID);
+            if (group && groupElement && groupRow) {
+                groupElement.textContent = group.name;
+                groupElement.style.color = group.color;
+                groupElement.style.fontWeight = '600';
+                groupRow.style.display = 'flex';
+            }
+        } else if (groupRow) {
+            groupRow.style.display = 'none';
+        }
+        
+        // 设置优先级（重要性/紧急性）
+        const priorityElement = document.getElementById('eventDetailPriority');
+        const priorityRow = document.getElementById('eventDetailPriorityRow');
+        if ((eventData.importance || eventData.urgency) && priorityElement && priorityRow) {
+            const importanceText = eventData.importance === 'important' ? '重要' : '不重要';
+            const urgencyText = eventData.urgency === 'urgent' ? '紧急' : '不紧急';
+            const icon = this.getEventPriorityIcon(eventData.importance, eventData.urgency);
+            priorityElement.innerHTML = `${icon} ${importanceText} / ${urgencyText}`;
+            priorityRow.style.display = 'flex';
+        } else if (priorityRow) {
+            priorityRow.style.display = 'none';
+        }
+        
+        // 设置描述（仅在有内容时显示）
+        const descElement = document.getElementById('eventDetailDescription');
+        const descRow = document.getElementById('eventDetailDescriptionRow');
+        if (eventData.description && descElement && descRow) {
+            descElement.textContent = eventData.description;
+            descRow.style.display = 'flex';
+        } else if (descRow) {
+            descRow.style.display = 'none';
+        }
+        
+        // 设置DDL（仅在有时显示）
+        const ddlElement = document.getElementById('eventDetailDdl');
+        const ddlRow = document.getElementById('eventDetailDdlRow');
+        if (eventData.ddl && ddlElement && ddlRow) {
+            const ddlTime = new Date(eventData.ddl);
+            const formattedDdl = ddlTime.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                weekday: 'short'
+            });
+            ddlElement.textContent = formattedDdl;
+            ddlRow.style.display = 'flex';
+        } else if (ddlRow) {
+            ddlRow.style.display = 'none';
+        }
+        
+        // 设置重复规则（仅在有时显示）
+        const rruleElement = document.getElementById('eventDetailRRule');
+        const rruleRow = document.getElementById('eventDetailRRuleRow');
+        if (eventData.rrule && rruleElement && rruleRow) {
+            rruleElement.textContent = eventData.rrule;
+            rruleRow.style.display = 'flex';
+        } else if (rruleRow) {
+            rruleRow.style.display = 'none';
+        }
+        
+        // 设置编辑按钮
+        const editBtn = document.getElementById('eventDetailEditBtn');
+        if (editBtn) {
+            editBtn.onclick = () => {
+                this.closeEventDetailModal();
+                this.handleEventEdit(eventInfo);
+            };
+        }
+        
+        // 显示模态框
+        modal.style.display = 'flex';
+        requestAnimationFrame(() => {
+            modal.classList.add('show');
+        });
+        document.body.style.overflow = 'hidden';
+        
+        console.log('Event detail modal opened');
+    }
+    
+    // 关闭事件详情模态框
+    closeEventDetailModal() {
+        const modal = document.getElementById('eventDetailModal');
+        if (modal) {
+            if (modal.classList.contains('show')) {
+                modal.style.opacity = '0';
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                    modal.style.removeProperty('opacity');
+                }, 300);
+            } else {
+                modal.style.display = 'none';
+            }
+            document.body.style.overflow = 'auto';
+        }
+    }
+    
+    // 获取事件优先级图标
+    getEventPriorityIcon(importance, urgency) {
+        if (importance === 'important' && urgency === 'urgent') {
+            return '🔴';  // 重要紧急
+        } else if (importance === 'important' && urgency === 'not-urgent') {
+            return '🟡';  // 重要不紧急
+        } else if (importance === 'not-important' && urgency === 'urgent') {
+            return '🟠';  // 不重要紧急
+        } else {
+            return '🟢';  // 不重要不紧急
+        }
+    }
+
     async handleEventEdit(eventInfo) {
         console.log('handleEventEdit called with:', eventInfo);
         
@@ -1017,42 +1323,172 @@ class EventManager {
         
         console.log('Reminder clicked:', reminderData);
         
-        // 打开提醒详情模态框
-        const modal = document.getElementById('reminderDetailModal');
-        const contentDiv = document.getElementById('reminderDetailContent');
+        // 调用统一的详情展示方法
+        this.openReminderDetailModal(reminderData, reminderId);
+    }
+    
+    // 打开提醒详情模态框（统一方法，从日历或列表调用）
+    openReminderDetailModal(reminderData, reminderId) {
+        console.log('Opening reminder detail modal:', reminderData);
         
-        if (!modal || !contentDiv) {
+        const modal = document.getElementById('reminderDetailModal');
+        if (!modal) {
             console.error('提醒详情模态框未找到');
             return;
         }
         
-        // 生成提醒详情HTML（复用 reminder-manager.js 的样式）
-        const triggerTime = new Date(reminderData.snooze_until || reminderData.trigger_time);
-        const formattedTime = this.formatReminderTime(triggerTime);
+        // 设置标题（显示优先级图标 + 标题）
+        const titleElement = document.getElementById('reminderDetailTitle');
         const priorityIcon = this.getPriorityIcon(reminderData.priority);
-        const status = reminderData.status || 'active';
+        if (titleElement) {
+            titleElement.innerHTML = `${priorityIcon} ${reminderData.title || ''}`;
+        }
         
-        // 构建状态按钮
+        // 设置优先级
+        const priorityElement = document.getElementById('reminderDetailPriority');
+        if (priorityElement) {
+            const priorityText = this.getPriorityText(reminderData.priority);
+            priorityElement.innerHTML = `${priorityIcon} ${priorityText}`;
+        }
+        
+        // 设置提醒时间
+        const timeElement = document.getElementById('reminderDetailTime');
+        if (timeElement) {
+            const triggerTime = new Date(reminderData.snooze_until || reminderData.trigger_time);
+            const formattedTime = this.formatReminderTime(triggerTime);
+            const isOverdue = triggerTime < new Date();
+            timeElement.innerHTML = isOverdue ? 
+                `<span class="text-danger">${formattedTime} (已过期)</span>` : 
+                formattedTime;
+        }
+        
+        // 设置描述（仅在有内容时显示）
+        const descElement = document.getElementById('reminderDetailDescription');
+        const descRow = document.getElementById('reminderDetailDescriptionRow');
+        const contentText = reminderData.content || reminderData.description || '';
+        if (contentText && descElement && descRow) {
+            descElement.textContent = contentText;
+            descRow.style.display = 'flex';
+        } else if (descRow) {
+            descRow.style.display = 'none';
+        }
+        
+        // 设置重复规则（仅在有时显示）
+        const rruleElement = document.getElementById('reminderDetailRRule');
+        const rruleRow = document.getElementById('reminderDetailRRuleRow');
+        if (reminderData.rrule && rruleElement && rruleRow) {
+            rruleElement.textContent = reminderData.rrule;
+            rruleRow.style.display = 'flex';
+        } else if (rruleRow) {
+            rruleRow.style.display = 'none';
+        }
+        
+        // 设置提前提醒（仅在有时显示）
+        const advanceElement = document.getElementById('reminderDetailAdvance');
+        const advanceRow = document.getElementById('reminderDetailAdvanceRow');
+        if (reminderData.advance_triggers && reminderData.advance_triggers.length > 0 && advanceElement && advanceRow) {
+            const advanceText = reminderData.advance_triggers.map(at => at.time_before).join(', ');
+            advanceElement.textContent = advanceText;
+            advanceRow.style.display = 'flex';
+        } else if (advanceRow) {
+            advanceRow.style.display = 'none';
+        }
+        
+        // 生成状态和延后按钮
+        const statusButtonsContainer = document.getElementById('reminderDetailStatusButtons');
+        if (statusButtonsContainer) {
+            statusButtonsContainer.innerHTML = this.generateReminderStatusButtons(reminderData, reminderId);
+        }
+        
+        // 设置编辑和删除按钮
+        const editBtn = document.getElementById('reminderDetailEditBtn');
+        const deleteBtn = document.getElementById('reminderDetailDeleteBtn');
+        
+        if (editBtn) {
+            editBtn.onclick = () => {
+                this.closeReminderDetailModal();
+                this.editReminderFromCalendar(reminderId);
+            };
+        }
+        
+        if (deleteBtn) {
+            deleteBtn.onclick = () => {
+                this.closeReminderDetailModal();
+                this.deleteReminderFromCalendar(reminderId);
+            };
+        }
+        
+        // 显示模态框
+        modal.style.display = 'flex';
+        requestAnimationFrame(() => {
+            modal.classList.add('show');
+        });
+        document.body.style.overflow = 'hidden';
+        
+        // 禁用日历交互
+        if (this.calendar) {
+            this.calendar.setOption('selectable', false);
+            this.calendar.setOption('selectMirror', false);
+        }
+        
+        console.log('Reminder detail modal opened');
+    }
+    
+    // 关闭提醒详情模态框
+    closeReminderDetailModal() {
+        const modal = document.getElementById('reminderDetailModal');
+        if (modal) {
+            if (modal.classList.contains('show')) {
+                modal.style.opacity = '0';
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                    modal.style.removeProperty('opacity');
+                }, 300);
+            } else {
+                modal.style.display = 'none';
+            }
+            document.body.style.overflow = 'auto';
+        }
+        
+        // 重新启用日历交互
+        if (this.calendar) {
+            this.calendar.setOption('selectable', true);
+            this.calendar.setOption('selectMirror', true);
+        }
+    }
+    
+    // 生成状态和延后按钮HTML
+    generateReminderStatusButtons(reminderData, reminderId) {
+        const status = reminderData.status || 'active';
         const completedClass = status === 'completed' ? 'btn-success active' : 'btn-outline-success';
         const dismissedClass = status === 'dismissed' ? 'btn-secondary active' : 'btn-outline-secondary';
         
-        // 构建延后按钮
+        let html = `
+            <button class="btn btn-sm ${completedClass}" onclick="eventManager.toggleReminderStatus('${reminderId}', 'completed')">
+                <i class="fas fa-check me-1"></i>完成
+            </button>
+            <button class="btn btn-sm ${dismissedClass}" onclick="eventManager.toggleReminderStatus('${reminderId}', 'dismissed')">
+                <i class="fas fa-times me-1"></i>忽略
+            </button>
+        `;
+        
+        // 延后按钮
         const isSnoozing = status && status.startsWith('snoozed_');
-        let snoozeButtons = '';
         if (isSnoozing) {
             const snoozeType = status.replace('snoozed_', '');
-            let snoozeText = this.getSnoozeText(snoozeType, reminderData.snooze_until);
-            snoozeButtons = `
-                <div class="d-inline-flex gap-2">
-                    <button class="btn btn-sm btn-warning active" disabled>${snoozeText}</button>
-                    <button class="btn btn-sm btn-outline-warning" onclick="eventManager.cancelReminderSnooze('${reminderId}')">取消延后</button>
-                </div>
+            const snoozeText = this.getSnoozeText(snoozeType, reminderData.snooze_until);
+            html += `
+                <button class="btn btn-sm btn-warning active" disabled>${snoozeText}</button>
+                <button class="btn btn-sm btn-outline-warning" onclick="eventManager.cancelReminderSnooze('${reminderId}')">
+                    <i class="fas fa-undo me-1"></i>取消延后
+                </button>
             `;
         } else {
-            snoozeButtons = `
+            html += `
                 <div class="dropdown d-inline-block">
-                    <button class="btn btn-sm btn-info dropdown-toggle" type="button" id="snoozeDropdown" data-bs-toggle="dropdown">
-                        延后
+                    <button class="btn btn-sm btn-info dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-clock me-1"></i>延后
                     </button>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="#" onclick="eventManager.snoozeReminderFromCalendar('${reminderId}', '15m'); return false;">15分钟后</a></li>
@@ -1064,61 +1500,19 @@ class EventManager {
             `;
         }
         
-        contentDiv.innerHTML = `
-            <div class="reminder-detail-card">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <h6 class="mb-0">${priorityIcon} ${reminderData.title}</h6>
-                </div>
-                
-                <div class="mb-3">
-                    <p class="text-muted mb-1"><i class="far fa-clock me-2"></i>提醒时间</p>
-                    <p class="mb-0">${formattedTime}</p>
-                </div>
-                
-                ${reminderData.description ? `
-                <div class="mb-3">
-                    <p class="text-muted mb-1"><i class="far fa-file-alt me-2"></i>内容</p>
-                    <p class="mb-0">${reminderData.description}</p>
-                </div>
-                ` : ''}
-                
-                ${reminderData.rrule ? `
-                <div class="mb-3">
-                    <p class="text-muted mb-1"><i class="fas fa-repeat me-2"></i>重复规则</p>
-                    <p class="mb-0"><code>${reminderData.rrule}</code></p>
-                </div>
-                ` : ''}
-                
-                <div class="d-flex flex-wrap gap-2 mb-3">
-                    <button class="btn btn-sm ${completedClass}" onclick="eventManager.toggleReminderStatus('${reminderId}', 'completed')">
-                        <i class="fas fa-check me-1"></i>完成
-                    </button>
-                    <button class="btn btn-sm ${dismissedClass}" onclick="eventManager.toggleReminderStatus('${reminderId}', 'dismissed')">
-                        <i class="fas fa-times me-1"></i>忽略
-                    </button>
-                    ${snoozeButtons}
-                </div>
-                
-                <div class="d-flex gap-2">
-                    <button class="btn btn-sm btn-primary" onclick="eventManager.editReminderFromCalendar('${reminderId}')">
-                        <i class="fas fa-edit me-1"></i>编辑
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="eventManager.deleteReminderFromCalendar('${reminderId}')">
-                        <i class="fas fa-trash me-1"></i>删除
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        // 显示模态框（使用与其他模态框一致的显示方式）
-        modal.style.display = 'block';
-        modal.classList.add('show');
-        
-        // 禁用日历交互，防止在查看提醒时误触发其他操作
-        if (window.eventManager && window.eventManager.calendar) {
-            window.eventManager.calendar.setOption('selectable', false);
-            window.eventManager.calendar.setOption('selectMirror', false);
-        }
+        return html;
+    }
+    
+    // 获取优先级文本
+    getPriorityText(priority) {
+        const textMap = {
+            'urgent': '紧急',
+            'high': '高',
+            'normal': '普通',
+            'low': '低',
+            'debug': '调试'
+        };
+        return textMap[priority] || '普通';
     }
     
     // 格式化提醒时间
@@ -1166,6 +1560,13 @@ class EventManager {
     
     // 切换提醒状态（完成/忽略）
     async toggleReminderStatus(reminderId, targetStatus) {
+        // 先获取当前提醒数据，判断是否需要切换为 active
+        const currentReminder = window.reminderManager ? 
+            window.reminderManager.reminders.find(r => r.id === reminderId) : null;
+        
+        // 如果当前状态与目标状态相同，则切换为 active（取消标记）
+        const newStatus = currentReminder && currentReminder.status === targetStatus ? 'active' : targetStatus;
+        
         try {
             const response = await fetch('/api/reminders/update-status/', {
                 method: 'POST',
@@ -1175,13 +1576,13 @@ class EventManager {
                 },
                 body: JSON.stringify({
                     id: reminderId,
-                    status: targetStatus
+                    status: newStatus
                 })
             });
             
             if (response.ok) {
                 // 关闭模态框
-                modalManager.closeAllModals();
+                this.closeReminderDetailModal();
                 // 重新加载日历
                 this.calendar.refetchEvents();
                 // 通知 reminder-manager 也刷新
@@ -1200,12 +1601,13 @@ class EventManager {
     
     // 延后提醒
     async snoozeReminderFromCalendar(reminderId, duration) {
+        // 先关闭模态框
+        this.closeReminderDetailModal();
+        
         // 调用 reminderManager 的方法
         if (window.reminderManager) {
             await window.reminderManager.snoozeReminder(reminderId, duration);
-            // 关闭模态框
-            modalManager.closeAllModals();
-            // 重新加载日历
+            // 重新加载日历（reminderManager.snoozeReminder 已经处理了刷新）
             this.calendar.refetchEvents();
         } else {
             alert('提醒管理器未初始化');
@@ -1214,9 +1616,11 @@ class EventManager {
     
     // 取消延后
     async cancelReminderSnooze(reminderId) {
+        // 先关闭模态框
+        this.closeReminderDetailModal();
+        
         if (window.reminderManager) {
             await window.reminderManager.cancelSnooze(reminderId);
-            modalManager.closeAllModals();
             this.calendar.refetchEvents();
         } else {
             alert('提醒管理器未初始化');

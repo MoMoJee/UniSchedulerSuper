@@ -205,7 +205,36 @@ class ReminderManager {
             </div>
         `;
 
+        // 添加点击事件查看详情（排除按钮区域）
+        const reminderContent = div.querySelector('.reminder-content');
+        console.log('Setting up click event for reminder:', reminder.id, 'reminderContent found:', !!reminderContent);
+        if (reminderContent) {
+            reminderContent.addEventListener('click', (e) => {
+                console.log('Reminder content clicked, target:', e.target, 'closest .reminder-actions:', e.target.closest('.reminder-actions'));
+                // 如果点击的是按钮或按钮内的元素，不触发详情查看
+                if (e.target.closest('.reminder-actions')) {
+                    console.log('Click on action buttons, ignoring');
+                    return;
+                }
+                console.log('Opening reminder detail modal for:', reminder.id);
+                this.openReminderDetailModal(reminder);
+            });
+            // 添加鼠标样式提示可点击
+            reminderContent.style.cursor = 'pointer';
+        }
+
         return div;
+    }
+
+    // 打开提醒详情模态框
+    openReminderDetailModal(reminder) {
+        console.log('reminderManager.openReminderDetailModal called with reminder:', reminder);
+        // 调用 eventManager 的统一方法
+        if (window.eventManager) {
+            window.eventManager.openReminderDetailModal(reminder, reminder.id);
+        } else {
+            console.error('EventManager 未初始化');
+        }
     }
 
     // 获取优先级图标
@@ -523,11 +552,19 @@ class ReminderManager {
                     </div>
                     <div class="message-box-text">${this.escapeHtml(message)}</div>
                 </div>
-                <button class="message-box-close" onclick="this.parentElement.remove()">确定</button>
+                <button class="message-box-close">确定</button>
             </div>
         `;
         
         document.body.appendChild(messageBox);
+        
+        // 点击确定按钮立即关闭
+        const closeBtn = messageBox.querySelector('.message-box-close');
+        if (closeBtn) {
+            closeBtn.onclick = () => {
+                messageBox.remove();
+            };
+        }
         
         // 3秒后自动消失
         setTimeout(() => {

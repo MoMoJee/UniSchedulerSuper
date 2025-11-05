@@ -1072,6 +1072,17 @@ class ModalManager {
 
             if (success) {
                 this.closeAllModals();
+                
+                // 检查是否来源于TODO转换
+                if (this.fromTodoConversion && this.sourceTodoId) {
+                    const shouldDelete = confirm('日程创建成功！是否删除原来的待办事项？');
+                    if (shouldDelete && window.todoManager) {
+                        await window.todoManager.deleteTodo(this.sourceTodoId, true); // true表示静默删除，不再弹确认框
+                    }
+                    // 清除标记
+                    this.fromTodoConversion = false;
+                    this.sourceTodoId = null;
+                }
             } else {
                 this.showNotification('事件创建失败', 'error');
             }
@@ -1268,8 +1279,13 @@ class ModalManager {
         document.getElementById('todoDescription').value = todo.description || '';
         document.getElementById('todoDueDate').value = todo.due_date ? this.toLocalTime(todo.due_date) : '';
         document.getElementById('todoEstimatedDuration').value = todo.estimated_duration || '';
-        document.getElementById('todoImportance').value = todo.importance;
-        document.getElementById('todoUrgency').value = todo.urgency;
+        
+        // 设置重要性紧急性矩阵按钮选中状态
+        this.setImportanceUrgency(
+            todo.importance || '',
+            todo.urgency || '',
+            'editTodo'
+        );
 
         this.populateGroupSelect('todoGroupId', todo.groupID);
 
@@ -2171,8 +2187,22 @@ class ModalManager {
 
     // 设置重要性紧急性
     setImportanceUrgency(importance, urgency, mode = 'create') {
-        const prefix = mode === 'create' ? 'newEvent' : 'event';
-        const modalId = mode === 'create' ? 'createEventModal' : 'editEventModal';
+        // 确定前缀和模态框ID
+        let prefix, modalId;
+        
+        if (mode === 'create') {
+            prefix = 'newEvent';
+            modalId = 'createEventModal';
+        } else if (mode === 'edit') {
+            prefix = 'event';
+            modalId = 'editEventModal';
+        } else if (mode === 'createTodo') {
+            prefix = 'newTodo';
+            modalId = 'createTodoModal';
+        } else if (mode === 'editTodo') {
+            prefix = 'todo';
+            modalId = 'editTodoModal';
+        }
 
         // 设置隐藏字段的值
         const importanceField = document.getElementById(`${prefix}Importance`);
