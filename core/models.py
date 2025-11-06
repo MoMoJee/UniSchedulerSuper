@@ -446,15 +446,15 @@ DATA_SCHEMA = {
                 "nullable": False,
                 "default": {},
                 "items": {
-                    "statusFilter": {
-                        "type": str,
+                    "priorities": {
+                        "type": list,
                         "nullable": False,
-                        "default": "",
+                        "default": ['important-urgent', 'important-not-urgent', 'not-important-urgent', 'not-important-not-urgent', 'unspecified'],
                     },
-                    "sortBy": {
-                        "type": str,
+                    "groups": {
+                        "type": list,
                         "nullable": False,
-                        "default": "priority",
+                        "default": ['all'],
                     },
                 },
             },
@@ -857,7 +857,7 @@ DATA_SCHEMA = {
             "auto_ddl": {
                 # TODO 布尔值的检查会出现 if <bool> 的愚蠢错误
                 "type": bool,
-                "nullable": True,
+                "nullable": False,
                 "default": False,
             },
             "prompt_scene_presets": {

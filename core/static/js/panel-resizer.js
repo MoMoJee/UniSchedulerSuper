@@ -14,12 +14,31 @@ class PanelResizer {
     init() {
         // 绑定调节器事件
         document.querySelectorAll('.resize-handle').forEach(handle => {
+            // 为 Safari 添加触摸动作样式
+            handle.style.touchAction = 'none';
+            handle.style.webkitUserSelect = 'none';
+            handle.style.webkitTouchCallout = 'none';
+            
             handle.addEventListener('mousedown', this.startResize.bind(this));
+            handle.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.startResize(e);
+            }, { passive: false });
         });
 
         // 绑定全局事件
         document.addEventListener('mousemove', this.doResize.bind(this));
         document.addEventListener('mouseup', this.stopResize.bind(this));
+        document.addEventListener('touchmove', (e) => {
+            if (this.isResizing) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            this.doResize(e);
+        }, { passive: false });
+        document.addEventListener('touchend', this.stopResize.bind(this));
+        document.addEventListener('touchcancel', this.stopResize.bind(this));
         
         // 防止选择文本
         document.addEventListener('selectstart', (e) => {
@@ -27,13 +46,36 @@ class PanelResizer {
                 e.preventDefault();
             }
         });
+        
+        // Safari 特定的手势阻止
+        document.addEventListener('gesturestart', (e) => {
+            if (this.isResizing) {
+                e.preventDefault();
+            }
+        });
+        document.addEventListener('gesturechange', (e) => {
+            if (this.isResizing) {
+                e.preventDefault();
+            }
+        });
+        document.addEventListener('gestureend', (e) => {
+            if (this.isResizing) {
+                e.preventDefault();
+            }
+        });
     }
 
     startResize(e) {
-        e.preventDefault();
+        // Safari 兼容性:更早地阻止默认行为
+        if (e.cancelable) {
+            e.preventDefault();
+        }
+        
         this.isResizing = true;
         this.currentHandle = e.target;
-        this.startX = e.clientX;
+        
+        // 处理触摸和鼠标事件
+        this.startX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
 
         // 记录当前宽度
         const container = document.querySelector('.main-container');
@@ -48,9 +90,11 @@ class PanelResizer {
             container: container.offsetWidth
         };
 
-        // 添加调节中的样式
+        // 添加调节中的样式 - Safari 兼容
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
+        document.body.style.webkitUserSelect = 'none';
+        document.body.style.webkitTouchCallout = 'none';
         this.currentHandle.classList.add('resizing');
         
         console.log('开始拖动调节器', this.startWidths); // 调试信息
@@ -59,8 +103,19 @@ class PanelResizer {
     doResize(e) {
         if (!this.isResizing) return;
 
-        e.preventDefault();
-        const deltaX = e.clientX - this.startX;
+        // 处理触摸和鼠标事件
+        let currentX;
+        if (e.type.startsWith('touch')) {
+            if (!e.touches || e.touches.length === 0) return;
+            currentX = e.touches[0].clientX;
+        } else {
+            currentX = e.clientX;
+        }
+        
+        const deltaX = currentX - this.startX;
+        
+        console.log('拖动中', { currentX, deltaX, eventType: e.type }); // 调试信息
+        
         const container = document.querySelector('.main-container');
         const leftPanel = container.querySelector('.left-panel');
         const centerPanel = container.querySelector('.center-panel');
@@ -104,9 +159,11 @@ class PanelResizer {
 
         this.isResizing = false;
         
-        // 移除调节中的样式
+        // 移除调节中的样式 - Safari 兼容
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
+        document.body.style.webkitUserSelect = '';
+        document.body.style.webkitTouchCallout = '';
         if (this.currentHandle) {
             this.currentHandle.classList.remove('resizing');
         }

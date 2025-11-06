@@ -148,11 +148,7 @@ def get_user_preferences(request):
 @login_required
 def home(request):
     user_preference_data :'UserData'
-    user_preference_data, created, result = UserData().get_or_initialize(request=request, new_key="user_preference",
-                                                                         data={
-                                                                             "week_number_start": {"month": 2, "day": 24},  # TODO 这个以后要让用户可以自己修改
-                                                                             "auto_ddl": True     # 设置起始日期为 2 月 24 日
-                                                                         })
+    user_preference_data, created, result = UserData().get_or_initialize(request=request, new_key="user_preference")
     # TODO 新加一个用户 config ，存储新手教程类和“不再提示”这种配置
     # TODO 还可以加一个，比如上一次创建的日程是什么日程组，下一次默认这个
 

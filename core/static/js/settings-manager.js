@@ -7,8 +7,8 @@ class SettingsManager {
         this.debounceTimers = new Map();
         this.settings = {
             todoFilters: {
-                statusFilter: '', // 空字符串表示显示所有未完成的
-                sortBy: 'priority'
+                priorities: ['important-urgent', 'important-not-urgent', 'not-important-urgent', 'not-important-not-urgent', 'unspecified'],
+                groups: ['all']
             },
             reminderFilters: {
                 timeRange: 'today',
@@ -251,14 +251,22 @@ class SettingsManager {
     applyTodoFilters() {
         const filters = this.settings.todoFilters;
         if (window.todoManager) {
-            if (filters.statusFilter !== undefined) {
-                const statusSelect = document.querySelector('#todoStatusFilter');
-                if (statusSelect) statusSelect.value = filters.statusFilter;
+            // 应用优先级筛选
+            if (filters.priorities && filters.priorities.length > 0) {
+                const priorityCheckboxes = document.querySelectorAll('#todoPriorityFilterList input[type="checkbox"]');
+                priorityCheckboxes.forEach(checkbox => {
+                    checkbox.checked = filters.priorities.includes(checkbox.value);
+                });
             }
-            if (filters.sortBy) {
-                const sortSelect = document.querySelector('#todoSortBy');
-                if (sortSelect) sortSelect.value = filters.sortBy;
+            
+            // 应用日程组筛选
+            if (filters.groups && filters.groups.length > 0) {
+                const groupCheckboxes = document.querySelectorAll('#todoGroupFilterList input[type="checkbox"]');
+                groupCheckboxes.forEach(checkbox => {
+                    checkbox.checked = filters.groups.includes(checkbox.value);
+                });
             }
+            
             // 触发筛选
             setTimeout(() => window.todoManager?.applyFilters(), 100);
         }

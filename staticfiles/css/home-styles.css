@@ -123,9 +123,9 @@
     --navbar-bg: #1a1d23;
     --navbar-text: #e8eaed;
     
-    /* FullCalendar */
+    /* FullCalendar - 优化边框颜色 */
     --fc-bg: #22252b;
-    --fc-border: #3c4043;
+    --fc-border: #2a2d33;
     --fc-event-bg: #4d9fff;
     --fc-event-border: #4d9fff;
     --fc-event-text: #ffffff;
@@ -1044,6 +1044,21 @@ body {
     color: var(--text-primary);
 }
 
+/* 星期徽章样式 - 圆形背景 */
+.day-of-week-badge {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: var(--primary);
+    color: #ffffff;
+    font-weight: 500;
+    font-size: 12px;
+    margin-left: 4px;
+}
+
 .fc-daygrid-day,
 .fc-timegrid-slot {
     background-color: var(--fc-bg);
@@ -1241,7 +1256,7 @@ body {
     margin: 0;
     font-size: 16px;
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
 }
 
 /* 面板内容 */
@@ -1339,6 +1354,11 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Safari 触摸优化 */
+    touch-action: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    user-select: none;
 }
 
 .resize-handle:hover {
@@ -1479,6 +1499,20 @@ body {
     padding: 2px 4px !important;
     font-size: 11px !important;
     line-height: 1.2 !important;
+}
+
+/* 月视图中日程链接和时间的默认颜色（不包括提醒） */
+.fc-daygrid-event:not(.reminder-event) a,
+.fc-daygrid-event:not(.reminder-event) .fc-event-title,
+.fc-daygrid-event:not(.reminder-event) .fc-event-time {
+    color: var(--primary) !important;
+    text-decoration: none;
+}
+
+.fc-daygrid-event:not(.reminder-event) a:hover,
+.fc-daygrid-event:not(.reminder-event) .fc-event-title:hover,
+.fc-daygrid-event:not(.reminder-event) .fc-event-time:hover {
+    color: var(--primary-hover) !important;
 }
 
 /* 确保时间表格有足够高度显示所有时间 */
@@ -2609,6 +2643,31 @@ body {
     color: var(--text-primary);
 }
 
+/* 表单标签和文本 */
+[data-theme="dark"] .form-label,
+[data-theme="dark"] .form-check-label {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] small,
+[data-theme="dark"] .text-muted {
+    color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] strong {
+    color: var(--text-primary);
+}
+
+/* Modal内的标题和文字 */
+[data-theme="dark"] .modal-body h6 {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .modal-body p,
+[data-theme="dark"] .modal-body li {
+    color: var(--text-primary);
+}
+
 /* 导航栏 */
 [data-theme="dark"] .navbar {
     background-color: var(--navbar-bg) !important;
@@ -2670,7 +2729,13 @@ body {
     border-color: var(--border-color);
 }
 
-/* Tab导航 */
+[data-theme="dark"] .alert-warning {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--border-dark);
+}
+
+/* Tab导航 - 深色主题 */
 [data-theme="dark"] .nav-tabs {
     border-bottom-color: var(--border-color);
 }
@@ -2687,7 +2752,183 @@ body {
 [data-theme="dark"] .nav-tabs .nav-link.active {
     background-color: var(--bg-primary);
     border-color: var(--border-color) var(--border-color) var(--bg-primary);
+    color: var(--primary);
+}
+
+/* Tab导航 - 所有其他主题 */
+[data-theme="china-red"] .nav-tabs,
+[data-theme="warm-pastel"] .nav-tabs,
+[data-theme="cool-pastel"] .nav-tabs,
+[data-theme="macaron"] .nav-tabs,
+[data-theme="dopamine"] .nav-tabs,
+[data-theme="forest"] .nav-tabs,
+[data-theme="sunset"] .nav-tabs,
+[data-theme="ocean"] .nav-tabs,
+[data-theme="sakura"] .nav-tabs,
+[data-theme="cyberpunk"] .nav-tabs {
+    border-bottom-color: var(--border-color);
+}
+
+[data-theme="china-red"] .nav-tabs .nav-link,
+[data-theme="warm-pastel"] .nav-tabs .nav-link,
+[data-theme="cool-pastel"] .nav-tabs .nav-link,
+[data-theme="macaron"] .nav-tabs .nav-link,
+[data-theme="dopamine"] .nav-tabs .nav-link,
+[data-theme="forest"] .nav-tabs .nav-link,
+[data-theme="sunset"] .nav-tabs .nav-link,
+[data-theme="ocean"] .nav-tabs .nav-link,
+[data-theme="sakura"] .nav-tabs .nav-link,
+[data-theme="cyberpunk"] .nav-tabs .nav-link {
+    color: var(--text-secondary);
+}
+
+[data-theme="china-red"] .nav-tabs .nav-link:hover,
+[data-theme="warm-pastel"] .nav-tabs .nav-link:hover,
+[data-theme="cool-pastel"] .nav-tabs .nav-link:hover,
+[data-theme="macaron"] .nav-tabs .nav-link:hover,
+[data-theme="dopamine"] .nav-tabs .nav-link:hover,
+[data-theme="forest"] .nav-tabs .nav-link:hover,
+[data-theme="sunset"] .nav-tabs .nav-link:hover,
+[data-theme="ocean"] .nav-tabs .nav-link:hover,
+[data-theme="sakura"] .nav-tabs .nav-link:hover,
+[data-theme="cyberpunk"] .nav-tabs .nav-link:hover {
+    border-color: var(--border-light) var(--border-light) var(--border-color);
     color: var(--text-primary);
+}
+
+[data-theme="china-red"] .nav-tabs .nav-link.active,
+[data-theme="warm-pastel"] .nav-tabs .nav-link.active,
+[data-theme="cool-pastel"] .nav-tabs .nav-link.active,
+[data-theme="macaron"] .nav-tabs .nav-link.active,
+[data-theme="dopamine"] .nav-tabs .nav-link.active,
+[data-theme="forest"] .nav-tabs .nav-link.active,
+[data-theme="sunset"] .nav-tabs .nav-link.active,
+[data-theme="ocean"] .nav-tabs .nav-link.active,
+[data-theme="sakura"] .nav-tabs .nav-link.active,
+[data-theme="cyberpunk"] .nav-tabs .nav-link.active {
+    background-color: var(--bg-primary);
+    border-color: var(--border-color) var(--border-color) var(--bg-primary);
+    color: var(--primary);
+}
+
+/* 开关按钮 - 所有主题 */
+[data-theme="dark"] .form-check-input:checked,
+[data-theme="china-red"] .form-check-input:checked,
+[data-theme="warm-pastel"] .form-check-input:checked,
+[data-theme="cool-pastel"] .form-check-input:checked,
+[data-theme="macaron"] .form-check-input:checked,
+[data-theme="dopamine"] .form-check-input:checked,
+[data-theme="forest"] .form-check-input:checked,
+[data-theme="sunset"] .form-check-input:checked,
+[data-theme="ocean"] .form-check-input:checked,
+[data-theme="sakura"] .form-check-input:checked,
+[data-theme="cyberpunk"] .form-check-input:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] .form-check-input:focus,
+[data-theme="china-red"] .form-check-input:focus,
+[data-theme="warm-pastel"] .form-check-input:focus,
+[data-theme="cool-pastel"] .form-check-input:focus,
+[data-theme="macaron"] .form-check-input:focus,
+[data-theme="dopamine"] .form-check-input:focus,
+[data-theme="forest"] .form-check-input:focus,
+[data-theme="sunset"] .form-check-input:focus,
+[data-theme="ocean"] .form-check-input:focus,
+[data-theme="sakura"] .form-check-input:focus,
+[data-theme="cyberpunk"] .form-check-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.25rem rgba(var(--primary-rgb), 0.25);
+}
+
+/* 月视图日程链接和时间颜色 - 所有主题（不包括提醒） */
+[data-theme="dark"] .fc-daygrid-event:not(.reminder-event) a,
+[data-theme="china-red"] .fc-daygrid-event:not(.reminder-event) a,
+[data-theme="warm-pastel"] .fc-daygrid-event:not(.reminder-event) a,
+[data-theme="cool-pastel"] .fc-daygrid-event:not(.reminder-event) a,
+[data-theme="macaron"] .fc-daygrid-event:not(.reminder-event) a,
+[data-theme="dopamine"] .fc-daygrid-event:not(.reminder-event) a,
+[data-theme="forest"] .fc-daygrid-event:not(.reminder-event) a,
+[data-theme="sunset"] .fc-daygrid-event:not(.reminder-event) a,
+[data-theme="ocean"] .fc-daygrid-event:not(.reminder-event) a,
+[data-theme="sakura"] .fc-daygrid-event:not(.reminder-event) a,
+[data-theme="cyberpunk"] .fc-daygrid-event:not(.reminder-event) a,
+[data-theme="dark"] .fc-daygrid-event:not(.reminder-event) .fc-event-title,
+[data-theme="china-red"] .fc-daygrid-event:not(.reminder-event) .fc-event-title,
+[data-theme="warm-pastel"] .fc-daygrid-event:not(.reminder-event) .fc-event-title,
+[data-theme="cool-pastel"] .fc-daygrid-event:not(.reminder-event) .fc-event-title,
+[data-theme="macaron"] .fc-daygrid-event:not(.reminder-event) .fc-event-title,
+[data-theme="dopamine"] .fc-daygrid-event:not(.reminder-event) .fc-event-title,
+[data-theme="forest"] .fc-daygrid-event:not(.reminder-event) .fc-event-title,
+[data-theme="sunset"] .fc-daygrid-event:not(.reminder-event) .fc-event-title,
+[data-theme="ocean"] .fc-daygrid-event:not(.reminder-event) .fc-event-title,
+[data-theme="sakura"] .fc-daygrid-event:not(.reminder-event) .fc-event-title,
+[data-theme="cyberpunk"] .fc-daygrid-event:not(.reminder-event) .fc-event-title,
+[data-theme="dark"] .fc-daygrid-event:not(.reminder-event) .fc-event-time,
+[data-theme="china-red"] .fc-daygrid-event:not(.reminder-event) .fc-event-time,
+[data-theme="warm-pastel"] .fc-daygrid-event:not(.reminder-event) .fc-event-time,
+[data-theme="cool-pastel"] .fc-daygrid-event:not(.reminder-event) .fc-event-time,
+[data-theme="macaron"] .fc-daygrid-event:not(.reminder-event) .fc-event-time,
+[data-theme="dopamine"] .fc-daygrid-event:not(.reminder-event) .fc-event-time,
+[data-theme="forest"] .fc-daygrid-event:not(.reminder-event) .fc-event-time,
+[data-theme="sunset"] .fc-daygrid-event:not(.reminder-event) .fc-event-time,
+[data-theme="ocean"] .fc-daygrid-event:not(.reminder-event) .fc-event-time,
+[data-theme="sakura"] .fc-daygrid-event:not(.reminder-event) .fc-event-time,
+[data-theme="cyberpunk"] .fc-daygrid-event:not(.reminder-event) .fc-event-time {
+    color: var(--primary) !important;
+}
+
+[data-theme="dark"] .fc-daygrid-event:not(.reminder-event) a:hover,
+[data-theme="china-red"] .fc-daygrid-event:not(.reminder-event) a:hover,
+[data-theme="warm-pastel"] .fc-daygrid-event:not(.reminder-event) a:hover,
+[data-theme="cool-pastel"] .fc-daygrid-event:not(.reminder-event) a:hover,
+[data-theme="macaron"] .fc-daygrid-event:not(.reminder-event) a:hover,
+[data-theme="dopamine"] .fc-daygrid-event:not(.reminder-event) a:hover,
+[data-theme="forest"] .fc-daygrid-event:not(.reminder-event) a:hover,
+[data-theme="sunset"] .fc-daygrid-event:not(.reminder-event) a:hover,
+[data-theme="ocean"] .fc-daygrid-event:not(.reminder-event) a:hover,
+[data-theme="sakura"] .fc-daygrid-event:not(.reminder-event) a:hover,
+[data-theme="cyberpunk"] .fc-daygrid-event:not(.reminder-event) a:hover,
+[data-theme="dark"] .fc-daygrid-event:not(.reminder-event) .fc-event-title:hover,
+[data-theme="china-red"] .fc-daygrid-event:not(.reminder-event) .fc-event-title:hover,
+[data-theme="warm-pastel"] .fc-daygrid-event:not(.reminder-event) .fc-event-title:hover,
+[data-theme="cool-pastel"] .fc-daygrid-event:not(.reminder-event) .fc-event-title:hover,
+[data-theme="macaron"] .fc-daygrid-event:not(.reminder-event) .fc-event-title:hover,
+[data-theme="dopamine"] .fc-daygrid-event:not(.reminder-event) .fc-event-title:hover,
+[data-theme="forest"] .fc-daygrid-event:not(.reminder-event) .fc-event-title:hover,
+[data-theme="sunset"] .fc-daygrid-event:not(.reminder-event) .fc-event-title:hover,
+[data-theme="ocean"] .fc-daygrid-event:not(.reminder-event) .fc-event-title:hover,
+[data-theme="sakura"] .fc-daygrid-event:not(.reminder-event) .fc-event-title:hover,
+[data-theme="cyberpunk"] .fc-daygrid-event:not(.reminder-event) .fc-event-title:hover,
+[data-theme="dark"] .fc-daygrid-event:not(.reminder-event) .fc-event-time:hover,
+[data-theme="china-red"] .fc-daygrid-event:not(.reminder-event) .fc-event-time:hover,
+[data-theme="warm-pastel"] .fc-daygrid-event:not(.reminder-event) .fc-event-time:hover,
+[data-theme="cool-pastel"] .fc-daygrid-event:not(.reminder-event) .fc-event-time:hover,
+[data-theme="macaron"] .fc-daygrid-event:not(.reminder-event) .fc-event-time:hover,
+[data-theme="dopamine"] .fc-daygrid-event:not(.reminder-event) .fc-event-time:hover,
+[data-theme="forest"] .fc-daygrid-event:not(.reminder-event) .fc-event-time:hover,
+[data-theme="sunset"] .fc-daygrid-event:not(.reminder-event) .fc-event-time:hover,
+[data-theme="ocean"] .fc-daygrid-event:not(.reminder-event) .fc-event-time:hover,
+[data-theme="sakura"] .fc-daygrid-event:not(.reminder-event) .fc-event-time:hover,
+[data-theme="cyberpunk"] .fc-daygrid-event:not(.reminder-event) .fc-event-time:hover {
+    color: var(--primary-hover) !important;
+}
+
+/* 星期徽章颜色 - 所有主题 */
+[data-theme="dark"] .day-of-week-badge,
+[data-theme="china-red"] .day-of-week-badge,
+[data-theme="warm-pastel"] .day-of-week-badge,
+[data-theme="cool-pastel"] .day-of-week-badge,
+[data-theme="macaron"] .day-of-week-badge,
+[data-theme="dopamine"] .day-of-week-badge,
+[data-theme="forest"] .day-of-week-badge,
+[data-theme="sunset"] .day-of-week-badge,
+[data-theme="ocean"] .day-of-week-badge,
+[data-theme="sakura"] .day-of-week-badge,
+[data-theme="cyberpunk"] .day-of-week-badge {
+    background-color: var(--primary);
+    color: #ffffff;
 }
 
 /* FullCalendar深色模式 */
@@ -2723,16 +2964,13 @@ body {
     background-color: var(--fc-today-bg) !important;
 }
 
-/* 移除深色主题下事件的强制颜色设置 */
-/* [data-theme="dark"] .fc-event {
-    background-color: var(--fc-event-bg);
-    border-color: var(--fc-event-border);
-    color: var(--fc-event-text);
-    opacity: 0.85;
-} */
+/* 深色主题下降低日程颜色亮度和饱和度 */
+[data-theme="dark"] .fc-event {
+    filter: brightness(0.75) saturate(0.85);
+}
 
 [data-theme="dark"] .fc-event:hover {
-    opacity: 1; /* 悬停时恢复完整亮度 */
+    filter: brightness(0.85) saturate(0.95); /* 悬停时稍微提高亮度 */
 }
 
 [data-theme="dark"] .fc-timegrid-slot {
@@ -2782,9 +3020,14 @@ body {
 
 /* 面板容器 */
 [data-theme="dark"] .left-panel,
+[data-theme="dark"] .center-panel,
 [data-theme="dark"] .right-panel {
     background-color: var(--bg-secondary);
     border-color: var(--border-color);
+}
+
+[data-theme="dark"] .panel-header {
+    border-bottom-color: var(--border-dark);
 }
 
 [data-theme="dark"] .section-header {
@@ -2919,6 +3162,119 @@ body {
     color: var(--text-secondary) !important;
 }
 
+/* Bootstrap 颜色辅助类适配 - 深色主题 */
+[data-theme="dark"] .text-primary {
+    color: var(--primary) !important;
+}
+
+[data-theme="dark"] .text-success {
+    color: var(--success) !important;
+}
+
+[data-theme="dark"] .text-danger {
+    color: var(--danger) !important;
+}
+
+[data-theme="dark"] .text-warning {
+    color: var(--warning) !important;
+}
+
+[data-theme="dark"] .text-info {
+    color: var(--info) !important;
+}
+
+/* Bootstrap 颜色辅助类适配 - 所有其他主题 */
+[data-theme="china-red"] .text-primary,
+[data-theme="warm-pastel"] .text-primary,
+[data-theme="cool-pastel"] .text-primary,
+[data-theme="macaron"] .text-primary,
+[data-theme="dopamine"] .text-primary,
+[data-theme="forest"] .text-primary,
+[data-theme="sunset"] .text-primary,
+[data-theme="ocean"] .text-primary,
+[data-theme="sakura"] .text-primary,
+[data-theme="cyberpunk"] .text-primary {
+    color: var(--primary) !important;
+}
+
+[data-theme="china-red"] .text-success,
+[data-theme="warm-pastel"] .text-success,
+[data-theme="cool-pastel"] .text-success,
+[data-theme="macaron"] .text-success,
+[data-theme="dopamine"] .text-success,
+[data-theme="forest"] .text-success,
+[data-theme="sunset"] .text-success,
+[data-theme="ocean"] .text-success,
+[data-theme="sakura"] .text-success,
+[data-theme="cyberpunk"] .text-success {
+    color: var(--success) !important;
+}
+
+[data-theme="china-red"] .text-danger,
+[data-theme="warm-pastel"] .text-danger,
+[data-theme="cool-pastel"] .text-danger,
+[data-theme="macaron"] .text-danger,
+[data-theme="dopamine"] .text-danger,
+[data-theme="forest"] .text-danger,
+[data-theme="sunset"] .text-danger,
+[data-theme="ocean"] .text-danger,
+[data-theme="sakura"] .text-danger,
+[data-theme="cyberpunk"] .text-danger {
+    color: var(--danger) !important;
+}
+
+[data-theme="china-red"] .text-warning,
+[data-theme="warm-pastel"] .text-warning,
+[data-theme="cool-pastel"] .text-warning,
+[data-theme="macaron"] .text-warning,
+[data-theme="dopamine"] .text-warning,
+[data-theme="forest"] .text-warning,
+[data-theme="sunset"] .text-warning,
+[data-theme="ocean"] .text-warning,
+[data-theme="sakura"] .text-warning,
+[data-theme="cyberpunk"] .text-warning {
+    color: var(--warning) !important;
+}
+
+[data-theme="china-red"] .text-info,
+[data-theme="warm-pastel"] .text-info,
+[data-theme="cool-pastel"] .text-info,
+[data-theme="macaron"] .text-info,
+[data-theme="dopamine"] .text-info,
+[data-theme="forest"] .text-info,
+[data-theme="sunset"] .text-info,
+[data-theme="ocean"] .text-info,
+[data-theme="sakura"] .text-info,
+[data-theme="cyberpunk"] .text-info {
+    color: var(--info) !important;
+}
+
+[data-theme="china-red"] .text-secondary,
+[data-theme="warm-pastel"] .text-secondary,
+[data-theme="cool-pastel"] .text-secondary,
+[data-theme="macaron"] .text-secondary,
+[data-theme="dopamine"] .text-secondary,
+[data-theme="forest"] .text-secondary,
+[data-theme="sunset"] .text-secondary,
+[data-theme="ocean"] .text-secondary,
+[data-theme="sakura"] .text-secondary,
+[data-theme="cyberpunk"] .text-secondary {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="china-red"] .text-muted,
+[data-theme="warm-pastel"] .text-muted,
+[data-theme="cool-pastel"] .text-muted,
+[data-theme="macaron"] .text-muted,
+[data-theme="dopamine"] .text-muted,
+[data-theme="forest"] .text-muted,
+[data-theme="sunset"] .text-muted,
+[data-theme="ocean"] .text-muted,
+[data-theme="sakura"] .text-muted,
+[data-theme="cyberpunk"] .text-muted {
+    color: var(--text-muted) !important;
+}
+
 /* 小文本 */
 [data-theme="dark"] small {
     color: var(--text-muted);
@@ -2938,6 +3294,16 @@ body {
 }
 
 [data-theme="dark"] .list-group-item h6 {
+    color: var(--text-primary);
+}
+
+/* 日历区域深色适配 */
+[data-theme="dark"] .calendar-section {
+    background: var(--bg-secondary);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .calendar-title {
     color: var(--text-primary);
 }
 

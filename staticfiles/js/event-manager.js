@@ -222,7 +222,22 @@ class EventManager {
             // 自定义星期名称
             dayHeaderContent: (args) => {
                 const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
-                return dayNames[args.date.getDay()];
+                const dayOfWeek = dayNames[args.date.getDay()];
+                const dayOfMonth = args.date.getDate();
+                
+                // 判断当前视图类型
+                const viewType = args.view.type;
+                
+                // 月视图只显示日期数字（FullCalendar默认会显示）
+                if (viewType === 'dayGridMonth') {
+                    return dayOfMonth;
+                }
+                
+                // 周视图和2日视图显示日期+圆形星期
+                // 返回HTML结构，星期用span包裹以便添加样式
+                return {
+                    html: `${dayOfMonth}日 <span class="day-of-week-badge">${dayOfWeek}</span>`
+                };
             },
             
             // 事件拖拽

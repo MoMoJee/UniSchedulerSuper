@@ -103,28 +103,58 @@
             <div class="todo-section section-half">
                 <div class="section-header">
                     <h6><i class="fas fa-tasks me-2"></i>待办事项</h6>
-                    <button class="btn btn-primary btn-sm create-btn" onclick="modalManager.openCreateTodoModal()">
-                        <i class="fas fa-plus"></i>
-                    </button>
+                    <div class="header-buttons">
+                        <button class="btn btn-outline-secondary btn-sm me-1" onclick="todoManager.toggleFilterDropdown()" title="筛选">
+                            <i class="fas fa-filter"></i>
+                        </button>
+                        <button class="btn btn-primary btn-sm create-btn" onclick="modalManager.openCreateTodoModal()">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
                 </div>
                 
-                <!-- 待办事项筛选和排序 - 固定在顶部 -->
-                <div class="filter-controls mb-2">
-                    <div class="row g-1">
-                        <div class="col-6">
-                            <select class="form-select form-select-sm" id="todoStatusFilter">
-                                <option value="">全部状态</option>
-                                <option value="pending">待完成</option>
-                                <option value="in_progress">进行中</option>
-                                <option value="completed">已完成</option>
-                            </select>
+                <!-- 待办事项筛选下拉菜单 -->
+                <div id="todoFilterDropdown" class="todo-filter-dropdown" style="display: none;">
+                    <div class="filter-section">
+                        <h6 class="filter-title"><i class="fas fa-th me-2"></i>重要紧急性</h6>
+                        <div id="todoPriorityFilterList">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="important-urgent" id="todo-filter-important-urgent" checked>
+                                <label class="form-check-label" for="todo-filter-important-urgent">
+                                    🔴 重要且紧急
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="important-not-urgent" id="todo-filter-important-not-urgent" checked>
+                                <label class="form-check-label" for="todo-filter-important-not-urgent">
+                                    🟡 重要不紧急
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="not-important-urgent" id="todo-filter-not-important-urgent" checked>
+                                <label class="form-check-label" for="todo-filter-not-important-urgent">
+                                    🟠 不重要但紧急
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="not-important-not-urgent" id="todo-filter-not-important-not-urgent" checked>
+                                <label class="form-check-label" for="todo-filter-not-important-not-urgent">
+                                    🟢 不重要不紧急
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="unspecified" id="todo-filter-unspecified" checked>
+                                <label class="form-check-label" for="todo-filter-unspecified">
+                                    ⚪ 其他
+                                </label>
+                            </div>
                         </div>
-                        <div class="col-6">
-                            <select class="form-select form-select-sm" id="todoSortBy">
-                                <option value="priority">按优先级</option>
-                                <option value="due_date">按到期时间</option>
-                                <option value="created_at">按创建时间</option>
-                            </select>
+                    </div>
+                    
+                    <div class="filter-section">
+                        <h6 class="filter-title"><i class="fas fa-folder me-2"></i>日程组</h6>
+                        <div id="todoGroupFilterList">
+                            <!-- 将通过JS动态填充 -->
                         </div>
                     </div>
                 </div>
@@ -2185,14 +2215,14 @@
     
     <!-- 自定义JavaScript模块 -->
     <script src="{% static 'js/theme-manager.js' %}?v=20251103-001"></script>
-    <script src="{% static 'js/settings-manager.js' %}?v=20251104-002"></script>
+    <script src="{% static 'js/settings-manager.js' %}?v=20251106-001"></script>
     <script src="{% static 'js/panel-resizer.js' %}?v=20251104-002"></script>
     <script src="{% static 'js/reminder-manager.js' %}?v=20251104-002"></script>
     <script src="{% static 'js/rrule-manager.js' %}?v=20251104-002"></script>
     <script src="{% static 'js/modal-manager.js' %}?v=20251104-002"></script>
-    <script src="{% static 'js/group-manager.js' %}?v=20251104-002"></script>
-    <script src="{% static 'js/event-manager.js' %}?v=20251104-002"></script>
-    <script src="{% static 'js/todo-manager.js' %}?v=20251104-002"></script>
+    <script src="{% static 'js/group-manager.js' %}?v=20251106-001"></script>
+    <script src="{% static 'js/event-manager.js' %}?v=20251106-002"></script>
+    <script src="{% static 'js/todo-manager.js' %}?v=20251106-001"></script>
     <script src="{% static 'js/calendar-touch-swipe.js' %}?v=20251104-003"></script>
     
     <!-- AI助手模块 -->
@@ -2363,10 +2393,10 @@
             
             // 初始化各个管理器
             window.modalManager.init();
+            window.groupManager.init();  // 先初始化日程组管理器
             window.eventManager.init(); // 此时settingsManager已有数据,可以正确设置initialView和initialDate
             window.todoManager.init();
             window.reminderManager.init();
-            window.groupManager.init();
             
             // 初始化日历触屏滑动功能
             // 等待日历渲染完成后再启用触屏滑动

@@ -222,7 +222,22 @@ class EventManager {
             // 自定义星期名称
             dayHeaderContent: (args) => {
                 const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
-                return dayNames[args.date.getDay()];
+                const dayOfWeek = dayNames[args.date.getDay()];
+                const dayOfMonth = args.date.getDate();
+                
+                // 判断当前视图类型
+                const viewType = args.view.type;
+                
+                // 月视图只显示日期数字（FullCalendar默认会显示）
+                if (viewType === 'dayGridMonth') {
+                    return dayOfMonth;
+                }
+                
+                // 周视图和2日视图显示日期+圆形星期
+                // 返回HTML结构，星期用span包裹以便添加样式
+                return {
+                    html: `${dayOfMonth}日 <span class="day-of-week-badge">${dayOfWeek}</span>`
+                };
             },
             
             // 事件拖拽
@@ -698,10 +713,25 @@ class EventManager {
             
             // 4. 检查分组筛选
             if (filters.groups && filters.groups.length > 0) {
-                // 如果指定了分组列表，只显示这些分组
-                if (!filters.groups.includes(event.groupID)) {
-                    return false;
+                // 检查是否属于"无日程组"类别
+                const hasNoGroup = !event.groupID || event.groupID === '';
+                const noneSelected = filters.groups.includes('none');
+                
+                // 检查是否属于某个选中的日程组
+                const groupMatched = event.groupID && filters.groups.includes(event.groupID);
+                
+                // 如果选中了"无日程组"，且事件确实无日程组，则显示
+                if (noneSelected && hasNoGroup) {
+                    return true;
                 }
+                
+                // 如果事件属于某个选中的日程组，则显示
+                if (groupMatched) {
+                    return true;
+                }
+                
+                // 都不匹配，则过滤掉
+                return false;
             }
             
             return true;
@@ -2833,6 +2863,22 @@ class EventManager {
         
         groupList.innerHTML = '';
         
+        // 添加"无日程组"选项
+        const noneCheckbox = document.createElement('div');
+        noneCheckbox.className = 'form-check';
+        noneCheckbox.innerHTML = `
+            <input class="form-check-input group-filter-checkbox" 
+                   type="checkbox" 
+                   id="filter-group-none" 
+                   value="none"
+                   ${selectedGroups.length === 0 || selectedGroups.includes('none') ? 'checked' : ''}>
+            <label class="form-check-label" for="filter-group-none">
+                📋 其他
+            </label>
+        `;
+        groupList.appendChild(noneCheckbox);
+        
+        // 添加所有日程组
         this.groups.forEach(group => {
             const checkbox = document.createElement('div');
             checkbox.className = 'form-check';
@@ -2877,8 +2923,9 @@ class EventManager {
             filters.groups.push(cb.value);
         });
         
-        // 如果所有日程组都选中，则清空数组（表示显示所有）
-        if (groupCheckboxes.length === this.groups.length) {
+        // 如果所有日程组都选中（包括"无日程组"），则清空数组（表示显示所有）
+        // 总数 = 日程组数量 + 1（"无日程组"选项）
+        if (groupCheckboxes.length === this.groups.length + 1) {
             filters.groups = [];
         }
         

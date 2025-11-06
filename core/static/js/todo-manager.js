@@ -13,68 +13,191 @@ class TodoManager {
         this.initFilters();
     }
 
+    // 切换筛选下拉框显示
+    toggleFilterDropdown() {
+        const dropdown = document.getElementById('todoFilterDropdown');
+        if (dropdown) {
+            if (dropdown.style.display === 'none') {
+                dropdown.style.display = 'block';
+            } else {
+                dropdown.style.display = 'none';
+            }
+        }
+    }
+
     // 初始化筛选功能
     initFilters() {
-        const statusFilter = document.getElementById('todoStatusFilter');
-        const sortFilter = document.getElementById('todoSortBy');
-
-        if (statusFilter) {
-            statusFilter.addEventListener('change', () => {
-                console.log('待办状态筛选变化:', statusFilter.value);
+        // 绑定优先级筛选复选框事件
+        const priorityCheckboxes = document.querySelectorAll('#todoPriorityFilterList input[type="checkbox"]');
+        priorityCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                console.log('待办优先级筛选变化');
                 this.applyFilters();
                 // 保存筛选状态
                 if (window.settingsManager) {
-                    window.settingsManager.onTodoFilterChange('statusFilter', statusFilter.value);
+                    const selectedValues = Array.from(priorityCheckboxes)
+                        .filter(cb => cb.checked)
+                        .map(cb => cb.value);
+                    window.settingsManager.onTodoFilterChange('priorities', selectedValues);
                 }
             });
-        }
+        });
 
-        if (sortFilter) {
-            sortFilter.addEventListener('change', () => {
-                console.log('待办排序变化:', sortFilter.value);
-                this.applyFilters();
-                // 保存排序状态
-                if (window.settingsManager) {
-                    window.settingsManager.onTodoFilterChange('sortBy', sortFilter.value);
-                }
-            });
-        }
+        // 加载日程组选项
+        this.loadGroupOptions();
+        
+        // 点击外部关闭筛选下拉框
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('todoFilterDropdown');
+            const filterBtn = e.target.closest('button[onclick*="toggleFilterDropdown"]');
+            if (dropdown && dropdown.style.display === 'block' && !dropdown.contains(e.target) && !filterBtn) {
+                dropdown.style.display = 'none';
+            }
+        });
         
         console.log('待办筛选器已初始化');
     }
 
-    // 应用筛选和排序
-    applyFilters() {
-        const statusFilter = document.getElementById('todoStatusFilter');
-        const sortFilter = document.getElementById('todoSortBy');
-        
-        let filteredTodos = [...this.todos];
-        
-        // 状态筛选
-        if (statusFilter && statusFilter.value) {
-            filteredTodos = filteredTodos.filter(todo => todo.status === statusFilter.value);
-        } else {
-            // 默认只显示未完成的
-            filteredTodos = filteredTodos.filter(todo => 
-                todo.status === 'pending' || todo.status === 'in_progress'
-            );
+    // 加载日程组选项
+    loadGroupOptions() {
+        console.log('=== 加载日程组选项 ===');
+        const groupFilterList = document.getElementById('todoGroupFilterList');
+        if (!groupFilterList) {
+            console.log('groupFilterList 元素不存在');
+            return;
         }
         
-        // 排序
-        const sortBy = sortFilter ? sortFilter.value : 'priority';
+        if (!window.groupManager) {
+            console.log('groupManager 不可用');
+            return;
+        }
+
+        // 清空现有选项
+        groupFilterList.innerHTML = '';
+
+        // 添加"无日程组"选项
+        const noneDiv = document.createElement('div');
+        noneDiv.className = 'form-check';
+        noneDiv.innerHTML = `
+            <input class="form-check-input" type="checkbox" value="none" id="todoGroup_none" checked>
+            <label class="form-check-label" for="todoGroup_none">📋 其他</label>
+        `;
+        groupFilterList.appendChild(noneDiv);
+
+        // 添加所有日程组
+        const groups = window.groupManager.getAllGroups();
+        console.log('获取到的日程组数量:', groups.length);
+        console.log('日程组数据:', groups);
+        
+        groups.forEach(group => {
+            console.log('添加日程组选项:', group.name, group.id, group.color);
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'form-check';
+            groupDiv.innerHTML = `
+                <input class="form-check-input" type="checkbox" value="${group.id}" id="todoGroup_${group.id}" checked>
+                <label class="form-check-label" for="todoGroup_${group.id}">
+                    <span style="display:inline-block;width:10px;height:10px;background-color:${group.color};margin-right:5px;border-radius:2px;"></span>
+                    ${group.name}
+                </label>
+            `;
+            groupFilterList.appendChild(groupDiv);
+        });
+
+        // 绑定日程组筛选复选框事件
+        const groupCheckboxes = groupFilterList.querySelectorAll('input[type="checkbox"]');
+        console.log('绑定了', groupCheckboxes.length, '个复选框事件');
+        groupCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                console.log('待办日程组筛选变化');
+                this.applyFilters();
+                // 保存筛选状态
+                if (window.settingsManager) {
+                    const selectedValues = Array.from(groupCheckboxes)
+                        .filter(cb => cb.checked)
+                        .map(cb => cb.value);
+                    window.settingsManager.onTodoFilterChange('groups', selectedValues);
+                }
+            });
+        });
+    }
+
+    // 应用筛选和排序
+    applyFilters() {
+        console.log('=== 应用筛选 ===');
+        // 从复选框读取筛选条件
+        const priorityCheckboxes = document.querySelectorAll('#todoPriorityFilterList input[type="checkbox"]:checked');
+        const groupCheckboxes = document.querySelectorAll('#todoGroupFilterList input[type="checkbox"]:checked');
+        
+        console.log('已选中的优先级:', Array.from(priorityCheckboxes).map(cb => cb.value));
+        console.log('已选中的日程组:', Array.from(groupCheckboxes).map(cb => cb.value));
+        
+        let filteredTodos = [...this.todos];
+        console.log('初始 TODO 数量:', filteredTodos.length);
+        
+        // 优先级筛选（重要性+紧急性）
+        if (priorityCheckboxes.length > 0) {
+            const selectedPriorities = Array.from(priorityCheckboxes).map(cb => cb.value);
+            filteredTodos = filteredTodos.filter(todo => {
+                const priority = this.getTodoPriorityType(todo.importance, todo.urgency);
+                return selectedPriorities.includes(priority);
+            });
+            console.log('优先级筛选后 TODO 数量:', filteredTodos.length);
+        }
+        
+        // 日程组筛选
+        if (groupCheckboxes.length > 0) {
+            const selectedGroups = Array.from(groupCheckboxes).map(cb => cb.value);
+            filteredTodos = filteredTodos.filter(todo => {
+                console.log('检查 TODO:', todo.title, 'groupID:', todo.groupID);
+                
+                // 检查是否属于"无日程组"类别
+                const hasNoGroup = !todo.groupID || todo.groupID === '';
+                const noneSelected = selectedGroups.includes('none');
+                
+                // 检查是否属于某个选中的日程组
+                const groupMatched = todo.groupID && selectedGroups.includes(todo.groupID);
+                
+                // 如果选中了"无日程组"，且 TODO 确实无日程组，则匹配
+                if (noneSelected && hasNoGroup) {
+                    console.log('  -> 匹配"无日程组"');
+                    return true;
+                }
+                
+                // 如果 TODO 属于某个选中的日程组，则匹配
+                if (groupMatched) {
+                    console.log('  -> 匹配日程组:', todo.groupID);
+                    return true;
+                }
+                
+                console.log('  -> 不匹配任何选中的筛选条件');
+                return false;
+            });
+            console.log('日程组筛选后 TODO 数量:', filteredTodos.length);
+        }
+        
+        // 默认按到期时间排序
         filteredTodos.sort((a, b) => {
-            switch (sortBy) {
-                case 'due_date':
-                    return new Date(a.due_date || '9999-12-31') - new Date(b.due_date || '9999-12-31');
-                case 'created_at':
-                    return new Date(b.created_at) - new Date(a.created_at);
-                case 'priority':
-                default:
-                    return b.priority_score - a.priority_score;
-            }
+            const dateA = a.due_date ? new Date(a.due_date) : new Date('9999-12-31');
+            const dateB = b.due_date ? new Date(b.due_date) : new Date('9999-12-31');
+            return dateA - dateB;
         });
         
         this.renderFilteredTodos(filteredTodos);
+    }
+
+    // 获取TODO的优先级类型
+    getTodoPriorityType(importance, urgency) {
+        if (importance === 'important' && urgency === 'urgent') {
+            return 'important-urgent';
+        } else if (importance === 'important' && urgency === 'not-urgent') {
+            return 'important-not-urgent';
+        } else if (importance === 'not-important' && urgency === 'urgent') {
+            return 'not-important-urgent';
+        } else if (importance === 'not-important' && urgency === 'not-urgent') {
+            return 'not-important-not-urgent';
+        } else {
+            return 'unspecified';
+        }
     }
 
     // 渲染筛选后的待办事项
@@ -100,6 +223,16 @@ class TodoManager {
             const response = await fetch('/api/todos/');
             const data = await response.json();
             this.todos = data.todos || [];
+            console.log('=== 加载的 TODOs 数据 ===');
+            console.log('TODOs 数量:', this.todos.length);
+            if (this.todos.length > 0) {
+                console.log('第一个 TODO 示例:', this.todos[0]);
+                console.log('groupID 字段:', this.todos[0].groupID);
+            }
+            
+            // 重新加载日程组选项（确保在 groupManager 初始化后）
+            this.loadGroupOptions();
+            
             this.renderTodos();
         } catch (error) {
             console.error('Error loading todos:', error);
@@ -116,6 +249,8 @@ class TodoManager {
 
     // 创建待办事项元素
     createTodoElement(todo) {
+        console.log('创建 TODO 元素:', todo.id, 'groupID:', todo.groupID);
+        
         const div = document.createElement('div');
         div.className = `todo-item ${this.getPriorityClass(todo.importance, todo.urgency)}`;
         div.draggable = true;
@@ -123,10 +258,15 @@ class TodoManager {
         
         // 如果有日程组，应用日程组颜色
         if (todo.groupID && window.groupManager) {
+            console.log('TODO 有 groupID:', todo.groupID);
             const group = window.groupManager.getGroupById(todo.groupID);
+            console.log('找到的日程组:', group);
             if (group) {
                 div.style.borderLeft = `4px solid ${group.color}`;
+                console.log('应用颜色线:', group.color);
             }
+        } else {
+            console.log('TODO 无 groupID 或 groupManager 不可用');
         }
         
         const priorityIcon = this.getPriorityIcon(todo.importance, todo.urgency);
@@ -178,16 +318,24 @@ class TodoManager {
         const todoContent = div.querySelector('.todo-content');
         console.log('Setting up click event for todo:', todo.id, 'todoContent found:', !!todoContent);
         if (todoContent) {
-            todoContent.addEventListener('click', (e) => {
+            const handleTodoClick = (e) => {
                 console.log('TODO content clicked, target:', e.target, 'closest .todo-actions:', e.target.closest('.todo-actions'));
                 // 如果点击的是按钮或按钮内的元素，不触发详情查看
                 if (e.target.closest('.todo-actions')) {
                     console.log('Click on action buttons, ignoring');
                     return;
                 }
+                // 阻止事件冒泡和默认行为
+                e.preventDefault();
+                e.stopPropagation();
                 console.log('Opening todo detail modal for:', todo.id);
                 this.openTodoDetailModal(todo);
-            });
+            };
+            
+            // 同时监听click和touchend事件以支持触屏
+            todoContent.addEventListener('click', handleTodoClick);
+            todoContent.addEventListener('touchend', handleTodoClick);
+            
             // 添加鼠标样式提示可点击
             todoContent.style.cursor = 'pointer';
         }

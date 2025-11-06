@@ -16,6 +16,11 @@ class GroupManager {
         // 从全局变量加载日程组
         this.groups = window.events_groups || [];
         
+        console.log('=== GroupManager 初始化 ===');
+        console.log('window.events_groups:', window.events_groups);
+        console.log('加载的日程组数量:', this.groups.length);
+        console.log('日程组数据:', this.groups);
+        
         // 初始化模态框
         const modalElement = document.getElementById('manageGroupsModal');
         if (modalElement) {
@@ -374,6 +379,13 @@ class GroupManager {
      */
     getGroupById(groupId) {
         return this.groups.find(g => g.id === groupId);
+    }
+
+    /**
+     * 获取所有日程组
+     */
+    getAllGroups() {
+        return this.groups || [];
     }
 
     /**

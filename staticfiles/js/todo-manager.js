@@ -39,7 +39,7 @@ class TodoManager {
                 }
             });
         }
-
+        
         console.log('待办筛选器已初始化');
     }
 
@@ -47,19 +47,19 @@ class TodoManager {
     applyFilters() {
         const statusFilter = document.getElementById('todoStatusFilter');
         const sortFilter = document.getElementById('todoSortBy');
-
+        
         let filteredTodos = [...this.todos];
-
+        
         // 状态筛选
         if (statusFilter && statusFilter.value) {
             filteredTodos = filteredTodos.filter(todo => todo.status === statusFilter.value);
         } else {
             // 默认只显示未完成的
-            filteredTodos = filteredTodos.filter(todo =>
+            filteredTodos = filteredTodos.filter(todo => 
                 todo.status === 'pending' || todo.status === 'in_progress'
             );
         }
-
+        
         // 排序
         const sortBy = sortFilter ? sortFilter.value : 'priority';
         filteredTodos.sort((a, b) => {
@@ -73,14 +73,14 @@ class TodoManager {
                     return b.priority_score - a.priority_score;
             }
         });
-
+        
         this.renderFilteredTodos(filteredTodos);
     }
 
     // 渲染筛选后的待办事项
     renderFilteredTodos(todos) {
         if (!this.todoContainer) return;
-
+        
         this.todoContainer.innerHTML = '';
 
         if (todos.length === 0) {
@@ -120,7 +120,7 @@ class TodoManager {
         div.className = `todo-item ${this.getPriorityClass(todo.importance, todo.urgency)}`;
         div.draggable = true;
         div.dataset.todoId = todo.id;
-
+        
         // 如果有日程组，应用日程组颜色
         if (todo.groupID && window.groupManager) {
             const group = window.groupManager.getGroupById(todo.groupID);
@@ -128,10 +128,10 @@ class TodoManager {
                 div.style.borderLeft = `4px solid ${group.color}`;
             }
         }
-
+        
         const priorityIcon = this.getPriorityIcon(todo.importance, todo.urgency);
         const dueDateStr = todo.due_date ? this.formatDueDate(todo.due_date) : '';
-
+        
         div.innerHTML = `
             <div class="todo-content">
                 <div class="todo-header">
@@ -164,11 +164,11 @@ class TodoManager {
                 importance: todo.importance || '',
                 urgency: todo.urgency || ''
             }));
-
+            
             // 添加拖拽视觉效果
             e.target.style.opacity = '0.5';
         });
-
+        
         div.addEventListener('dragend', (e) => {
             // 恢复透明度
             e.target.style.opacity = '1';
@@ -178,16 +178,24 @@ class TodoManager {
         const todoContent = div.querySelector('.todo-content');
         console.log('Setting up click event for todo:', todo.id, 'todoContent found:', !!todoContent);
         if (todoContent) {
-            todoContent.addEventListener('click', (e) => {
+            const handleTodoClick = (e) => {
                 console.log('TODO content clicked, target:', e.target, 'closest .todo-actions:', e.target.closest('.todo-actions'));
                 // 如果点击的是按钮或按钮内的元素，不触发详情查看
                 if (e.target.closest('.todo-actions')) {
                     console.log('Click on action buttons, ignoring');
                     return;
                 }
+                // 阻止事件冒泡和默认行为
+                e.preventDefault();
+                e.stopPropagation();
                 console.log('Opening todo detail modal for:', todo.id);
                 this.openTodoDetailModal(todo);
-            });
+            };
+            
+            // 同时监听click和touchend事件以支持触屏
+            todoContent.addEventListener('click', handleTodoClick);
+            todoContent.addEventListener('touchend', handleTodoClick);
+            
             // 添加鼠标样式提示可点击
             todoContent.style.cursor = 'pointer';
         }
