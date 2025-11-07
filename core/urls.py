@@ -13,11 +13,14 @@ urlpatterns = [
     path('user_data/', views.user_data, name='user_data'),
     path('user_preferences/', views.user_preferences, name='user_preferences'),
     path('help/', views.help_page, name='help_page'),
+
+    path("get_calendar/change_view/", views.change_view, name="change_view"),
+    path("get_calendar/user_settings/", views.user_settings, name="user_settings"),
     
     # Events API
     path('get_calendar/events/', views.get_events, name='get_events'),
     path('get_calendar/update_events/', views.update_events, name='update_events'),
-    path('get_calendar/delete_event/', views.delete_event, name='delete_event'),
+    path('get_calendar/delete_event/', views.delete_event, name='delete_event'),  # 几乎已弃用
     path('events/create_event/', views.create_event, name='create_event'),
     path('get_calendar/create_events_group/', views.create_events_group, name='create_events_group'),
     path('get_calendar/update_events_group/', views.update_event_group, name='update_events_group'),
@@ -27,8 +30,6 @@ urlpatterns = [
     path("get_calendar/get_outport_calendar/", views.get_outport_calendar, name="get_outport_calendar"),
     path("get_calendar/outport_calendar/", views.outport_calendar, name="outport_calendar"),
     path("get_calendar/check_modified_events", views.check_modified_events, name="check_modified_events"),
-    path("get_calendar/change_view/", views.change_view, name="change_view"),
-    path("get_calendar/user_settings/", views.user_settings, name="user_settings"),
     path('api/events/bulk-edit/', views_events.bulk_edit_events_impl, name='bulk_edit_events'),
     
     # Reminders API
