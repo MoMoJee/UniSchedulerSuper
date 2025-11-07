@@ -441,6 +441,11 @@ DATA_SCHEMA = {
         "nullable": False,
         "default": {},
         "items": {
+            "todoViewMode": {
+                "type": str,
+                "nullable": False,
+                "default": "list",  # "list" 或 "quadrant"
+            },
             "todoFilters": {
                 "type": dict,
                 "nullable": False,
@@ -922,6 +927,11 @@ DATA_SCHEMA = {
                 "type": str,
                 "nullable": False,
                 "default": "auto",  # light, dark, auto, china-red, warm-pastel, cool-pastel, macaron, dopamine, forest, sunset, ocean, sakura, cyberpunk
+            },
+            "use_gold_theme": {
+                "type": bool,
+                "nullable": False,
+                "default": False,
             },
             "show_completed_events": {
                 "type": bool,

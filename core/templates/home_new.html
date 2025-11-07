@@ -9,14 +9,11 @@
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{% static 'css/home-styles.css' %}?v=20251104-002">
+    <link rel="stylesheet" href="{% static 'css/home-styles.css' %}?v=20251107-011">
     
     <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- 强制隐藏editEventRecurringInfo元素的样式 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">    <!-- 强制隐藏editEventRecurringInfo元素的样式 -->
     <style>
         #editEventRecurringInfo {
             display: none !important;
@@ -104,6 +101,9 @@
                 <div class="section-header">
                     <h6><i class="fas fa-tasks me-2"></i>待办事项</h6>
                     <div class="header-buttons">
+                        <button class="btn btn-outline-secondary btn-sm me-1" id="todoViewToggle" onclick="todoManager.switchViewMode()" title="切换视图">
+                            <i class="fas fa-list"></i>
+                        </button>
                         <button class="btn btn-outline-secondary btn-sm me-1" onclick="todoManager.toggleFilterDropdown()" title="筛选">
                             <i class="fas fa-filter"></i>
                         </button>
@@ -160,10 +160,48 @@
                 </div>
                 
                 <div class="section-content scrollable-content">
-                    <!-- 待办事项列表 -->
-                    <div id="todoList" class="todo-list">
-                        <div class="loading-placeholder">
-                            <i class="fas fa-spinner fa-spin"></i> 加载中...
+                    <!-- 列表视图 (原有) -->
+                    <div id="todoListView" class="todo-view active">
+                        <div id="todoList" class="todo-list">
+                            <div class="loading-placeholder">
+                                <i class="fas fa-spinner fa-spin"></i> 加载中...
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 四象限视图 (新增) -->
+                    <div id="todoQuadrantView" class="todo-view" style="display: none;">
+                        <div class="quadrant-container">
+                            <!-- 顶部标签：重要 -->
+                            <div class="axis-label axis-top">重要</div>
+                            <!-- 底部标签：不重要 -->
+                            <div class="axis-label axis-bottom">不重要</div>
+                            <!-- 左侧标签：紧急 -->
+                            <div class="axis-label axis-left">紧急</div>
+                            <!-- 右侧标签：不紧急 -->
+                            <div class="axis-label axis-right">不紧急</div>
+                            
+                            <!-- 四象限网格 -->
+                            <div class="quadrant-grid" id="todoQuadrantGrid">
+                                <div class="quadrant quadrant-important-urgent" data-quadrant="important-urgent">
+                                    <div class="quadrant-todos"></div>
+                                </div>
+                                <div class="quadrant quadrant-important-not-urgent" data-quadrant="important-not-urgent">
+                                    <div class="quadrant-todos"></div>
+                                </div>
+                                <div class="quadrant quadrant-not-important-urgent" data-quadrant="not-important-urgent">
+                                    <div class="quadrant-todos"></div>
+                                </div>
+                                <div class="quadrant quadrant-not-important-not-urgent" data-quadrant="not-important-not-urgent">
+                                    <div class="quadrant-todos"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 溢出区域 -->
+                        <div class="overflow-container" id="todoOverflowContainer">
+                            <div class="overflow-header">其他</div>
+                            <div class="overflow-list" id="todoOverflowList"></div>
                         </div>
                     </div>
                 </div>
@@ -2110,6 +2148,19 @@
                                     <small class="text-muted">切换应用的外观主题 (共13种主题可选)</small>
                                 </div>
                                 <div class="col-md-6">
+                                    <div class="pt-4">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="useGoldTheme">
+                                            <label class="form-check-label" for="useGoldTheme">
+                                                <i class="fas fa-crown text-warning me-1"></i>使用金色主题
+                                            </label>
+                                        </div>
+                                        <small class="text-muted d-block mt-1">
+                                            为浅色/深色主题添加金色强调色（白金/黑金）
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
                                     <label for="eventColorBy" class="form-label">
                                         日程颜色方案
                                         <span class="badge bg-secondary">即将推出</span>
@@ -2214,16 +2265,17 @@
     </script>
     
     <!-- 自定义JavaScript模块 -->
-    <script src="{% static 'js/theme-manager.js' %}?v=20251103-001"></script>
-    <script src="{% static 'js/settings-manager.js' %}?v=20251106-001"></script>
-    <script src="{% static 'js/panel-resizer.js' %}?v=20251104-002"></script>
+    <script src="{% static 'js/theme-manager.js' %}?v=20251107-002"></script>
+    <script src="{% static 'js/settings-manager.js' %}?v=20251107-001"></script>
+    <script src="{% static 'js/panel-resizer.js' %}?v=20251107-001"></script>
     <script src="{% static 'js/reminder-manager.js' %}?v=20251104-002"></script>
     <script src="{% static 'js/rrule-manager.js' %}?v=20251104-002"></script>
     <script src="{% static 'js/modal-manager.js' %}?v=20251104-002"></script>
     <script src="{% static 'js/group-manager.js' %}?v=20251106-001"></script>
     <script src="{% static 'js/event-manager.js' %}?v=20251106-002"></script>
-    <script src="{% static 'js/todo-manager.js' %}?v=20251106-001"></script>
+    <script src="{% static 'js/todo-manager.js' %}?v=20251107-007"></script>
     <script src="{% static 'js/calendar-touch-swipe.js' %}?v=20251104-003"></script>
+    <script src="{% static 'js/container-query-polyfill.js' %}?v=20251107-001"></script>
     
     <!-- AI助手模块 -->
     <script>
@@ -2473,6 +2525,27 @@
                 saveBtn.addEventListener('click', saveUserSettings);
             }
             
+            // 金色主题开关
+            const goldThemeToggle = document.getElementById('useGoldTheme');
+            if (goldThemeToggle) {
+                goldThemeToggle.addEventListener('change', function() {
+                    if (window.themeManager) {
+                        window.themeManager.toggleGoldTheme(this.checked);
+                    }
+                });
+            }
+            
+            // 主题选择器变化时，如果启用了金色主题，也要重新应用
+            const themeSelect = document.getElementById('theme');
+            if (themeSelect) {
+                themeSelect.addEventListener('change', function() {
+                    const useGold = document.getElementById('useGoldTheme')?.checked || false;
+                    if (window.themeManager) {
+                        window.themeManager.applyTheme(this.value);
+                    }
+                });
+            }
+            
             // 初始化 tooltips
             const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -2524,6 +2597,7 @@
                 // 显示偏好
                 safeSetValue('calendarViewDefault', settings.calendar_view_default || 'dayGridMonth');
                 safeSetValue('theme', settings.theme || 'light');
+                safeSetChecked('useGoldTheme', settings.use_gold_theme === true);
                 safeSetValue('eventColorBy', settings.event_color_by || 'default');
                 safeSetChecked('showCompletedEvents', settings.show_completed_events !== false);
                 
@@ -2785,6 +2859,7 @@
                 week_starts_on: safeGetIntValue('weekStartsOn', 1),
                 calendar_view_default: safeGetValue('calendarViewDefault', 'dayGridMonth'),
                 theme: safeGetValue('theme', 'light'),
+                use_gold_theme: safeGetChecked('useGoldTheme', false),
                 show_completed_events: safeGetChecked('showCompletedEvents', true),
                 event_color_by: safeGetValue('eventColorBy', 'default'),
                 reminder_enabled: safeGetChecked('reminderEnabled', true),

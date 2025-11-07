@@ -177,6 +177,14 @@ class PanelResizer {
             }, 100);
         }
         
+        // 触发 TODO 象限视图布局检查（增加延迟确保布局已稳定）
+        if (window.todoManager) {
+            setTimeout(() => {
+                console.log('panel-resizer: 触发 adjustQuadrantLayout');
+                window.todoManager.adjustQuadrantLayout();
+            }, 200);
+        }
+        
         // 保存当前布局到设置管理器
         if (window.settingsManager) {
             const leftPanel = document.querySelector('.left-panel');
@@ -230,6 +238,14 @@ class PanelResizer {
                 setTimeout(() => {
                     window.eventManager.calendar.updateSize();
                 }, 100);
+            }
+            
+            // 触发 TODO 象限视图布局检查（从数据库加载布局后）
+            if (window.todoManager && window.todoManager.currentViewMode === 'quadrant') {
+                setTimeout(() => {
+                    console.log('setLayout: 触发 adjustQuadrantLayout');
+                    window.todoManager.adjustQuadrantLayout();
+                }, 300);
             }
 
             console.log(`应用面板布局: ${leftPercent}% / ${centerPercent}% / ${rightPercent}%`);
