@@ -19,10 +19,9 @@ from integrated_reminder_manager import IntegratedReminderManager
 # 提醒管理器工厂函数
 def get_reminder_manager(request):
     """获取用户专属的提醒管理器实例"""
-    if request:
-        return IntegratedReminderManager(request=request)
-    else:
-        return IntegratedReminderManager()
+    if not request:
+        raise ValueError("Request is required for IntegratedReminderManager")
+    return IntegratedReminderManager(request=request)
 
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import login, authenticate
@@ -30,6 +29,8 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import logout
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 
 from .forms import RegisterForm
 
@@ -55,8 +56,9 @@ from .views_reminder import (
 from .views_events import (
     get_events_impl,
     create_event_impl,
-    delete_event_impl,
-    update_events_impl
+    # delete_event_impl,
+    update_events_impl,
+    get_django_request  # 添加这个辅助函数
 )
 
 # 索引页
@@ -80,10 +82,6 @@ def about(request):
 
     # 将 HTML 内容传递到模板
     return render(request, 'about.html', {'readme_content': html_content})
-
-# TODO 加一个用户偏好设置，包括:
-#  1. 是否默认加DDL
-#  2. AI选取
 
 # 注册界面
 def user_register(request):
@@ -114,7 +112,8 @@ def user_login(request):
         form = AuthenticationForm()
     return render(request, 'user_login.html', {'form': form})
 
-
+# TODO 所有交互函数的参数有效性验证都是一坨狗屎，且就算传入了错误的参数（名），也很大概率是不会返回任何错误，只是直接不执行。
+#  浏览器端其实没啥问题，但是这对于 API 端来说极大增加了排错工程量
 
 # 测试
 @login_required
@@ -346,9 +345,11 @@ def add_8_hours_to_time_string(time_str):
 
 
 # 发送用户设置
-# TODO 把AI设置集成进这个数据
-@login_required
-@csrf_exempt
+# 弃用 login_required 和 csrf_exempt
+# @login_required
+# @csrf_exempt
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
 def user_settings(request):
     """用户设置API - 处理获取和保存用户偏好设置"""
     if request.method == 'GET':
@@ -452,39 +453,47 @@ def user_settings(request):
 
 # TODO 在编辑日程的 RRule规则时，events_rrule_series 貌似并不会跟着变，然而暂时没有造成出错
 
-@login_required
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_events(request):
     """获取events数据 - 委托给views_events中的实现"""
     return get_events_impl(request)
 
-@login_required
-@csrf_exempt
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def update_events(request):
     """更新事件 - 委托给views_events中的实现"""
     return update_events_impl(request)
 
-@login_required
-@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def create_event(request):
     """创建新事件 - 委托给views_events中的实现"""
     return create_event_impl(request)
 
-@csrf_exempt
-@login_required
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def delete_event(request):
     """删除事件 - 委托给views_events中的实现"""
+    return ValueError("delete_event  方法已弃用")
     return delete_event_impl(request)
 
-@login_required
 @csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def create_events_group(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         group_name = data.get('name')
         group_description = data.get('description')
         group_color = data.get('color')
 
-        user_data_groups, created = UserData.objects.get_or_create(user=request.user, key="events_groups", defaults={"value": json.dumps([])})
+        user_data_groups, created = UserData.objects.get_or_create(user=django_request.user, key="events_groups", defaults={"value": json.dumps([])})
         events_groups = json.loads(user_data_groups.value)
 
         new_group = {
@@ -502,16 +511,21 @@ def create_events_group(request):
 
 
 
-@login_required
 @csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def update_event_group(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         group_id = data.get('groupID')
         title = data.get('title')
         description = data.get('description')
         color = data.get('color')
-        user_data, created = UserData.objects.get_or_create(user=request.user, key="events_groups")
+        user_data, created = UserData.objects.get_or_create(user=django_request.user, key="events_groups")
         events_groups = json.loads(user_data.value)
 
         for group in events_groups:
@@ -529,22 +543,27 @@ def update_event_group(request):
 
 
 
-@login_required
 @csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def delete_event_groups(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         group_ids = data.get('groupIds', [])
         delete_events = data.get('deleteEvents', False)
 
-        user_data, created = UserData.objects.get_or_create(user=request.user, key="events_groups")
+        user_data, created = UserData.objects.get_or_create(user=django_request.user, key="events_groups")
         events_groups = json.loads(user_data.value)
 
-        user_data_events, created = UserData.objects.get_or_create(user=request.user, key="events")
+        user_data_events, created = UserData.objects.get_or_create(user=django_request.user, key="events")
         events = json.loads(user_data_events.value)
 
         # 删除日程组
-        events_groups = [group for group in events_groups if group['id'] not in group_ids]
+        events_groups = [group for group in events_groups if group['id'] not in group_ids]  # TODO 这样操作会导致 API 调用的时候，发来了错误的（实际不存在于数据库中的）ID，但仍旧返回 success 的错误
 
         # 如果需要删除日程组下的所有日程
         if delete_events:
@@ -566,8 +585,9 @@ from django.http import JsonResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
 from .models import UserData
 
-@login_required
 @csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def import_events(request):
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -614,7 +634,9 @@ from django.shortcuts import redirect
 from django.http import HttpResponse
 from icalendar import Calendar, Event
 
-@login_required
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def get_outport_calendar(request):
     # 创建日历对象
     # 获取用户数据中的 outport_calendar_data 和 events
@@ -741,7 +763,15 @@ def create_calendar(all_events_uuid: List[str], all_events: List[dict])->'Calend
             cal.add_component(event)
     return cal
 
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def get_resources(request):
+    """
+    测试用
+    :param request:
+    :return:
+    """
     user_data, created = UserData.objects.get_or_create(user=request.user, key="resources", defaults={"value": json.dumps([
         { "id": "a", "title": "Auditorium A", "occupancy": 40 },
         { "id": "b", "title": "Auditorium B", "occupancy": 40, "eventColor": "green" },
@@ -756,58 +786,69 @@ def get_resources(request):
 
 # ========== Reminder 相关 API ==========
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_reminders(request):
     """获取所有提醒 - 重定向到新的模块"""
     return get_reminders_impl(request)
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def create_reminder(request):
     """创建新提醒 - 重定向到新的模块"""
     return create_reminder_impl(request)
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def update_reminder(request):
     """更新提醒 - 重定向到新的模块"""
     return update_reminder_impl(request)
 
-
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def update_reminder_status(request):
     """更新提醒状态 - 重定向到新的模块"""
     return update_reminder_status_impl(request)
 
-
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def bulk_edit_reminders(request):
     """批量编辑重复提醒 - 重定向到新的模块"""
     return bulk_edit_reminders_impl(request)
 
-
-@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def convert_recurring_to_single(request):
     """将重复提醒转换为单次提醒 - 重定向到新的模块"""
     return convert_recurring_to_single_impl(request)
 
-
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def maintain_reminders(request):
     """维护提醒实例 - 重定向到新的模块"""
     return maintain_reminders_impl(request)
 
-
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def delete_reminder(request):
     """删除提醒 - 重定向到新的模块"""
     return delete_reminder_impl(request)
 
-
-@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def snooze_reminder(request):
     """延迟提醒 - 重定向到新的模块"""
     return snooze_reminder_impl(request)
 
-
-@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def dismiss_reminder(request):
     """忽略/关闭提醒 - 重定向到新的模块"""
     return dismiss_reminder_impl(request)
 
 
-@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def complete_reminder(request):
     """完成提醒 - 重定向到新的模块"""
     return complete_reminder_impl(request)
@@ -820,11 +861,15 @@ def get_pending_reminders(request):
 
 # ========== TO-DO 相关 API ==========
 
-@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_todos(request):
     """获取所有待办事项"""
     if request.method == 'GET':
-        user_todos_data, created, result = UserData.get_or_initialize(request, new_key="todos")
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        user_todos_data, created, result = UserData.get_or_initialize(django_request, new_key="todos")
         todos = user_todos_data.get_value()
         
         return JsonResponse({'todos': todos})
@@ -832,14 +877,20 @@ def get_todos(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
-@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def create_todo(request):
     """创建新待办事项"""
     if request.method == 'POST':
-        user_todos_data, created, result = UserData.get_or_initialize(request, new_key="todos")
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        user_todos_data, created, result = UserData.get_or_initialize(django_request, new_key="todos")
         todos = user_todos_data.get_value()
         
-        data = json.loads(request.body)
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        logger.debug(f"1108 {data}")
         title = data.get('title')
         description = data.get('description', '')
         due_date = data.get('due_date', '')
@@ -874,14 +925,19 @@ def create_todo(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
-@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def update_todo(request):
     """更新待办事项"""
     if request.method == 'POST':
-        user_todos_data, created, result = UserData.get_or_initialize(request, new_key="todos")
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        user_todos_data, created, result = UserData.get_or_initialize(django_request, new_key="todos")
         todos = user_todos_data.get_value()
         
-        data = json.loads(request.body)
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         todo_id = data.get('id')
         
         if not todo_id:
@@ -914,14 +970,19 @@ def update_todo(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
-@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def delete_todo(request):
     """删除待办事项"""
     if request.method == 'POST':
-        user_todos_data, created, result = UserData.get_or_initialize(request, new_key="todos")
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        user_todos_data, created, result = UserData.get_or_initialize(django_request, new_key="todos")
         todos = user_todos_data.get_value()
         
-        data = json.loads(request.body)
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         todo_id = data.get('id')
         
         if not todo_id:
@@ -941,24 +1002,29 @@ def delete_todo(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
-@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def convert_todo_to_event(request):
     """将待办事项转换为日程事件"""
     if request.method == 'POST':
-        user_todos_data, created, result = UserData.get_or_initialize(request, new_key="todos")
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        user_todos_data, created, result = UserData.get_or_initialize(django_request, new_key="todos")
         todos = user_todos_data.get_value()
         
-        user_events_data, created, result = UserData.get_or_initialize(request, new_key="events")
+        user_events_data, created, result = UserData.get_or_initialize(django_request, new_key="events")
         events = user_events_data.get_value()
         
-        data = json.loads(request.body)
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         todo_id = data.get('id')
         start_time = data.get('start_time')
         end_time = data.get('end_time')
         
         if not todo_id or not start_time or not end_time:
             return JsonResponse({'status': 'error', 'message': '待办事项ID和时间是必填项'}, status=400)
-        
+
         # 查找待办事项
         todo_found = None
         for todo in todos:

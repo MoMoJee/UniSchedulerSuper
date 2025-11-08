@@ -5,6 +5,8 @@ import json
 from datetime import timedelta
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 
 from .models import UserData
 from logger import logger
@@ -12,13 +14,24 @@ from logger import logger
 # 导入我们的新引擎
 from integrated_reminder_manager import IntegratedReminderManager
 
+
+def get_django_request(request):
+    """
+    获取原生的 Django HttpRequest 对象
+    兼容 Django HttpRequest 和 DRF Request
+    """
+    from rest_framework.request import Request as DRFRequest
+    if isinstance(request, DRFRequest):
+        return request._request
+    return request
+
+
 # 提醒管理器工厂函数
 def get_reminder_manager(request):
     """获取用户专属的提醒管理器实例"""
-    if request:
-        return IntegratedReminderManager(request=request)
-    else:
-        return IntegratedReminderManager()
+    if not request:
+        raise ValueError("Request is required for IntegratedReminderManager")
+    return IntegratedReminderManager(request=request)
 
 
 def auto_generate_missing_instances(reminders):
@@ -369,7 +382,16 @@ def generate_reminder_instances(base_reminder, days_ahead=90, min_instances=10):
 def get_reminders(request):
     """获取所有提醒"""
     if request.method == 'GET':
-        user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        user_reminders_data, created, result = UserData.get_or_initialize(django_request, new_key="reminders")
+        
+        # 检查是否成功获取数据
+        if user_reminders_data is None:
+            logger.error(f"Failed to get reminders data: {result}")
+            return JsonResponse({'status': 'error', 'message': result.get('message', '获取提醒数据失败')}, status=500)
+        
         reminders = user_reminders_data.get_value()
         
         # 自动检查并生成缺失的重复提醒实例
@@ -386,14 +408,23 @@ def get_reminders(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
-@csrf_exempt
 def create_reminder(request):
     """创建新提醒 - 使用新的 RRule 引擎"""
     if request.method == 'POST':
-        user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        user_reminders_data, created, result = UserData.get_or_initialize(django_request, new_key="reminders")
+        
+        # 检查是否成功获取数据
+        if user_reminders_data is None:
+            logger.error(f"Failed to get reminders data: {result}")
+            return JsonResponse({'status': 'error', 'message': result.get('message', '获取提醒数据失败')}, status=500)
+        
         reminders = user_reminders_data.get_value()
         
-        data = json.loads(request.body)
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         title = data.get('title')
         content = data.get('content', '')
         trigger_time = data.get('trigger_time')
@@ -424,7 +455,7 @@ def create_reminder(request):
             if rrule and 'FREQ=' in rrule:
                 # 创建重复提醒
                 print(f"DEBUG: Creating recurring reminder with rrule: {rrule}")
-                reminder_mgr = get_reminder_manager(request)
+                reminder_mgr = get_reminder_manager(django_request)
                 recurring_reminder = reminder_mgr.create_recurring_reminder(reminder_data, rrule)
                 reminders.append(recurring_reminder)
                 
@@ -458,19 +489,22 @@ def create_reminder(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
-@csrf_exempt
 def update_reminder(request):
     """更新提醒 - 只处理前端实际使用的场景"""
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
+            # 使用 request.data 兼容 DRF Request
+            data = request.data if hasattr(request, 'data') else json.loads(request.body)
             reminder_id = data.get('id')
             
             if not reminder_id:
                 return JsonResponse({'status': 'error', 'message': '提醒ID是必填项'}, status=400)
             
+            # 获取原生 Django request
+            django_request = get_django_request(request)
+            
             # 获取用户数据
-            user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
+            user_reminders_data, created, result = UserData.get_or_initialize(django_request, new_key="reminders")
             reminders = user_reminders_data.get_value()
             
             # 查找目标提醒
@@ -490,7 +524,7 @@ def update_reminder(request):
                 # 普通提醒转重复提醒（唯一使用重复规则变化的场景）
                 logger.info(f"Converting single reminder {reminder_id} to recurring with rrule: {data.get('rrule')}")
                 
-                manager = IntegratedReminderManager(request)
+                manager = IntegratedReminderManager(django_request)
                 
                 # 更新提醒的基本信息
                 if 'title' in data:
@@ -546,14 +580,17 @@ def update_reminder(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
-@csrf_exempt
 def update_reminder_status(request):
     """更新提醒状态（完成/忽略/延后/激活）"""
     if request.method == 'POST':
-        user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        user_reminders_data, created, result = UserData.get_or_initialize(django_request, new_key="reminders")
         reminders = user_reminders_data.get_value()
         
-        data = json.loads(request.body)
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         reminder_id = data.get('id')
         new_status = data.get('status')  # active/completed/dismissed/snoozed_15m/snoozed_1h/snoozed_1d
         snooze_until = data.get('snooze_until', '')
@@ -586,14 +623,17 @@ def update_reminder_status(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
-@csrf_exempt
 def delete_reminder(request):
     """删除提醒"""
     if request.method == 'POST':
-        user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        user_reminders_data, created, result = UserData.get_or_initialize(django_request, new_key="reminders")
         reminders = user_reminders_data.get_value()
         
-        data = json.loads(request.body)
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         reminder_id = data.get('id')
         
         if not reminder_id:
@@ -617,7 +657,10 @@ def delete_reminder(request):
 def maintain_reminders(request):
     """维护提醒实例 - 定期调用以确保重复提醒的实例足够"""
     if request.method == 'POST':
-        user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        user_reminders_data, created, result = UserData.get_or_initialize(django_request, new_key="reminders")
         reminders = user_reminders_data.get_value()
         
         # 确保 reminders 是列表
@@ -652,7 +695,10 @@ def maintain_reminders(request):
 def get_pending_reminders(request):
     """获取待触发的提醒（用于通知检查）"""
     if request.method == 'GET':
-        user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        user_reminders_data, created, result = UserData.get_or_initialize(django_request, new_key="reminders")
         reminders = user_reminders_data.get_value()
         
         current_time = datetime.datetime.now()
@@ -677,7 +723,10 @@ def get_pending_reminders(request):
 def bulk_edit_reminders(request):
     """批量编辑重复提醒"""
     if request.method == 'POST':
-        user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        user_reminders_data, created, result = UserData.get_or_initialize(django_request, new_key="reminders")
         
         if user_reminders_data is None:
             return JsonResponse({'status': 'error', 'message': result.get('message', '获取用户数据失败')}, status=400)
@@ -689,7 +738,8 @@ def bulk_edit_reminders(request):
         except:
             reminders = []
         
-        data = json.loads(request.body)
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         logger.debug(f"{data=}")
 
         reminder_id = data.get('reminder_id')
@@ -983,7 +1033,9 @@ def convert_recurring_to_single_impl(request):
 
     try:
         logger.info("=== Convert Recurring to Single Request ===")
-        data = json.loads(request.body)
+        
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         series_id = data.get('series_id')
         reminder_id = data.get('reminder_id')
         update_data = data.get('update_data', {})
@@ -995,8 +1047,11 @@ def convert_recurring_to_single_impl(request):
         if not series_id or not reminder_id:
             return JsonResponse({'status': 'error', 'message': '缺少必要参数'}, status=400)
         
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
         # 获取用户数据
-        user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
+        user_reminders_data, created, result = UserData.get_or_initialize(django_request, new_key="reminders")
         
         if user_reminders_data is None:
             return JsonResponse({'status': 'error', 'message': result.get('message', '获取用户数据失败')}, status=400)
@@ -1098,10 +1153,14 @@ def convert_recurring_to_single_impl(request):
 def snooze_reminder_impl(request):
     """延迟提醒"""
     if request.method == 'POST':
-        user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        user_reminders_data, created, result = UserData.get_or_initialize(django_request, new_key="reminders")
         reminders = user_reminders_data.get_value()
         
-        data = json.loads(request.body)
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         reminder_id = data.get('id')
         snooze_minutes = data.get('snooze_minutes', 10)  # 默认延迟10分钟
         
@@ -1132,10 +1191,14 @@ def snooze_reminder_impl(request):
 def dismiss_reminder_impl(request):
     """忽略/关闭提醒"""
     if request.method == 'POST':
-        user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        user_reminders_data, created, result = UserData.get_or_initialize(django_request, new_key="reminders")
         reminders = user_reminders_data.get_value()
         
-        data = json.loads(request.body)
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         reminder_id = data.get('id')
         
         if not reminder_id:
@@ -1178,10 +1241,14 @@ def dismiss_reminder_impl(request):
 def complete_reminder_impl(request):
     """完成提醒"""
     if request.method == 'POST':
-        user_reminders_data, created, result = UserData.get_or_initialize(request, new_key="reminders")
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
+        user_reminders_data, created, result = UserData.get_or_initialize(django_request, new_key="reminders")
         reminders = user_reminders_data.get_value()
         
-        data = json.loads(request.body)
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         reminder_id = data.get('id')
         
         if not reminder_id:

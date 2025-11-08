@@ -10,6 +10,8 @@ import uuid
 import json
 import re
 
+from logger import logger
+
 try:
     from dateutil.rrule import rrulestr, rruleset, rrule
     DATEUTIL_AVAILABLE = True
@@ -184,7 +186,7 @@ class RRuleSeries:
                     rrset.exdate(exdate)
                     
             except Exception as e:
-                print(f"Warning: Failed to parse rrule segment {segment.sequence}: {e}")
+                logger.warning(f"Warning: Failed to parse rrule segment {segment.sequence}: {e}, {self.segments=}")
                 continue
         
         # 生成实例并过滤时间范围

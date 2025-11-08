@@ -1,5 +1,8 @@
 """
 Events管理模块 - 支持RRule重复事件
+写在前面：
+我觉得大费周章写这些处理函数完全是浪费时间，就应该找点现成实现的
+但是反正，我已经写了一大堆情况的处理了，但是真要测试起来的话，总会有一些漏洞，我也只能慢慢打补丁。但说真的，现在的这些 RRule 功能已经足以满足大部分情况了，除非你非得把一个 RRule 系列删来改去的
 """
 
 import json
@@ -12,11 +15,25 @@ from typing import List, Dict, Any, Optional
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 
 from core.models import UserData
 from integrated_reminder_manager import IntegratedReminderManager, UserDataStorageBackend
 from rrule_engine import RRuleEngine
 from logger import logger
+
+
+def get_django_request(request):
+    """
+    通过 request 对象，获取原生的 Django HttpRequest 对象
+    兼容 Django HttpRequest 和 DRF Request
+    因为 UserData.get_or_initialize 函数需要 Django HttpRequest 对象，而 DRF 相关操作产生的是 request 对象
+    """
+    from rest_framework.request import Request as DRFRequest
+    if isinstance(request, DRFRequest):
+        return request._request
+    return request
 
 
 class EventsRRuleManager(IntegratedReminderManager):
@@ -1004,7 +1021,70 @@ class EventsRRuleManager(IntegratedReminderManager):
             new_series_id = self.rrule_engine.create_series(new_rrule, new_start_time)
             logger.info(f"Created new series {new_series_id} for modified rule")
             
-            # 5. 处理所有事件
+            # 5. 先找到cutoff_time时刻或之后的第一个事件（作为模板）
+            template_event = None
+            first_future_event_time = None
+            
+            for event in events:
+                if event.get('series_id') == series_id:
+                    try:
+                        event_start = event.get('start', '')
+                        if event_start:
+                            event_time = datetime.datetime.fromisoformat(event_start)
+                            if event_time.tzinfo is not None:
+                                event_time = event_time.replace(tzinfo=None)
+                            
+                            # 找到第一个在cutoff_time或之后的事件
+                            if event_time >= cutoff_time:
+                                if template_event is None or event_time < first_future_event_time:
+                                    template_event = event
+                                    first_future_event_time = event_time
+                    except:
+                        continue
+            
+            # 如果找不到未来事件，使用main_event作为模板
+            if template_event is None:
+                template_event = main_event
+            
+            # 6. 创建新的主事件
+            new_main_event = template_event.copy()
+            new_end_time = new_start_time + (datetime.datetime.fromisoformat(template_event['end']) - datetime.datetime.fromisoformat(template_event['start']))
+            
+            new_main_event.update({
+                'id': str(uuid.uuid4()),
+                'series_id': new_series_id,
+                'rrule': new_rrule,
+                'start': new_start_time.strftime("%Y-%m-%dT%H:%M:%S"),
+                'end': new_end_time.strftime("%Y-%m-%dT%H:%M:%S"),
+                'is_main_event': True,
+                'is_recurring': True,
+                'last_modified': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+            
+            if additional_updates:
+                # 处理additional_updates，排除start/end/rrule/ddl
+                filtered_updates = {k: v for k, v in additional_updates.items() 
+                                  if k not in ['start', 'end', 'rrule', 'ddl']}
+                new_main_event.update(filtered_updates)
+                
+                # 特殊处理ddl：如果有ddl更新，需要使用新的end日期
+                if 'ddl' in additional_updates:
+                    ddl_value = additional_updates['ddl']
+                    if ddl_value and 'T' in ddl_value:
+                        # 提取时间部分
+                        ddl_time_part = ddl_value.split('T')[1]
+                        # 使用新的end日期
+                        new_end_str = new_end_time.strftime("%Y-%m-%dT%H:%M:%S")
+                        new_end_date = new_end_str.split('T')[0]
+                        # 组合：新end的日期 + ddl的时间
+                        new_main_event['ddl'] = f"{new_end_date}T{ddl_time_part}"
+                    else:
+                        new_main_event['ddl'] = ddl_value
+            
+            updated_events.append(new_main_event)
+            logger.info(f"Created new main event {new_main_event['id']} for new series {new_series_id}")
+            
+            # 7. 处理所有旧系列的事件
             for event in events:
                 if event.get('series_id') == series_id:
                     try:
@@ -1038,47 +1118,11 @@ class EventsRRuleManager(IntegratedReminderManager):
                         event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         updated_events.append(event)
                         logger.info(f"Updated event {event.get('id')} with UNTIL={until_str}")
-                        
-                    elif event_time == cutoff_time:
-                        # 这是修改起点，创建新的主事件
-                        new_main_event = main_event.copy()
-                        new_end_time = new_start_time + (datetime.datetime.fromisoformat(main_event['end']) - datetime.datetime.fromisoformat(main_event['start']))
-                        
-                        new_main_event.update({
-                            'id': str(uuid.uuid4()),
-                            'series_id': new_series_id,
-                            'rrule': new_rrule,
-                            'start': new_start_time.strftime("%Y-%m-%dT%H:%M:%S"),
-                            'end': new_end_time.strftime("%Y-%m-%dT%H:%M:%S"),
-                            'is_main_event': True,
-                            'last_modified': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        })
-                        
-                        if additional_updates:
-                            # 处理additional_updates，排除start/end/rrule/ddl
-                            filtered_updates = {k: v for k, v in additional_updates.items() 
-                                              if k not in ['start', 'end', 'rrule', 'ddl']}
-                            new_main_event.update(filtered_updates)
-                            
-                            # 特殊处理ddl：如果有ddl更新，需要使用新的end日期
-                            if 'ddl' in additional_updates:
-                                ddl_value = additional_updates['ddl']
-                                if ddl_value and 'T' in ddl_value:
-                                    # 提取时间部分
-                                    ddl_time_part = ddl_value.split('T')[1]
-                                    # 使用新的end日期
-                                    new_end_str = new_end_time.strftime("%Y-%m-%dT%H:%M:%S")
-                                    new_end_date = new_end_str.split('T')[0]
-                                    # 组合：新end的日期 + ddl的时间
-                                    new_main_event['ddl'] = f"{new_end_date}T{ddl_time_part}"
-                                else:
-                                    new_main_event['ddl'] = ddl_value
-                        
-                        updated_events.append(new_main_event)
-                        logger.info(f"Created new main event {new_main_event['id']} for new series {new_series_id}")
-                        
-                    # 删除所有在cutoff_time之后的旧实例，稍后会重新生成
+                    
+                    # 删除所有在cutoff_time及之后的旧实例（会由新系列重新生成）
+                    # 不需要else分支，cutoff_time及之后的事件都不加入updated_events
                 else:
+                    # 不是这个系列的事件，保留
                     updated_events.append(event)
         
         return updated_events
@@ -1089,10 +1133,12 @@ def get_events_manager(request) -> EventsRRuleManager:
     return EventsRRuleManager(request)
 
 
-@login_required
 def get_events_impl(request):
     """获取所有日程和日程组 - 支持RRule处理"""
     if request.method == 'GET':
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
         # 自动新建一个日程
         now = datetime.datetime.now()
         # 找到最近的整点
@@ -1105,7 +1151,7 @@ def get_events_impl(request):
 
         user_data: 'UserData'
         # 当没有读取到events的值（即新用户）的时候，自动新建一个任务
-        user_data, created, result = UserData.get_or_initialize(request=request, new_key="events", data=[
+        user_data, created, result = UserData.get_or_initialize(request=django_request, new_key="events", data=[
             {
                 "id": '1',
                 "title": "让我们开始吧！",
@@ -1135,7 +1181,7 @@ def get_events_impl(request):
             return JsonResponse({'status': 'error', 'message': 'Failed to initialize user data'}, status=500)
 
         # 获取用户的所有日程组
-        user_data_groups, created = UserData.objects.get_or_create(user=request.user, key="events_groups", defaults={"value": json.dumps([
+        user_data_groups, created = UserData.objects.get_or_create(user=django_request.user, key="events_groups", defaults={"value": json.dumps([
             {
                 "id": '1',
                 "name": "学习如何使用日程组！",
@@ -1172,17 +1218,17 @@ def get_events_impl(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 
 
-@login_required
-@csrf_exempt 
 def create_event_impl(request):
     """创建新的event"""
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
         
+    django_request = get_django_request(request)  # 获取原生 Django request
     manager = EventsRRuleManager(request.user)
     
     try:
-        data = json.loads(request.body)
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         
         # 提取事件数据
         event_data = {
@@ -1197,7 +1243,7 @@ def create_event_impl(request):
         
         # 获取用户偏好设置
         user_preference_data, created, result = UserData.get_or_initialize(
-            request, new_key="user_preference"
+            django_request, new_key="user_preference"
         )
         if user_preference_data is None:
             return JsonResponse({'status': 'error', 'message': 'Failed to get user preferences'}, status=500)
@@ -1219,6 +1265,8 @@ def create_event_impl(request):
         # 处理RRule相关数据
         rrule = data.get('rrule')
         if rrule:
+            # 清理 rrule 字符串：移除末尾的分号和空格
+            rrule = rrule.strip().rstrip(';')
             # 创建重复事件系列
             main_event = manager.create_recurring_event(event_data, rrule)
             
@@ -1226,7 +1274,7 @@ def create_event_impl(request):
             
             # 将主事件保存到events数据中
             user_events_data, created, result = UserData.get_or_initialize(
-                request, new_key="events", data=[]
+                django_request, new_key="events", data=[]
             )
             if user_events_data is None:
                 return JsonResponse({'status': 'error', 'message': 'Failed to get user events data'}, status=500)
@@ -1279,7 +1327,7 @@ def create_event_impl(request):
             
             # 保存到events数据中
             user_events_data, created, result = UserData.get_or_initialize(
-                request, new_key="events", data=[]
+                django_request, new_key="events", data=[]
             )
             if user_events_data is None:
                 return JsonResponse({'status': 'error', 'message': 'Failed to get user events data'}, status=500)
@@ -1306,12 +1354,17 @@ def create_event_impl(request):
 
 
 def delete_event_impl(request):
-    """删除事件 - 支持RRule删除策略"""
+    """
+    已弃用
+    删除事件 - 支持RRule删除策略
+    """
+
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
         
     try:
-        data = json.loads(request.body)
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         event_id = data.get('eventId')
         delete_scope = data.get('delete_scope', 'single')  # single, all, future
         
@@ -1322,9 +1375,12 @@ def delete_event_impl(request):
         return JsonResponse({'status': 'error', 'message': 'eventId is missing'}, status=400)
         
     try:
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
         # 获取events数据
         user_events_data, created, result = UserData.get_or_initialize(
-            request, new_key="events", data=[]
+            django_request, new_key="events", data=[]
         )
         events = user_events_data.get_value() or []
         
@@ -1441,8 +1497,8 @@ def delete_event_impl(request):
         }, status=500)
 
 
-@login_required
-@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def bulk_edit_events_impl(request):
     """批量编辑事件 - 支持四种编辑模式"""
     if request.method != 'POST':
@@ -1452,11 +1508,8 @@ def bulk_edit_events_impl(request):
     start_time = time.time()
     
     try:
-        # 检查请求体大小
-        if len(request.body) > 10 * 1024 * 1024:  # 10MB限制
-            return JsonResponse({'status': 'error', 'message': '请求数据过大'}, status=413)
-            
-        data = json.loads(request.body)
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         
         # 提取参数
         event_id = data.get('event_id')
@@ -1498,9 +1551,12 @@ def bulk_edit_events_impl(request):
         if edit_scope == 'from_time' and not from_time:
             return JsonResponse({'status': 'error', 'message': '当编辑范围为"从指定时间"时，必须提供起始时间'}, status=400)
         
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
         # 获取事件数据
         user_events_data, created, result = UserData.get_or_initialize(
-            request, new_key="events", data=[]
+            django_request, new_key="events", data=[]
         )
         if user_events_data is None:
             return JsonResponse({'status': 'error', 'message': 'Failed to get user events data'}, status=500)
@@ -1771,13 +1827,15 @@ def bulk_edit_events_impl(request):
                             # 5. 将UTC时间转换为本地时间格式（如果需要）
                             if 'start' in updates and updates['start']:
                                 start_val = updates['start']
-                                if start_val.endswith('Z'):
+                                # 确保 start_val 是字符串类型
+                                if isinstance(start_val, str) and start_val.endswith('Z'):
                                     utc_time = datetime.datetime.fromisoformat(start_val.replace('Z', '+00:00'))
                                     local_time = utc_time - timedelta(hours=-8)
                                     updates['start'] = local_time.strftime('%Y-%m-%dT%H:%M:%S')
                             if 'end' in updates and updates['end']:
                                 end_val = updates['end']
-                                if end_val.endswith('Z'):
+                                # 确保 end_val 是字符串类型
+                                if isinstance(end_val, str) and end_val.endswith('Z'):
                                     utc_time = datetime.datetime.fromisoformat(end_val.replace('Z', '+00:00'))
                                     local_time = utc_time - timedelta(hours=-8)
                                     updates['end'] = local_time.strftime('%Y-%m-%dT%H:%M:%S')
@@ -2371,115 +2429,6 @@ def bulk_edit_events_impl(request):
 
 
 # RRule专用API函数
-
-def convert_recurring_to_single_impl(request):
-    """将重复事件转换为单次事件"""
-    if request.method != 'POST':
-        return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
-        
-    try:
-        data = json.loads(request.body)
-        series_id = data.get('series_id')
-        
-        if not series_id:
-            return JsonResponse({'status': 'error', 'message': 'series_id is required'}, status=400)
-            
-        # 获取events数据
-        user_events_data, created, result = UserData.get_or_initialize(
-            request, new_key="events", data=[]
-        )
-        if user_events_data is None:
-            return JsonResponse({'status': 'error', 'message': 'Failed to get user events data'}, status=500)
-            
-        events = user_events_data.get_value() or []
-        if not isinstance(events, list):
-            events = []
-        
-        converted_count = 0
-        
-        # 转换整个系列为单次事件
-        for i, event in enumerate(events):
-            if event.get('series_id') == series_id:
-                # 移除RRule相关字段
-                events[i].pop('rrule', None)
-                events[i].pop('series_id', None)
-                events[i]['is_recurring'] = False
-                events[i]['is_main_event'] = False
-                events[i]['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                converted_count += 1
-        
-        if converted_count > 0:
-            user_events_data.set_value(events)
-            
-        return JsonResponse({
-            'status': 'success',
-            'converted_count': converted_count
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'status': 'error',
-            'message': f'转换事件失败: {str(e)}'
-        }, status=500)
-
-def split_event_series_impl(request):
-    """分离事件系列 - 从指定时间点分割为两个独立系列"""
-    if request.method != 'POST':
-        return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
-        
-    try:
-        data = json.loads(request.body)
-        series_id = data.get('series_id')
-        split_time = data.get('split_time')
-        
-        if not series_id or not split_time:
-            return JsonResponse({'status': 'error', 'message': 'series_id and split_time are required'}, status=400)
-            
-        # 获取events数据
-        user_events_data, created, result = UserData.get_or_initialize(
-            request, new_key="events", data=[]
-        )
-        if user_events_data is None:
-            return JsonResponse({'status': 'error', 'message': 'Failed to get user events data'}, status=500)
-            
-        events = user_events_data.get_value() or []
-        if not isinstance(events, list):
-            events = []
-        
-        split_datetime = datetime.datetime.fromisoformat(split_time)
-        new_series_id = str(uuid.uuid4())
-        
-        moved_count = 0
-        
-        # 将指定时间之后的事件移动到新系列
-        for i, event in enumerate(events):
-            if event.get('series_id') == series_id:
-                event_start = datetime.datetime.fromisoformat(event['start'])
-                if event_start >= split_datetime:
-                    events[i]['series_id'] = new_series_id
-                    # 第一个移动的事件成为新系列的主事件
-                    if moved_count == 0:
-                        events[i]['is_main_event'] = True
-                    else:
-                        events[i]['is_main_event'] = False
-                    events[i]['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    moved_count += 1
-        
-        if moved_count > 0:
-            user_events_data.set_value(events)
-            
-        return JsonResponse({
-            'status': 'success',
-            'new_series_id': new_series_id,
-            'moved_count': moved_count
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'status': 'error',
-            'message': f'分离事件系列失败: {str(e)}'
-        }, status=500)
-
 def convert_time_format(events):
     """
     解析事件列表，将UTC时间转换为本地时间（减去8小时）。
@@ -2489,7 +2438,8 @@ def convert_time_format(events):
     for event in events:
         # 检查 'start' 和 'end' 时间是否为 UTC 时间（以 'Z' 结尾）
         for key in ['start', 'end']:
-            if event[key].endswith('Z'):
+            # 确保值存在且是字符串类型
+            if key in event and isinstance(event[key], str) and event[key].endswith('Z'):
                 # 转换为 datetime 对象并减去8小时
                 utc_time = datetime.datetime.fromisoformat(event[key].replace('Z', '+00:00'))
                 local_time = utc_time - timedelta(hours=-8)
@@ -2498,16 +2448,15 @@ def convert_time_format(events):
     return events
 
 
-@login_required
-@csrf_exempt 
 def update_events_impl(request):
     """更新事件 - 支持RRule修改"""
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
         
     try:
-        data = json.loads(request.body)
-        event_id = data.get('eventId')
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        event_id = data.get('eventId')  # 就这狗屎大小写的，前后端、每个数据类型，都tm不一样
         
         if not event_id:
             return JsonResponse({'status': 'error', 'message': 'eventId is required'}, status=400)
@@ -2526,13 +2475,19 @@ def update_events_impl(request):
         # RRule相关字段
         rrule_change_scope = data.get('rrule_change_scope', 'single')  # single, all, future, from_time
         new_rrule = data.get('rrule')  # 新的RRule规则
-        from_time = data.get('from_time')  # 从何时开始修改
+        # 清理 rrule 字符串：移除末尾的分号和空格
+        if new_rrule:
+            new_rrule = new_rrule.strip().rstrip(';')
+        from_time = data.get('from_time')  # 从何时开始修改，配合 from_time 模式
         
         manager = EventsRRuleManager(request.user)
         
+        # 获取原生 Django request
+        django_request = get_django_request(request)
+        
         # 获取events数据
         user_events_data, created, result = UserData.get_or_initialize(
-            request, new_key="events", data=[]
+            django_request, new_key="events", data=[]
         )
         if user_events_data is None:
             return JsonResponse({'status': 'error', 'message': 'Failed to get user events data'}, status=500)
@@ -2609,11 +2564,11 @@ def update_events_impl(request):
                 # 将UTC时间转换为本地时间格式（如果需要）
                 formatted_start = new_start
                 formatted_end = new_end
-                if new_start and new_start.endswith('Z'):
+                if new_start and isinstance(new_start, str) and new_start.endswith('Z'):
                     utc_time = datetime.datetime.fromisoformat(new_start.replace('Z', '+00:00'))
                     local_time = utc_time - timedelta(hours=-8)
                     formatted_start = local_time.strftime('%Y-%m-%dT%H:%M:%S')
-                if new_end and new_end.endswith('Z'):
+                if new_end and isinstance(new_end, str) and new_end.endswith('Z'):
                     utc_time = datetime.datetime.fromisoformat(new_end.replace('Z', '+00:00'))
                     local_time = utc_time - timedelta(hours=-8)
                     formatted_end = local_time.strftime('%Y-%m-%dT%H:%M:%S')
@@ -2724,11 +2679,11 @@ def update_events_impl(request):
             # 将UTC时间转换为本地时间格式（如果需要）
             formatted_start = new_start
             formatted_end = new_end
-            if new_start and new_start.endswith('Z'):
+            if new_start and isinstance(new_start, str) and new_start.endswith('Z'):
                 utc_time = datetime.datetime.fromisoformat(new_start.replace('Z', '+00:00'))
                 local_time = utc_time - timedelta(hours=-8)
                 formatted_start = local_time.strftime('%Y-%m-%dT%H:%M:%S')
-            if new_end and new_end.endswith('Z'):
+            if new_end and isinstance(new_end, str) and new_end.endswith('Z'):
                 utc_time = datetime.datetime.fromisoformat(new_end.replace('Z', '+00:00'))
                 local_time = utc_time - timedelta(hours=-8)
                 formatted_end = local_time.strftime('%Y-%m-%dT%H:%M:%S')
@@ -2750,6 +2705,8 @@ def update_events_impl(request):
                     
                     # 如果添加了RRule，转换为重复事件
                     if new_rrule:
+                        # 清理 rrule 字符串：移除末尾的分号
+                        new_rrule = new_rrule.strip().rstrip(';')
                         logger.info(f"Converting single event {event_id} to recurring with rrule: {new_rrule}")
                         
                         # 解析开始时间
@@ -2844,7 +2801,7 @@ def update_events_impl(request):
         
         # 同时更新临时数据（兼容现有逻辑）
         user_temp_events_data, created, result = UserData.get_or_initialize(
-            request, new_key="planner", data={
+            django_request, new_key="planner", data={
                 "dialogue": [],
                 "temp_events": [],
                 "ai_planning_time": {}

@@ -4,69 +4,23 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251107_2144  development&#10;&#10;新增 TODO 的维度视图功能&#10;新增黑金和白金配色，优化浅色主题的配色&#10;UI 优化">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251107_2256  development&#10;&#10;文档优化&#10;创建 url 说明文档">
+      <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/views_token.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/UniSchedulerSuper/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/UniSchedulerSuper/settings.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/fullcalendar_index.global.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/fullcalendar_index.global.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/urls.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/views_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/views_reminder.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_reminder.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/CSS修复问题根本原因分析.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/CSS修复问题根本原因分析.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/DDL参数传递和UI交互修复文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/DDL参数传递和UI交互修复文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/DDL日期修复测试指南.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/DDL日期修复测试指南.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/DOM结构调试命令.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/DOM结构调试命令.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/Events功能分析与问题总结.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Events功能分析与问题总结.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/Events的RRule功能升级文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Events的RRule功能升级文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/FullCalendar主题适配优化文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/FullCalendar主题适配优化文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/GroupID丢失问题修复说明.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/GroupID丢失问题修复说明.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/GroupID字段名大小写不一致问题修复.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/GroupID字段名大小写不一致问题修复.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/Modal_Header主题适配修复.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Modal_Header主题适配修复.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/Reminder功能实现文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Reminder功能实现文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/TODO重要性紧急性升级文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/TODO重要性紧急性升级文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/jQuery依赖移除修复.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/jQuery依赖移除修复.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/两天日视图功能说明.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/两天日视图功能说明.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/临时测试方案.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/临时测试方案.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/主题修复说明.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/主题修复说明.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/主题系统升级文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/主题系统升级文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/修复仅此模式编辑第一个日程导致系列无主事件的问题.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/修复仅此模式编辑第一个日程导致系列无主事件的问题.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/升级详细文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级与开发文档/升级详细文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/升级预期.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级与开发文档/升级预期.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/单个日程转换为重复日程TypeError修复.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/单个日程转换为重复日程TypeError修复.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/取消重复日程功能修复文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/取消重复日程功能修复文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/取消重复日程功能完整修复报告.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/取消重复日程功能完整修复报告.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/取消重复日程功能最终修复总结.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/取消重复日程功能最终修复总结.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/取消重复日程问题诊断.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/取消重复日程问题诊断.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/周数显示功能实现文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/周数显示功能实现文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/四选一框问题修复详细分析.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/四选一框问题修复详细分析.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/多维度筛选实现v20251101-009.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/多维度筛选实现v20251101-009.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/开发文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/开发文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/拖拽重复事件修复说明.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/拖拽重复事件修复说明.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/提醒日历刷新问题修复v20251031-007.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒日历刷新问题修复v20251031-007.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/提醒日历集成-问题修复说明.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒日历集成-问题修复说明.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/提醒日历集成v20251031-006修复说明.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒日历集成v20251031-006修复说明.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/提醒日历集成功能文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒日历集成功能文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/提醒筛选器和刷新问题修复v20251101-008.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒筛选器和刷新问题修复v20251101-008.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/日历主题适配修复总结.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历主题适配修复总结.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/日历刷新问题诊断指南v20251101-010.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历刷新问题诊断指南v20251101-010.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/日历实例引用修复.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历实例引用修复.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/日历滑动丝滑度优化文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历滑动丝滑度优化文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/日历滑动体验最终优化文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历滑动体验最终优化文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/日历滚动和周数主题修复总结.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历滚动和周数主题修复总结.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/日历筛选功能实现文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历筛选功能实现文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/日历触屏滑动功能实现文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历触屏滑动功能实现文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/日历触屏滑动动效优化文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历触屏滑动动效优化文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/日历触屏滑动测试指南.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历触屏滑动测试指南.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/日程组功能恢复文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日程组功能恢复文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/日程组编辑修复说明.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日程组编辑修复说明.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/时间格式修复说明.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/时间格式修复说明.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/最终修复方案_2025-11-04.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/最终修复方案_2025-11-04.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/月视图显示问题修复.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/月视图显示问题修复.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/月视图滚动调试.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/月视图滚动调试.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/滑动禁用交互精确修复文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/滑动禁用交互精确修复文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/用户设置功能实现文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/用户设置功能实现文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/第二批创意主题文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/第二批创意主题文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/编辑模态框修复说明.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/编辑模态框修复说明.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/编辑重复日程DDL问题修复文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/编辑重复日程DDL问题修复文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/自动DDL功能说明.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/自动DDL功能说明.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/重复事件编辑问题修复总结.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/重复事件编辑问题修复总结.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/重复日程DDL日期问题修复.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/重复日程DDL日期问题修复.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/重复日程截止时间功能修复文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/重复日程截止时间功能修复文档.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/URL路由功能说明文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级与开发文档/URL路由功能说明文档.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/static/fullcalendar_index.global.js" beforeDir="false" afterPath="$PROJECT_DIR$/planner/static/fullcalendar_index.global.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rrule_engine.py" beforeDir="false" afterPath="$PROJECT_DIR$/rrule_engine.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/fullcalendar_index.global.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/fullcalendar_index.global.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -120,51 +74,103 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ASKED_MARK_IGNORED_FILES_AS_EXCLUDED&quot;: &quot;true&quot;,
-    &quot;Django 服务器.UniSchedulerSuper.executor&quot;: &quot;Run&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;找到数据库连接形参&quot;,
-    &quot;Notification.DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;true&quot;,
-    &quot;Python.code_line_counter.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_exception_debug.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_rrule_system.executor&quot;: &quot;Run&quot;,
-    &quot;Python.views.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.OpenDjangoStructureViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.pycharm.django.structure.promotion.once.per.project&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;development__new&quot;,
-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/PROJECTS/UniSchedulerSuper/core/templates&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;org.jetbrains.plugins.github.ui.GithubSettingsConfigurable&quot;,
-    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
+    "Django 服务器.UniSchedulerSuper.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found": "找到数据库连接形参",
+    "Notification.DoNotAsk-DatabaseConfigFileWatcher.found": "true",
+    "Python.111 (1).executor": "Run",
+    "Python.111.executor": "Run",
+    "Python.code_line_counter.executor": "Run",
+    "Python.test_browser_session.executor": "Run",
+    "Python.test_event_operations.executor": "Run",
+    "Python.test_exception_debug.executor": "Run",
+    "Python.test_reminder_operations.executor": "Run",
+    "Python.test_rrule_system.executor": "Run",
+    "Python.test_token_auth.executor": "Run",
+    "Python.views.executor": "Run",
+    "RunOnceActivity.OpenDjangoStructureViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.pycharm.django.structure.promotion.once.per.project": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "git-widget-placeholder": "development__new",
+    "ignore.virus.scanning.warn.message": "true",
+    "junie.onboarding.icon.badge.shown": "true",
+    "last_opened_file_path": "D:/PROJECTS/UniSchedulerSuper/core/templates",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "org.jetbrains.plugins.github.ui.GithubSettingsConfigurable",
+    "to.speed.mode.migration.done": "true",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="D:\PROJECTS\UniSchedulerSuper\core\templates" />
       <recent name="D:\PROJECTS\UniSchedulerSuper" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="D:\PROJECTS\UniSchedulerSuper\examples" />
+      <recent name="D:\PROJECTS\UniSchedulerSuper\docs\升级与开发文档" />
       <recent name="D:\PROJECTS\UniSchedulerSuper\docs\升级日志与过时文件" />
       <recent name="D:\PROJECTS\UniSchedulerSuper\docs\开发文档" />
       <recent name="D:\PROJECTS\UniSchedulerSuper\docs" />
-      <recent name="D:\PROJECTS\UniSchedulerSuper\core" />
-      <recent name="D:\PROJECTS\UniSchedulerSuper\core\templates" />
     </key>
   </component>
-  <component name="RunManager" selected="Django 服务器.UniSchedulerSuper">
+  <component name="RunManager" selected="Python.111 (1)">
+    <configuration name="111 (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="UniSchedulerSuper" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/api_examples" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/api_examples/111.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="111" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="UniSchedulerSuper" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/examples" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/examples/111.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="UniSchedulerSuper" type="PythonConfigurationType" factoryName="Python">
       <module name="UniSchedulerSuper" />
       <option name="ENV_FILES" value="" />
@@ -217,7 +223,15 @@
     <list>
       <item itemvalue="Django 服务器.UniSchedulerSuper" />
       <item itemvalue="Python.UniSchedulerSuper" />
+      <item itemvalue="Python.111" />
+      <item itemvalue="Python.111 (1)" />
     </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.111 (1)" />
+        <item itemvalue="Python.111" />
+      </list>
+    </recent_temporary>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
@@ -284,7 +298,7 @@
       <workItem from="1762271450601" duration="1874000" />
       <workItem from="1762421881575" duration="611000" />
       <workItem from="1762430604007" duration="171000" />
-      <workItem from="1762435690055" duration="10350000" />
+      <workItem from="1762435690055" duration="52953000" />
     </task>
     <task id="LOCAL-00001" summary="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
       <option name="closed" value="true" />
@@ -454,7 +468,15 @@
       <option name="project" value="LOCAL" />
       <updated>1762523201353</updated>
     </task>
-    <option name="localTasksCounter" value="22" />
+    <task id="LOCAL-00022" summary="UniSchedulerSuper 1.5.4.20251107_2256  development&#10;&#10;文档优化&#10;创建 url 说明文档">
+      <option name="closed" value="true" />
+      <created>1762527450033</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1762527450033</updated>
+    </task>
+    <option name="localTasksCounter" value="23" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -511,12 +533,19 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4&#10;&#10;本次更新相较于 1.5.3 版本，有：&#10;已完成 Events 相关的所有功能的升级和已知的所有问题修复&#10;新增设置界面，提供大量自定义选项&#10;日历界面的筛选功能&#10;提供多种新的主题&#10;新增日历界面触屏滑动支持&#10;修改自动ddl的默认值为False" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251106  development&#10;&#10;修复了 views 硬编码导致的新用户默认设置中 auto_ddl 参数被改为 true 而非 models 中定义的 false 的问题&#10;UI 优化&#10;升级了待办事项的筛选器" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251107_2144  development&#10;&#10;新增 TODO 的维度视图功能&#10;新增黑金和白金配色，优化浅色主题的配色&#10;UI 优化" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20251107_2144  development&#10;&#10;新增 TODO 的维度视图功能&#10;新增黑金和白金配色，优化浅色主题的配色&#10;UI 优化" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20251107_2256  development&#10;&#10;文档优化&#10;创建 url 说明文档" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20251107_2256  development&#10;&#10;文档优化&#10;创建 url 说明文档" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_browser_session.coverage" NAME="test_browser_session 覆盖结果" MODIFIED="1762539566092" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_reminder_operations.coverage" NAME="test_reminder_operations 覆盖结果" MODIFIED="1762541044737" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_rrule_system.coverage" NAME="test_rrule_system 覆盖结果" MODIFIED="1756019650259" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$111.coverage" NAME="111 覆盖结果" MODIFIED="1762619303454" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples" />
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$code_line_counter.coverage" NAME="code_line_counter 覆盖结果" MODIFIED="1755359556811" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_exception_debug.coverage" NAME="test_exception_debug 覆盖结果" MODIFIED="1756045494260" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$views.coverage" NAME="views 覆盖结果" MODIFIED="1756101431647" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/core" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_event_operations.coverage" NAME="test_event_operations 覆盖结果" MODIFIED="1762539335202" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$111__1_.coverage" NAME="111 (1) 覆盖结果" MODIFIED="1762626532849" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/api_examples" />
   </component>
 </project>

@@ -178,11 +178,6 @@ DATA_SCHEMA = {
                 "nullable": False,
                 "default": "",  # urgent|not-urgent (与Events保持一致)
             },
-            "tags": {
-                "type": list,
-                "nullable": False,
-                "default": [],
-            },
             "created_at": {
                 "type": str,
                 "nullable": False,
@@ -203,6 +198,17 @@ DATA_SCHEMA = {
                 "nullable": True,
                 "default": "",
             },
+            "last_modified": {
+                "type": str,
+                "nullable": False,
+                "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            },
+            # 以下 to do 字段尚未被使用
+            "tags": {
+                "type": list,
+                "nullable": False,
+                "default": [],
+            },
             "status": {
                 "type": str,
                 "nullable": False,
@@ -222,11 +228,6 @@ DATA_SCHEMA = {
                 "type": float,
                 "nullable": False,
                 "default": 0.5,  # AI计算的优先级分数，0-1之间
-            },
-            "last_modified": {
-                "type": str,
-                "nullable": False,
-                "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             },
         },
     },
@@ -257,6 +258,32 @@ DATA_SCHEMA = {
                 "nullable": False,
                 "default": "normal",  # critical|high|normal|low|debug
             },
+            "rrule": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            "status": {
+                "type": str,
+                "nullable": False,
+                "default": "active",  # active|dismissed|snoozed
+            },
+            "snooze_until": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            "created_at": {
+                "type": str,
+                "nullable": False,
+                "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            },
+            "last_modified": {
+                "type": str,
+                "nullable": False,
+                "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            },
+            # 以下 key 暂时未被用到
             "advance_triggers": {
                 "type": list,
                 "nullable": False,
@@ -277,11 +304,6 @@ DATA_SCHEMA = {
                     },
                 },
             },
-            "rrule": {
-                "type": str,
-                "nullable": True,
-                "default": "",
-            },
             "linked_event_id": {
                 "type": str,
                 "nullable": True,
@@ -292,30 +314,11 @@ DATA_SCHEMA = {
                 "nullable": True,
                 "default": "",
             },
-            "status": {
-                "type": str,
-                "nullable": False,
-                "default": "active",  # active|dismissed|snoozed
-            },
-            "snooze_until": {
-                "type": str,
-                "nullable": True,
-                "default": "",
-            },
+
             "notification_sent": {
                 "type": bool,
                 "nullable": False,
                 "default": False,
-            },
-            "created_at": {
-                "type": str,
-                "nullable": False,
-                "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            },
-            "last_modified": {
-                "type": str,
-                "nullable": False,
-                "default": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             },
         },
     },
