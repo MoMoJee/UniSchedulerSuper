@@ -275,25 +275,89 @@ example_dismiss_reminder(token, reminder_id)
 
 对于重复提醒的复杂操作，使用 `/api/reminders/bulk-edit/`:
 
+**编辑单个实例（从系列独立）**:
 ```python
-# 删除整个系列
-data = {
-    "operation": "delete",
-    "reminder_id": "reminder-123",
-    "edit_scope": "all",
-    "series_id": "series-456"
-}
-
-# 修改重复规则
 data = {
     "operation": "edit",
     "reminder_id": "reminder-123",
-    "edit_scope": "from_this",
     "series_id": "series-456",
-    "rrule": "FREQ=WEEKLY;BYDAY=MO,WE,FR",
-    "content": "更新后的内容"
+    "edit_scope": "this_only",
+    "title": "修改后的单个实例",
+    "priority": "high"
 }
 ```
+
+**编辑整个系列**:
+```python
+data = {
+    "operation": "edit",
+    "reminder_id": "reminder-123",
+    "series_id": "series-456",
+    "edit_scope": "all",
+    "title": "更新整个系列",
+    "content": "所有实例都会更新"
+}
+```
+
+**从某实例开始编辑**:
+```python
+data = {
+    "operation": "edit",
+    "reminder_id": "reminder-123",
+    "series_id": "series-456",
+    "edit_scope": "from_this",
+    "priority": "low"
+}
+```
+
+**修改重复规则（创建新系列）**:
+```python
+data = {
+    "operation": "edit",
+    "reminder_id": "reminder-123",
+    "series_id": "series-456",
+    "edit_scope": "from_time",
+    "from_time": "2025-01-25T10:00:00",
+    "rrule": "FREQ=WEEKLY;BYDAY=MO,WE,FR",
+    "title": "新规则：每周三次"
+}
+```
+
+**删除整个系列**:
+```python
+data = {
+    "operation": "delete",
+    "reminder_id": "reminder-123",
+    "series_id": "series-456",
+    "edit_scope": "all"
+}
+```
+
+**删除此实例及之后**:
+```python
+data = {
+    "operation": "delete",
+    "reminder_id": "reminder-123",
+    "series_id": "series-456",
+    "edit_scope": "from_this"
+}
+```
+
+**完整的批量编辑示例**:
+
+详见 `api_examples/example_reminders_api.py` 中的示例函数：
+- `example_bulk_edit_single_instance()` - 编辑单个实例
+- `example_bulk_edit_all_series()` - 编辑整个系列
+- `example_bulk_edit_from_this()` - 从某实例开始
+- `example_bulk_change_rrule()` - 修改重复规则
+- `example_bulk_delete_all_series()` - 删除整个系列
+- `example_bulk_delete_from_this()` - 删除此及之后
+- `example_bulk_edit_workflow()` - 综合演示
+
+**测试脚本**: `test_bulk_edit_reminders.py`
+- 完整的实战演示
+- 创建 → 编辑 → 修改规则 → 清理
+- 验证每个步骤的结果
 
 ---
 

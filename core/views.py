@@ -345,7 +345,7 @@ def add_8_hours_to_time_string(time_str):
 
 
 # 发送用户设置
-# 弃用 login_required 和 csrf_exempt
+# 弃用 login_required
 # @login_required
 # @csrf_exempt
 @api_view(['GET', 'POST'])

@@ -10,6 +10,7 @@
 ## 📋 文档说明
 
 本文档详细记录了 `core` 应用中所有 URL 路由的功能说明。路由按功能模块分类，便于查找和理解。
+很不幸，主包几乎没给服务器侧写任何参数检查和报错机制，此前全靠浏览器端的配合。因此如果用API然后参数传错了，那结果只有天知道
 
 ---
 
@@ -1080,6 +1081,7 @@ FREQ=MONTHLY;BYDAY=2MO             // 每月第2个星期一
 ---
 
 ### 6. `/api/reminders/bulk-edit/` - 批量编辑重复提醒
+**警告：** bulk-edit 编辑复杂度很高，情况分支繁多，使用前请务必仔细阅读文档，若不清楚操作的后果，请勿对重要内容进行操作。
 
 **视图函数**: `views.bulk_edit_reminders` → `views_reminder.bulk_edit_reminders`
 
@@ -1098,19 +1100,16 @@ FREQ=MONTHLY;BYDAY=2MO             // 每月第2个星期一
 {
     "operation": "edit/delete (必填)",
     "reminder_id": "提醒ID (必填)",
-    "edit_scope": "single/all/future/from_time (必填)",
+    "edit_scope": "single(或this_only，效果相同）/all/future/from_time (必填)",
     "series_id": "系列ID (重复提醒必需)",
     "from_time": "起始时间 (scope=from_time时必需)",
     
     // 编辑操作时的更新数据
     "title": "新标题 (可选)",
     "content": "新内容 (可选)",
-    "priority": "新优先级 (可选)",
+    "priority": "新优先级 (可选)， low|normal|high|urgent",
     "trigger_time": "新触发时间 (可选)",
-    "rrule": "新重复规则 (可选)",
-    "importance": "重要性 (可选)",
-    "urgency": "紧急性 (可选)",
-    "reminder_mode": "提醒模式 (可选)"
+    "rrule": "新重复规则 (可选)"
 }
 ```
 
@@ -1120,7 +1119,7 @@ FREQ=MONTHLY;BYDAY=2MO             // 每月第2个星期一
   - `delete`: 删除提醒
 - `reminder_id`: 目标提醒ID（必填）
 - `edit_scope`: 编辑范围（必填），前端可能发送的值：
-  - `this_only`: 仅此提醒（自动映射为 `single`）
+  - `single(或this_only，效果相同）`: 仅此提醒
   - `all`: 整个系列
   - `from_this`: 此提醒及之后（自动映射为 `future`）
   - `from_time`: 从指定时间开始
@@ -1133,18 +1132,15 @@ FREQ=MONTHLY;BYDAY=2MO             // 每月第2个星期一
 - `priority`: 新优先级
 - `trigger_time`: 新触发时间
 - `rrule`: 新重复规则
-- `importance`: 重要性
-- `urgency`: 紧急性
-- `reminder_mode`: 提醒模式
 
 **编辑范围说明**:
 
-| 前端发送 | 后端处理 | 说明 |
-|---------|---------|------|
-| `this_only` | `single` | 仅此提醒（从系列中独立） |
-| `all` | `all` | 整个系列 |
-| `from_this` | `future` | 此提醒及之后 |
-| `from_time` | `from_time` | 从指定时间开始 |
+| 前端发送               | 后端处理 | 说明 |
+|--------------------|---------|------|
+| `this_only/single` | `single` | 仅此提醒 |
+| `all`              | `all` | 整个系列 |
+| `from_this/future`       | `future` | 此提醒及之后 |
+| `from_time`        | `from_time` | 从指定时间开始 |
 
 **删除操作**:
 - `single`: 删除单个实例（使用 EXDATE 机制）
@@ -1152,16 +1148,17 @@ FREQ=MONTHLY;BYDAY=2MO             // 每月第2个星期一
 - `future`/`from_time`: 删除此及之后（使用 UNTIL 截断）
 
 **编辑操作**:
-- `single`: 编辑单个实例（从系列中独立，直接更新字段）
+- `single`: 编辑单个实例（若配合 rrule=""， 那么会从系列中独立。否则直接更新字段并保留其为系列中的一员）
 - `all`: 编辑整个系列（更新所有实例，不修改 trigger_time）
 - `future`/`from_time`: 从某时间点开始编辑
-  - **RRule 不变**: 仅更新字段，不改变时间
+  - **RRule 不变**: 仅更新字段，不改变重复规则，不产生新序列
   - **RRule 变化**: 创建新系列，截断旧系列
 
 **RRule 修改检测**:
 - 自动检测 RRule 是否真正发生变化
-- RRule 不变：简单更新字段（不修改 trigger_time）
-- RRule 变化：调用 `modify_recurring_rule()` 创建新系列
+- RRule 不变：简单更新字段（不允许修改 trigger_time 的触发日期，只允许更改触发时间点）
+- RRule 变化：调用 `modify_recurring_rule()` 创建新系列，仅允许 from_time 和 from_this 模式下进行这个操作
+- RRule 为空，如果是 single 模式，那么会把日程从系列中独立出去。其他几个模式不允许 RRule 为空
 
 **特殊功能**:
 - 🔄 **智能 RRule 检测**: 自动判断是否需要创建新系列
@@ -1242,6 +1239,8 @@ FREQ=MONTHLY;BYDAY=2MO             // 每月第2个星期一
 - 将重复提醒的某个实例转换为单次提醒
 - 保留当前实例，删除未来实例
 - 为过去实例添加 UNTIL 限制
+
+在浏览器端，bulk-edit 若检测到用户把原先有 RRule 参数的日程的 RRule 去除掉了，就会给前端一个报错，前端再检查，会发现这是一个将重复日程改为但此日程的特殊操作，就会进一步在前端链接这个函数
 
 **请求参数**:
 ```json

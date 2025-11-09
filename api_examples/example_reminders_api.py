@@ -398,6 +398,311 @@ def example_delete_reminder(token, reminder_id):
         return False
 
 
+def example_bulk_edit_single_instance(token, reminder_id, series_id):
+    """
+    示例 9A: 批量编辑 - 编辑单个重复提醒实例
+
+    从重复系列中独立出单个实例并编辑
+
+    API: POST /api/reminders/bulk-edit/
+
+    Args:
+        token: 认证 Token
+        reminder_id: 目标提醒实例ID
+        series_id: 系列ID
+    """
+    print("\n" + "=" * 60)
+    print(f"✏️  示例 9A: 批量编辑 - 编辑单个实例")
+    print("=" * 60)
+
+    if not reminder_id or not series_id:
+        print("⚠ 跳过: 需要提醒ID和系列ID")
+        return False
+
+    edit_data = {
+        "operation": "edit",
+        "reminder_id": reminder_id,
+        "series_id": series_id,
+        "edit_scope": "single",  # 仅此提醒
+        "title": "已修改：单个实例",
+        "content": "这个实例已从系列中独立出来",
+        "priority": "low",
+        "rrule": ""
+    }
+
+    print(f"编辑提醒 ID: {reminder_id}")
+    print(f"系列 ID: {series_id}")
+    print(f"编辑范围: 仅此提醒（从系列独立）")
+    print(f"更新: 标题、内容、优先级")
+
+    response = requests.post(
+        f"{BASE_URL}/api/reminders/bulk-edit/",
+        headers=get_headers(token),
+        json=edit_data
+    )
+
+    if response.status_code == 200:
+        print(f"✓ 单个实例编辑成功")
+        return True
+    else:
+        print(f"✗ 编辑失败: {response.status_code}")
+        print(f"  响应: {response.text}")
+        return False
+
+
+def example_bulk_edit_all_series(token, reminder_id, series_id):
+    """
+    示例 9B: 批量编辑 - 编辑整个重复系列
+    
+    更新整个系列的所有实例（不修改触发时间）
+    
+    API: POST /api/reminders/bulk-edit/
+    
+    Args:
+        token: 认证 Token
+        reminder_id: 系列中任一提醒ID
+        series_id: 系列ID
+    """
+    print("\n" + "="*60)
+    print(f"✏️  示例 9B: 批量编辑 - 编辑整个系列")
+    print("="*60)
+    
+    if not reminder_id or not series_id:
+        print("⚠ 跳过: 需要提醒ID和系列ID")
+        return False
+    
+    edit_data = {
+        "operation": "edit",
+        "reminder_id": reminder_id,
+        "series_id": series_id,
+        "edit_scope": "all",  # 整个系列
+        "title": "已更新：系列标题",
+        "content": "整个系列的内容已更新",
+        "priority": "high"
+    }
+    
+    print(f"编辑系列 ID: {series_id}")
+    print(f"编辑范围: 整个系列")
+    print(f"更新: 标题、内容、优先级（不修改触发时间）")
+    
+    response = requests.post(
+        f"{BASE_URL}/api/reminders/bulk-edit/",
+        headers=get_headers(token),
+        json=edit_data
+    )
+    
+    if response.status_code == 200:
+        result = response.json()
+        print(f"✓ 系列编辑成功")
+        print(f"  更新数量: {result.get('updated_count', 'N/A')}")
+        return True
+    else:
+        print(f"✗ 编辑失败: {response.status_code}")
+        print(f"  响应: {response.text}")
+        return False
+
+
+def example_bulk_edit_from_this(token, reminder_id, series_id):
+    """
+    示例 9C: 批量编辑 - 从某个实例开始编辑
+    
+    从指定的提醒实例开始，编辑该实例及之后的所有实例
+    
+    API: POST /api/reminders/bulk-edit/
+    
+    Args:
+        token: 认证 Token
+        reminder_id: 起始提醒ID
+        series_id: 系列ID
+    """
+    print("\n" + "="*60)
+    print(f"✏️  示例 9C: 批量编辑 - 从此实例开始编辑")
+    print("="*60)
+    
+    if not reminder_id or not series_id:
+        print("⚠ 跳过: 需要提醒ID和系列ID")
+        return False
+    
+    edit_data = {
+        "operation": "edit",
+        "reminder_id": reminder_id,
+        "series_id": series_id,
+        "edit_scope": "from_this",  # 此实例及之后
+        "title": "已更新：从此开始",
+        "content": "此实例及之后的实例已更新",
+        "priority": "low"
+    }
+    
+    print(f"起始提醒 ID: {reminder_id}")
+    print(f"系列 ID: {series_id}")
+    print(f"编辑范围: 此实例及之后")
+    print(f"更新: 标题、内容、优先级")
+    
+    response = requests.post(
+        f"{BASE_URL}/api/reminders/bulk-edit/",
+        headers=get_headers(token),
+        json=edit_data
+    )
+    
+    if response.status_code == 200:
+        result = response.json()
+        print(f"✓ 批量编辑成功")
+        print(f"  更新数量: {result.get('updated_count', 'N/A')}")
+        return True
+    else:
+        print(f"✗ 编辑失败: {response.status_code}")
+        print(f"  响应: {response.text}")
+        return False
+
+
+def example_bulk_change_rrule(token, reminder_id, series_id, from_time):
+    """
+    示例 9D: 批量编辑 - 修改重复规则
+
+    从指定时间开始修改重复规则，创建新系列
+    在本示例中，会把对一个（例如本来是每日重复，无限重复的）日程序列，从 from_time 开始往后找，然后以找到的第一个的日程为新序列的开头，辅以新传入的 RRule 参数，创建一个新的系列
+    如果传入的 RRule 和原来的相同，那么就不会创建新序列
+    如果传入一个 rrule=""，那用户就是想要把日程序列从传入的这个时间点以后的都删掉，并使序列在这个时间点结束重复。这个目的建议使用 convert-to-single 或者 delete，用 bulk-edit 大概会报错
+    API: POST /api/reminders/bulk-edit/
+
+    Args:
+        token: 认证 Token
+        reminder_id: 目标提醒ID
+        series_id: 系列ID
+        from_time: 起始时间（ISO格式）
+    """
+    print("\n" + "=" * 60)
+    print(f"🔄 示例 9D: 批量编辑 - 修改重复规则")
+    print("=" * 60)
+
+    if not reminder_id or not series_id or not from_time:
+        print("⚠ 跳过: 需要提醒ID、系列ID和起始时间")
+        return False
+
+    edit_data = {
+        "operation": "edit",
+        "reminder_id": reminder_id,
+        "series_id": series_id,
+        "edit_scope": "from_time",  # 从指定时间开始
+        "from_time": from_time,
+        "rrule": "FREQ=WEEKLY;BYDAY=MO,WE,FR",  # 新规则：每周一、三、五
+        "title": "新规则：每周三次",
+        "content": "从指定时间开始使用新的重复规则"
+    }
+
+    print(f"目标提醒 ID: {reminder_id}")
+    print(f"系列 ID: {series_id}")
+    print(f"起始时间: {from_time}")
+    print(f"新重复规则: FREQ=WEEKLY;BYDAY=MO,WE,FR")
+    print(f"操作: 创建新系列，截断旧系列")
+
+    response = requests.post(
+        f"{BASE_URL}/api/reminders/bulk-edit/",
+        headers=get_headers(token),
+        json=edit_data
+    )
+
+    if response.status_code == 200:
+        print(f"✓ 重复规则修改成功")
+        print(f"  旧系列已截断，新系列已创建")
+        return True
+    else:
+        print(f"✗ 修改失败: {response.status_code}")
+        print(f"  响应: {response.text}")
+        return False
+
+def example_bulk_delete_all_series(token, reminder_id, series_id):
+    """
+    示例 9E: 批量编辑 - 删除整个重复系列
+    
+    完全删除整个重复提醒系列
+    
+    API: POST /api/reminders/bulk-edit/
+    
+    Args:
+        token: 认证 Token
+        reminder_id: 系列中任一提醒ID
+        series_id: 系列ID
+    """
+    print("\n" + "="*60)
+    print(f"🗑️  示例 9E: 批量编辑 - 删除整个系列")
+    print("="*60)
+    
+    if not reminder_id or not series_id:
+        print("⚠ 跳过: 需要提醒ID和系列ID")
+        return False
+    
+    delete_data = {
+        "operation": "delete",
+        "reminder_id": reminder_id,
+        "series_id": series_id,
+        "edit_scope": "all"  # 删除整个系列
+    }
+    
+    print(f"删除系列 ID: {series_id}")
+    print(f"删除范围: 整个系列")
+    
+    response = requests.post(
+        f"{BASE_URL}/api/reminders/bulk-edit/",
+        headers=get_headers(token),
+        json=delete_data
+    )
+    
+    if response.status_code == 200:
+        print(f"✓ 整个系列删除成功")
+        return True
+    else:
+        print(f"✗ 删除失败: {response.status_code}")
+        print(f"  响应: {response.text}")
+        return False
+
+
+def example_bulk_delete_from_this(token, reminder_id, series_id):
+    """
+    示例 9F: 批量编辑 - 删除此实例及之后
+
+    删除指定实例及之后的所有实例，保留之前的实例
+
+    API: POST /api/reminders/bulk-edit/
+
+    Args:
+        token: 认证 Token
+        reminder_id: 起始提醒ID
+        series_id: 系列ID
+    """
+    print("\n" + "=" * 60)
+    print(f"🗑️  示例 9F: 批量编辑 - 删除此实例及之后")
+    print("=" * 60)
+
+    if not reminder_id or not series_id:
+        print("⚠ 跳过: 需要提醒ID和系列ID")
+        return False
+
+    delete_data = {
+        "operation": "delete",
+        "reminder_id": reminder_id,
+        "series_id": series_id,
+        "edit_scope": "from_this"  # 删除此实例及之后
+    }
+
+    print(f"起始提醒 ID: {reminder_id}")
+    print(f"系列 ID: {series_id}")
+    print(f"删除范围: 此实例及之后（使用UNTIL截断）")
+
+    response = requests.post(
+        f"{BASE_URL}/api/reminders/bulk-edit/",
+        headers=get_headers(token),
+        json=delete_data
+    )
+
+    if response.status_code == 200:
+        print(f"✓ 批量删除成功")
+        return True
+    else:
+        print(f"✗ 删除失败: {response.status_code}")
+        print(f"  响应: {response.text}")
+        return False
+
 def example_batch_create_reminders(token):
     """
     示例 10: 批量创建提醒
@@ -564,6 +869,78 @@ def example_daily_reminders(token):
     return created_count
 
 
+def example_bulk_edit_workflow(token):
+    """
+    示例 13: 批量编辑工作流程
+    
+    综合演示批量编辑重复提醒的各种场景
+    
+    注意: 需要先创建重复提醒并获取其ID和series_id
+    """
+    print("\n" + "="*60)
+    print("🔧 示例 13: 批量编辑重复提醒工作流程")
+    print("="*60)
+    
+    print("\n📝 此示例演示批量编辑的各种场景：")
+    print("   1. 编辑单个实例（从系列独立）")
+    print("   2. 编辑整个系列")
+    print("   3. 从某实例开始编辑")
+    print("   4. 修改重复规则")
+    print("   5. 删除整个系列")
+    print("   6. 删除此实例及之后")
+    
+    print("\n⚠️  前置条件：")
+    print("   - 需要先创建一个重复提醒")
+    print("   - 需要获取提醒列表找到 reminder_id 和 series_id")
+    print("   - 建议使用 example_get_reminders() 获取")
+    
+    print("\n💡 使用方法：")
+    print("   1. 先调用 example_create_recurring_reminder() 创建重复提醒")
+    print("   2. 调用 example_get_reminders() 获取提醒列表")
+    print("   3. 找到重复提醒的 id 和 series_id")
+    print("   4. 使用找到的 ID 调用对应的 bulk-edit 函数")
+    
+    print("\n📋 示例调用代码：")
+    print("""
+    # 获取提醒列表
+    reminders = example_get_reminders(token)
+    
+    # 找到重复提醒
+    recurring_reminder = next(
+        (r for r in reminders if r.get('is_recurring') and r.get('series_id')),
+        None
+    )
+    
+    if recurring_reminder:
+        reminder_id = recurring_reminder['id']
+        series_id = recurring_reminder['series_id']
+        trigger_time = recurring_reminder['trigger_time']
+        
+        # 示例 1: 编辑单个实例
+        example_bulk_edit_single_instance(token, reminder_id, series_id)
+        
+        # 示例 2: 编辑整个系列
+        example_bulk_edit_all_series(token, reminder_id, series_id)
+        
+        # 示例 3: 从此实例开始编辑
+        example_bulk_edit_from_this(token, reminder_id, series_id)
+        
+        # 示例 4: 修改重复规则（需要 from_time）
+        example_bulk_change_rrule(token, reminder_id, series_id, trigger_time)
+        
+        # 示例 5: 删除此实例及之后
+        example_bulk_delete_from_this(token, reminder_id, series_id)
+        
+        # 示例 6: 删除整个系列（最后执行，会删除所有实例）
+        example_bulk_delete_all_series(token, reminder_id, series_id)
+    """)
+    
+    print("\n✅ 批量编辑工作流程说明完成")
+    print("💡 请根据实际需求调用对应的函数")
+    
+    return True
+
+
 # ==================== 主程序 ====================
 
 def main():
@@ -616,7 +993,10 @@ def main():
     # 7. 每日提醒设置
     daily_count = example_daily_reminders(token)
     
-    # 8. 清理说明
+    # 8. 批量编辑工作流程演示
+    example_bulk_edit_workflow(token)
+    
+    # 9. 清理说明
     print("\n" + "="*60)
     print("🧹 清理示例数据")
     print("="*60)
@@ -633,7 +1013,8 @@ def main():
     print("💡 提示: 要删除这些提醒，请:")
     print("   1. 调用 example_get_reminders(token) 获取提醒列表")
     print("   2. 找到示例提醒的ID（标题包含'API 示例'）")
-    print("   3. 调用 example_delete_reminder(token, reminder_id) 删除")
+    print("   3. 对于单次提醒: 调用 example_delete_reminder(token, reminder_id)")
+    print("   4. 对于重复提醒: 调用 example_bulk_delete_all_series(token, reminder_id, series_id)")
     
     # 最终结果
     print("\n" + "="*60)
@@ -657,6 +1038,12 @@ def main():
     print("     POST /api/reminders/update-status/ - 更新状态")
     print("     POST /api/reminders/delete/ - 删除提醒")
     print("     POST /api/reminders/bulk-edit/ - 批量编辑重复提醒")
+    print("\n  📌 批量编辑功能:")
+    print("     - this_only: 编辑单个实例（从系列独立）")
+    print("     - all: 编辑整个系列")
+    print("     - from_this: 从此实例开始编辑")
+    print("     - from_time: 从指定时间开始（可修改RRule）")
+    print("     - 支持删除操作（单个/系列/从某时间）")
 
 
 if __name__ == "__main__":

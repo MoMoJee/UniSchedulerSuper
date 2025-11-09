@@ -763,16 +763,17 @@ def bulk_edit_reminders(request):
             'content': data.get('content'),  # 前端发送的是content，不是description
             'description': data.get('description'),  # 保留兼容性
             'priority': data.get('priority'),  # 添加missing的priority字段
-            'importance': data.get('importance'),
-            'urgency': data.get('urgency'),
+            'importance': data.get('importance'),  # 尚未启用
+            'urgency': data.get('urgency'),  # 尚未启用
             'trigger_time': data.get('trigger_time'),
             'rrule': data.get('rrule'),
-            'reminder_mode': data.get('reminder_mode'),
+            'reminder_mode': data.get('reminder_mode'),  # 尚未启用
         }
         # 过滤掉None值
         updates = {k: v for k, v in updates.items() if v is not None}
         
         logger.info(f"Received updates: {updates}")
+        logger.debug(f"{data=}")
         
         if not reminder_id:
             return JsonResponse({'status': 'error', 'message': '提醒ID是必填项'}, status=400)
