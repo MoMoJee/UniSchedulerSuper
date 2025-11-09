@@ -4,16 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251109_0233  development&#10;&#10;新增 API 与 Token 登录功能 (beta)">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251109_2214  development&#10;&#10;新增了一些 API 示例">
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api_examples/example_reminders_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/api_examples/example_reminders_api.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/urls.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/views_reminder.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_reminder.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/Reminders_API修复说明.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级与开发文档/Reminders_API修复说明.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/URL路由功能说明文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级与开发文档/URL路由功能说明文档.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_reminders_fixed.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -119,7 +115,7 @@
       <recent name="D:\PROJECTS\UniSchedulerSuper\docs" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.111 (1)">
+  <component name="RunManager" selected="Django 服务器.UniSchedulerSuper">
     <configuration name="111 (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="UniSchedulerSuper" />
       <option name="ENV_FILES" value="" />
@@ -318,7 +314,7 @@
       <workItem from="1762271450601" duration="1874000" />
       <workItem from="1762421881575" duration="611000" />
       <workItem from="1762430604007" duration="171000" />
-      <workItem from="1762435690055" duration="62848000" />
+      <workItem from="1762435690055" duration="64813000" />
     </task>
     <task id="LOCAL-00001" summary="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
       <option name="closed" value="true" />
@@ -504,7 +500,15 @@
       <option name="project" value="LOCAL" />
       <updated>1762626851002</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="UniSchedulerSuper 1.5.4.20251109_2214  development&#10;&#10;新增了一些 API 示例">
+      <option name="closed" value="true" />
+      <created>1762697673688</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1762697673688</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -563,7 +567,8 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251107_2144  development&#10;&#10;新增 TODO 的维度视图功能&#10;新增黑金和白金配色，优化浅色主题的配色&#10;UI 优化" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251107_2256  development&#10;&#10;文档优化&#10;创建 url 说明文档" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251109_0233  development&#10;&#10;新增 API 与 Token 登录功能 (beta)" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20251109_0233  development&#10;&#10;新增 API 与 Token 登录功能 (beta)" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20251109_2214  development&#10;&#10;新增了一些 API 示例" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20251109_2214  development&#10;&#10;新增了一些 API 示例" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_browser_session.coverage" NAME="test_browser_session 覆盖结果" MODIFIED="1762539566092" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
@@ -577,6 +582,6 @@
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$code_line_counter.coverage" NAME="code_line_counter 覆盖结果" MODIFIED="1755359556811" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_event_operations.coverage" NAME="test_event_operations 覆盖结果" MODIFIED="1762539335202" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/UniSchedulerSuper$111__1_.coverage" NAME="111 (1) 覆盖结果" MODIFIED="1762697520706" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/api_examples" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$111__1_.coverage" NAME="111 (1) 覆盖结果" MODIFIED="1762698704329" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/api_examples" />
   </component>
 </project>

@@ -147,7 +147,7 @@ def get_user_preferences(request):
 @login_required
 def home(request):
     user_preference_data :'UserData'
-    user_preference_data, created, result = UserData().get_or_initialize(request=request, new_key="user_preference")
+    user_preference_data, created, result = UserData.get_or_initialize(request=request, new_key="user_preference")
     # TODO 新加一个用户 config ，存储新手教程类和“不再提示”这种配置
     # TODO 还可以加一个，比如上一次创建的日程是什么日程组，下一次默认这个
 
@@ -201,7 +201,7 @@ def change_view(request):
     if request.method == 'POST':
         try:
             # 获取或创建用户设置数据
-            user_data, created, result = UserData().get_or_initialize(request=request, new_key="user_interface_settings", )
+            user_data, created, result = UserData.get_or_initialize(request=request, new_key="user_interface_settings", )
             
             # 解析请求数据
             request_data = json.loads(request.body)
@@ -345,9 +345,6 @@ def add_8_hours_to_time_string(time_str):
 
 
 # 发送用户设置
-# 弃用 login_required
-# @login_required
-# @csrf_exempt
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def user_settings(request):
@@ -355,7 +352,7 @@ def user_settings(request):
     if request.method == 'GET':
         try:
             # 获取用户偏好设置
-            user_preference_data, created, result = UserData().get_or_initialize(
+            user_preference_data, created, result = UserData.get_or_initialize(
                 request=request, 
                 new_key="user_preference"
             )
@@ -412,11 +409,11 @@ def user_settings(request):
     
     elif request.method == 'POST':
         try:
-            # 解析请求数据
-            data = json.loads(request.body)
+            # 解析请求数据 - 使用 request.data 兼容 DRF
+            data = request.data if hasattr(request, 'data') else json.loads(request.body)
             
             # 获取当前设置
-            user_preference_data, created, result = UserData().get_or_initialize(
+            user_preference_data, created, result = UserData.get_or_initialize(
                 request=request, 
                 new_key="user_preference"
             )
@@ -590,7 +587,8 @@ from .models import UserData
 @permission_classes([IsAuthenticated])
 def import_events(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
+        # 使用 request.data 兼容 DRF Request
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
         cookie = data.get('cookie')
         group_id = data.get('groupId')
 
