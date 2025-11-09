@@ -64,6 +64,293 @@
         #todoDetailPriority {
             font-weight: 500;
         }
+        
+        /* 个人资料页卡片悬停效果 - 适配所有主题 */
+        .hover-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .hover-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15) !important;
+        }
+        
+        /* 深色主题卡片适配 */
+        [data-theme="dark"] .hover-card:hover,
+        [data-theme="cyberpunk"] .hover-card:hover {
+            box-shadow: 0 8px 16px rgba(255, 255, 255, 0.1) !important;
+        }
+        
+        /* 个性化主题卡片适配 */
+        [data-theme="china-red"] .hover-card:hover {
+            box-shadow: 0 8px 16px rgba(220, 38, 38, 0.2) !important;
+        }
+        
+        [data-theme="ocean"] .hover-card:hover,
+        [data-theme="cool-pastel"] .hover-card:hover {
+            box-shadow: 0 8px 16px rgba(59, 130, 246, 0.2) !important;
+        }
+        
+        [data-theme="forest"] .hover-card:hover {
+            box-shadow: 0 8px 16px rgba(34, 197, 94, 0.2) !important;
+        }
+        
+        [data-theme="sunset"] .hover-card:hover,
+        [data-theme="warm-pastel"] .hover-card:hover {
+            box-shadow: 0 8px 16px rgba(251, 146, 60, 0.2) !important;
+        }
+        
+        [data-theme="sakura"] .hover-card:hover,
+        [data-theme="macaron"] .hover-card:hover {
+            box-shadow: 0 8px 16px rgba(236, 72, 153, 0.2) !important;
+        }
+        
+        [data-theme="dopamine"] .hover-card:hover {
+            box-shadow: 0 8px 16px rgba(168, 85, 247, 0.2) !important;
+        }
+        
+        /* 头像圆圈样式 - 适配主题 */
+        .avatar-circle {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* 确保紫色在所有主题下可见 */
+        .text-purple {
+            color: #8b5cf6 !important;
+        }
+        
+        [data-theme="dark"] .text-purple,
+        [data-theme="cyberpunk"] .text-purple {
+            color: #a78bfa !important;
+        }
+        
+        /* 重复选项卡片 - 深色模式适配 */
+        [data-theme="dark"] .card.bg-light,
+        [data-theme="cyberpunk"] .card.bg-light,
+        [data-theme="platinum-dark"] .card.bg-light {
+            background-color: #2d3748 !important;
+            border-color: #4a5568 !important;
+        }
+        
+        [data-theme="dark"] .card.bg-light .form-label,
+        [data-theme="dark"] .card.bg-light .form-control,
+        [data-theme="dark"] .card.bg-light .form-select,
+        [data-theme="dark"] .card.bg-light .input-group-text,
+        [data-theme="cyberpunk"] .card.bg-light .form-label,
+        [data-theme="cyberpunk"] .card.bg-light .form-control,
+        [data-theme="cyberpunk"] .card.bg-light .form-select,
+        [data-theme="cyberpunk"] .card.bg-light .input-group-text {
+            color: #e2e8f0 !important;
+            background-color: #1a202c !important;
+            border-color: #4a5568 !important;
+        }
+        
+        [data-theme="dark"] .card.bg-light .input-group-text,
+        [data-theme="cyberpunk"] .card.bg-light .input-group-text {
+            background-color: #374151 !important;
+        }
+        
+        /* 黑金模式特殊适配 (platinum-dark) */
+        [data-theme="platinum-dark"] .card.bg-light {
+            background-color: #1a1a1a !important;
+            border: 1px solid #d4af37 !important;
+        }
+        
+        [data-theme="platinum-dark"] .card.bg-light .form-label,
+        [data-theme="platinum-dark"] .card.bg-light .form-control,
+        [data-theme="platinum-dark"] .card.bg-light .form-select,
+        [data-theme="platinum-dark"] .card.bg-light .input-group-text {
+            color: #d4af37 !important;
+            background-color: #0d0d0d !important;
+            border-color: #8b7355 !important;
+        }
+        
+        [data-theme="platinum-dark"] .card.bg-light .input-group-text {
+            background-color: #1a1a1a !important;
+        }
+        
+        /* 深色模式下所有模态框内的表单元素适配 */
+        [data-theme="dark"] .modal-content .card-header,
+        [data-theme="cyberpunk"] .modal-content .card-header,
+        [data-theme="platinum-dark"] .modal-content .card-header {
+            background-color: #374151 !important;
+            border-bottom-color: #4a5568 !important;
+            color: #e2e8f0 !important;
+        }
+        
+        [data-theme="platinum-dark"] .modal-content .card-header {
+            background-color: #1a1a1a !important;
+            border-bottom: 1px solid #d4af37 !important;
+            color: #d4af37 !important;
+        }
+        
+        [data-theme="dark"] .modal-content .card,
+        [data-theme="cyberpunk"] .modal-content .card,
+        [data-theme="platinum-dark"] .modal-content .card {
+            background-color: #2d3748 !important;
+            border-color: #4a5568 !important;
+        }
+        
+        [data-theme="platinum-dark"] .modal-content .card {
+            background-color: #0d0d0d !important;
+            border: 1px solid #8b7355 !important;
+        }
+        
+        [data-theme="dark"] .modal-content .card .form-label,
+        [data-theme="dark"] .modal-content .card .form-control,
+        [data-theme="dark"] .modal-content .card .form-select,
+        [data-theme="dark"] .modal-content .card .input-group-text,
+        [data-theme="cyberpunk"] .modal-content .card .form-label,
+        [data-theme="cyberpunk"] .modal-content .card .form-control,
+        [data-theme="cyberpunk"] .modal-content .card .form-select,
+        [data-theme="cyberpunk"] .modal-content .card .input-group-text {
+            color: #e2e8f0 !important;
+            background-color: #1a202c !important;
+            border-color: #4a5568 !important;
+        }
+        
+        [data-theme="platinum-dark"] .modal-content .card .form-label,
+        [data-theme="platinum-dark"] .modal-content .card .form-control,
+        [data-theme="platinum-dark"] .modal-content .card .form-select,
+        [data-theme="platinum-dark"] .modal-content .card .input-group-text {
+            color: #d4af37 !important;
+            background-color: #1a1a1a !important;
+            border-color: #8b7355 !important;
+        }
+        
+        [data-theme="dark"] .modal-content .card .input-group-text,
+        [data-theme="cyberpunk"] .modal-content .card .input-group-text {
+            background-color: #374151 !important;
+        }
+        
+        [data-theme="platinum-dark"] .modal-content .card .input-group-text {
+            background-color: #0d0d0d !important;
+        }
+        
+        /* 深色模式下选项（option）文本颜色修复 */
+        [data-theme="dark"] .form-select option,
+        [data-theme="cyberpunk"] .form-select option {
+            background-color: #1a202c !important;
+            color: #e2e8f0 !important;
+        }
+        
+        [data-theme="platinum-dark"] .form-select option {
+            background-color: #0d0d0d !important;
+            color: #d4af37 !important;
+        }
+        
+        /* 深色模式和黑金模式下的日期时间输入框修复 */
+        [data-theme="dark"] input[type="date"],
+        [data-theme="dark"] input[type="time"],
+        [data-theme="dark"] input[type="datetime-local"],
+        [data-theme="cyberpunk"] input[type="date"],
+        [data-theme="cyberpunk"] input[type="time"],
+        [data-theme="cyberpunk"] input[type="datetime-local"] {
+            color: #e2e8f0 !important;
+            background-color: #1a202c !important;
+            border-color: #4a5568 !important;
+            color-scheme: dark;
+        }
+        
+        [data-theme="platinum-dark"] input[type="date"],
+        [data-theme="platinum-dark"] input[type="time"],
+        [data-theme="platinum-dark"] input[type="datetime-local"] {
+            color: #d4af37 !important;
+            background-color: #0d0d0d !important;
+            border-color: #8b7355 !important;
+            color-scheme: dark;
+        }
+        
+        /* 禁用状态的输入框样式修复 */
+        [data-theme="dark"] input[type="date"]:disabled,
+        [data-theme="dark"] input[type="time"]:disabled,
+        [data-theme="dark"] input[type="datetime-local"]:disabled,
+        [data-theme="dark"] input[type="text"]:disabled,
+        [data-theme="dark"] .form-control:disabled,
+        [data-theme="cyberpunk"] input[type="date"]:disabled,
+        [data-theme="cyberpunk"] input[type="time"]:disabled,
+        [data-theme="cyberpunk"] input[type="datetime-local"]:disabled,
+        [data-theme="cyberpunk"] input[type="text"]:disabled,
+        [data-theme="cyberpunk"] .form-control:disabled {
+            color: #a0aec0 !important;
+            background-color: #2d3748 !important;
+            border-color: #4a5568 !important;
+            opacity: 0.8;
+        }
+        
+        [data-theme="platinum-dark"] input[type="date"]:disabled,
+        [data-theme="platinum-dark"] input[type="time"]:disabled,
+        [data-theme="platinum-dark"] input[type="datetime-local"]:disabled,
+        [data-theme="platinum-dark"] input[type="text"]:disabled,
+        [data-theme="platinum-dark"] .form-control:disabled {
+            color: #b8935f !important;
+            background-color: #1a1a1a !important;
+            border-color: #8b7355 !important;
+            opacity: 0.8;
+        }
+        
+        /* 日期时间选择器日历弹出框样式（Webkit浏览器） */
+        [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+        [data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator,
+        [data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+        [data-theme="cyberpunk"] input[type="date"]::-webkit-calendar-picker-indicator,
+        [data-theme="cyberpunk"] input[type="time"]::-webkit-calendar-picker-indicator,
+        [data-theme="cyberpunk"] input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
+        
+        [data-theme="platinum-dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+        [data-theme="platinum-dark"] input[type="time"]::-webkit-calendar-picker-indicator,
+        [data-theme="platinum-dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.7) sepia(1) saturate(5) hue-rotate(5deg);
+            cursor: pointer;
+        }
+        
+        /* 强制修复所有模态框内的 bg-light 卡片（提高优先级）*/
+        body [data-theme="dark"] .modal .card.bg-light,
+        body [data-theme="cyberpunk"] .modal .card.bg-light {
+            background-color: #2d3748 !important;
+            border-color: #4a5568 !important;
+            color: #e2e8f0 !important;
+        }
+        
+        body [data-theme="platinum-dark"] .modal .card.bg-light {
+            background-color: #1a1a1a !important;
+            border: 1px solid #d4af37 !important;
+            color: #d4af37 !important;
+        }
+        
+        /* 强制修复 bg-light 卡片内的所有表单元素 */
+        body [data-theme="dark"] .card.bg-light *,
+        body [data-theme="cyberpunk"] .card.bg-light * {
+            color: inherit !important;
+        }
+        
+        body [data-theme="platinum-dark"] .card.bg-light * {
+            color: inherit !important;
+        }
+        
+        /* 特别针对 bg-light 内部的输入框 */
+        body [data-theme="dark"] .card.bg-light input.form-control,
+        body [data-theme="dark"] .card.bg-light select.form-select,
+        body [data-theme="dark"] .card.bg-light textarea.form-control,
+        body [data-theme="cyberpunk"] .card.bg-light input.form-control,
+        body [data-theme="cyberpunk"] .card.bg-light select.form-select,
+        body [data-theme="cyberpunk"] .card.bg-light textarea.form-control {
+            color: #e2e8f0 !important;
+            background-color: #1a202c !important;
+            border-color: #4a5568 !important;
+        }
+        
+        body [data-theme="platinum-dark"] .card.bg-light input.form-control,
+        body [data-theme="platinum-dark"] .card.bg-light select.form-select,
+        body [data-theme="platinum-dark"] .card.bg-light textarea.form-control {
+            color: #d4af37 !important;
+            background-color: #0d0d0d !important;
+            border-color: #8b7355 !important;
+        }
     </style>
 </head>
 <body>
@@ -1987,6 +2274,12 @@
                                 <i class="fas fa-robot me-2"></i>AI 设置
                             </button>
                         </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="profile-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#profile-settings" type="button" role="tab">
+                                <i class="fas fa-user-circle me-2"></i>我的
+                            </button>
+                        </li>
                     </ul>
 
                     <!-- Tabs 内容 -->
@@ -2239,6 +2532,243 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- 我的 -->
+                        <div class="tab-pane fade" id="profile-settings" role="tabpanel">
+                            <h6 class="mb-4 text-primary"><i class="fas fa-user-circle me-2"></i>账户管理</h6>
+                            
+                            <div class="row g-4">
+                                <!-- 当前用户信息卡片 -->
+                                <div class="col-12">
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-circle bg-primary text-white me-3" style="width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold;">
+                                                    {{ request.user.username|first|upper }}
+                                                </div>
+                                                <div>
+                                                    <h5 class="mb-1">{{ request.user.username }}</h5>
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-envelope me-1"></i>{{ request.user.email|default:"未设置邮箱" }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Token 管理 -->
+                                <div class="col-12">
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <i class="fas fa-key fa-2x text-primary me-3"></i>
+                                                <div>
+                                                    <h6 class="mb-0">API Token 管理</h6>
+                                                    <small class="text-muted">用于第三方应用和 API 访问认证</small>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Token 显示区域 -->
+                                            <div id="tokenDisplayArea" class="mb-3">
+                                                <div class="alert alert-info mb-0">
+                                                    <i class="fas fa-spinner fa-spin me-2"></i>正在加载 Token...
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Token 操作按钮 -->
+                                            <div class="d-flex gap-2 flex-wrap" id="tokenActions">
+                                                <button class="btn btn-sm btn-outline-primary" onclick="copyToken()" id="copyTokenBtn" style="display:none;">
+                                                    <i class="fas fa-copy me-1"></i>复制 Token
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-warning" onclick="refreshToken()" id="refreshTokenBtn" style="display:none;">
+                                                    <i class="fas fa-sync-alt me-1"></i>刷新 Token
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-success" onclick="createToken()" id="createTokenBtn" style="display:none;">
+                                                    <i class="fas fa-plus me-1"></i>创建 Token
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" onclick="deleteToken()" id="deleteTokenBtn" style="display:none;">
+                                                    <i class="fas fa-trash me-1"></i>删除 Token
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info" onclick="toggleUsageExample()">
+                                                    <i class="fas fa-book me-1"></i>使用示例
+                                                </button>
+                                            </div>
+                                            
+                                            <!-- 使用示例（可折叠） -->
+                                            <div id="usageExample" style="display:none;" class="mt-3">
+                                                <hr>
+                                                <h6 class="text-muted mb-2"><i class="fas fa-code me-2"></i>API 调用示例</h6>
+                                                <div class="bg-dark text-light p-3 rounded" style="font-family: monospace; font-size: 12px; overflow-x: auto;">
+<pre class="mb-0 text-light">// JavaScript Fetch
+fetch('/api/reminders/', {
+    headers: {
+        'Authorization': 'Token YOUR_TOKEN_HERE'
+    }
+})
+
+# Python Requests
+import requests
+headers = {'Authorization': 'Token YOUR_TOKEN_HERE'}
+requests.get('http://your-domain.com/api/reminders/', headers=headers)
+
+# cURL
+curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
+     http://your-domain.com/api/reminders/</pre>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Token 验证区域 -->
+                                            <div class="mt-3">
+                                                <hr>
+                                                <h6 class="text-muted mb-2"><i class="fas fa-shield-alt me-2"></i>验证 Token</h6>
+                                                <div class="input-group input-group-sm">
+                                                    <input type="text" class="form-control" id="testTokenInput" placeholder="输入要验证的 Token..." style="font-family: monospace;">
+                                                    <button class="btn btn-outline-secondary" onclick="testToken()">
+                                                        <i class="fas fa-check me-1"></i>验证
+                                                    </button>
+                                                </div>
+                                                <div id="testTokenResult" class="mt-2"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 用户数据管理 -->
+                                <div class="col-md-6">
+                                    <div class="card h-100 border-0 shadow-sm hover-card">
+                                        <div class="card-body d-flex flex-column">
+                                            <div class="mb-3">
+                                                <i class="fas fa-database fa-2x text-success mb-2"></i>
+                                                <h6 class="card-title">用户数据管理</h6>
+                                            </div>
+                                            <p class="card-text text-muted flex-grow-1">
+                                                查看和管理您的所有数据，包括日程、提醒等
+                                            </p>
+                                            <a href="{% url 'user_data' %}" class="btn btn-outline-success btn-sm mt-auto">
+                                                <i class="fas fa-database me-1"></i>查看数据
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 修改用户名/密码 -->
+                                <div class="col-md-6">
+                                    <div class="card h-100 border-0 shadow-sm hover-card">
+                                        <div class="card-body d-flex flex-column">
+                                            <div class="mb-3">
+                                                <i class="fas fa-user-lock fa-2x text-warning mb-2"></i>
+                                                <h6 class="card-title">修改用户名/密码</h6>
+                                            </div>
+                                            <p class="card-text text-muted flex-grow-1">
+                                                更改您的登录凭据以保护账户安全
+                                            </p>
+                                            <div class="d-flex gap-2">
+                                                <button class="btn btn-outline-warning btn-sm flex-fill" onclick="showChangeUsernameModal()">
+                                                    <i class="fas fa-user me-1"></i>修改用户名
+                                                </button>
+                                                <button class="btn btn-outline-warning btn-sm flex-fill" onclick="showChangePasswordModal()">
+                                                    <i class="fas fa-lock me-1"></i>修改密码
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 修改昵称 -->
+                                <div class="col-md-6">
+                                    <div class="card h-100 border-0 shadow-sm hover-card">
+                                        <div class="card-body d-flex flex-column">
+                                            <div class="mb-3">
+                                                <i class="fas fa-id-badge fa-2x text-info mb-2"></i>
+                                                <h6 class="card-title">修改昵称</h6>
+                                            </div>
+                                            <p class="card-text text-muted flex-grow-1">
+                                                设置一个友好的显示名称
+                                            </p>
+                                            <button class="btn btn-outline-info btn-sm mt-auto" disabled>
+                                                <i class="fas fa-edit me-1"></i>设置昵称
+                                                <span class="badge bg-secondary ms-2">即将推出</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 导出数据 -->
+                                <div class="col-md-6">
+                                    <div class="card h-100 border-0 shadow-sm hover-card">
+                                        <div class="card-body d-flex flex-column">
+                                            <div class="mb-3">
+                                                <i class="fas fa-download fa-2x text-dark mb-2"></i>
+                                                <h6 class="card-title">导出数据</h6>
+                                            </div>
+                                            <p class="card-text text-muted flex-grow-1">
+                                                导出您的日程数据为 iCalendar 格式
+                                            </p>
+                                            <a href="{% url 'outport_calendar' %}" class="btn btn-outline-dark btn-sm mt-auto">
+                                                <i class="fas fa-file-export me-1"></i>导出日历
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 数据同步 -->
+                                <div class="col-md-6">
+                                    <div class="card h-100 border-0 shadow-sm hover-card">
+                                        <div class="card-body d-flex flex-column">
+                                            <div class="mb-3">
+                                                <i class="fas fa-sync-alt fa-2x text-primary mb-2"></i>
+                                                <h6 class="card-title">数据同步</h6>
+                                            </div>
+                                            <p class="card-text text-muted flex-grow-1">
+                                                与其他设备或服务同步您的数据
+                                            </p>
+                                            <button class="btn btn-outline-primary btn-sm mt-auto" disabled>
+                                                <i class="fas fa-cloud me-1"></i>同步设置
+                                                <span class="badge bg-secondary ms-2">即将推出</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 账户安全 -->
+                                <div class="col-md-6">
+                                    <div class="card h-100 border-0 shadow-sm hover-card">
+                                        <div class="card-body d-flex flex-column">
+                                            <div class="mb-3">
+                                                <i class="fas fa-shield-alt fa-2x text-danger mb-2"></i>
+                                                <h6 class="card-title">账户安全</h6>
+                                            </div>
+                                            <p class="card-text text-muted flex-grow-1">
+                                                两步验证、登录历史等安全设置
+                                            </p>
+                                            <button class="btn btn-outline-danger btn-sm mt-auto" disabled>
+                                                <i class="fas fa-user-shield me-1"></i>安全设置
+                                                <span class="badge bg-secondary ms-2">即将推出</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 注销账户 -->
+                                <div class="col-12">
+                                    <div class="card border-danger">
+                                        <div class="card-body">
+                                            <h6 class="card-title text-danger">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>危险操作
+                                            </h6>
+                                            <p class="card-text text-muted mb-3">
+                                                注销账户将永久删除您的所有数据，此操作不可恢复
+                                            </p>
+                                            <button class="btn btn-outline-danger btn-sm" disabled>
+                                                <i class="fas fa-user-times me-1"></i>注销账户
+                                                <span class="badge bg-secondary ms-2">即将推出</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -2247,6 +2777,89 @@
                     </button>
                     <button type="button" class="btn btn-primary" id="saveSettings">
                         <i class="fas fa-save me-1"></i>保存设置
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改用户名模态框 -->
+    <div class="modal fade" id="changeUsernameModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-edit me-2"></i>修改用户名
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <small>修改用户名后，请使用新用户名登录</small>
+                    </div>
+                    <form id="changeUsernameForm">
+                        <div class="mb-3">
+                            <label for="currentUsername" class="form-label">当前用户名</label>
+                            <input type="text" class="form-control" id="currentUsername" value="{{ request.user.username }}" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newUsername" class="form-label">新用户名 *</label>
+                            <input type="text" class="form-control" id="newUsername" required placeholder="请输入新用户名">
+                        </div>
+                        <div class="mb-3">
+                            <label for="usernamePassword" class="form-label">当前密码 *</label>
+                            <input type="password" class="form-control" id="usernamePassword" required placeholder="请输入当前密码以验证身份">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-warning" onclick="submitChangeUsername()">
+                        <i class="fas fa-check me-1"></i>确认修改
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改密码模态框 -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-lock me-2"></i>修改密码
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <small>密码至少需要 6 个字符</small>
+                    </div>
+                    <form id="changePasswordForm">
+                        <div class="mb-3">
+                            <label for="oldPassword" class="form-label">当前密码 *</label>
+                            <input type="password" class="form-control" id="oldPassword" required placeholder="请输入当前密码">
+                        </div>
+                        <div class="mb-3">
+                            <label for="newPassword" class="form-label">新密码 *</label>
+                            <input type="password" class="form-control" id="newPassword" required placeholder="请输入新密码">
+                            <small class="form-text text-muted">
+                                密码要求：至少8个字符，不能与用户名太相似，不能是常见密码，不能全是数字
+                            </small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">确认新密码 *</label>
+                            <input type="password" class="form-control" id="confirmPassword" required placeholder="再次输入新密码">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-warning" onclick="submitChangePassword()">
+                        <i class="fas fa-check me-1"></i>确认修改
                     </button>
                 </div>
             </div>
@@ -3236,6 +3849,362 @@
                     });
                 }
             });
+        }
+        
+        // ===== Token 管理功能 =====
+        let currentToken = null;
+        
+        // 页面加载时获取 Token
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUserToken();
+        });
+        
+        // 加载用户的 Token
+        async function loadUserToken() {
+            const displayArea = document.getElementById('tokenDisplayArea');
+            try {
+                const response = await fetch('/api/auth/token/', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    currentToken = data.token;
+                    displayToken(currentToken, data.created);
+                } else {
+                    // 用户没有 Token
+                    displayNoToken();
+                }
+            } catch (error) {
+                console.error('加载 Token 失败:', error);
+                displayArea.innerHTML = `
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-exclamation-circle me-2"></i>加载失败: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // 显示 Token
+        function displayToken(token, isNew = false) {
+            const displayArea = document.getElementById('tokenDisplayArea');
+            const statusText = isNew ? '<span class="badge bg-success">新创建</span>' : '<span class="badge bg-info">已存在</span>';
+            
+            displayArea.innerHTML = `
+                <div class="alert alert-warning mb-0">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-key me-2"></i>
+                        <strong>您的 API Token</strong>
+                        ${statusText}
+                    </div>
+                    <div class="bg-white p-2 rounded border" style="font-family: monospace; font-size: 13px; word-break: break-all; user-select: all;">
+                        ${token}
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        <i class="fas fa-info-circle me-1"></i>请妥善保管，不要泄露给他人
+                    </small>
+                </div>
+            `;
+            
+            // 显示相关按钮
+            document.getElementById('copyTokenBtn').style.display = 'inline-block';
+            document.getElementById('refreshTokenBtn').style.display = 'inline-block';
+            document.getElementById('deleteTokenBtn').style.display = 'inline-block';
+            document.getElementById('createTokenBtn').style.display = 'none';
+        }
+        
+        // 显示无 Token 状态
+        function displayNoToken() {
+            const displayArea = document.getElementById('tokenDisplayArea');
+            displayArea.innerHTML = `
+                <div class="alert alert-secondary mb-0">
+                    <i class="fas fa-info-circle me-2"></i>您还没有 API Token，点击下方按钮创建一个
+                </div>
+            `;
+            
+            // 显示创建按钮，隐藏其他按钮
+            document.getElementById('createTokenBtn').style.display = 'inline-block';
+            document.getElementById('copyTokenBtn').style.display = 'none';
+            document.getElementById('refreshTokenBtn').style.display = 'none';
+            document.getElementById('deleteTokenBtn').style.display = 'none';
+            currentToken = null;
+        }
+        
+        // 复制 Token
+        function copyToken() {
+            if (!currentToken) {
+                showToast('没有可复制的 Token', 'warning');
+                return;
+            }
+            
+            navigator.clipboard.writeText(currentToken).then(() => {
+                showToast('Token 已复制到剪贴板', 'success');
+            }).catch(err => {
+                showToast('复制失败: ' + err.message, 'danger');
+            });
+        }
+        
+        // 刷新 Token
+        async function refreshToken() {
+            if (!confirm('确定要刷新 Token 吗？旧的 Token 将立即失效。')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/auth/token/refresh/', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Token ' + currentToken,
+                        'X-CSRFToken': window.CSRF_TOKEN
+                    },
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    currentToken = data.token;
+                    displayToken(currentToken, true);
+                    showToast('Token 已刷新', 'success');
+                } else {
+                    const error = await response.json();
+                    showToast('刷新失败: ' + (error.error || '未知错误'), 'danger');
+                }
+            } catch (error) {
+                showToast('刷新失败: ' + error.message, 'danger');
+            }
+        }
+        
+        // 创建 Token
+        async function createToken() {
+            try {
+                const response = await fetch('/api/auth/token/', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    currentToken = data.token;
+                    displayToken(currentToken, data.created);
+                    showToast('Token 已创建', 'success');
+                } else {
+                    const error = await response.json();
+                    showToast('创建失败: ' + (error.error || '未知错误'), 'danger');
+                }
+            } catch (error) {
+                showToast('创建失败: ' + error.message, 'danger');
+            }
+        }
+        
+        // 删除 Token
+        async function deleteToken() {
+            if (!confirm('确定要删除 Token 吗？删除后需要重新创建。')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/auth/token/delete/', {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': 'Token ' + currentToken,
+                        'X-CSRFToken': window.CSRF_TOKEN
+                    },
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    displayNoToken();
+                    showToast('Token 已删除', 'info');
+                } else {
+                    const error = await response.json();
+                    showToast('删除失败: ' + (error.error || '未知错误'), 'danger');
+                }
+            } catch (error) {
+                showToast('删除失败: ' + error.message, 'danger');
+            }
+        }
+        
+        // 测试 Token（验证任意输入的 Token）
+        async function testToken() {
+            const tokenInput = document.getElementById('testTokenInput');
+            const resultDiv = document.getElementById('testTokenResult');
+            const token = tokenInput.value.trim();
+            
+            if (!token) {
+                resultDiv.innerHTML = '<div class="alert alert-warning alert-sm mb-0 mt-2"><small>请输入要验证的 Token</small></div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="alert alert-info alert-sm mb-0 mt-2"><small><i class="fas fa-spinner fa-spin me-1"></i>验证中...</small></div>';
+            
+            try {
+                const response = await fetch('/api/auth/token/verify/', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Token ' + token
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success alert-sm mb-0 mt-2">
+                            <small>
+                                <i class="fas fa-check-circle me-1"></i><strong>Token 有效</strong><br>
+                                用户: ${data.username} (ID: ${data.user_id})<br>
+                                邮箱: ${data.email || '未设置'}
+                            </small>
+                        </div>
+                    `;
+                } else {
+                    const error = await response.json();
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger alert-sm mb-0 mt-2">
+                            <small><i class="fas fa-times-circle me-1"></i>Token 无效或已过期</small>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger alert-sm mb-0 mt-2">
+                        <small><i class="fas fa-exclamation-circle me-1"></i>验证失败: ${error.message}</small>
+                    </div>
+                `;
+            }
+        }
+        
+        // 切换使用示例显示
+        function toggleUsageExample() {
+            const exampleDiv = document.getElementById('usageExample');
+            if (exampleDiv.style.display === 'none') {
+                exampleDiv.style.display = 'block';
+            } else {
+                exampleDiv.style.display = 'none';
+            }
+        }
+        
+        // ===== 修改用户名和密码功能 =====
+        
+        // 显示修改用户名模态框
+        function showChangeUsernameModal() {
+            const modal = new bootstrap.Modal(document.getElementById('changeUsernameModal'));
+            // 清空表单
+            document.getElementById('newUsername').value = '';
+            document.getElementById('usernamePassword').value = '';
+            modal.show();
+        }
+        
+        // 显示修改密码模态框
+        function showChangePasswordModal() {
+            const modal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
+            // 清空表单
+            document.getElementById('oldPassword').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+            modal.show();
+        }
+        
+        // 提交修改用户名
+        async function submitChangeUsername() {
+            const newUsername = document.getElementById('newUsername').value.trim();
+            const password = document.getElementById('usernamePassword').value;
+            
+            if (!newUsername) {
+                showToast('请输入新用户名', 'warning');
+                return;
+            }
+            
+            if (!password) {
+                showToast('请输入当前密码', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/user/change-username/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': window.CSRF_TOKEN
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        new_username: newUsername,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showToast('用户名修改成功！页面将刷新...', 'success');
+                    // 关闭模态框
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('changeUsernameModal'));
+                    modal.hide();
+                    // 刷新页面以显示新用户名
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showToast(data.error || '修改失败', 'danger');
+                }
+            } catch (error) {
+                showToast('修改失败: ' + error.message, 'danger');
+            }
+        }
+        
+        // 提交修改密码
+        async function submitChangePassword() {
+            const oldPassword = document.getElementById('oldPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (!oldPassword) {
+                showToast('请输入当前密码', 'warning');
+                return;
+            }
+            
+            if (!newPassword) {
+                showToast('请输入新密码', 'warning');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                showToast('两次输入的密码不一致', 'warning');
+                return;
+            }
+            
+            // 密码强度验证由后端的 Django 密码验证器处理
+            // 包括：最小长度、不能与用户信息相似、不能是常见密码、不能全是数字
+            
+            try {
+                const response = await fetch('/api/user/change-password/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': window.CSRF_TOKEN
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        old_password: oldPassword,
+                        new_password: newPassword,
+                        confirm_password: confirmPassword
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showToast('密码修改成功！', 'success');
+                    // 关闭模态框
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
+                    modal.hide();
+                } else {
+                    showToast(data.error || '修改失败', 'danger');
+                }
+            } catch (error) {
+                showToast('修改失败: ' + error.message, 'danger');
+            }
         }
         
     </script>

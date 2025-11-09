@@ -11,6 +11,7 @@ urlpatterns = [
     path('user_register/', views.user_register, name='user_register'),
     path('user_login/', views.user_login, name='user_login'),
     path('user_logout/', views.user_logout, name='user_logout'),
+    path('password-reset/', views.password_reset_page, name='password_reset_page'),
     path('user_data/', views.user_data, name='user_data'),
     path('user_preferences/', views.user_preferences, name='user_preferences'),
     path('help/', views.help_page, name='help_page'),
@@ -22,7 +23,16 @@ urlpatterns = [
     path('api/auth/token/refresh/', views_token.refresh_token, name='refresh_token'),
     path('api/auth/token/verify/', views_token.verify_token, name='verify_token'),
     path('api/auth/token/delete/', views_token.delete_token, name='delete_token'),
-    path('token-management/', views_token.token_management_page, name='token_management'),
+    # path('token-management/', views_token.token_management_page, name='token_management'),
+    
+    # User account management
+    path('api/user/change-username/', views.change_username, name='change_username'),
+    path('api/user/change-password/', views.change_password, name='change_password'),
+    
+    # Password reset
+    path('api/password-reset/request/', views.request_password_reset, name='request_password_reset'),
+    path('api/password-reset/verify/', views.verify_reset_code, name='verify_reset_code'),
+    path('api/password-reset/reset/', views.reset_password, name='reset_password'),
 
     path("get_calendar/change_view/", views.change_view, name="change_view"),
     path("get_calendar/user_settings/", views.user_settings, name="user_settings"),

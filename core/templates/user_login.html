@@ -33,6 +33,9 @@
                   {% if form.password.errors %}
                       <div class="text-danger">{{ form.password.errors }}</div>
                   {% endif %}
+                  <div class="text-end mt-2">
+                      <a href="/password-reset/" class="text-decoration-none small">忘记密码？</a>
+                  </div>
               </div>
               <div class="d-flex justify-content-between">
                   <button type="submit" class="btn btn-primary flex-fill me-2">启动！</button>

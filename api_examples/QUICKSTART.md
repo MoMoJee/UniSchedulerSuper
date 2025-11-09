@@ -113,6 +113,7 @@ python my_first_api_call.py
 
 1. **浏览更多示例**：查看 `examples/` 目录下的完整示例
 2. **阅读文档**：查看 `examples/README.md` 了解所有功能
+3. **了解URL功能**： 查看 `docs/升级与开发文档/URL路由功能说明文档.md`
 3. **API 参考**：查看 `docs/Token认证全面支持综合总结.md`
 
 ## 🔥 常用代码片段

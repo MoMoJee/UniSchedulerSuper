@@ -27,10 +27,15 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import logout
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
 
 from .forms import RegisterForm
 
@@ -111,6 +116,10 @@ def user_login(request):
     else:
         form = AuthenticationForm()
     return render(request, 'user_login.html', {'form': form})
+
+# 找回密码页面
+def password_reset_page(request):
+    return render(request, 'password_reset.html')
 
 # TODO 所有交互函数的参数有效性验证都是一坨狗屎，且就算传入了错误的参数（名），也很大概率是不会返回任何错误，只是直接不执行。
 #  浏览器端其实没啥问题，但是这对于 API 端来说极大增加了排错工程量
@@ -1078,3 +1087,334 @@ def three_body(request):
 
 def friendly_link(request):
     return render(request, 'memory.html')
+
+
+# ===== 用户账户管理 API =====
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_username(request):
+    """
+    修改用户名
+    POST /api/user/change-username/
+    Body: {
+        "new_username": "新用户名",
+        "password": "当前密码（用于验证）"
+    }
+    """
+    try:
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        new_username = data.get('new_username', '').strip()
+        password = data.get('password', '')
+        
+        if not new_username:
+            return Response(
+                {'error': '新用户名不能为空'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not password:
+            return Response(
+                {'error': '请输入当前密码以验证身份'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 验证当前密码
+        if not request.user.check_password(password):
+            return Response(
+                {'error': '当前密码错误'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # 检查新用户名是否已存在
+        from django.contrib.auth.models import User
+        if User.objects.filter(username=new_username).exclude(id=request.user.id).exists():
+            return Response(
+                {'error': '该用户名已被使用'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 保存旧用户名用于日志
+        old_username = request.user.username
+        
+        # 修改用户名
+        request.user.username = new_username
+        request.user.save()
+        
+        logger.info(f"User {old_username} changed username to {new_username}")
+        
+        return Response({
+            'message': '用户名修改成功',
+            'new_username': new_username
+        })
+        
+    except Exception as e:
+        logger.error(f"Change username error: {str(e)}")
+        return Response(
+            {'error': f'修改用户名失败: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    """
+    修改密码
+    POST /api/user/change-password/
+    Body: {
+        "old_password": "当前密码",
+        "new_password": "新密码",
+        "confirm_password": "确认新密码"
+    }
+    """
+    try:
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        old_password = data.get('old_password', '')
+        new_password = data.get('new_password', '')
+        confirm_password = data.get('confirm_password', '')
+        
+        if not old_password:
+            return Response(
+                {'error': '请输入当前密码'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not new_password:
+            return Response(
+                {'error': '请输入新密码'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if new_password != confirm_password:
+            return Response(
+                {'error': '两次输入的新密码不一致'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 验证当前密码
+        if not request.user.check_password(old_password):
+            return Response(
+                {'error': '当前密码错误'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # 使用 Django 的密码验证器检查新密码强度
+        # 这包括：最小长度、不能与用户信息太相似、不能是常见密码、不能全是数字
+        try:
+            validate_password(new_password, user=request.user)
+        except ValidationError as e:
+            # 返回所有验证错误信息
+            error_messages = list(e.messages)
+            return Response(
+                {'error': '密码不符合要求：' + '；'.join(error_messages)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 修改密码
+        request.user.set_password(new_password)
+        request.user.save()
+        
+        logger.info(f"User {request.user.username} changed password")
+        
+        # 重要：修改密码后需要更新 session，否则用户会被登出
+        update_session_auth_hash(request, request.user)
+        
+        return Response({
+            'message': '密码修改成功'
+        })
+        
+    except Exception as e:
+        logger.error(f"Change password error: {str(e)}")
+        return Response(
+            {'error': f'修改密码失败: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+# ===== 找回密码功能 =====
+
+@api_view(['POST'])
+@permission_classes([])  # 允许未认证用户访问
+def request_password_reset(request):
+    """
+    请求密码重置验证码
+    POST /api/password-reset/request/
+    Body: {
+        "email": "用户邮箱"
+    }
+    """
+    try:
+        from .models import PasswordResetCode
+        from django.contrib.auth.models import User
+        
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        email = data.get('email', '').strip()
+        
+        if not email:
+            return Response(
+                {'error': '请输入邮箱地址'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 查找用户（如果有多个用户使用同一邮箱，使用最新注册的）
+        try:
+            user = User.objects.filter(email=email).order_by('-date_joined').first()
+            if not user:
+                raise User.DoesNotExist
+        except User.DoesNotExist:
+            # 为了安全，即使邮箱不存在也返回成功消息
+            return Response({
+                'message': '如果该邮箱已注册，验证码将发送到您的邮箱',
+                'email': email
+            })
+        
+        # 生成验证码
+        reset_code = PasswordResetCode.generate_code(user)
+        
+        # TODO: 这里应该发送邮件，但目前先在响应中返回验证码（仅用于开发测试）
+        # 在生产环境中，应该通过邮件发送验证码，而不是直接返回
+        logger.info(f"Password reset code for {email}: {reset_code.code}")
+        
+        return Response({
+            'message': '验证码已生成，请查看服务器日志（生产环境将发送到邮箱）',
+            'email': email,
+            'code': reset_code.code,  # 仅用于开发测试，生产环境应删除此行
+            'expires_in': '15分钟'
+        })
+        
+    except Exception as e:
+        logger.error(f"Request password reset error: {str(e)}")
+        return Response(
+            {'error': f'请求失败: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([])  # 允许未认证用户访问
+def verify_reset_code(request):
+    """
+    验证重置验证码
+    POST /api/password-reset/verify/
+    Body: {
+        "email": "用户邮箱",
+        "code": "验证码"
+    }
+    """
+    try:
+        from .models import PasswordResetCode
+        
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        email = data.get('email', '').strip()
+        code = data.get('code', '').strip()
+        
+        if not email or not code:
+            return Response(
+                {'error': '请输入邮箱和验证码'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 验证验证码
+        is_valid, user, reset_code_obj = PasswordResetCode.verify_code(email, code)
+        
+        if not is_valid:
+            return Response(
+                {'error': '验证码无效或已过期'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        return Response({
+            'message': '验证码正确',
+            'email': email
+        })
+        
+    except Exception as e:
+        logger.error(f"Verify reset code error: {str(e)}")
+        return Response(
+            {'error': f'验证失败: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([])  # 允许未认证用户访问
+def reset_password(request):
+    """
+    重置密码
+    POST /api/password-reset/reset/
+    Body: {
+        "email": "用户邮箱",
+        "code": "验证码",
+        "new_password": "新密码",
+        "confirm_password": "确认新密码"
+    }
+    """
+    try:
+        from .models import PasswordResetCode
+        from django.contrib.auth.models import User
+        
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        email = data.get('email', '').strip()
+        code = data.get('code', '').strip()
+        new_password = data.get('new_password', '')
+        confirm_password = data.get('confirm_password', '')
+        
+        if not email or not code:
+            return Response(
+                {'error': '请输入邮箱和验证码'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not new_password:
+            return Response(
+                {'error': '请输入新密码'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if new_password != confirm_password:
+            return Response(
+                {'error': '两次输入的密码不一致'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 验证验证码
+        is_valid, user, reset_code_obj = PasswordResetCode.verify_code(email, code)
+        
+        if not is_valid:
+            return Response(
+                {'error': '验证码无效或已过期'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 使用 Django 的密码验证器检查新密码强度
+        try:
+            validate_password(new_password, user=user)
+        except ValidationError as e:
+            error_messages = list(e.messages)
+            return Response(
+                {'error': '密码不符合要求：' + '；'.join(error_messages)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 重置密码
+        user.set_password(new_password)
+        user.save()
+        
+        # 标记验证码为已使用
+        reset_code_obj.is_used = True
+        reset_code_obj.save()
+        
+        logger.info(f"User {user.username} reset password via email {email}")
+        
+        return Response({
+            'message': '密码重置成功，请使用新密码登录'
+        })
+        
+    except Exception as e:
+        logger.error(f"Reset password error: {str(e)}")
+        return Response(
+            {'error': f'重置密码失败: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+

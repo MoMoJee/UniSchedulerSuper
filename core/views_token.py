@@ -238,6 +238,7 @@ def verify_token(request):
 @login_required
 def token_management_page(request):
     """
+    已弃用
     Token 管理页面 - 显示用户的 Token 并提供管理功能
     """
     from django.shortcuts import render

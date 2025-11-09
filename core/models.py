@@ -5,6 +5,8 @@ from django.contrib.auth.models import User
 import json
 import datetime
 from django.db.utils import IntegrityError
+import random
+import string
 
 
 from logger import logger
@@ -1367,3 +1369,68 @@ class CollaborativeEvent(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class PasswordResetCode(models.Model):
+    """密码重置验证码模型"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    code = models.CharField(max_length=6)  # 6位数字验证码
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()  # 过期时间
+    is_used = models.BooleanField(default=False)  # 是否已使用
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.code}"
+    
+    @classmethod
+    def generate_code(cls, user):
+        """为用户生成新的验证码"""
+        # 生成6位数字验证码
+        code = ''.join(random.choices(string.digits, k=6))
+        
+        # 使用 Django 的 timezone 来生成时区感知的时间
+        from django.utils import timezone
+        expires_at = timezone.now() + timezone.timedelta(minutes=15)
+        
+        # 创建验证码记录
+        reset_code = cls.objects.create(
+            user=user,
+            code=code,
+            expires_at=expires_at
+        )
+        
+        return reset_code
+    
+    def is_valid(self):
+        """检查验证码是否有效"""
+        from django.utils import timezone
+        if self.is_used:
+            return False
+        if timezone.now() > self.expires_at:
+            return False
+        return True
+    
+    @classmethod
+    def verify_code(cls, email, code):
+        """验证邮箱和验证码是否匹配"""
+        try:
+            # 如果有多个用户使用同一邮箱，使用最新注册的
+            user = User.objects.filter(email=email).order_by('-date_joined').first()
+            if not user:
+                return False, None, None
+            
+            # 查找最新的未使用且未过期的验证码
+            reset_code = cls.objects.filter(
+                user=user,
+                code=code,
+                is_used=False
+            ).order_by('-created_at').first()
+            
+            if reset_code and reset_code.is_valid():
+                return True, user, reset_code
+            return False, None, None
+        except Exception:
+            return False, None, None

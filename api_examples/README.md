@@ -257,55 +257,7 @@ project_b_id = example_create_event_group(token, "项目B", "内部项目B", "#4
 
 ## 📝 API 端点列表
 
-### Events (日程)
-- `GET /get_calendar/events/` - 获取日程列表
-- `POST /api/events/create/` - 创建单个日程
-- `POST /api/events/update/` - 更新日程
-- `POST /api/events/delete/` - 删除日程
-- `POST /api/events/recurring/create/` - 创建重复日程
-- `POST /api/events/recurring/update/` - 更新重复日程
-- `POST /api/events/recurring/update-occurrence/` - 更新单次实例
-- `POST /api/events/recurring/delete/` - 删除重复日程
-- `POST /api/events/recurring/convert-to-single/` - 转换为单次日程
-
-### Event Groups (日程组)
-- `GET /get_calendar/events/` - 获取日程组列表（包含在响应中）
-- `POST /get_calendar/create_events_group/` - 创建日程组
-- `POST /get_calendar/update_events_group/` - 更新日程组
-- `POST /get_calendar/delete_event_groups/` - 删除日程组
-
-### TODOs (待办事项)
-- `GET /api/todos/` - 获取待办列表
-- `POST /api/todos/create/` - 创建待办
-- `POST /api/todos/update/` - 更新待办
-- `POST /api/todos/delete/` - 删除待办
-- `POST /api/todos/convert/` - 转换为日程
-
-### Reminders (提醒)
-- `GET /api/reminders/` - 获取提醒列表
-- `POST /api/reminders/create/` - 创建提醒
-- `POST /api/reminders/update/` - 更新提醒
-- `POST /api/reminders/update-status/` - 更新提醒状态
-- `POST /api/reminders/delete/` - 删除提醒
-- `POST /api/reminders/maintain/` - 维护提醒
-
-## 💡 提示和最佳实践
-
-1. **错误处理**：所有示例函数都包含基本的错误处理，实际使用时可以根据需要扩展
-
-2. **日期格式**：
-   - 日期：`YYYY-MM-DD`（如 `2024-12-25`）
-   - 日期时间：`YYYY-MM-DDTHH:MM:SS`（如 `2024-12-25T14:30:00`）
-
-3. **重要性和紧急度**：
-   - 重要性：`low` / `medium` / `high`
-   - 紧急度：`low` / `normal` / `high`
-
-4. **重复规则**：参考 iCalendar RRule 标准
-   - 频率：`DAILY` / `WEEKLY` / `MONTHLY` / `YEARLY`
-   - 可以指定间隔、次数、截止日期等
-
-5. **清理测试数据**：每个示例都在最后提供了清理功能，避免产生大量测试数据
+去看 ../docs/升级与开发文档/URL路由功能说明文档.md
 
 ## 🔍 故障排查
 
@@ -344,6 +296,7 @@ project_b_id = example_create_event_group(token, "项目B", "内部项目B", "#4
 2. 查看 Django 服务的控制台输出
 3. 检查 `docs/` 目录下的相关文档：
    - `Token认证全面支持综合总结.md`
+   - `URL路由功能说明文档.md`
    - `TODO操作Token认证修复总结.md`
    - `EventGroup操作Token认证修复总结.md`
 
@@ -353,6 +306,6 @@ project_b_id = example_create_event_group(token, "项目B", "内部项目B", "#4
 
 ---
 
-**最后更新**: 2024-12-XX  
+**最后更新**: 2025-11-09
 **版本**: 1.0.0  
-**作者**: UniScheduler Development Team
+**作者**: MoMoJee
