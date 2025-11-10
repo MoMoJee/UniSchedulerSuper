@@ -1085,6 +1085,9 @@ def mark_notification_sent(request):
 def three_body(request):
     return render(request, 'three_body.html')
 
+def animation(request):
+    return render(request, 'animation.html')
+
 def friendly_link(request):
     return render(request, 'memory.html')
 
@@ -1417,4 +1420,99 @@ def reset_password(request):
             {'error': f'重置密码失败: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+# ===== 基于 Token 的密码重置功能 =====
+
+@api_view(['POST'])
+@permission_classes([])  # 允许未认证用户访问
+def reset_password_with_token(request):
+    """
+    使用用户名和 API Token 重置密码
+    POST /api/password-reset/token/
+    Body: {
+        "username": "用户名",
+        "token": "API Token",
+        "new_password": "新密码",
+        "confirm_password": "确认新密码"
+    }
+    """
+    try:
+        from rest_framework.authtoken.models import Token
+        from django.contrib.auth.models import User
+        
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        username = data.get('username', '').strip()
+        token_key = data.get('token', '').strip()
+        new_password = data.get('new_password', '')
+        confirm_password = data.get('confirm_password', '')
+        
+        if not username or not token_key:
+            return Response(
+                {'error': '请输入用户名和 Token'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not new_password:
+            return Response(
+                {'error': '请输入新密码'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if new_password != confirm_password:
+            return Response(
+                {'error': '两次输入的密码不一致'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 验证用户名和 Token 是否匹配
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return Response(
+                {'error': '用户名或 Token 错误'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # 验证 Token
+        try:
+            token = Token.objects.get(key=token_key)
+            if token.user != user:
+                return Response(
+                    {'error': '用户名或 Token 错误'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+        except Token.DoesNotExist:
+            return Response(
+                {'error': '用户名或 Token 错误（Token 可能已被删除）'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # 使用 Django 的密码验证器检查新密码强度
+        try:
+            validate_password(new_password, user=user)
+        except ValidationError as e:
+            error_messages = list(e.messages)
+            return Response(
+                {'error': '密码不符合要求：' + '；'.join(error_messages)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 重置密码
+        user.set_password(new_password)
+        user.save()
+        
+        logger.info(f"User {user.username} reset password using API Token")
+        
+        return Response({
+            'message': '密码重置成功，请使用新密码登录'
+        })
+        
+    except Exception as e:
+        logger.error(f"Reset password with token error: {str(e)}")
+        return Response(
+            {'error': f'重置密码失败: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 

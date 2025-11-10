@@ -33,6 +33,7 @@ urlpatterns = [
     path('api/password-reset/request/', views.request_password_reset, name='request_password_reset'),
     path('api/password-reset/verify/', views.verify_reset_code, name='verify_reset_code'),
     path('api/password-reset/reset/', views.reset_password, name='reset_password'),
+    path('api/password-reset/token/', views.reset_password_with_token, name='reset_password_with_token'),
 
     path("get_calendar/change_view/", views.change_view, name="change_view"),
     path("get_calendar/user_settings/", views.user_settings, name="user_settings"),
@@ -77,4 +78,5 @@ urlpatterns = [
     # Other
     path("friendly_link/", views.friendly_link, name="friendly_link"),
     path("three_body/", views.three_body, name="three_body"),
+    path("animation/", views.animation, name="animation"),
 ]
