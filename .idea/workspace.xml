@@ -4,18 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251109_2247  development&#10;&#10;修复了 user_setting 在使用 API 装饰器后无法 POST 的问题，报错详情：&#10;[09/Nov/2025 22:31:58] &quot;POST /get_calendar/change_view/ HTTP/1.1&quot; 200 66&#10;Internal Server Error: /get_calendar/user_settings/&#10;&#10;看这一行：&#10;data = json.loads(request.body)&#10;在 DRF 的 `@api_view` 中，应该使用 `request.data`，而不是 `request.body`&#10;&#10;当使用 DRF 的装饰器时：&#10;- `request.data` - DRF 已经解析好的数据&#10;- `request.body` - 原始请求体（stream），**读取后会被消耗**&#10;&#10;问题是：**DRF 的 `SessionAuthentication` 在验证 CSRF 时会读取 `request.body`，导致它被消耗。然后再次尝试读取 `request.body` 时就会失败！**&#10;&#10;同时顺手把还存在相同问题的 import_event， 尽管这个暂时没什么用到">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251110_1528  development&#10;&#10;新增 token 验证重置密码功能">
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api_examples/QUICKSTART.md" beforeDir="false" afterPath="$PROJECT_DIR$/api_examples/QUICKSTART.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api_examples/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/api_examples/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/forms.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/forms.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/css/home-styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/css/home-styles.css" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/templates/home_new.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/home_new.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/templates/user_login.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/user_login.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/urls.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/views_token.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_token.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -321,7 +314,7 @@
       <workItem from="1762271450601" duration="1874000" />
       <workItem from="1762421881575" duration="611000" />
       <workItem from="1762430604007" duration="171000" />
-      <workItem from="1762435690055" duration="71069000" />
+      <workItem from="1762435690055" duration="83936000" />
     </task>
     <task id="LOCAL-00001" summary="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
       <option name="closed" value="true" />
@@ -523,7 +516,23 @@
       <option name="project" value="LOCAL" />
       <updated>1762699664579</updated>
     </task>
-    <option name="localTasksCounter" value="26" />
+    <task id="LOCAL-00026" summary="UniSchedulerSuper 1.5.4.20251109_2247  development&#10;&#10;新增设置界面”我的“选项框，包含 token 管理、用户数据等&#10;新增修改用户名密码功能&#10;新增登录界面忘记密码功能（现无邮件服务器，只有测试实现，直接验证码发到浏览器界面上，之后必须去掉）&#10;修复深色和黑金模式的UI问题">
+      <option name="closed" value="true" />
+      <created>1762712433255</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1762712433255</updated>
+    </task>
+    <task id="LOCAL-00027" summary="UniSchedulerSuper 1.5.4.20251110_1528  development&#10;&#10;新增 token 验证重置密码功能">
+      <option name="closed" value="true" />
+      <created>1762759728910</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1762759728910</updated>
+    </task>
+    <option name="localTasksCounter" value="28" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -559,8 +568,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md" />
-    <MESSAGE value="1.5.1 UniSchedulerSuper Release&#10;重构了 RRule 解析方法" />
     <MESSAGE value="UniSchedulerSuper 1.5.2&#10;重构提醒更新逻辑，优化重复规则处理，调整 UI 样式和 CSS 文件组织。" />
     <MESSAGE value="UniSchedulerSuper 1.5.3&#10;换用了新的日志器&#10;重构了reminder相关代码，整理视图函数" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20250923&#10;正在升级 events 相关的功能" />
@@ -584,7 +591,9 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251109_0233  development&#10;&#10;新增 API 与 Token 登录功能 (beta)" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251109_2214  development&#10;&#10;新增了一些 API 示例" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251109_2247  development&#10;&#10;修复了 user_setting 在使用 API 装饰器后无法 POST 的问题，报错详情：&#10;[09/Nov/2025 22:31:58] &quot;POST /get_calendar/change_view/ HTTP/1.1&quot; 200 66&#10;Internal Server Error: /get_calendar/user_settings/&#10;&#10;看这一行：&#10;data = json.loads(request.body)&#10;在 DRF 的 `@api_view` 中，应该使用 `request.data`，而不是 `request.body`&#10;&#10;当使用 DRF 的装饰器时：&#10;- `request.data` - DRF 已经解析好的数据&#10;- `request.body` - 原始请求体（stream），**读取后会被消耗**&#10;&#10;问题是：**DRF 的 `SessionAuthentication` 在验证 CSRF 时会读取 `request.body`，导致它被消耗。然后再次尝试读取 `request.body` 时就会失败！**&#10;&#10;同时顺手把还存在相同问题的 import_event， 尽管这个暂时没什么用到" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20251109_2247  development&#10;&#10;修复了 user_setting 在使用 API 装饰器后无法 POST 的问题，报错详情：&#10;[09/Nov/2025 22:31:58] &quot;POST /get_calendar/change_view/ HTTP/1.1&quot; 200 66&#10;Internal Server Error: /get_calendar/user_settings/&#10;&#10;看这一行：&#10;data = json.loads(request.body)&#10;在 DRF 的 `@api_view` 中，应该使用 `request.data`，而不是 `request.body`&#10;&#10;当使用 DRF 的装饰器时：&#10;- `request.data` - DRF 已经解析好的数据&#10;- `request.body` - 原始请求体（stream），**读取后会被消耗**&#10;&#10;问题是：**DRF 的 `SessionAuthentication` 在验证 CSRF 时会读取 `request.body`，导致它被消耗。然后再次尝试读取 `request.body` 时就会失败！**&#10;&#10;同时顺手把还存在相同问题的 import_event， 尽管这个暂时没什么用到" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20251109_2247  development&#10;&#10;新增设置界面”我的“选项框，包含 token 管理、用户数据等&#10;新增修改用户名密码功能&#10;新增登录界面忘记密码功能（现无邮件服务器，只有测试实现，直接验证码发到浏览器界面上，之后必须去掉）&#10;修复深色和黑金模式的UI问题" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20251110_1528  development&#10;&#10;新增 token 验证重置密码功能" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20251110_1528  development&#10;&#10;新增 token 验证重置密码功能" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_browser_session.coverage" NAME="test_browser_session 覆盖结果" MODIFIED="1762539566092" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

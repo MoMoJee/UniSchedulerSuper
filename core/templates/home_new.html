@@ -354,26 +354,88 @@
     </style>
 </head>
 <body>
-    <!-- 顶部导航栏 -->
-    <nav class="navbar navbar-expand-lg bg-primary">
-        <div class="container-fluid">
-            <a class="navbar-brand text-white" href="#">
-                <i class="fas fa-calendar-check me-2"></i>
-                UniSchedulerSuper
-            </a>
-            
-            <div class="navbar-nav ms-auto">
-                <div class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle text-white" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-user-circle me-1"></i>
-                        用户
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#settingsModal"><i class="fas fa-cog me-2"></i>设置</a></li>
-                        <li><a class="dropdown-item" href="{% url 'help_page' %}"><i class="fas fa-question-circle me-2"></i>帮助</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{% url 'user_logout' %}"><i class="fas fa-sign-out-alt me-2"></i>退出</a></li>
-                    </ul>
+    <!-- 顶部导航栏 - 新版全局搜索 -->
+    <nav class="navbar navbar-expand-lg navbar-island" id="topNavbar">
+        <div class="container-fluid d-flex align-items-center justify-content-center">
+            <!-- 灵动岛容器 -->
+            <div class="dynamic-island">
+                <!-- 全局搜索组件 -->
+                <div id="globalSearchContainer" class="global-search-container">
+                    <!-- 搜索按钮 (未激活状态) -->
+                    <button id="searchToggleBtn" class="search-toggle-btn" onclick="globalSearch.toggle()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    
+                    <!-- 搜索栏 (激活状态) -->
+                    <div id="searchBarExpanded" class="search-bar-expanded" style="display: none;">
+                        <div class="search-input-wrapper">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" id="globalSearchInput" class="global-search-input" placeholder="搜索日程、提醒、待办..." oninput="globalSearch.handleInput(event)">
+                            <button class="search-clear-btn" onclick="globalSearch.clear()" style="display: none;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- 筛选下拉框 -->
+                        <div class="search-filters">
+                            <!-- 类型筛选 -->
+                            <select id="searchTypeFilter" class="search-filter-select" onchange="globalSearch.applyFilters()">
+                                <option value="all">全部类型</option>
+                                <option value="event">日程</option>
+                                <option value="reminder">提醒</option>
+                                <option value="todo">待办</option>
+                            </select>
+                            
+                            <!-- 日程组筛选 -->
+                            <select id="searchGroupFilter" class="search-filter-select" onchange="globalSearch.applyFilters()">
+                                <option value="all">全部日程组</option>
+                                <!-- 动态加载 -->
+                            </select>
+                            
+                            <!-- 时间范围筛选 -->
+                            <select id="searchTimeFilter" class="search-filter-select" onchange="globalSearch.applyFilters()">
+                                <option value="all">全部时间</option>
+                                <option value="past">过去</option>
+                                <option value="today">今天</option>
+                                <option value="week">本周</option>
+                                <option value="month">本月</option>
+                                <option value="future">未来</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 搜索结果下拉列表 -->
+                    <div id="searchResultsDropdown" class="search-results-dropdown" style="display: none;">
+                        <div class="search-results-list">
+                            <!-- 动态加载搜索结果 -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 设置按钮 -->
+                <div id="settingsContainer" class="settings-container">
+                    <!-- 设置按钮 (未激活状态) -->
+                    <button id="settingsToggleBtn" class="settings-toggle-btn" onclick="settingsMenu.toggle()">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    
+                    <!-- 设置菜单 (激活状态) - 灵动岛形式 -->
+                    <div id="settingsMenuExpanded" class="settings-menu-expanded" style="display: none;">
+                        <div class="settings-input-wrapper">
+                            <button class="settings-menu-item" onclick="settingsMenu.openSettings()">
+                                <i class="fas fa-cog me-2"></i>
+                                <span>设置</span>
+                            </button>
+                            <button class="settings-menu-item" onclick="settingsMenu.openHelp()">
+                                <i class="fas fa-question-circle me-2"></i>
+                                <span>帮助</span>
+                            </button>
+                            <button class="settings-menu-item logout-item" onclick="settingsMenu.logout()">
+                                <i class="fas fa-sign-out-alt me-2"></i>
+                                <span>退出</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2875,6 +2937,464 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
         // Django传递的数据
         window.events_groups = {{ events_groups|safe }};
         window.CSRF_TOKEN = '{{ csrf_token }}';
+    </script>
+    
+    <!-- 全局搜索和设置菜单 -->
+    <script>
+        // 全局搜索管理器
+        const globalSearch = {
+            isExpanded: false,
+            searchData: {
+                events: [],
+                reminders: [],
+                todos: []
+            },
+            
+            // 切换搜索栏
+            toggle() {
+                // ⭐检查设置菜单是否展开，如果是，先关闭它
+                if (!this.isExpanded && settingsMenu.isExpanded) {
+                    settingsMenu.toggle();
+                    // ⭐立即强制清理设置菜单UI，不等待动画
+                    const expandedMenu = document.getElementById('settingsMenuExpanded');
+                    const settingsToggleBtn = document.getElementById('settingsToggleBtn');
+                    const island = document.querySelector('.dynamic-island');
+                    expandedMenu.style.display = 'none';
+                    expandedMenu.classList.remove('closing');
+                    settingsToggleBtn.style.display = 'flex';  // 立即显示设置按钮
+                    const searchContainer = document.getElementById('globalSearchContainer');
+                    searchContainer.style.order = '0';  // 恢复order
+                    island.classList.remove('settings-expanded');  // 移除settings-expanded类
+                }
+                
+                this.isExpanded = !this.isExpanded;
+                const toggleBtn = document.getElementById('searchToggleBtn');
+                const expandedBar = document.getElementById('searchBarExpanded');
+                const resultsDropdown = document.getElementById('searchResultsDropdown');
+                const settingsToggleBtn = document.getElementById('settingsToggleBtn');  // 获取设置按钮
+                const island = document.querySelector('.dynamic-island');
+                
+                if (this.isExpanded) {
+                    // 展开动画
+                    toggleBtn.style.display = 'none';
+                    expandedBar.style.display = 'flex';
+                    expandedBar.classList.remove('closing');
+                    island.classList.add('search-expanded');
+                    document.getElementById('globalSearchInput').focus();
+                    this.loadAllData();
+                    this.populateGroupFilter();
+                    this.restoreFilterSettings(); // 恢复筛选设置
+                } else {
+                    // 收起动画
+                    // ⭐立即隐藏设置按钮
+                    settingsToggleBtn.style.display = 'none';
+                    
+                    expandedBar.classList.add('closing');
+                    resultsDropdown.style.display = 'none';
+                    island.classList.remove('search-expanded');
+                    
+                    // 在动画快结束时(250ms)让两个按钮一起显现
+                    setTimeout(() => {
+                        toggleBtn.style.display = 'flex';
+                        settingsToggleBtn.style.display = 'flex';
+                        toggleBtn.classList.add('appearing');
+                        settingsToggleBtn.classList.add('appearing');
+                        setTimeout(() => {
+                            toggleBtn.classList.remove('appearing');
+                            settingsToggleBtn.classList.remove('appearing');
+                        }, 350);
+                    }, 250);
+                    
+                    // 等待完整动画完成后清理展开栏
+                    setTimeout(() => {
+                        expandedBar.style.display = 'none';
+                        expandedBar.classList.remove('closing');
+                    }, 350);
+                    
+                    this.clear();
+                }
+            },
+            
+            // 清空搜索
+            clear() {
+                document.getElementById('globalSearchInput').value = '';
+                document.getElementById('searchResultsDropdown').style.display = 'none';
+                document.querySelector('.search-clear-btn').style.display = 'none';
+            },
+            
+            // 处理输入
+            handleInput(event) {
+                const query = event.target.value.trim();
+                const clearBtn = document.querySelector('.search-clear-btn');
+                
+                clearBtn.style.display = query ? 'flex' : 'none';
+                
+                if (query.length > 0) {
+                    this.performSearch(query);
+                } else {
+                    document.getElementById('searchResultsDropdown').style.display = 'none';
+                }
+            },
+            
+            // 加载所有数据
+            async loadAllData() {
+                try {
+                    // 加载日程
+                    const eventsResponse = await fetch('/get_calendar/events/');
+                    const eventsData = await eventsResponse.json();
+                    this.searchData.events = eventsData.events || [];
+                    
+                    // 加载提醒
+                    const remindersResponse = await fetch('/api/reminders/');
+                    const remindersData = await remindersResponse.json();
+                    this.searchData.reminders = remindersData.reminders || [];
+                    
+                    // 加载待办
+                    const todosResponse = await fetch('/api/todos/');
+                    const todosData = await todosResponse.json();
+                    this.searchData.todos = todosData.todos || [];
+                } catch (error) {
+                    console.error('加载搜索数据失败:', error);
+                }
+            },
+            
+            // 填充日程组筛选器
+            populateGroupFilter() {
+                const groupFilter = document.getElementById('searchGroupFilter');
+                groupFilter.innerHTML = '<option value="all">全部日程组</option>';
+                
+                if (window.events_groups && Array.isArray(window.events_groups)) {
+                    window.events_groups.forEach(group => {
+                        const option = document.createElement('option');
+                        option.value = group.id;
+                        option.textContent = group.name;
+                        groupFilter.appendChild(option);
+                    });
+                }
+            },
+            
+            // 执行搜索
+            performSearch(query) {
+                const typeFilter = document.getElementById('searchTypeFilter').value;
+                const groupFilter = document.getElementById('searchGroupFilter').value;
+                const timeFilter = document.getElementById('searchTimeFilter').value;
+                
+                let results = [];
+                
+                // 搜索日程
+                if (typeFilter === 'all' || typeFilter === 'event') {
+                    const eventResults = this.searchData.events.filter(event => 
+                        this.matchesQuery(event.title, query) || 
+                        this.matchesQuery(event.description, query)
+                    ).filter(event => 
+                        this.matchesGroupFilter(event.groupID, groupFilter)
+                    ).filter(event =>
+                        this.matchesTimeFilter(event.start, timeFilter)
+                    ).map(event => ({
+                        ...event,
+                        type: 'event',
+                        displayType: '日程'
+                    }));
+                    results.push(...eventResults);
+                }
+                
+                // 搜索提醒
+                if (typeFilter === 'all' || typeFilter === 'reminder') {
+                    const reminderResults = this.searchData.reminders.filter(reminder =>
+                        this.matchesQuery(reminder.title, query) ||
+                        this.matchesQuery(reminder.content, query)
+                    ).filter(reminder =>
+                        this.matchesTimeFilter(reminder.trigger_time, timeFilter)
+                    ).map(reminder => ({
+                        ...reminder,
+                        type: 'reminder',
+                        displayType: '提醒'
+                    }));
+                    results.push(...reminderResults);
+                }
+                
+                // 搜索待办
+                if (typeFilter === 'all' || typeFilter === 'todo') {
+                    const todoResults = this.searchData.todos.filter(todo =>
+                        this.matchesQuery(todo.title, query) ||
+                        this.matchesQuery(todo.description, query)
+                    ).filter(todo =>
+                        this.matchesGroupFilter(todo.groupID, groupFilter)
+                    ).filter(todo =>
+                        this.matchesTimeFilter(todo.due_date, timeFilter)
+                    ).map(todo => ({
+                        ...todo,
+                        type: 'todo',
+                        displayType: '待办'
+                    }));
+                    results.push(...todoResults);
+                }
+                
+                this.displayResults(results);
+            },
+            
+            // 匹配查询
+            matchesQuery(text, query) {
+                if (!text) return false;
+                return text.toLowerCase().includes(query.toLowerCase());
+            },
+            
+            // 匹配日程组筛选
+            matchesGroupFilter(groupID, filter) {
+                if (filter === 'all') return true;
+                return groupID === filter;
+            },
+            
+            // 匹配时间筛选
+            matchesTimeFilter(timeStr, filter) {
+                if (filter === 'all' || !timeStr) return true;
+                
+                const itemTime = new Date(timeStr);
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const weekStart = new Date(today);
+                weekStart.setDate(today.getDate() - today.getDay());
+                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                
+                switch (filter) {
+                    case 'past':
+                        return itemTime < now;
+                    case 'today':
+                        return itemTime >= today && itemTime < new Date(today.getTime() + 86400000);
+                    case 'week':
+                        return itemTime >= weekStart && itemTime < new Date(weekStart.getTime() + 7 * 86400000);
+                    case 'month':
+                        return itemTime >= monthStart && itemTime < new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                    case 'future':
+                        return itemTime > now;
+                    default:
+                        return true;
+                }
+            },
+            
+            // 显示搜索结果
+            displayResults(results) {
+                const resultsDropdown = document.getElementById('searchResultsDropdown');
+                const resultsList = resultsDropdown.querySelector('.search-results-list');
+                
+                if (results.length === 0) {
+                    resultsList.innerHTML = '<div class="search-no-results">未找到匹配的结果</div>';
+                } else {
+                    resultsList.innerHTML = results.map(item => this.createResultItem(item)).join('');
+                }
+                
+                resultsDropdown.style.display = 'block';
+            },
+            
+            // 创建结果项
+            createResultItem(item) {
+                const time = item.start || item.trigger_time || item.due_date || '';
+                const timeDisplay = time ? new Date(time).toLocaleString('zh-CN') : '无时间';
+                
+                return `
+                    <div class="search-result-item" onclick="globalSearch.openItem('${item.type}', '${item.id}')">
+                        <div class="search-result-title">${this.escapeHtml(item.title)}</div>
+                        <div class="search-result-meta">
+                            <span class="search-result-type ${item.type}">${item.displayType}</span>
+                            <span>${timeDisplay}</span>
+                        </div>
+                    </div>
+                `;
+            },
+            
+            // 打开项目详情
+            openItem(type, id) {
+                this.toggle(); // 关闭搜索
+                
+                if (type === 'event') {
+                    // 找到原始事件数据
+                    const eventData = this.searchData.events.find(e => e.id === id);
+                    if (eventData && window.modalManager) {
+                        // 将原始数据转换为 FullCalendar event 格式
+                        const fcEvent = {
+                            id: eventData.id,
+                            title: eventData.title,
+                            start: eventData.start,
+                            end: eventData.end,
+                            extendedProps: {
+                                description: eventData.description || '',
+                                importance: eventData.importance || '',
+                                urgency: eventData.urgency || '',
+                                groupID: eventData.groupID || '',
+                                ddl: eventData.ddl || '',
+                                rrule: eventData.rrule || '',
+                                series_id: eventData.series_id || '',
+                                is_recurring: eventData.is_recurring || false,
+                                is_main_event: eventData.is_main_event || false,
+                                is_detached: eventData.is_detached || false,
+                                recurrence_id: eventData.recurrence_id || '',
+                                parent_event_id: eventData.parent_event_id || ''
+                            }
+                        };
+                        window.modalManager.openEditEventModal(fcEvent);
+                    }
+                } else if (type === 'reminder') {
+                    // 找到并触发提醒点击 - 使用正确的函数
+                    const reminder = this.searchData.reminders.find(r => r.id === id);
+                    if (reminder && window.reminderManager) {
+                        // reminderManager.editReminder 需要 reminderId 和 seriesId
+                        window.reminderManager.editReminder(reminder.id, reminder.series_id || '');
+                    }
+                } else if (type === 'todo') {
+                    // 找到并触发待办点击 - 使用正确的函数
+                    const todo = this.searchData.todos.find(t => t.id === id);
+                    if (todo && window.todoManager) {
+                        // todoManager.openTodoDetailModal 是正确的函数
+                        window.todoManager.openTodoDetailModal(todo);
+                    }
+                }
+            },
+            
+            // 应用筛选器
+            applyFilters() {
+                this.saveFilterSettings(); // 保存筛选设置
+                const query = document.getElementById('globalSearchInput').value.trim();
+                if (query) {
+                    this.performSearch(query);
+                }
+            },
+            
+            // 保存筛选设置到sessionStorage
+            saveFilterSettings() {
+                const typeFilter = document.getElementById('searchTypeFilter').value;
+                const groupFilter = document.getElementById('searchGroupFilter').value;
+                const timeFilter = document.getElementById('searchTimeFilter').value;
+                
+                sessionStorage.setItem('globalSearch_typeFilter', typeFilter);
+                sessionStorage.setItem('globalSearch_groupFilter', groupFilter);
+                sessionStorage.setItem('globalSearch_timeFilter', timeFilter);
+            },
+            
+            // 从sessionStorage恢复筛选设置
+            restoreFilterSettings() {
+                const typeFilter = sessionStorage.getItem('globalSearch_typeFilter');
+                const groupFilter = sessionStorage.getItem('globalSearch_groupFilter');
+                const timeFilter = sessionStorage.getItem('globalSearch_timeFilter');
+                
+                if (typeFilter) {
+                    document.getElementById('searchTypeFilter').value = typeFilter;
+                }
+                if (groupFilter) {
+                    document.getElementById('searchGroupFilter').value = groupFilter;
+                }
+                if (timeFilter) {
+                    document.getElementById('searchTimeFilter').value = timeFilter;
+                }
+            },
+            
+            // HTML转义
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+        };
+        
+        // 设置菜单管理器
+        const settingsMenu = {
+            isExpanded: false,
+            
+            // 切换设置菜单
+            toggle() {
+                // ⭐检查搜索是否展开，如果是，先关闭它
+                if (!this.isExpanded && globalSearch.isExpanded) {
+                    globalSearch.toggle();
+                    // ⭐立即强制清理搜索UI，不等待动画
+                    const expandedBar = document.getElementById('searchBarExpanded');
+                    const searchToggleBtn = document.getElementById('searchToggleBtn');
+                    const resultsDropdown = document.getElementById('searchResultsDropdown');
+                    const island = document.querySelector('.dynamic-island');
+                    expandedBar.style.display = 'none';
+                    expandedBar.classList.remove('closing');
+                    resultsDropdown.style.display = 'none';
+                    searchToggleBtn.style.display = 'flex';  // 立即显示搜索按钮
+                    island.classList.remove('search-expanded');  // 移除search-expanded类
+                }
+                
+                this.isExpanded = !this.isExpanded;
+                const toggleBtn = document.getElementById('settingsToggleBtn');
+                const expandedMenu = document.getElementById('settingsMenuExpanded');
+                const searchContainer = document.getElementById('globalSearchContainer');
+                const searchToggleBtn = document.getElementById('searchToggleBtn');  // 获取搜索按钮
+                const island = document.querySelector('.dynamic-island');
+                
+                if (this.isExpanded) {
+                    // 展开动画
+                    toggleBtn.style.display = 'none';
+                    expandedMenu.style.display = 'flex';
+                    expandedMenu.classList.remove('closing');
+                    // 搜索按钮移到最左侧,设置菜单在右侧,整体居中
+                    searchContainer.style.order = '-1';
+                    island.classList.add('settings-expanded');
+                } else {
+                    // 收起动画
+                    // ⭐立即隐藏搜索按钮并恢复order
+                    searchToggleBtn.style.display = 'none';
+                    searchContainer.style.order = '0';
+                    
+                    expandedMenu.classList.add('closing');
+                    island.classList.remove('settings-expanded');
+                    
+                    // 在动画快结束时(250ms)让两个按钮一起显现
+                    setTimeout(() => {
+                        toggleBtn.style.display = 'flex';
+                        searchToggleBtn.style.display = 'flex';
+                        toggleBtn.classList.add('appearing');
+                        searchToggleBtn.classList.add('appearing');
+                        setTimeout(() => {
+                            toggleBtn.classList.remove('appearing');
+                            searchToggleBtn.classList.remove('appearing');
+                        }, 350);
+                    }, 250);
+                    
+                    // 等待完整动画完成后清理展开菜单
+                    setTimeout(() => {
+                        expandedMenu.style.display = 'none';
+                        expandedMenu.classList.remove('closing');
+                    }, 350);
+                }
+            },
+            
+            // 打开设置
+            openSettings() {
+                const settingsModal = new bootstrap.Modal(document.getElementById('settingsModal'));
+                settingsModal.show();
+                this.toggle(); // 关闭菜单
+            },
+            
+            // 打开帮助
+            openHelp() {
+                window.location.href = "{% url 'help_page' %}";
+            },
+            
+            // 退出登录
+            logout() {
+                if (confirm('确定要退出登录吗？')) {
+                    window.location.href = "{% url 'user_logout' %}";
+                }
+            }
+        };
+        
+        // 点击外部关闭搜索和设置菜单
+        document.addEventListener('click', function(event) {
+            const searchContainer = document.getElementById('globalSearchContainer');
+            const settingsContainer = document.getElementById('settingsContainer');
+            
+            // 关闭搜索
+            if (globalSearch.isExpanded && !searchContainer.contains(event.target)) {
+                globalSearch.toggle();
+            }
+            
+            // 关闭设置菜单
+            if (settingsMenu.isExpanded && !settingsContainer.contains(event.target)) {
+                settingsMenu.toggle();
+            }
+        });
     </script>
     
     <!-- 自定义JavaScript模块 -->
