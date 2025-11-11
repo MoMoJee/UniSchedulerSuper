@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from . import views_events
 from . import views_token
+from . import views_share_groups
 
 urlpatterns = [
     path('', views.index, name='index'),
@@ -74,6 +75,15 @@ urlpatterns = [
     path('api/todos/update/', views.update_todo, name='update_todo'),
     path('api/todos/delete/', views.delete_todo, name='delete_todo'),
     path('api/todos/convert/', views.convert_todo_to_event, name='convert_todo_to_event'),
+    
+    # ===== 分享群组 API =====
+    path('api/share-groups/create/', views_share_groups.create_share_group, name='create_share_group'),
+    path('api/share-groups/my-groups/', views_share_groups.get_my_share_groups, name='get_my_share_groups'),
+    path('api/share-groups/join/', views_share_groups.join_share_group, name='join_share_group'),
+    path('api/share-groups/<str:share_group_id>/leave/', views_share_groups.leave_share_group, name='leave_share_group'),
+    path('api/share-groups/<str:share_group_id>/delete/', views_share_groups.delete_share_group, name='delete_share_group'),
+    path('api/share-groups/<str:share_group_id>/events/', views_share_groups.get_share_group_events, name='get_share_group_events'),
+    path('api/share-groups/<str:share_group_id>/check-update/', views_share_groups.check_group_update, name='check_group_update'),
     
     # Other
     path("friendly_link/", views.friendly_link, name="friendly_link"),

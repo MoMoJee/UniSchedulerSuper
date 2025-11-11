@@ -36,6 +36,44 @@ def get_django_request(request):
     return request
 
 
+def _sync_groups_after_edit(events: List[Dict], series_id: str, user):
+    """
+    编辑事件后同步群组数据的辅助函数
+    
+    参数:
+        events: 所有事件列表
+        series_id: 受影响的系列ID（可能为空）
+        user: 触发编辑的用户
+    """
+    try:
+        # 收集所有受影响的群组ID
+        affected_groups = set()
+        
+        # 如果有 series_id，检查该系列的所有事件
+        if series_id:
+            for event in events:
+                if event.get('series_id') == series_id:
+                    # 收集当前分享的群组
+                    shared_to_groups = event.get('shared_to_groups', [])
+                    if shared_to_groups:
+                        affected_groups.update(shared_to_groups)
+                    
+                    # 收集之前分享的群组（如果有记录）
+                    old_shared_groups = event.get('_old_shared_to_groups', [])
+                    if old_shared_groups:
+                        affected_groups.update(old_shared_groups)
+        
+        # 如果有受影响的群组，触发同步
+        if affected_groups:
+            from .views_share_groups import sync_group_calendar_data
+            sync_group_calendar_data(list(affected_groups), user)
+            logger.info(f"编辑事件后同步到群组: {affected_groups}")
+            
+    except Exception as e:
+        logger.error(f"同步群组数据失败: {str(e)}")
+        # 不影响事件编辑，继续执行
+
+
 class EventsRRuleManager(IntegratedReminderManager):
     """Events专用的RRule管理器 - 继承并适配提醒管理器"""
     
@@ -1341,6 +1379,17 @@ def create_event_impl(request):
             
             main_event = event_data
         
+        # 新增：如果事件分享到了群组，触发同步
+        shared_to_groups = data.get('shared_to_groups', [])
+        if shared_to_groups:
+            try:
+                from .views_share_groups import sync_group_calendar_data
+                sync_group_calendar_data(shared_to_groups, request.user)
+                logger.info(f"创建事件后同步到群组: {shared_to_groups}")
+            except Exception as e:
+                logger.error(f"同步群组数据失败: {str(e)}")
+                # 不影响事件创建，继续返回成功
+        
         return JsonResponse({
             'status': 'success',
             'event': main_event
@@ -2036,6 +2085,10 @@ def bulk_edit_events_impl(request):
                 try:
                     final_events = manager.process_event_data(events)
                     user_events_data.set_value(final_events)
+                    
+                    # 新增：同步群组数据
+                    _sync_groups_after_edit(final_events, series_id, request.user)
+                    
                     return JsonResponse({'status': 'success'})
                 except Exception as process_error:
                     logger.error(f"process_event_data failed in single edit: {str(process_error)}")
@@ -2109,6 +2162,10 @@ def bulk_edit_events_impl(request):
                             updated_count += 1
                     
                     user_events_data.set_value(events)
+                    
+                    # 新增：同步群组数据
+                    _sync_groups_after_edit(events, series_id, request.user)
+                    
                     return JsonResponse({'status': 'success', 'updated_count': updated_count})
                     
                 elif edit_scope in ['future', 'from_time']:
@@ -2387,6 +2444,10 @@ def bulk_edit_events_impl(request):
                         
                         logger.info(f"Updated {updated_count} events, saving to database")
                         user_events_data.set_value(events)
+                        
+                        # 新增：同步群组数据
+                        _sync_groups_after_edit(events, series_id, request.user)
+                        
                         return JsonResponse({'status': 'success', 'updated_count': updated_count})
         
         # 如果到达这里，说明没有匹配的操作
@@ -2828,6 +2889,35 @@ def update_events_impl(request):
                     
             planner_data["temp_events"] = temp_events
             user_temp_events_data.set_value(planner_data)
+        
+        # 新增：同步群组数据
+        try:
+            # 收集受影响的群组
+            affected_groups = set()
+            
+            # 获取当前事件的分享群组
+            if updated_event:
+                shared_to_groups = data.get('shared_to_groups', [])
+                if shared_to_groups:
+                    affected_groups.update(shared_to_groups)
+                
+                # 如果是重复事件，检查整个系列
+                if is_recurring and series_id and rrule_change_scope in ['all', 'future', 'from_time']:
+                    for event in events:
+                        if event.get('series_id') == series_id:
+                            event_shared_groups = event.get('shared_to_groups', [])
+                            if event_shared_groups:
+                                affected_groups.update(event_shared_groups)
+            
+            # 触发同步
+            if affected_groups:
+                from .views_share_groups import sync_group_calendar_data
+                sync_group_calendar_data(list(affected_groups), request.user)
+                logger.info(f"update_events 后同步到群组: {affected_groups}")
+                
+        except Exception as sync_error:
+            logger.error(f"同步群组数据失败: {str(sync_error)}")
+            # 不影响事件更新，继续返回成功
         
         return JsonResponse({'status': 'success'})
         
