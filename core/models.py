@@ -150,6 +150,13 @@ DATA_SCHEMA = {
                 "nullable": False,
                 "default": "confirmed",  # confirmed|tentative|cancelled
             },
+            # 新增字段 - 群组协作分享
+            "shared_to_groups": {
+                "type": list,
+                "nullable": False,
+                "default": [],
+                "description": "该日程分享到的群组列表，存储 share_group_id"
+            },
         },
     },
     "todos": {
@@ -1434,3 +1441,80 @@ class PasswordResetCode(models.Model):
             return False, None, None
         except Exception:
             return False, None, None
+
+
+# ==================== 群组协作功能模型 ====================
+
+class CollaborativeCalendarGroup(models.Model):
+    """协作日历群组"""
+    share_group_id = models.CharField(max_length=100, primary_key=True, verbose_name='群组ID')
+    share_group_name = models.CharField(max_length=200, verbose_name='群组名称')
+    share_group_color = models.CharField(max_length=20, default='#3498db', verbose_name='颜色标签')
+    share_group_description = models.TextField(blank=True, verbose_name='群组描述')
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owned_share_groups', verbose_name='群主')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+    
+    class Meta:
+        db_table = 'collaborative_calendar_group'
+        verbose_name = '协作日历群组'
+        verbose_name_plural = '协作日历群组'
+    
+    def __str__(self):
+        return f"{self.share_group_name} (群主: {self.owner.username})"
+
+
+class GroupMembership(models.Model):
+    """群组成员关系"""
+    ROLE_CHOICES = [
+        ('owner', '群主'),
+        ('admin', '管理员'),
+        ('member', '成员'),
+    ]
+    
+    share_group = models.ForeignKey(
+        CollaborativeCalendarGroup,
+        on_delete=models.CASCADE,
+        related_name='memberships',
+        verbose_name='所属群组'
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='成员用户')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='member', verbose_name='角色')
+    joined_at = models.DateTimeField(auto_now_add=True, verbose_name='加入时间')
+    
+    class Meta:
+        db_table = 'group_membership'
+        unique_together = ('share_group', 'user')
+        verbose_name = '群组成员'
+        verbose_name_plural = '群组成员'
+        ordering = ['-joined_at']
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.share_group.share_group_name} ({self.get_role_display()})"
+
+
+class GroupCalendarData(models.Model):
+    """群组日历数据 - 汇总所有成员的共享日程"""
+    share_group = models.OneToOneField(
+        CollaborativeCalendarGroup,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name='calendar_data',
+        verbose_name='所属群组'
+    )
+    events_data = models.JSONField(default=list, verbose_name='事件数据')
+    last_updated = models.DateTimeField(auto_now=True, verbose_name='最后更新时间')
+    version = models.IntegerField(default=0, verbose_name='版本号')
+    
+    class Meta:
+        db_table = 'group_calendar_data'
+        verbose_name = '群组日历数据'
+        verbose_name_plural = '群组日历数据'
+    
+    def __str__(self):
+        return f"{self.share_group.share_group_name} - 版本 {self.version}"
+    
+    def increment_version(self):
+        """递增版本号"""
+        self.version += 1
+        self.save(update_fields=['version', 'last_updated'])
