@@ -326,6 +326,21 @@ class ModalManager {
 
         // 填充日程组选项
         this.populateGroupSelect('newEventGroupId');
+        
+        // 【修复】根据当前视图设置群组预选
+        if (window.shareGroupManager) {
+            const currentGroupId = window.shareGroupManager.state.currentGroupId;
+            
+            if (currentGroupId) {
+                // 在群组视图下，自动预选中该群组
+                console.log('[openCreateEventModal] 检测到当前在群组视图，自动预选中群组:', currentGroupId);
+                window.shareGroupManager.setSelectedGroups('newEventShareGroupsSelector', [currentGroupId]);
+            } else {
+                // 在"我的日程"视图下，清除所有群组选择
+                console.log('[openCreateEventModal] 当前在我的日程视图，清除群组预选');
+                window.shareGroupManager.setSelectedGroups('newEventShareGroupsSelector', []);
+            }
+        }
 
         this.showModal('createEventModal');
     }
@@ -369,6 +384,13 @@ class ModalManager {
 
         // 填充日程组选项
         this.populateGroupSelect('eventGroupId', event.extendedProps.groupID);
+
+        // 设置分享到的群组
+        if (window.shareGroupManager) {
+            const sharedGroups = event.extendedProps.shared_to_groups || [];
+            console.log('[openEditEventModal] 设置 shared_to_groups:', sharedGroups);
+            window.shareGroupManager.setSelectedGroups('eventShareGroupsSelector', sharedGroups);
+        }
 
         // 处理重复事件信息
         this.setupRecurringEventInfo(event);
@@ -1114,6 +1136,7 @@ class ModalManager {
                 end: this.toUTC(eventData.end),
                 groupID: eventData.groupID,  // 使用 groupID (大写)
                 ddl: eventData.ddl ? this.toUTC(eventData.ddl) : '',
+                shared_to_groups: eventData.shared_to_groups || [],  // 新增
                 // 始终包含rrule字段，即使为空（空字符串表示取消重复）
                 rrule: eventData.rrule || ''
             };
@@ -1151,7 +1174,8 @@ class ModalManager {
                 eventData.urgency,
                 eventData.groupID,  // 使用 groupID (大写)
                 eventData.ddl ? this.toUTC(eventData.ddl) : '',
-                eventData.rrule
+                eventData.rrule,
+                eventData.shared_to_groups || []  // 新增
             );
 
             if (success) {
@@ -2320,6 +2344,16 @@ class ModalManager {
         // 添加RRule支持
         if (window.rruleManager) {
             data.rrule = window.rruleManager.buildRRule(mode);
+        }
+
+        // 添加分享到群组的支持
+        if (window.shareGroupManager) {
+            const selectorId = mode === 'create' ? 'newEventShareGroupsSelector' : 'eventShareGroupsSelector';
+            data.shared_to_groups = window.shareGroupManager.getSelectedGroups(selectorId);
+            console.log(`[getEventFormData] 获取到的 shared_to_groups (${mode}):`, data.shared_to_groups);
+        } else {
+            console.warn('[getEventFormData] shareGroupManager 未初始化');
+            data.shared_to_groups = [];
         }
 
         // 如果是重复日程，强制ddl日期与end日期一致，只保留时间部分

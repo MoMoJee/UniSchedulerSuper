@@ -11,6 +11,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/home-styles.css' %}?v=20251107-011">
+    <!-- Share Groups CSS -->
+    <link rel="stylesheet" href="{% static 'css/share-groups.css' %}?v=20251111-001">
     
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">    <!-- 强制隐藏editEventRecurringInfo元素的样式 -->
@@ -649,6 +651,22 @@
             </div>
             
             <div class="panel-content calendar-content">
+                <!-- 选项卡切换容器 -->
+                <div class="calendar-tabs-container" id="calendarTabsContainer">
+                    <!-- 我的日程选项卡 -->
+                    <div class="calendar-tab active" data-type="my" data-id="my-calendar">
+                        <i class="fas fa-user"></i>
+                        <span>我的日程</span>
+                    </div>
+                    
+                    <!-- 群组选项卡将动态插入到这里 -->
+                    
+                    <!-- 添加群组按钮 -->
+                    <div class="calendar-tab-add" id="addGroupTab" title="管理分享群组">
+                        <i class="fas fa-users-cog"></i>
+                    </div>
+                </div>
+                
                 <div id="calendar" class="calendar-container"></div>
                 
                 <!-- 日历筛选下拉菜单 -->
@@ -729,6 +747,15 @@
                             <!-- 将通过JS动态填充 -->
                         </div>
                         <small class="text-muted">未选择时显示所有分组</small>
+                    </div>
+                    
+                    <!-- 群组成员筛选（仅在群组视图中显示） -->
+                    <div class="filter-section" id="memberFilterSection" style="display: none;">
+                        <h6 class="filter-title"><i class="fas fa-users me-2"></i>群组成员</h6>
+                        <div id="memberFilterList">
+                            <!-- 将通过JS动态填充 -->
+                        </div>
+                        <small class="text-muted">未选择时显示所有成员</small>
                     </div>
                     
                     <div class="filter-actions">
@@ -1029,6 +1056,17 @@
                         <input type="hidden" id="newEventImportance">
                         <input type="hidden" id="newEventUrgency">
                     </div>
+                    
+                    <!-- 分享到群组 -->
+                    <div class="col-12">
+                        <label class="form-label">
+                            <i class="fas fa-share-alt me-2"></i>分享到群组
+                        </label>
+                        <div class="share-groups-selector" id="newEventShareGroupsSelector">
+                            <!-- 动态渲染群组列表 -->
+                            <small class="text-muted">加载中...</small>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="modal-footer">
@@ -1318,6 +1356,17 @@
                         </div>
                         <input type="hidden" id="eventImportance">
                         <input type="hidden" id="eventUrgency">
+                    </div>
+                    
+                    <!-- 分享到群组 -->
+                    <div class="col-12">
+                        <label class="form-label">
+                            <i class="fas fa-share-alt me-2"></i>分享到群组
+                        </label>
+                        <div class="share-groups-selector" id="eventShareGroupsSelector">
+                            <!-- 动态渲染群组列表 -->
+                            <small class="text-muted">加载中...</small>
+                        </div>
                     </div>
                 </div>
                 
@@ -2083,6 +2132,14 @@
                             <i class="far fa-clock me-2"></i>时间
                         </div>
                         <div class="detail-value" id="eventDetailTime"></div>
+                    </div>
+                    
+                    <!-- 归属用户（仅对不是自己的事件显示）-->
+                    <div class="detail-row" id="eventDetailOwnerRow" style="display: none;">
+                        <div class="detail-label">
+                            <i class="fas fa-user me-2"></i>归属
+                        </div>
+                        <div class="detail-value" id="eventDetailOwner"></div>
                     </div>
                     
                     <!-- 日程组（仅在有时显示）-->
@@ -2928,9 +2985,387 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
         </div>
     </div>
 
+    <!-- 群组管理弹窗区域 -->
+    <!-- 创建群组模态框 -->
+    <div class="modal fade share-group-modal" id="createShareGroupModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-users-cog me-2"></i>创建协作群组
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createShareGroupForm">
+                        <div class="form-group mb-3">
+                            <label for="shareGroupName">
+                                <i class="fas fa-tag"></i>
+                                群组名称 *
+                            </label>
+                            <input type="text" class="form-control" id="shareGroupName" required placeholder="例如：工作协作组">
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="shareGroupDescription">
+                                <i class="fas fa-align-left"></i>
+                                群组描述
+                            </label>
+                            <textarea class="form-control" id="shareGroupDescription" rows="3" placeholder="描述群组用途（可选）"></textarea>
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <small>创建后将生成唯一的群组ID，您可以分享给其他成员加入</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="shareGroupManager.createGroup()">
+                        <i class="fas fa-check me-1"></i>创建群组
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加入群组模态框 -->
+    <div class="modal fade share-group-modal" id="joinShareGroupModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-plus me-2"></i>加入协作群组
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="joinShareGroupForm">
+                        <div class="form-group mb-3">
+                            <label for="joinGroupId">
+                                <i class="fas fa-key"></i>
+                                群组ID *
+                            </label>
+                            <input type="text" class="form-control" id="joinGroupId" required placeholder="请输入群组ID">
+                            <small class="form-text text-muted">
+                                群组ID由群组创建者提供，格式类似：share_group_abc123
+                            </small>
+                        </div>
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <small>加入后可查看群组成员分享的日程</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-success" onclick="shareGroupManager.joinGroup()">
+                        <i class="fas fa-check me-1"></i>加入群组
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 群组成员管理模态框 -->
+    <div class="modal fade share-group-modal" id="manageGroupMembersModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-users me-2"></i>群组成员管理
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0">
+                                <i class="fas fa-info-circle me-2"></i>群组信息
+                            </h6>
+                            <button class="copy-button" onclick="shareGroupManager.copyGroupId()">
+                                <i class="fas fa-copy me-1"></i>复制群组ID
+                            </button>
+                        </div>
+                        <div class="share-group-id-display" id="currentGroupIdDisplay">
+                            <span id="currentGroupId">-</span>
+                        </div>
+                        <div class="mt-2">
+                            <strong id="currentGroupName">-</strong>
+                            <p class="text-muted mb-0" id="currentGroupDescription">-</p>
+                        </div>
+                    </div>
+
+                    <h6><i class="fas fa-users me-2"></i>成员列表</h6>
+                    <div class="group-members-list" id="groupMembersList">
+                        <!-- 动态渲染成员列表 -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-danger" id="leaveGroupBtn" onclick="shareGroupManager.leaveGroup()" style="display:none;">
+                        <i class="fas fa-sign-out-alt me-1"></i>退出群组
+                    </button>
+                    <button type="button" class="btn btn-danger" id="deleteGroupBtn" onclick="shareGroupManager.deleteGroup()" style="display:none;">
+                        <i class="fas fa-trash me-1"></i>删除群组
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 群组选择菜单模态框（点击+按钮显示） -->
+    <!-- 管理群组弹窗（多级菜单形式） -->
+    <div class="modal fade" id="manageShareGroupsModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-users-cog me-2"></i>群组管理中心
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Tabs 导航 -->
+                    <ul class="nav nav-tabs mb-4" id="groupManageTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="my-groups-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#my-groups-panel" type="button" role="tab">
+                                <i class="fas fa-list me-2"></i>我的群组
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="create-group-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#create-group-panel" type="button" role="tab">
+                                <i class="fas fa-plus-circle me-2"></i>创建群组
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="join-group-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#join-group-panel" type="button" role="tab">
+                                <i class="fas fa-user-plus me-2"></i>加入群组
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation" id="edit-group-tab-item" style="display: none;">
+                            <button class="nav-link" id="edit-group-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#edit-group-panel" type="button" role="tab">
+                                <i class="fas fa-edit me-2"></i>编辑群组
+                                <button type="button" class="btn-close btn-close-sm ms-2" onclick="shareGroupManager.closeEditTab(event)" 
+                                        style="font-size: 10px; padding: 0; width: 12px; height: 12px;"></button>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation" id="group-detail-tab-item" style="display: none;">
+                            <button class="nav-link" id="group-detail-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#group-detail-panel" type="button" role="tab">
+                                <i class="fas fa-info-circle me-2"></i>群组详情
+                                <button type="button" class="btn-close btn-close-sm ms-2" onclick="shareGroupManager.closeDetailTab(event)" 
+                                        style="font-size: 10px; padding: 0; width: 12px; height: 12px;"></button>
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tabs 内容 -->
+                    <div class="tab-content" id="groupManageTabContent">
+                        <!-- 我的群组列表 -->
+                        <div class="tab-pane fade show active" id="my-groups-panel" role="tabpanel">
+                            <div id="shareGroupsList" class="share-groups-list">
+                                <!-- 动态渲染群组列表 -->
+                            </div>
+                        </div>
+
+                        <!-- 创建群组面板 -->
+                        <div class="tab-pane fade" id="create-group-panel" role="tabpanel">
+                            <div class="create-group-form-container">
+                                <h6 class="mb-3 text-primary">
+                                    <i class="fas fa-info-circle me-2"></i>创建新的协作群组
+                                </h6>
+                                <form id="createGroupForm" onsubmit="return false;">
+                                    <div class="mb-3">
+                                        <label for="createGroupName" class="form-label">
+                                            <i class="fas fa-tag me-2"></i>群组名称 <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="text" class="form-control" id="createGroupName" 
+                                               placeholder="例如：工作协作组" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="createGroupColor" class="form-label">
+                                            <i class="fas fa-palette me-2"></i>群组颜色
+                                        </label>
+                                        <input type="color" class="form-control form-control-color" 
+                                               id="createGroupColor" value="#3498db">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="createMemberColor" class="form-label">
+                                            <i class="fas fa-user-tag me-2"></i>我的成员颜色
+                                        </label>
+                                        <input type="color" class="form-control form-control-color" 
+                                               id="createMemberColor" value="#3498db">
+                                        <small class="text-muted">用于在群组日历中区分不同成员的日程</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="createGroupDescription" class="form-label">
+                                            <i class="fas fa-align-left me-2"></i>群组描述
+                                        </label>
+                                        <textarea class="form-control" id="createGroupDescription" 
+                                                  rows="3" placeholder="简单描述这个群组的用途..."></textarea>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-primary" onclick="shareGroupManager.createGroupInPanel()">
+                                            <i class="fas fa-check me-2"></i>创建群组
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" onclick="shareGroupManager.resetCreateForm()">
+                                            <i class="fas fa-redo me-2"></i>重置
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- 加入群组面板 -->
+                        <div class="tab-pane fade" id="join-group-panel" role="tabpanel">
+                            <div class="join-group-form-container">
+                                <h6 class="mb-3 text-primary">
+                                    <i class="fas fa-info-circle me-2"></i>通过群组ID加入已有群组
+                                </h6>
+                                <form id="joinGroupForm" onsubmit="return false;">
+                                    <div class="mb-3">
+                                        <label for="joinGroupIdInput" class="form-label">
+                                            <i class="fas fa-key me-2"></i>群组ID <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="text" class="form-control" id="joinGroupIdInput" 
+                                               placeholder="share_group_xxxxxxxxxxxx" required>
+                                        <small class="text-muted">请向群主索取群组ID</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="joinMemberColor" class="form-label">
+                                            <i class="fas fa-user-tag me-2"></i>我的成员颜色
+                                        </label>
+                                        <input type="color" class="form-control form-control-color" 
+                                               id="joinMemberColor" value="#3498db">
+                                        <small class="text-muted">用于在群组日历中区分不同成员的日程</small>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-success" onclick="shareGroupManager.joinGroupInPanel()">
+                                            <i class="fas fa-sign-in-alt me-2"></i>加入群组
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" onclick="shareGroupManager.resetJoinForm()">
+                                            <i class="fas fa-redo me-2"></i>清空
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- 编辑群组面板 -->
+                        <div class="tab-pane fade" id="edit-group-panel" role="tabpanel">
+                            <div class="edit-group-form-container">
+                                <h6 class="mb-3 text-primary">
+                                    <i class="fas fa-edit me-2"></i>编辑群组信息
+                                </h6>
+                                <form id="editGroupFormPanel" onsubmit="return false;">
+                                    <input type="hidden" id="editShareGroupId">
+                                    
+                                    <div class="mb-3">
+                                        <label for="editShareGroupName" class="form-label">
+                                            <i class="fas fa-tag me-2"></i>群组名称 <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="text" class="form-control" id="editShareGroupName" required>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="editShareGroupColor" class="form-label">
+                                            <i class="fas fa-palette me-2"></i>群组颜色
+                                        </label>
+                                        <input type="color" class="form-control form-control-color" id="editShareGroupColor">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="editShareGroupDescription" class="form-label">
+                                            <i class="fas fa-align-left me-2"></i>群组描述
+                                        </label>
+                                        <textarea class="form-control" id="editShareGroupDescription" rows="3"></textarea>
+                                    </div>
+                                    
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-primary" onclick="shareGroupManager.updateGroupInfoInPanel()">
+                                            <i class="fas fa-save me-2"></i>保存修改
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" onclick="shareGroupManager.closeEditTab()">
+                                            <i class="fas fa-arrow-left me-2"></i>返回列表
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- 群组详情面板 -->
+                        <div class="tab-pane fade" id="group-detail-panel" role="tabpanel">
+                            <div class="group-detail-container">
+                                <h6 class="mb-3 text-primary">
+                                    <i class="fas fa-info-circle me-2"></i>群组详细信息
+                                </h6>
+                                
+                                <div class="group-detail-item">
+                                    <label>群组名称：</label>
+                                    <span>
+                                        <span class="share-group-color-dot" id="detailGroupColorDot" style="background-color: #007bff;"></span>
+                                        <span id="detailGroupName">-</span>
+                                    </span>
+                                </div>
+                                
+                                <div class="group-detail-item">
+                                    <label>群组ID：</label>
+                                    <span class="share-group-id">
+                                        <span id="detailGroupId">-</span>
+                                        <i class="fas fa-copy ms-2" onclick="shareGroupManager.copyGroupIdFromDetail()" title="复制ID" style="cursor: pointer;"></i>
+                                    </span>
+                                </div>
+                                
+                                <div class="group-detail-item" id="detailGroupDescContainer" style="display: none;">
+                                    <label>描述：</label>
+                                    <span id="detailGroupDesc">-</span>
+                                </div>
+                                
+                                <div class="group-detail-item">
+                                    <label>成员列表：</label>
+                                    <div class="members-list" id="detailMembersList">
+                                        <!-- 动态渲染成员列表 -->
+                                    </div>
+                                </div>
+                                
+                                <div class="group-detail-item mt-4">
+                                    <label>
+                                        <i class="fas fa-user-tag me-2"></i>我的成员颜色：
+                                    </label>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <input type="color" class="form-control form-control-color" 
+                                               id="detailMyMemberColor" value="#3498db">
+                                        <button type="button" class="btn btn-sm btn-primary" 
+                                                onclick="shareGroupManager.updateMyMemberColor()">
+                                            <i class="fas fa-save me-1"></i>保存
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">此颜色用于在群组日历中标识您的日程</small>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <button type="button" class="btn btn-secondary" onclick="shareGroupManager.closeDetailTab()">
+                                        <i class="fas fa-arrow-left me-2"></i>返回列表
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'fullcalendar_index.global.js' %}"></script>
+    
+    <!-- 群组协作功能 JavaScript -->
+    <script src="{% static 'js/share-groups.js' %}?v=20251111-001"></script>
     
     <!-- 全局变量 -->
     <script>

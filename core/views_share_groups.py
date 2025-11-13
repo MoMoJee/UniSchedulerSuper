@@ -34,8 +34,6 @@ def get_django_request(request):
     return request
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
 def create_share_group(request):
     """
     创建协作群组
@@ -68,6 +66,7 @@ def create_share_group(request):
         share_group_name = data.get('share_group_name')
         share_group_color = data.get('share_group_color', '#3498db')
         share_group_description = data.get('share_group_description', '')
+        member_color = data.get('member_color', '#3498db')  # 创建者的成员颜色
         
         # 验证必填字段
         if not share_group_name:
@@ -92,7 +91,8 @@ def create_share_group(request):
         GroupMembership.objects.create(
             share_group=group,
             user=request.user,
-            role='owner'
+            role='owner',
+            member_color=member_color
         )
         
         # 初始化群组日历数据
@@ -125,8 +125,6 @@ def create_share_group(request):
         }, status=500)
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def get_my_share_groups(request):
     """
     获取我的群组列表（我创建的或我加入的）
@@ -165,6 +163,7 @@ def get_my_share_groups(request):
                 'share_group_color': group.share_group_color,
                 'share_group_description': group.share_group_description,
                 'role': membership.role,
+                'my_member_color': membership.member_color,  # 新增：我的成员颜色
                 'member_count': member_count,
                 'owner_id': group.owner.id,
                 'owner_name': group.owner.username,
@@ -185,8 +184,6 @@ def get_my_share_groups(request):
         }, status=500)
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
 def join_share_group(request):
     """
     加入群组（通过群组ID或邀请码）
@@ -206,6 +203,7 @@ def join_share_group(request):
     try:
         data = request.data if hasattr(request, 'data') else json.loads(request.body)
         share_group_id = data.get('share_group_id')
+        member_color = data.get('member_color', '#3498db')  # 加入时的成员颜色
         
         if not share_group_id:
             return JsonResponse({
@@ -233,7 +231,8 @@ def join_share_group(request):
         GroupMembership.objects.create(
             share_group=group,
             user=request.user,
-            role='member'
+            role='member',
+            member_color=member_color
         )
         
         logger.info(f"用户 {request.user.username} 加入了群组 {share_group_id}")
@@ -256,8 +255,6 @@ def join_share_group(request):
         }, status=500)
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
 def leave_share_group(request, share_group_id):
     """
     退出群组
@@ -317,8 +314,6 @@ def leave_share_group(request, share_group_id):
         }, status=500)
 
 
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
 def delete_share_group(request, share_group_id):
     """
     删除群组（仅群主可操作）
@@ -368,8 +363,6 @@ def delete_share_group(request, share_group_id):
         }, status=500)
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def get_share_group_events(request, share_group_id):
     """
     获取群组日程（带版本检测）
@@ -407,26 +400,78 @@ def get_share_group_events(request, share_group_id):
         try:
             group_data = GroupCalendarData.objects.get(share_group_id=share_group_id)
         except GroupCalendarData.DoesNotExist:
-            # 如果不存在，返回空数据
+            # 如果不存在，返回空数据（包含成员信息）
+            members = GroupMembership.objects.filter(share_group_id=share_group_id).select_related('user')
+            members_data = []
+            for membership in members:
+                members_data.append({
+                    'user_id': membership.user.id,
+                    'username': membership.user.username,
+                    'member_color': membership.member_color or '#6c757d'
+                })
+            
             return JsonResponse({
                 'status': 'updated',
                 'version': 0,
                 'events': [],
+                'current_user_id': request.user.id,  # 新增：当前用户ID
+                'members': members_data,  # 新增：成员列表
                 'last_updated': None
             })
         
         # 版本检测
         if group_data.version == local_version:
+            # 即使没有更新，也返回成员信息（用于筛选功能）
+            members = GroupMembership.objects.filter(share_group_id=share_group_id).select_related('user')
+            members_data = []
+            for membership in members:
+                members_data.append({
+                    'user_id': membership.user.id,
+                    'username': membership.user.username,
+                    'member_color': membership.member_color or '#6c757d'
+                })
+            
             return JsonResponse({
                 'status': 'no_update',
-                'version': local_version
+                'version': local_version,
+                'current_user_id': request.user.id,  # 新增：当前用户ID
+                'members': members_data  # 新增：成员列表
+            })
+        
+        # 获取当前用户的所有事件ID（用于标识哪些是自己的事件）
+        user_events_data, created, result = UserData.get_or_initialize(
+            request, new_key="events", data=[]
+        )
+        user_events = user_events_data.get_value() or [] if user_events_data else []
+        user_event_ids = {event.get('id') for event in user_events if isinstance(event, dict)}
+        
+        # 为每个事件添加 owner_id 标识
+        events_with_owner = []
+        for event in group_data.events_data:
+            event_copy = event.copy()
+            # 如果事件ID在当前用户的事件列表中，标记为当前用户的事件
+            if event.get('id') in user_event_ids:
+                event_copy['owner_id'] = request.user.id
+                event_copy['user_id'] = request.user.id
+            events_with_owner.append(event_copy)
+        
+        # 获取群组成员信息（包含颜色）
+        members = GroupMembership.objects.filter(share_group_id=share_group_id).select_related('user')
+        members_data = []
+        for membership in members:
+            members_data.append({
+                'user_id': membership.user.id,
+                'username': membership.user.username,
+                'member_color': membership.member_color or '#6c757d'
             })
         
         # 返回最新数据
         return JsonResponse({
             'status': 'updated',
             'version': group_data.version,
-            'events': group_data.events_data,
+            'events': events_with_owner,  # 使用添加了 owner_id 的事件列表
+            'current_user_id': request.user.id,  # 新增：当前用户ID
+            'members': members_data,  # 新增：成员列表
             'last_updated': group_data.last_updated.isoformat()
         })
         
@@ -438,8 +483,6 @@ def get_share_group_events(request, share_group_id):
         }, status=500)
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def check_group_update(request, share_group_id):
     """
     检查群组是否有更新
@@ -484,6 +527,178 @@ def check_group_update(request, share_group_id):
         return JsonResponse({
             'status': 'error',
             'message': f'检查群组更新失败: {str(e)}'
+        }, status=500)
+
+
+def get_share_group_members(request, share_group_id):
+    """
+    获取群组成员列表
+    
+    GET /api/share-groups/{share_group_id}/members/
+    
+    Response:
+    {
+        "status": "success",
+        "group": {
+            "share_group_id": "share_group_xxx",
+            "name": "工作协作组",
+            "description": "...",
+            "owner_id": 1
+        },
+        "members": [
+            {
+                "user_id": 1,
+                "username": "张三",
+                "role": "owner",
+                "joined_at": "2025-11-11T10:00:00"
+            },
+            {
+                "user_id": 2,
+                "username": "李四",
+                "role": "member",
+                "joined_at": "2025-11-11T11:00:00"
+            }
+        ]
+    }
+    """
+    try:
+        # 检查群组是否存在
+        try:
+            group = CollaborativeCalendarGroup.objects.get(share_group_id=share_group_id)
+        except CollaborativeCalendarGroup.DoesNotExist:
+            return JsonResponse({
+                'status': 'error',
+                'message': '群组不存在'
+            }, status=404)
+        
+        # 检查用户是否是该群组成员
+        if not GroupMembership.objects.filter(
+            share_group=group,
+            user=request.user
+        ).exists():
+            return JsonResponse({
+                'status': 'error',
+                'message': '您不是该群组成员，无权查看'
+            }, status=403)
+        
+        # 获取所有成员
+        memberships = GroupMembership.objects.filter(share_group=group).select_related('user').order_by('joined_at')
+        
+        members = []
+        for membership in memberships:
+            members.append({
+                'user_id': membership.user.id,
+                'username': membership.user.username,
+                'role': membership.role,
+                'member_color': membership.member_color,  # 新增：成员颜色
+                'joined_at': membership.joined_at.isoformat()
+            })
+        
+        return JsonResponse({
+            'status': 'success',
+            'group': {
+                'share_group_id': group.share_group_id,
+                'name': group.share_group_name,
+                'color': group.share_group_color,  # 新增：群组颜色
+                'description': group.share_group_description,
+                'owner_id': group.owner.id,
+                'created_at': group.created_at.isoformat()
+            },
+            'members': members
+        })
+        
+    except Exception as e:
+        logger.error(f"获取群组成员列表失败: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'获取群组成员列表失败: {str(e)}'
+        }, status=500)
+
+
+def update_share_group(request, share_group_id):
+    """
+    更新群组信息（仅群主可操作）
+    
+    PUT /api/share-groups/{share_group_id}/update/
+    Request:
+    {
+        "share_group_name": "新的群组名称",
+        "share_group_color": "#ff0000",
+        "share_group_description": "新的描述"
+    }
+    
+    Response:
+    {
+        "status": "success",
+        "message": "群组信息已更新",
+        "group": {
+            "share_group_id": "share_group_xxx",
+            "share_group_name": "新的群组名称",
+            "share_group_color": "#ff0000",
+            "share_group_description": "新的描述"
+        }
+    }
+    """
+    try:
+        # 检查群组是否存在
+        try:
+            group = CollaborativeCalendarGroup.objects.get(share_group_id=share_group_id)
+        except CollaborativeCalendarGroup.DoesNotExist:
+            return JsonResponse({
+                'status': 'error',
+                'message': '群组不存在'
+            }, status=404)
+        
+        # 检查是否是群主
+        if group.owner != request.user:
+            return JsonResponse({
+                'status': 'error',
+                'message': '只有群主可以修改群组信息'
+            }, status=403)
+        
+        # 解析请求数据
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        
+        logger.info(f"收到的更新数据: {data}")
+        logger.info(f"更新前 - 名称: {group.share_group_name}, 颜色: {group.share_group_color}, 描述: {group.share_group_description}")
+        
+        # 更新群组信息
+        if 'share_group_name' in data:
+            new_name = data['share_group_name'].strip()
+            if new_name:
+                group.share_group_name = new_name
+                logger.info(f"更新名称为: {new_name}")
+        
+        if 'share_group_color' in data:
+            group.share_group_color = data['share_group_color']
+            logger.info(f"更新颜色为: {data['share_group_color']}")
+        
+        if 'share_group_description' in data:
+            group.share_group_description = data['share_group_description']
+            logger.info(f"更新描述为: {data['share_group_description']}")
+        
+        group.save()
+        
+        logger.info(f"保存后 - 名称: {group.share_group_name}, 颜色: {group.share_group_color}, 描述: {group.share_group_description}")
+        logger.info(f"用户 {request.user.username} 更新了群组 {share_group_id} 的信息")
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': '群组信息已更新',
+            'group': {
+                'share_group_id': group.share_group_id,
+                'share_group_name': group.share_group_name,
+                'share_group_color': group.share_group_color,
+                'share_group_description': group.share_group_description,
+                'updated_at': group.updated_at.isoformat() if hasattr(group, 'updated_at') else None
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"更新群组信息失败: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'更新群组信息失败: {str(e)}'
         }, status=500)
 
 
@@ -551,11 +766,12 @@ def sync_group_calendar_data(share_group_ids: List[str], trigger_user=None):
                     
                     logger.info(f"用户 {user.username} 分享了 {len(shared_events)} 个日程到群组 {group_id}")
                     
-                    # 添加 owner 信息和只读标记
+                    # 添加 owner 信息、成员颜色和只读标记
                     for event in shared_events:
                         event_copy = event.copy()
                         event_copy['owner_id'] = user.id
                         event_copy['owner_name'] = user.username
+                        event_copy['owner_color'] = membership.member_color  # 新增：成员颜色
                         event_copy['is_readonly'] = True
                         event_copy['shared_at'] = datetime.datetime.now().isoformat()
                         all_shared_events.append(event_copy)
@@ -583,3 +799,75 @@ def sync_group_calendar_data(share_group_ids: List[str], trigger_user=None):
     except Exception as e:
         logger.error(f"同步群组日历数据失败: {str(e)}")
         raise
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_member_color(request, share_group_id):
+    """
+    更新成员在群组中的个人颜色
+    
+    PUT /api/share-groups/{share_group_id}/update-member-color/
+    Request:
+    {
+        "member_color": "#ff5733"
+    }
+    
+    Response:
+    {
+        "status": "success",
+        "message": "成员颜色已更新",
+        "member_color": "#ff5733"
+    }
+    """
+    try:
+        # 获取群组
+        try:
+            group = CollaborativeCalendarGroup.objects.get(share_group_id=share_group_id)
+        except CollaborativeCalendarGroup.DoesNotExist:
+            return JsonResponse({
+                'status': 'error',
+                'message': '群组不存在'
+            }, status=404)
+        
+        # 获取当前用户的成员关系
+        try:
+            membership = GroupMembership.objects.get(share_group=group, user=request.user)
+        except GroupMembership.DoesNotExist:
+            return JsonResponse({
+                'status': 'error',
+                'message': '您不是该群组成员'
+            }, status=403)
+        
+        # 获取请求数据
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        member_color = data.get('member_color', '#3498db')
+        
+        # 验证颜色格式（简单验证）
+        if not member_color.startswith('#') or len(member_color) not in [4, 7]:
+            return JsonResponse({
+                'status': 'error',
+                'message': '无效的颜色格式，请使用 #RGB 或 #RRGGBB 格式'
+            }, status=400)
+        
+        # 更新成员颜色
+        membership.member_color = member_color
+        membership.save()
+        
+        # 触发群组数据同步（更新所有事件的 owner_color）
+        sync_group_calendar_data([share_group_id], request.user)
+        
+        logger.info(f"用户 {request.user.username} 更新了在群组 {share_group_id} 中的颜色为 {member_color}")
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': '成员颜色已更新',
+            'member_color': member_color
+        })
+        
+    except Exception as e:
+        logger.error(f"更新成员颜色失败: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'更新成员颜色失败: {str(e)}'
+        }, status=500)

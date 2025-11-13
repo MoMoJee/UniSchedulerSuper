@@ -4,6 +4,7 @@ class EventManager {
         this.calendar = null;
         this.events = [];
         this.groups = [];
+        this.isGroupView = false;  // 新增：标记当前是否是群组视图
     }
 
     // 初始化事件管理器
@@ -328,11 +329,30 @@ class EventManager {
             
             // 获取事件数据
             events: (info, successCallback, failureCallback) => {
+                console.log('[EventManager] 初始 events 回调被触发');
+                
+                // 这个回调只在初始化时使用一次，之后由 addEventSource 管理
+                // 如果已经有 my-calendar 事件源，返回空
+                const sources = this.calendar?.getEventSources() || [];
+                const hasMyCalendarSource = sources.some(s => s.id === 'my-calendar');
+                
+                if (hasMyCalendarSource) {
+                    console.log('[EventManager] 已存在 my-calendar 事件源，跳过初始回调');
+                    successCallback([]);
+                    return;
+                }
+                
+                // 初始加载
+                console.log('[EventManager] 执行初始事件加载');
                 this.fetchEvents(info.start, info.end)
                     .then(events => {
+                        console.log(`[EventManager] 初始加载完成，返回 ${events.length} 个事件`);
                         successCallback(events);
                     })
-                    .catch(error => failureCallback(error));
+                    .catch(error => {
+                        console.error('[EventManager] 初始加载失败:', error);
+                        failureCallback(error);
+                    });
             },
             
             // 自定义事件内容渲染（用于修改提醒的时间显示）
@@ -358,6 +378,11 @@ class EventManager {
                 }
                 // 普通事件使用默认渲染
                 return true;
+            },
+            
+            // 事件渲染完成后的钩子，用于自定义样式（成员颜色）
+            eventDidMount: (info) => {
+                this.customizeEventAppearance(info);
             }
         });
         
@@ -552,6 +577,7 @@ class EventManager {
 
     // 获取事件数据
     async fetchEvents(start, end) {
+        console.log('[EventManager] fetchEvents 开始执行');
         try {
             // 获取日程数据
             const response = await fetch('/get_calendar/events/');
@@ -561,10 +587,14 @@ class EventManager {
             this.groups = data.events_groups;
             window.events_groups = this.groups; // 保持兼容性
             
+            console.log(`[EventManager] 获取到 ${data.events.length} 个日程`);
+            
             // 获取提醒数据
             const reminderResponse = await fetch('/api/reminders/');
             const reminderData = await reminderResponse.json();
             const reminders = reminderData.reminders || [];
+            
+            console.log(`[EventManager] 获取到 ${reminders.length} 个提醒`);
             
             // 获取左下角提醒框的所有筛选器设置
             const statusFilter = document.getElementById('reminderStatusFilter')?.value || 'active';
@@ -648,13 +678,25 @@ class EventManager {
                 ...this.events.map(event => ({
                     ...event,
                     backgroundColor: this.getEventColor(event.groupID),
-                    borderColor: this.getEventColor(event.groupID)
+                    borderColor: this.getEventColor(event.groupID),
+                    extendedProps: {
+                        ...(event.extendedProps || {}),
+                        owner_color: event.owner_color,
+                        owner_name: event.owner_name,
+                        is_readonly: event.is_readonly || false,
+                        shared_groups: event.shared_groups || []  // 添加分享群组信息
+                    }
                 })),
                 ...reminderEvents
             ];
             
+            console.log(`[EventManager] 合并后共 ${allEvents.length} 个事件`);
+            
             // 应用日历筛选
             allEvents = this.applyCalendarFilters(allEvents);
+            
+            console.log(`[EventManager] 筛选后剩余 ${allEvents.length} 个事件`);
+            console.log('[EventManager] fetchEvents 执行完成');
             
             return allEvents;
         } catch (error) {
@@ -677,15 +719,56 @@ class EventManager {
             return events;
         }
         
-        console.log('应用日历筛选:', filters);
+        // 检查是否在群组视图
+        const isGroupView = window.shareGroupManager?.state?.currentViewType === 'share-group';
         
-        return events.filter(event => {
+        console.log('[EventManager] 应用筛选:', {
+            totalEvents: events.length,
+            isGroupView,
+            filters: {
+                members: filters.members,
+                quadrants: filters.quadrants,
+                hasDDL: filters.hasDDL,
+                noDDL: filters.noDDL
+            }
+        });
+        
+        const filteredEvents = events.filter(event => {
             // 提醒事件只受 showReminders 控制
             if (event.extendedProps?.isReminder) {
                 return filters.showReminders;
             }
             
-            // 普通事件的筛选逻辑
+            // 群组视图特殊处理
+            if (isGroupView) {
+                // 1. 成员筛选：对所有事件生效（我的+别人的）
+                if (filters.members && filters.members.length > 0) {
+                    const eventUserId = event.user_id || event.owner_id || event.extendedProps?.user_id || event.extendedProps?.owner_id;
+                    
+                    if (eventUserId) {
+                        const isInSelectedMembers = filters.members.includes(parseInt(eventUserId));
+                        if (!isInSelectedMembers) {
+                            console.log('[筛选] 过滤事件（不在选中成员）:', {
+                                title: event.title,
+                                userId: eventUserId,
+                                selectedMembers: filters.members
+                            });
+                            return false;  // 不在选中成员列表中，过滤掉
+                        }
+                    }
+                }
+                
+                // 2. 其他筛选：只对我的日程生效
+                const isMyEvent = event.extendedProps?.isMyEvent;
+                if (!isMyEvent) {
+                    // 不是我的事件，直接显示（不应用其他筛选）
+                    return true;
+                }
+                
+                // 是我的事件，继续应用其他筛选...
+            }
+            
+            // 普通事件的筛选逻辑（或群组中"我的事件"）
             
             // 1. 检查象限筛选（重要性 + 紧急性）
             const quadrant = this.getEventQuadrant(event.importance, event.urgency);
@@ -736,6 +819,14 @@ class EventManager {
             
             return true;
         });
+        
+        console.log('[EventManager] 筛选完成:', {
+            原始事件数: events.length,
+            筛选后事件数: filteredEvents.length,
+            被过滤掉: events.length - filteredEvents.length
+        });
+        
+        return filteredEvents;
     }
     
     /**
@@ -897,6 +988,7 @@ class EventManager {
             event.extendedProps.urgency,
             event.extendedProps.groupID,
             event.extendedProps.ddl,
+            event.extendedProps.shared_to_groups || [],  // 【修复】传递群组信息
             isRecurring && seriesId ? 'single' : undefined
         );
         
@@ -909,7 +1001,7 @@ class EventManager {
     /**
      * 更新事件（拖拽专用，包含 rrule_change_scope 参数）
      */
-    async updateEventDrag(eventId, newStart, newEnd, title, description, importance, urgency, groupID, ddl, rruleChangeScope = 'single') {
+    async updateEventDrag(eventId, newStart, newEnd, title, description, importance, urgency, groupID, ddl, shared_to_groups = [], rruleChangeScope = 'single') {
         try {
             // 构建事件数据
             const eventData = {
@@ -922,6 +1014,7 @@ class EventManager {
                 urgency: urgency,
                 groupID: groupID,
                 ddl: ddl,
+                shared_to_groups: shared_to_groups,  // 【修复】添加群组信息
                 rrule_change_scope: rruleChangeScope
             };
 
@@ -955,7 +1048,7 @@ class EventManager {
     }
 
     // 更新事件
-    async updateEvent(eventId, newStart, newEnd, title, description, importance, urgency, groupID, ddl, rrule = '') {
+    async updateEvent(eventId, newStart, newEnd, title, description, importance, urgency, groupID, ddl, rrule = '', shared_to_groups = []) {
         try {
             // 构建事件数据 - 使用后端期望的字段名
             const eventData = {
@@ -968,7 +1061,8 @@ class EventManager {
                 urgency: urgency,
                 groupID: groupID,           // 后端期望 groupID
                 ddl: ddl,
-                rrule: rrule
+                rrule: rrule,
+                shared_to_groups: shared_to_groups  // 新增
             };
 
             console.log('Updating event with data:', eventData);
@@ -1155,7 +1249,39 @@ class EventManager {
 
     // 刷新日历
     refreshCalendar() {
-        this.calendar.refetchEvents();
+        console.log('[EventManager] refreshCalendar 被调用, isGroupView:', this.isGroupView);
+        
+        // 如果是群组视图，由 shareGroupManager 处理刷新
+        if (this.isGroupView && window.shareGroupManager) {
+            console.log('[EventManager] 群组视图模式，委托给 shareGroupManager 刷新');
+            const currentGroupId = window.shareGroupManager.state.currentGroupId;
+            if (currentGroupId) {
+                window.shareGroupManager.loadGroupCalendar(currentGroupId);
+            }
+            return;
+        }
+        
+        // 我的日历视图
+        console.log('[EventManager] 我的日历模式，触发 refetchEvents');
+        
+        // 检查是否有 my-calendar 事件源
+        const sources = this.calendar.getEventSources();
+        const myCalendarSource = sources.find(s => s.id === 'my-calendar');
+        
+        if (myCalendarSource) {
+            // 如果有 my-calendar 事件源，直接刷新
+            console.log('[EventManager] 找到 my-calendar 事件源，刷新');
+            this.calendar.refetchEvents();
+        } else {
+            // 如果没有事件源，重新加载（可能是初始状态）
+            console.log('[EventManager] 未找到 my-calendar 事件源，使用 shareGroupManager 重新加载');
+            if (window.shareGroupManager) {
+                window.shareGroupManager.loadMyCalendar();
+            } else {
+                // 兜底：使用原始的 refetchEvents
+                this.calendar.refetchEvents();
+            }
+        }
     }
 
     // 检查是否是重复事件，显示编辑范围选择器
@@ -1170,6 +1296,7 @@ class EventManager {
         }
         
         const eventData = eventInfo.extendedProps || {};
+        const isMyEvent = eventData.isMyEvent !== false; // 默认为true（我的事件）
         
         // 设置标题
         const titleElement = document.getElementById('eventDetailTitle');
@@ -1201,19 +1328,38 @@ class EventManager {
             }
         }
         
-        // 设置日程组（仅在有时显示）
+        // 设置归属信息（仅对不是自己的事件显示）
+        const ownerElement = document.getElementById('eventDetailOwner');
+        const ownerRow = document.getElementById('eventDetailOwnerRow');
+        if (!isMyEvent && ownerRow && ownerElement) {
+            // 显示归属用户信息
+            const ownerName = eventData.owner_username || eventData.ownerUsername || '其他用户';
+            ownerElement.innerHTML = `<i class="fas fa-user me-2"></i>${ownerName}`;
+            ownerRow.style.display = 'flex';
+        } else if (ownerRow) {
+            ownerRow.style.display = 'none';
+        }
+        
+        // 设置日程组（仅对自己的事件且有日程组时显示）
         const groupElement = document.getElementById('eventDetailGroup');
         const groupRow = document.getElementById('eventDetailGroupRow');
-        if (eventData.groupID && window.groupManager) {
+        if (isMyEvent && eventData.groupID && window.groupManager) {
             const group = window.groupManager.getGroupById(eventData.groupID);
             if (group && groupElement && groupRow) {
                 groupElement.textContent = group.name;
                 groupElement.style.color = group.color;
                 groupElement.style.fontWeight = '600';
                 groupRow.style.display = 'flex';
+            } else if (groupRow) {
+                groupRow.style.display = 'none';
             }
         } else if (groupRow) {
+            // 不是自己的事件或没有日程组，隐藏
             groupRow.style.display = 'none';
+            // 清除可能残留的内容
+            if (groupElement) {
+                groupElement.textContent = '';
+            }
         }
         
         // 设置优先级（重要性/紧急性）
@@ -1268,13 +1414,20 @@ class EventManager {
             rruleRow.style.display = 'none';
         }
         
-        // 设置编辑按钮
+        // 设置编辑按钮（只对自己的事件显示）
         const editBtn = document.getElementById('eventDetailEditBtn');
         if (editBtn) {
-            editBtn.onclick = () => {
-                this.closeEventDetailModal();
-                this.handleEventEdit(eventInfo);
-            };
+            if (isMyEvent) {
+                // 自己的事件：显示编辑按钮
+                editBtn.style.display = 'inline-block';
+                editBtn.onclick = () => {
+                    this.closeEventDetailModal();
+                    this.handleEventEdit(eventInfo);
+                };
+            } else {
+                // 他人的事件：隐藏编辑按钮
+                editBtn.style.display = 'none';
+            }
         }
         
         // 显示模态框
@@ -1284,7 +1437,7 @@ class EventManager {
         });
         document.body.style.overflow = 'hidden';
         
-        console.log('Event detail modal opened');
+        console.log('Event detail modal opened, isMyEvent:', isMyEvent);
     }
     
     // 关闭事件详情模态框
@@ -2684,7 +2837,8 @@ class EventManager {
                     end: updateData.end,
                     rrule: updateData.rrule,
                     groupID: updateData.groupID,
-                    ddl: updateData.ddl
+                    ddl: updateData.ddl,
+                    shared_to_groups: updateData.shared_to_groups || []  // 新增：群组分享
                 })
             });
             
@@ -2849,6 +3003,35 @@ class EventManager {
         
         // 提醒筛选
         document.getElementById('filter-show-reminders').checked = filters.showReminders;
+        
+        // 成员筛选（恢复选中状态）
+        this.loadMemberFiltersToUI(filters);
+    }
+    
+    /**
+     * 恢复成员筛选状态到UI
+     */
+    loadMemberFiltersToUI(filters) {
+        const memberFilterList = document.getElementById('memberFilterList');
+        if (!memberFilterList || memberFilterList.parentElement.style.display === 'none') {
+            return;  // 成员筛选区域不可见，跳过
+        }
+        
+        const selectedMembers = filters?.members || [];
+        const allCheckboxes = memberFilterList.querySelectorAll('input[type="checkbox"]');
+        
+        if (selectedMembers.length === 0) {
+            // 如果没有保存的筛选，默认全选
+            allCheckboxes.forEach(cb => cb.checked = true);
+        } else {
+            // 恢复保存的筛选状态
+            allCheckboxes.forEach(cb => {
+                const userId = parseInt(cb.value);
+                cb.checked = selectedMembers.includes(userId);
+            });
+        }
+        
+        console.log('[EventManager] 恢复成员筛选状态:', selectedMembers);
     }
     
     /**
@@ -2929,6 +3112,30 @@ class EventManager {
             filters.groups = [];
         }
         
+        // 收集选中的成员（仅在群组视图下）
+        filters.members = [];
+        const memberFilterList = document.getElementById('memberFilterList');
+        if (memberFilterList && memberFilterList.parentElement.style.display !== 'none') {
+            const memberCheckboxes = memberFilterList.querySelectorAll('input[type="checkbox"]:checked');
+            memberCheckboxes.forEach(cb => {
+                filters.members.push(parseInt(cb.value));
+            });
+            
+            // 如果所有成员都选中，则清空数组（表示显示所有）
+            const allMemberCheckboxes = memberFilterList.querySelectorAll('input[type="checkbox"]');
+            if (memberCheckboxes.length === allMemberCheckboxes.length) {
+                filters.members = [];
+            }
+            
+            console.log('[EventManager] 应用成员筛选:', {
+                selectedCount: memberCheckboxes.length,
+                totalCount: allMemberCheckboxes.length,
+                memberIds: filters.members
+            });
+        }
+        
+        console.log('[EventManager] 保存筛选配置:', filters);
+        
         // 更新设置
         window.settingsManager.updateCategorySettings('calendarFilters', filters);
         
@@ -2955,7 +3162,8 @@ class EventManager {
             isRecurring: true,
             notRecurring: true,
             showReminders: true,
-            groups: []
+            groups: [],
+            members: []
         };
         
         // 更新设置
@@ -2965,8 +3173,257 @@ class EventManager {
         this.loadFiltersToUI();
         this.updateGroupFilterList();
         
+        // 重置成员筛选（全选）
+        const memberCheckboxes = document.querySelectorAll('#memberFilterList input[type="checkbox"]');
+        memberCheckboxes.forEach(cb => cb.checked = true);
+        
         // 刷新日历
         this.refreshCalendar();
+    }
+
+    /**
+     * 自定义事件外观（成员颜色）
+     * @param {Object} info - FullCalendar 事件信息对象
+     */
+    customizeEventAppearance(info) {
+        const event = info.event;
+        const el = info.el;
+        const view = info.view;
+        
+        // 提醒事件不做处理
+        if (event.extendedProps.isReminder) {
+            return;
+        }
+        
+        // 在"我的日程"视图中，为被分享的日程添加彩色小圆点
+        if (!event.extendedProps.isGroupView) {
+            this.addSharedGroupDots(el, event, view.type);
+        }
+        
+        // 只在群组视图中应用成员颜色
+        if (!event.extendedProps.isGroupView) {
+            return;
+        }
+        
+        // 获取当前视图类型
+        const viewType = view.type;
+        
+        // 获取事件的扩展属性
+        const isMyEvent = event.extendedProps.isMyEvent || false;  // 使用已设置的 isMyEvent
+        const ownerColor = event.extendedProps.owner_color;
+        // 优先从 extendedProps 获取 groupColor，其次从 backgroundColor 获取
+        const groupColor = event.extendedProps.groupColor || event.backgroundColor;
+        
+        // 调试信息
+        console.log('[EventManager] 自定义事件外观:', {
+            title: event.title,
+            isMyEvent: isMyEvent,
+            ownerColor: ownerColor,
+            groupColor: groupColor,
+            backgroundColor: event.backgroundColor,
+            editable: event.editable
+        });
+        
+        // 根据视图类型应用不同的样式
+        if (viewType === 'timeGridWeek' || viewType === 'timeGridDay' || viewType === 'timeGridTwoDay') {
+            // 周视图/日视图/2日视图：使用分色或斜杠线
+            this.applyTimeGridStyle(el, isMyEvent, groupColor, ownerColor);
+        } else if (viewType === 'dayGridMonth') {
+            // 月视图：添加颜色标记
+            this.applyMonthViewStyle(el, isMyEvent, groupColor, ownerColor);
+        } else if (viewType === 'listWeek') {
+            // 列表视图：添加颜色标记
+            this.applyListViewStyle(el, isMyEvent, groupColor, ownerColor);
+        }
+    }
+
+    /**
+     * 周视图/日视图样式
+     */
+    applyTimeGridStyle(el, isMyEvent, groupColor, ownerColor) {
+        console.log('[applyTimeGridStyle] 调用参数:', {
+            isMyEvent,
+            groupColor,
+            ownerColor,
+            element: el.className
+        });
+        
+        if (isMyEvent) {
+            // 自己的日程：左右分色
+            if (ownerColor && groupColor && groupColor !== ownerColor) {
+                // 使用 background 属性（包含所有背景相关属性）
+                const gradient = `linear-gradient(90deg, ${groupColor} 50%, ${ownerColor} 50%)`;
+                
+                // 先清除所有背景相关样式
+                el.style.removeProperty('background-color');
+                el.style.removeProperty('background-image');
+                
+                // 使用 background 简写属性并强制覆盖
+                el.style.setProperty('background', gradient, 'important');
+                el.style.setProperty('border-color', groupColor, 'important');
+                
+                console.log('[applyTimeGridStyle] ✅ 应用自己日程左右分色:', {
+                    gradient,
+                    actualBg: el.style.background
+                });
+            } else {
+                console.log('[applyTimeGridStyle] ⚠️ 颜色相同或无成员颜色，保持原样');
+            }
+        } else {
+            // 他人的日程：成员颜色底色 + 半透明白色斜杠滤镜
+            if (ownerColor) {
+                // 先设置纯色背景
+                el.style.setProperty('background-color', ownerColor, 'important');
+                
+                // 再在上面叠加半透明白色斜杠图案
+                const stripePattern = `repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 5px,
+                    rgba(255, 255, 255, 0.4) 5px,
+                    rgba(255, 255, 255, 0.4) 10px
+                )`;
+                
+                el.style.setProperty('background-image', stripePattern, 'important');
+                el.style.setProperty('border-color', ownerColor, 'important');
+                
+                // 添加特殊类标识
+                el.classList.add('readonly-event');
+                
+                console.log('[applyTimeGridStyle] ✅ 应用他人日程样式:', {
+                    bgColor: ownerColor,
+                    actualBgColor: el.style.backgroundColor,
+                    actualBgImage: el.style.backgroundImage
+                });
+            }
+        }
+    }
+
+    /**
+     * 月视图样式
+     */
+    applyMonthViewStyle(el, isMyEvent, groupColor, ownerColor) {
+        if (!isMyEvent && ownerColor) {
+            // 他人的日程：使用成员颜色，添加图标标识
+            el.style.setProperty('background-color', ownerColor, 'important');
+            el.style.setProperty('border-color', ownerColor, 'important');
+            
+            // 在标题前添加一个小图标
+            const titleEl = el.querySelector('.fc-event-title');
+            if (titleEl && !titleEl.querySelector('.owner-indicator')) {
+                const indicator = document.createElement('span');
+                indicator.className = 'owner-indicator';
+                indicator.innerHTML = '👤 ';
+                indicator.style.opacity = '0.7';
+                titleEl.insertBefore(indicator, titleEl.firstChild);
+            }
+        } else if (isMyEvent && ownerColor && groupColor !== ownerColor) {
+            // 自己的日程：显示双色边框
+            el.style.setProperty('border-left', `4px solid ${groupColor}`, 'important');
+            el.style.setProperty('border-right', `4px solid ${ownerColor}`, 'important');
+            el.style.setProperty('background-color', groupColor, 'important');
+        }
+    }
+
+    /**
+     * 列表视图样式
+     */
+    applyListViewStyle(el, isMyEvent, groupColor, ownerColor) {
+        // 在列表视图中添加颜色圆点
+        if (!el.querySelector('.event-color-dot')) {
+            const dotContainer = document.createElement('span');
+            dotContainer.className = 'event-color-dots';
+            dotContainer.style.marginRight = '8px';
+            
+            if (isMyEvent && ownerColor && groupColor !== ownerColor) {
+                // 自己的日程：显示两个圆点
+                dotContainer.innerHTML = `
+                    <span class="event-color-dot" style="background-color: ${groupColor}; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 2px;"></span>
+                    <span class="event-color-dot" style="background-color: ${ownerColor}; display: inline-block; width: 10px; height: 10px; border-radius: 50%;"></span>
+                `;
+            } else if (!isMyEvent && ownerColor) {
+                // 他人的日程：显示成员颜色圆点 + 图标
+                dotContainer.innerHTML = `
+                    <span class="event-color-dot" style="background-color: ${ownerColor}; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px;"></span>
+                    <span style="opacity: 0.7;">👤</span>
+                `;
+            } else {
+                // 只有日程组颜色
+                dotContainer.innerHTML = `
+                    <span class="event-color-dot" style="background-color: ${groupColor}; display: inline-block; width: 10px; height: 10px; border-radius: 50%;"></span>
+                `;
+            }
+            
+            // 插入到事件标题前
+            const titleEl = el.querySelector('.fc-list-event-title');
+            if (titleEl) {
+                titleEl.insertBefore(dotContainer, titleEl.firstChild);
+            }
+        }
+    }
+
+    /**
+     * 为被分享的日程添加彩色小圆点
+     * @param {HTMLElement} el - 事件元素
+     * @param {Object} event - 事件对象
+     * @param {string} viewType - 视图类型
+     */
+    addSharedGroupDots(el, event, viewType) {
+        // 获取分享群组信息
+        const sharedGroups = event.extendedProps?.shared_groups || [];
+        
+        if (sharedGroups.length === 0) {
+            return;  // 没有分享，不添加圆点
+        }
+        
+        console.log('[addSharedGroupDots] 事件被分享到群组:', {
+            title: event.title,
+            groups: sharedGroups
+        });
+        
+        // 创建圆点容器
+        const dotsContainer = document.createElement('div');
+        dotsContainer.className = 'shared-group-dots';
+        dotsContainer.style.cssText = 'position: absolute; top: 2px; right: 2px; display: flex; gap: 2px; z-index: 10;';
+        
+        // 为每个群组添加一个彩色圆点
+        sharedGroups.forEach(group => {
+            const dot = document.createElement('span');
+            dot.className = 'shared-group-dot';
+            dot.style.cssText = `
+                display: inline-block;
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background-color: ${group.share_group_color || '#3498db'};
+                box-shadow: 0 0 2px rgba(0,0,0,0.3);
+            `;
+            dot.title = `已分享到: ${group.share_group_name}`;
+            dotsContainer.appendChild(dot);
+        });
+        
+        // 根据视图类型选择插入位置
+        if (viewType === 'timeGridWeek' || viewType === 'timeGridDay' || viewType === 'timeGridTwoDay') {
+            // 周视图/日视图：添加到事件元素右上角
+            // ⚠️ 不要修改 el 的 position 属性，避免影响 FullCalendar 的高度计算
+            // FullCalendar 的时间轴事件已经是定位容器，直接添加绝对定位的圆点即可
+            el.appendChild(dotsContainer);
+        } else if (viewType === 'dayGridMonth') {
+            // 月视图：添加到事件元素右上角
+            // FullCalendar 的月视图事件也是定位容器
+            el.appendChild(dotsContainer);
+        } else if (viewType === 'listWeek') {
+            // 列表视图：添加到标题前
+            dotsContainer.style.position = 'static';
+            dotsContainer.style.display = 'inline-flex';
+            dotsContainer.style.marginRight = '6px';
+            dotsContainer.style.verticalAlign = 'middle';
+            
+            const titleEl = el.querySelector('.fc-list-event-title');
+            if (titleEl) {
+                titleEl.insertBefore(dotsContainer, titleEl.firstChild);
+            }
+        }
     }
 }
 

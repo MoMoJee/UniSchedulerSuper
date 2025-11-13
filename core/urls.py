@@ -82,8 +82,11 @@ urlpatterns = [
     path('api/share-groups/join/', views_share_groups.join_share_group, name='join_share_group'),
     path('api/share-groups/<str:share_group_id>/leave/', views_share_groups.leave_share_group, name='leave_share_group'),
     path('api/share-groups/<str:share_group_id>/delete/', views_share_groups.delete_share_group, name='delete_share_group'),
+    path('api/share-groups/<str:share_group_id>/update/', views_share_groups.update_share_group, name='update_share_group'),
     path('api/share-groups/<str:share_group_id>/events/', views_share_groups.get_share_group_events, name='get_share_group_events'),
     path('api/share-groups/<str:share_group_id>/check-update/', views_share_groups.check_group_update, name='check_group_update'),
+    path('api/share-groups/<str:share_group_id>/members/', views_share_groups.get_share_group_members, name='get_share_group_members'),
+    path('api/share-groups/<str:share_group_id>/update-member-color/', views_share_groups.update_member_color, name='update_member_color'),
     
     # Other
     path("friendly_link/", views.friendly_link, name="friendly_link"),

@@ -134,11 +134,13 @@ DATA_SCHEMA = {
                 "type": list,
                 "nullable": False,
                 "default": [],
+                "items_type": str,  # 列表中的元素是字符串类型（reminder ID）
             },
             "tags": {
                 "type": list,
                 "nullable": False,
                 "default": [],
+                "items_type": str,  # 列表中的元素是字符串类型（标签）
             },
             "location": {
                 "type": str,
@@ -155,6 +157,7 @@ DATA_SCHEMA = {
                 "type": list,
                 "nullable": False,
                 "default": [],
+                "items_type": str,  # 列表中的元素是字符串类型
                 "description": "该日程分享到的群组列表，存储 share_group_id"
             },
         },
@@ -1323,6 +1326,21 @@ class UserData(models.Model):
         if schema.get("type") == list:
             if not isinstance(data, list):
                 return schema.get("default", [])
+            
+            # 检查列表元素是否为简单类型（如字符串列表）
+            items_type = schema.get("items_type")
+            if items_type:
+                # 简单类型列表（如字符串列表）
+                validated_list = []
+                for item in data:
+                    if isinstance(item, items_type):
+                        validated_list.append(item)
+                    elif item is None and schema.get("nullable"):
+                        validated_list.append(item)
+                    # 跳过类型不匹配的元素
+                return validated_list
+            
+            # 字典列表（原有逻辑）
             validated_list = []
             for item in data:
                 if not isinstance(item, dict):
@@ -1480,6 +1498,7 @@ class GroupMembership(models.Model):
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='成员用户')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='member', verbose_name='角色')
+    member_color = models.CharField(max_length=20, default='#3498db', verbose_name='成员个人颜色')
     joined_at = models.DateTimeField(auto_now_add=True, verbose_name='加入时间')
     
     class Meta:

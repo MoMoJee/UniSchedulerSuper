@@ -5717,6 +5717,135 @@ select[multiple] option:hover {
     background: rgba(255, 255, 255, 0.1);
 }
 
+/* ============================================
+   群组成员颜色样式
+   ============================================ */
+
+/* 他人日程的只读标识 */
+.fc-event.readonly-event {
+    opacity: 0.85;
+}
+
+.fc-event.readonly-event:hover {
+    opacity: 1;
+}
+
+/* 月视图中的成员标识 */
+.fc-daygrid-event .owner-indicator {
+    font-size: 0.9em;
+    margin-right: 2px;
+}
+
+/* 列表视图中的颜色圆点容器 */
+.event-color-dots {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+}
+
+/* 确保事件可以显示背景图片（斜杠线） */
+.fc-event {
+    background-size: auto !important;
+    background-origin: border-box !important;
+}
+
+/* 优化周视图/日视图中的渐变效果 */
+.fc-timegrid-event {
+    overflow: hidden;
+}
+
+/* 确保周视图事件的背景能正确显示 */
+.fc-timegrid-event-harness .fc-event {
+    /* 允许背景渐变和背景图案正确显示 */
+    background-clip: padding-box !important;
+}
+
+/* 优化事件标题的可读性（在渐变背景上） */
+.fc-event-title {
+    text-shadow: 0 0 3px rgba(0, 0, 0, 0.3), 0 0 5px rgba(255, 255, 255, 0.3);
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
+}
+
+/* 暗色主题下的调整 */
+[data-theme="dark"] .fc-event-title {
+    text-shadow: 0 0 3px rgba(0, 0, 0, 0.5), 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+[data-theme="dark"] .fc-event.readonly-event {
+    opacity: 0.9;
+}
+
+/* ============================================
+   分享群组圆点样式
+   ============================================ */
+
+/* 分享圆点容器 */
+.shared-group-dots {
+    pointer-events: none;  /* 不阻止事件点击 */
+}
+
+/* 单个分享圆点 */
+.shared-group-dot {
+    cursor: help;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.shared-group-dot:hover {
+    transform: scale(1.2);
+    box-shadow: 0 0 4px rgba(0,0,0,0.4) !important;
+}
+
+/* 周视图/日视图中的圆点定位 */
+.fc-timegrid-event .shared-group-dots {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    pointer-events: all;  /* 允许悬停查看群组名称 */
+    z-index: 10;  /* 确保圆点在最上层 */
+}
+
+/* 月视图中的圆点定位 */
+.fc-daygrid-event .shared-group-dots {
+    position: absolute;
+    top: 1px;
+    right: 2px;
+    pointer-events: all;
+    z-index: 10;
+}
+
+/* 列表视图中的圆点样式 */
+.fc-list-event .shared-group-dots {
+    display: inline-flex;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+/* 暗色主题下的圆点增强对比度 */
+[data-theme="dark"] .shared-group-dot {
+    box-shadow: 0 0 3px rgba(255,255,255,0.3), 0 0 2px rgba(0,0,0,0.5);
+}
+
+[data-theme="dark"] .shared-group-dot:hover {
+    box-shadow: 0 0 6px rgba(255,255,255,0.5), 0 0 4px rgba(0,0,0,0.7) !important;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -36,7 +36,7 @@ def get_django_request(request):
     return request
 
 
-def _sync_groups_after_edit(events: List[Dict], series_id: str, user):
+def _sync_groups_after_edit(events: List[Dict], series_id: str, user, deleted_event_groups: set = None):
     """
     编辑事件后同步群组数据的辅助函数
     
@@ -44,10 +44,16 @@ def _sync_groups_after_edit(events: List[Dict], series_id: str, user):
         events: 所有事件列表
         series_id: 受影响的系列ID（可能为空）
         user: 触发编辑的用户
+        deleted_event_groups: 被删除事件的群组集合（可选）
     """
     try:
         # 收集所有受影响的群组ID
         affected_groups = set()
+        
+        # 如果传入了被删除事件的群组，先添加这些
+        if deleted_event_groups:
+            affected_groups.update(deleted_event_groups)
+            logger.info(f"[SYNC] 收集到被删除事件的群组: {deleted_event_groups}")
         
         # 如果有 series_id，检查该系列的所有事件
         if series_id:
@@ -71,7 +77,6 @@ def _sync_groups_after_edit(events: List[Dict], series_id: str, user):
             
     except Exception as e:
         logger.error(f"同步群组数据失败: {str(e)}")
-        # 不影响事件编辑，继续执行
 
 
 class EventsRRuleManager(IntegratedReminderManager):
@@ -1088,6 +1093,9 @@ class EventsRRuleManager(IntegratedReminderManager):
             new_main_event = template_event.copy()
             new_end_time = new_start_time + (datetime.datetime.fromisoformat(template_event['end']) - datetime.datetime.fromisoformat(template_event['start']))
             
+            # 【关键修复】保存原有的 shared_to_groups（从template_event继承）
+            original_shared_groups = template_event.get('shared_to_groups', [])
+            
             new_main_event.update({
                 'id': str(uuid.uuid4()),
                 'series_id': new_series_id,
@@ -1096,7 +1104,9 @@ class EventsRRuleManager(IntegratedReminderManager):
                 'end': new_end_time.strftime("%Y-%m-%dT%H:%M:%S"),
                 'is_main_event': True,
                 'is_recurring': True,
-                'last_modified': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                'last_modified': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                # 【关键修复】确保继承 shared_to_groups
+                'shared_to_groups': original_shared_groups
             })
             
             if additional_updates:
@@ -1104,6 +1114,10 @@ class EventsRRuleManager(IntegratedReminderManager):
                 filtered_updates = {k: v for k, v in additional_updates.items() 
                                   if k not in ['start', 'end', 'rrule', 'ddl']}
                 new_main_event.update(filtered_updates)
+                
+                # 【关键修复】如果 additional_updates 中没有 shared_to_groups，使用原有的
+                if 'shared_to_groups' not in filtered_updates:
+                    new_main_event['shared_to_groups'] = original_shared_groups
                 
                 # 特殊处理ddl：如果有ddl更新，需要使用新的end日期
                 if 'ddl' in additional_updates:
@@ -1249,6 +1263,36 @@ def get_events_impl(request):
         if not events_groups:
             events_groups = []
 
+        # 添加分享信息：标记哪些事件被分享到了哪些群组
+        # 导入必要的模型
+        from .models import GroupCalendarData, GroupMembership
+        
+        # 获取用户所属的所有群组
+        user_memberships = GroupMembership.objects.filter(user=django_request.user).select_related('share_group')
+        
+        # 为每个事件添加 shared_groups 字段
+        for event in processed_events:
+            event_id = event.get('id')
+            shared_groups = []
+            
+            # 检查每个群组是否包含此事件
+            for membership in user_memberships:
+                try:
+                    group_data = GroupCalendarData.objects.get(share_group=membership.share_group)
+                    # 检查事件ID是否在群组的事件列表中
+                    for group_event in group_data.events_data:
+                        if group_event.get('id') == event_id:
+                            shared_groups.append({
+                                'share_group_id': membership.share_group.share_group_id,
+                                'share_group_name': membership.share_group.share_group_name,
+                                'share_group_color': membership.share_group.share_group_color
+                            })
+                            break
+                except GroupCalendarData.DoesNotExist:
+                    continue
+            
+            event['shared_groups'] = shared_groups
+        
         # 返回事件和日程组数据
         return JsonResponse({"events": processed_events, "events_groups": events_groups})
     
@@ -1277,7 +1321,11 @@ def create_event_impl(request):
             'importance': data.get('importance'),
             'urgency': data.get('urgency'),
             'groupID': data.get('groupID'),
+            'shared_to_groups': data.get('shared_to_groups', []),  # 新增：分享到的群组列表
         }
+        
+        logger.info(f"[DEBUG] create_event_impl - received shared_to_groups: {data.get('shared_to_groups', [])}")
+        logger.info(f"[DEBUG] create_event_impl - event_data: {event_data}")
         
         # 获取用户偏好设置
         user_preference_data, created, result = UserData.get_or_initialize(
@@ -1309,6 +1357,7 @@ def create_event_impl(request):
             main_event = manager.create_recurring_event(event_data, rrule)
             
             logger.info(f"[DEBUG] main_event returned from create_recurring_event: {main_event}")
+            logger.info(f"[DEBUG] main_event 的 shared_to_groups: {main_event.get('shared_to_groups', 'NOT FOUND')}")
             
             # 将主事件保存到events数据中
             user_events_data, created, result = UserData.get_or_initialize(
@@ -1363,6 +1412,9 @@ def create_event_impl(request):
             event_data['id'] = str(uuid.uuid4())
             event_data['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
+            logger.info(f"[DEBUG] 单次事件 event_data 准备保存: {event_data}")
+            logger.info(f"[DEBUG] 其中 shared_to_groups = {event_data.get('shared_to_groups', 'NOT FOUND')}")
+            
             # 保存到events数据中
             user_events_data, created, result = UserData.get_or_initialize(
                 django_request, new_key="events", data=[]
@@ -1376,6 +1428,9 @@ def create_event_impl(request):
             
             events.append(event_data)
             user_events_data.set_value(events)
+            
+            logger.info(f"[DEBUG] 保存后，events 数组中的最后一个事件: {events[-1]}")
+            logger.info(f"[DEBUG] 最后一个事件的 shared_to_groups: {events[-1].get('shared_to_groups', 'NOT FOUND')}")
             
             main_event = event_data
         
@@ -1578,6 +1633,7 @@ def bulk_edit_events_impl(request):
             'rrule': data.get('rrule'),
             'groupID': data.get('groupID'),
             'ddl': data.get('ddl'),
+            'shared_to_groups': data.get('shared_to_groups'),  # 新增：群组分享
         }
         # 过滤掉None值和空字符串（title/description/ddl/rrule/importance/urgency除外，它们允许为空）
         # ddl允许为空表示清除截止时间
@@ -1587,6 +1643,7 @@ def bulk_edit_events_impl(request):
                    if v is not None and (v != '' or k in ['title', 'description', 'ddl', 'rrule', 'importance', 'urgency'])}
         
         logger.info(f"Bulk edit events - Operation: {operation}, Scope: {edit_scope}, Event ID: {event_id}, Series ID: {series_id}")
+        logger.info(f"[DEBUG] shared_to_groups from request: {data.get('shared_to_groups')}")
         logger.info(f"[DEBUG] groupID from request: {data.get('groupID')}, type: {type(data.get('groupID'))}")
         logger.info(f"[DEBUG] ddl from request: {data.get('ddl')}, type: {type(data.get('ddl'))}")
         logger.info(f"[DEBUG] Filtered updates: {updates}")
@@ -1632,6 +1689,29 @@ def bulk_edit_events_impl(request):
         logger.info(f"[DEBUG] Final series_id to use: {series_id}")
         
         if operation == 'delete':
+            # 【关键修复】在删除前先收集受影响的群组
+            affected_groups_before_delete = set()
+            target_event_for_deletion = None
+            
+            for event in events:
+                if event.get('id') == event_id:
+                    target_event_for_deletion = event
+                    # 收集被删除事件分享的群组
+                    event_shared_groups = event.get('shared_to_groups', [])
+                    if event_shared_groups:
+                        affected_groups_before_delete.update(event_shared_groups)
+                        logger.info(f"[DELETE_SYNC] 收集到被删除事件 {event_id} 的群组: {event_shared_groups}")
+                    break
+            
+            # 如果是删除系列，收集该系列所有事件的群组
+            if edit_scope in ['all', 'future', 'from_time'] and series_id:
+                for event in events:
+                    if event.get('series_id') == series_id:
+                        event_shared_groups = event.get('shared_to_groups', [])
+                        if event_shared_groups:
+                            affected_groups_before_delete.update(event_shared_groups)
+                logger.info(f"[DELETE_SYNC] 收集到系列 {series_id} 的群组: {affected_groups_before_delete}")
+            
             if edit_scope == 'single':
                 # 删除单个实例，使用EXDATE机制
                 # 找到目标事件的时间
@@ -1766,6 +1846,16 @@ def bulk_edit_events_impl(request):
                 
                 # 直接保存，不调用process_event_data避免自动生成
                 user_events_data.set_value(updated_events)
+                
+                # 【关键修复】删除后同步群组
+                if affected_groups_before_delete:
+                    try:
+                        from .views_share_groups import sync_group_calendar_data
+                        sync_group_calendar_data(list(affected_groups_before_delete), request.user)
+                        logger.info(f"[DELETE_SYNC] 删除单个事件后同步群组: {affected_groups_before_delete}")
+                    except Exception as sync_error:
+                        logger.error(f"[DELETE_SYNC] 同步群组失败: {sync_error}")
+                
                 return JsonResponse({'status': 'success'})
                 
             elif edit_scope in ['all', 'future', 'from_time']:
@@ -1784,6 +1874,16 @@ def bulk_edit_events_impl(request):
                     
                     # 直接保存，不调用process_event_data避免自动生成
                     user_events_data.set_value(updated_events)
+                    
+                    # 【关键修复】删除后同步群组
+                    if affected_groups_before_delete:
+                        try:
+                            from .views_share_groups import sync_group_calendar_data
+                            sync_group_calendar_data(list(affected_groups_before_delete), request.user)
+                            logger.info(f"[DELETE_SYNC] 删除整个系列后同步群组: {affected_groups_before_delete}")
+                        except Exception as sync_error:
+                            logger.error(f"[DELETE_SYNC] 同步群组失败: {sync_error}")
+                    
                     return JsonResponse({'status': 'success'})
                     
                 elif edit_scope in ['future', 'from_time']:
@@ -1816,9 +1916,44 @@ def bulk_edit_events_impl(request):
                     
                     # 直接保存，不调用process_event_data避免自动生成
                     user_events_data.set_value(updated_events)
+                    
+                    # 【关键修复】删除后同步群组
+                    if affected_groups_before_delete:
+                        try:
+                            from .views_share_groups import sync_group_calendar_data
+                            sync_group_calendar_data(list(affected_groups_before_delete), request.user)
+                            logger.info(f"[DELETE_SYNC] 删除此及之后的事件后同步群组: {affected_groups_before_delete}")
+                        except Exception as sync_error:
+                            logger.error(f"[DELETE_SYNC] 同步群组失败: {sync_error}")
+                    
                     return JsonResponse({'status': 'success'})
         
         elif operation == 'edit':
+            # 【关键修复】在编辑前先收集受影响的群组
+            affected_groups_before_edit = set()
+            target_event_for_edit = None
+            
+            # 找到目标事件并保存旧的群组信息
+            for event in events:
+                if event.get('id') == event_id:
+                    target_event_for_edit = event
+                    # 保存旧的群组列表（深拷贝）
+                    old_shared_groups = list(event.get('shared_to_groups', []))
+                    if old_shared_groups:
+                        affected_groups_before_edit.update(old_shared_groups)
+                        logger.info(f"[EDIT_SYNC] 收集到编辑前的群组: {old_shared_groups}")
+                    
+                    # 如果是系列修改，收集该系列所有事件的群组
+                    if edit_scope in ['all', 'future', 'from_time'] and event.get('series_id'):
+                        series_id_to_collect = event.get('series_id')
+                        for evt in events:
+                            if evt.get('series_id') == series_id_to_collect:
+                                evt_shared_groups = list(evt.get('shared_to_groups', []))
+                                if evt_shared_groups:
+                                    affected_groups_before_edit.update(evt_shared_groups)
+                        logger.info(f"[EDIT_SYNC] 收集到系列的群组: {affected_groups_before_edit}")
+                    break
+            
             if edit_scope == 'single':
                 # 编辑单个事件 - 需要从重复系列中分离
                 for event in events:
@@ -1895,16 +2030,21 @@ def bulk_edit_events_impl(request):
                             # 更新事件数据并脱离系列
                             original_rrule = event.get('rrule', '')
                             
-                            # 过滤掉空值，避免覆盖原有数据（title/description/importance/urgency除外）
+                            # 过滤掉空值，避免覆盖原有数据（title/description/importance/urgency/shared_to_groups除外）
                             # importance/urgency允许为空，以便清除重要性和紧急性
+                            # shared_to_groups允许为空数组，表示取消分享
                             filtered_updates = {k: v for k, v in updates.items() 
-                                                if v != '' or k in ['title', 'description', 'importance', 'urgency']}
+                                                if v != '' or k in ['title', 'description', 'importance', 'urgency', 'shared_to_groups']}
+                            
+                            logger.info(f"[DEBUG] Applying filtered_updates to event {event_id}: {filtered_updates}")
                             
                             # 更新事件数据
                             event.update(filtered_updates)
                             event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             
-                            # 标记为例外事件，从系列中独立出去
+                            logger.info(f"[DEBUG] After update, event['shared_to_groups']: {event.get('shared_to_groups')}")
+                            
+                            # 标记为例外事件,从系列中独立出去
                             event['is_exception'] = True  # 标记为例外
                             event['original_start'] = event.get('start')  # 保存原始时间
                             event['is_detached'] = True  # 标记为已脱离
@@ -1988,10 +2128,11 @@ def bulk_edit_events_impl(request):
                                             traceback.print_exc()
                         else:
                             # 非重复事件，直接更新
-                            # 过滤掉空值，避免覆盖原有数据（title/description/importance/urgency除外）
+                            # 过滤掉空值，避免覆盖原有数据（title/description/importance/urgency/shared_to_groups除外）
                             # importance/urgency允许为空，以便清除重要性和紧急性
+                            # shared_to_groups允许为空数组，表示取消分享
                             filtered_updates = {k: v for k, v in updates.items() 
-                                                if v != '' or k in ['title', 'description', 'importance', 'urgency']}
+                                                if v != '' or k in ['title', 'description', 'importance', 'urgency', 'shared_to_groups']}
                             
                             event.update(filtered_updates)
                             event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -2086,13 +2227,28 @@ def bulk_edit_events_impl(request):
                     final_events = manager.process_event_data(events)
                     user_events_data.set_value(final_events)
                     
-                    # 新增：同步群组数据
-                    _sync_groups_after_edit(final_events, series_id, request.user)
+                    # 【关键修复】同步群组数据，传入编辑前收集的群组
+                    # 收集编辑后的新群组
+                    new_shared_groups = updates.get('shared_to_groups', [])
+                    if new_shared_groups:
+                        affected_groups_before_edit.update(new_shared_groups)
+                    
+                    _sync_groups_after_edit(final_events, series_id, request.user, affected_groups_before_edit)
                     
                     return JsonResponse({'status': 'success'})
                 except Exception as process_error:
                     logger.error(f"process_event_data failed in single edit: {str(process_error)}")
                     user_events_data.set_value(events)
+                    
+                    # 即使处理失败，也要同步群组
+                    try:
+                        new_shared_groups = updates.get('shared_to_groups', [])
+                        if new_shared_groups:
+                            affected_groups_before_edit.update(new_shared_groups)
+                        _sync_groups_after_edit(events, series_id, request.user, affected_groups_before_edit)
+                    except:
+                        pass
+                    
                     return JsonResponse({'status': 'success', 'message': '事件已修改，数据处理可能不完整'})
                 
             elif edit_scope in ['all', 'future', 'from_time']:
@@ -2124,10 +2280,10 @@ def bulk_edit_events_impl(request):
                     for event in events:
                         if event.get('series_id') == series_id or event.get('id') == event_id:
                             # 只更新非时间字段，保持原有的start/end时间
-                            # 同时过滤空字符串，避免覆盖原有数据（title/description/ddl/rrule除外）
+                            # 同时过滤空字符串，避免覆盖原有数据（title/description/ddl/rrule/shared_to_groups除外）
                             update_data = {k: v for k, v in updates.items() 
                                            if k not in ['start', 'end', 'ddl'] and 
-                                           (v != '' or k in ['title', 'description', 'rrule'])}
+                                           (v != '' or k in ['title', 'description', 'rrule', 'shared_to_groups'])}
                             
                             # 特殊处理rrule：如果rrule为空，表示取消重复，需要清除相关字段
                             if 'rrule' in updates and updates['rrule'] == '':
@@ -2163,8 +2319,11 @@ def bulk_edit_events_impl(request):
                     
                     user_events_data.set_value(events)
                     
-                    # 新增：同步群组数据
-                    _sync_groups_after_edit(events, series_id, request.user)
+                    # 【关键修复】同步群组数据，传入编辑前收集的群组
+                    new_shared_groups = updates.get('shared_to_groups', [])
+                    if new_shared_groups:
+                        affected_groups_before_edit.update(new_shared_groups)
+                    _sync_groups_after_edit(events, series_id, request.user, affected_groups_before_edit)
                     
                     return JsonResponse({'status': 'success', 'updated_count': updated_count})
                     
@@ -2219,10 +2378,10 @@ def bulk_edit_events_impl(request):
                                         logger.info(f"Checking event {event.get('id')} at {event_time_naive} >= {cutoff_time_naive}: {event_time_naive >= cutoff_time_naive}")
                                         if event_time_naive >= cutoff_time_naive:
                                             # 对于非RRule修改，只更新非时间字段，保持原有的start/end时间
-                                            # 同时过滤空字符串，避免覆盖原有数据（title/description/ddl除外）
+                                            # 同时过滤空字符串，避免覆盖原有数据（title/description/ddl/shared_to_groups除外）
                                             update_data = {k: v for k, v in updates.items() 
                                                            if k not in ['rrule', 'start', 'end', 'ddl'] and 
-                                                           (v != '' or k in ['title', 'description'])}
+                                                           (v != '' or k in ['title', 'description', 'shared_to_groups'])}
                                             
                                             # 特殊处理ddl：如果更新中有ddl，需要重新计算每个实例的ddl
                                             if 'ddl' in updates:
@@ -2369,10 +2528,22 @@ def bulk_edit_events_impl(request):
                             if current_time - start_time < 20:  # 20秒内进行完整处理
                                 final_events = manager.process_event_data(updated_events)
                                 user_events_data.set_value(final_events)
+                                
+                                # 【关键修复】修改rrule后同步群组数据
+                                new_shared_groups = updates.get('shared_to_groups', [])
+                                if new_shared_groups:
+                                    affected_groups_before_edit.update(new_shared_groups)
+                                _sync_groups_after_edit(final_events, series_id, request.user, affected_groups_before_edit)
                             else:
                                 # 时间不足，只保存基本更新
                                 user_events_data.set_value(updated_events)
                                 logger.info("时间不足，跳过完整数据处理")
+                                
+                                # 【关键修复】即使时间不足，也要同步群组数据
+                                new_shared_groups = updates.get('shared_to_groups', [])
+                                if new_shared_groups:
+                                    affected_groups_before_edit.update(new_shared_groups)
+                                _sync_groups_after_edit(updated_events, series_id, request.user, affected_groups_before_edit)
                             
                             logger.info(f"Successfully modified recurring rule for event series {series_id}")
                             return JsonResponse({'status': 'success'})
@@ -2381,6 +2552,16 @@ def bulk_edit_events_impl(request):
                             # 如果process失败，至少保存updated_events
                             try:
                                 user_events_data.set_value(updated_events)
+                                
+                                # 【关键修复】即使处理失败，也要同步群组数据
+                                try:
+                                    new_shared_groups = updates.get('shared_to_groups', [])
+                                    if new_shared_groups:
+                                        affected_groups_before_edit.update(new_shared_groups)
+                                    _sync_groups_after_edit(updated_events, series_id, request.user, affected_groups_before_edit)
+                                except Exception as sync_error:
+                                    logger.error(f"群组同步失败: {sync_error}")
+                                
                                 return JsonResponse({'status': 'success', 'message': '操作完成，但数据处理可能不完整'})
                             except Exception as save_error:
                                 logger.error(f"Even save failed: {str(save_error)}")
@@ -2411,11 +2592,11 @@ def bulk_edit_events_impl(request):
                                     logger.info(f"Checking event {event.get('id')} at {event_time_naive} >= {cutoff_time_naive}: {event_time_naive >= cutoff_time_naive}")
                                     if event_time_naive >= cutoff_time_naive:
                                         # 对于非RRule修改，排除start/end字段，保持原有时间
-                                        # 同时过滤空字符串，避免覆盖原有数据（title/description/ddl除外）
+                                        # 同时过滤空字符串，避免覆盖原有数据（title/description/ddl/shared_to_groups除外）
                                         # 注意：rrule已在上面的分支中处理，这里不应该包含rrule
                                         update_data = {k: v for k, v in updates.items() 
                                                        if k not in ['rrule', 'start', 'end', 'ddl'] and 
-                                                       (v != '' or k in ['title', 'description'])}
+                                                       (v != '' or k in ['title', 'description', 'shared_to_groups'])}
                                         
                                         # 特殊处理ddl：如果更新中有ddl，需要重新计算每个实例的ddl
                                         if 'ddl' in updates:
@@ -2445,8 +2626,18 @@ def bulk_edit_events_impl(request):
                         logger.info(f"Updated {updated_count} events, saving to database")
                         user_events_data.set_value(events)
                         
-                        # 新增：同步群组数据
-                        _sync_groups_after_edit(events, series_id, request.user)
+                        # [DEBUG] 保存后验证
+                        saved_events = user_events_data.get_value() or []
+                        for evt in saved_events:
+                            if evt.get('series_id') == series_id:
+                                logger.info(f"[DEBUG] After save - Event {evt.get('id')} shared_to_groups: {evt.get('shared_to_groups')}")
+                                break
+                        
+                        # 【关键修复】同步群组数据，传入编辑前收集的群组
+                        new_shared_groups = updates.get('shared_to_groups', [])
+                        if new_shared_groups:
+                            affected_groups_before_edit.update(new_shared_groups)
+                        _sync_groups_after_edit(events, series_id, request.user, affected_groups_before_edit)
                         
                         return JsonResponse({'status': 'success', 'updated_count': updated_count})
         
@@ -2531,7 +2722,11 @@ def update_events_impl(request):
         urgency = data.get('urgency')
         group_id = data.get('groupID', '')
         ddl = data.get('ddl')
+        shared_to_groups = data.get('shared_to_groups', [])  # 新增：分享到的群组
         last_modified = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        logger.info(f"[DEBUG] update_events_impl - received shared_to_groups: {data.get('shared_to_groups', [])}")
+        logger.info(f"[DEBUG] update_events_impl - title: {title}, description: {description}")
         
         # RRule相关字段
         rrule_change_scope = data.get('rrule_change_scope', 'single')  # single, all, future, from_time
@@ -2560,9 +2755,13 @@ def update_events_impl(request):
         
         # 查找要更新的事件
         target_event = None
+        old_shared_to_groups = []  # 【关键修复】在更新前保存旧的群组信息
         for event in events:
             if event.get('id') == event_id:
                 target_event = event
+                # 立即保存旧的群组列表（深拷贝，避免被后续修改影响）
+                old_shared_to_groups = list(event.get('shared_to_groups', []))
+                logger.info(f"[SYNC] 保存更新前的群组: {old_shared_to_groups}")
                 break
                 
         if not target_event:
@@ -2644,6 +2843,7 @@ def update_events_impl(request):
                     'urgency': urgency,
                     'groupID': group_id,
                     'ddl': ddl,
+                    'shared_to_groups': shared_to_groups,  # 新增
                     'last_modified': last_modified,
                     'is_exception': True,  # 标记为例外
                     'original_start': target_event['start'],  # 保存原始时间
@@ -2678,6 +2878,7 @@ def update_events_impl(request):
                             'urgency': urgency,
                             'groupID': group_id,
                             'ddl': ddl,
+                            'shared_to_groups': shared_to_groups,  # 新增
                             'last_modified': last_modified
                         })
                         if new_rrule:
@@ -2696,6 +2897,7 @@ def update_events_impl(request):
                                 'urgency': urgency,
                                 'groupID': group_id,
                                 'ddl': ddl,
+                                'shared_to_groups': shared_to_groups,  # 新增
                                 'last_modified': last_modified
                             })
                             
@@ -2714,6 +2916,7 @@ def update_events_impl(request):
                                 'urgency': urgency,
                                 'groupID': group_id,
                                 'ddl': ddl,
+                                'shared_to_groups': shared_to_groups,  # 新增
                                 'last_modified': last_modified
                             })
                             
@@ -2733,6 +2936,7 @@ def update_events_impl(request):
                                     'urgency': urgency,
                                     'groupID': group_id,
                                     'ddl': ddl,
+                                    'shared_to_groups': shared_to_groups,  # 新增
                                     'last_modified': last_modified
                                 })
         else:
@@ -2761,8 +2965,10 @@ def update_events_impl(request):
                         'urgency': urgency,
                         'groupID': group_id,
                         'ddl': ddl,
+                        'shared_to_groups': shared_to_groups,  # 新增
                         'last_modified': last_modified
                     })
+                    updated_event = events[i]  # 保存更新后的事件引用
                     
                     # 如果添加了RRule，转换为重复事件
                     if new_rrule:
@@ -2895,25 +3101,33 @@ def update_events_impl(request):
             # 收集受影响的群组
             affected_groups = set()
             
-            # 获取当前事件的分享群组
-            if updated_event:
-                shared_to_groups = data.get('shared_to_groups', [])
-                if shared_to_groups:
-                    affected_groups.update(shared_to_groups)
-                
-                # 如果是重复事件，检查整个系列
-                if is_recurring and series_id and rrule_change_scope in ['all', 'future', 'from_time']:
-                    for event in events:
-                        if event.get('series_id') == series_id:
-                            event_shared_groups = event.get('shared_to_groups', [])
-                            if event_shared_groups:
-                                affected_groups.update(event_shared_groups)
+            # ✅ 关键修复：使用保存的旧群组列表（而不是从 target_event 获取）
+            # 1. 收集更新前的群组（从我们在函数开头保存的变量）
+            if old_shared_to_groups:
+                affected_groups.update(old_shared_to_groups)
+                logger.info(f"[SYNC] 收集到更新前的群组: {old_shared_to_groups}")
+            
+            # 2. 收集更新后的群组（从请求数据）
+            new_shared_groups = data.get('shared_to_groups', [])
+            if new_shared_groups:
+                affected_groups.update(new_shared_groups)
+                logger.info(f"[SYNC] 收集到更新后的群组: {new_shared_groups}")
+            
+            # 3. 如果是重复事件的批量修改，还需要检查整个系列的其他实例
+            if is_recurring and series_id and rrule_change_scope in ['all', 'future', 'from_time']:
+                for event in events:
+                    if event.get('series_id') == series_id:
+                        event_shared_groups = event.get('shared_to_groups', [])
+                        if event_shared_groups:
+                            affected_groups.update(event_shared_groups)
             
             # 触发同步
             if affected_groups:
                 from .views_share_groups import sync_group_calendar_data
                 sync_group_calendar_data(list(affected_groups), request.user)
-                logger.info(f"update_events 后同步到群组: {affected_groups}")
+                logger.info(f"[SYNC] update_events 后同步到群组: {affected_groups}")
+            else:
+                logger.info(f"[SYNC] update_events - 没有受影响的群组，跳过同步")
                 
         except Exception as sync_error:
             logger.error(f"同步群组数据失败: {str(sync_error)}")
