@@ -21,6 +21,7 @@ from core.models import (
     UserData
 )
 from logger import logger
+from core.utils.validators import validate_body
 
 
 def get_django_request(request):
@@ -34,6 +35,12 @@ def get_django_request(request):
     return request
 
 
+@validate_body({
+    'share_group_name': {'type': str, 'required': True, 'comment': '群组名称'},
+    'share_group_color': {'type': str, 'required': False, 'default': '#3498db', 'comment': '群组颜色'},
+    'share_group_description': {'type': str, 'required': False, 'default': '', 'comment': '群组描述'},
+    'member_color': {'type': str, 'required': False, 'default': '#3498db', 'comment': '创建者的成员颜色'},
+})
 def create_share_group(request):
     """
     创建协作群组
@@ -61,7 +68,7 @@ def create_share_group(request):
     """
     try:
         # 解析请求数据
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        data = request.validated_data
         
         share_group_name = data.get('share_group_name')
         share_group_color = data.get('share_group_color', '#3498db')
@@ -184,6 +191,10 @@ def get_my_share_groups(request):
         }, status=500)
 
 
+@validate_body({
+    'share_group_id': {'type': str, 'required': True, 'comment': '群组ID'},
+    'member_color': {'type': str, 'required': False, 'default': '#3498db', 'comment': '加入时的成员颜色'},
+})
 def join_share_group(request):
     """
     加入群组（通过群组ID或邀请码）
@@ -201,7 +212,7 @@ def join_share_group(request):
     }
     """
     try:
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        data = request.validated_data
         share_group_id = data.get('share_group_id')
         member_color = data.get('member_color', '#3498db')  # 加入时的成员颜色
         
@@ -615,6 +626,11 @@ def get_share_group_members(request, share_group_id):
         }, status=500)
 
 
+@validate_body({
+    'share_group_name': {'type': str, 'required': False, 'comment': '新的群组名称'},
+    'share_group_color': {'type': str, 'required': False, 'comment': '新的群组颜色'},
+    'share_group_description': {'type': str, 'required': False, 'comment': '新的群组描述'},
+})
 def update_share_group(request, share_group_id):
     """
     更新群组信息（仅群主可操作）
@@ -657,7 +673,7 @@ def update_share_group(request, share_group_id):
             }, status=403)
         
         # 解析请求数据
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        data = request.validated_data
         
         logger.info(f"收到的更新数据: {data}")
         logger.info(f"更新前 - 名称: {group.share_group_name}, 颜色: {group.share_group_color}, 描述: {group.share_group_description}")
@@ -803,6 +819,9 @@ def sync_group_calendar_data(share_group_ids: List[str], trigger_user=None):
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
+@validate_body({
+    'member_color': {'type': str, 'required': True, 'comment': '新的成员颜色'},
+})
 def update_member_color(request, share_group_id):
     """
     更新成员在群组中的个人颜色
@@ -840,7 +859,7 @@ def update_member_color(request, share_group_id):
             }, status=403)
         
         # 获取请求数据
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        data = request.validated_data
         member_color = data.get('member_color', '#3498db')
         
         # 验证颜色格式（简单验证）

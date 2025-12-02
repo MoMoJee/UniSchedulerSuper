@@ -15,11 +15,15 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from logger import logger
-
+from core.utils.validators import validate_body
 
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@validate_body({
+    'username': {'type': str, 'required': True, 'comment': '用户名'},
+    'password': {'type': str, 'required': True, 'comment': '密码'},
+})
 def api_login(request):
     """
     API 登录接口 - 用户名密码换取 Token
@@ -38,15 +42,9 @@ def api_login(request):
     }
     """
     try:
-        data = json.loads(request.body)
+        data = request.validated_data
         username = data.get('username')
         password = data.get('password')
-        
-        if not username or not password:
-            return Response(
-                {'error': '用户名和密码不能为空'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
         
         # 认证用户
         user = authenticate(username=username, password=password)
@@ -70,11 +68,6 @@ def api_login(request):
             'created': created
         })
         
-    except json.JSONDecodeError:
-        return Response(
-            {'error': '无效的 JSON 数据'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
     except Exception as e:
         logger.error(f"API login error: {str(e)}")
         return Response(

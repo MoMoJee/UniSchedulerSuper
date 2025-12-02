@@ -57,6 +57,9 @@ from .views_reminder import (
     complete_reminder_impl
 )
 
+# 导入参数验证装饰器
+from core.utils.validators import validate_body
+
 # 导入 events 相关视图函数  
 from .views_events import (
     get_events_impl,
@@ -488,13 +491,18 @@ def delete_event(request):
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@validate_body({
+    'name': {'type': str, 'required': True, 'comment': '日程组名称'},
+    'description': {'type': str, 'required': False, 'comment': '日程组描述'},
+    'color': {'type': str, 'required': True, 'comment': '日程组颜色'},
+})
 def create_events_group(request):
     if request.method == 'POST':
         # 获取原生 Django request
         django_request = get_django_request(request)
         
-        # 使用 request.data 兼容 DRF Request
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        # 使用 validate_body 处理后的数据
+        data = request.validated_data
         group_name = data.get('name')
         group_description = data.get('description')
         group_color = data.get('color')
@@ -520,13 +528,19 @@ def create_events_group(request):
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@validate_body({
+    'groupID': {'type': str, 'required': True, 'comment': '日程组ID'},
+    'title': {'type': str, 'required': False, 'comment': '新名称'},
+    'description': {'type': str, 'required': False, 'comment': '新描述'},
+    'color': {'type': str, 'required': False, 'comment': '新颜色'},
+})
 def update_event_group(request):
     if request.method == 'POST':
         # 获取原生 Django request
         django_request = get_django_request(request)
         
-        # 使用 request.data 兼容 DRF Request
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        # 使用 validate_body 处理后的数据
+        data = request.validated_data
         group_id = data.get('groupID')
         title = data.get('title')
         description = data.get('description')
@@ -552,13 +566,17 @@ def update_event_group(request):
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@validate_body({
+    'groupIds': {'type': list, 'required': True, 'comment': '要删除的日程组ID列表'},
+    'deleteEvents': {'type': bool, 'required': False, 'default': False, 'comment': '是否同时删除组内日程'},
+})
 def delete_event_groups(request):
     if request.method == 'POST':
         # 获取原生 Django request
         django_request = get_django_request(request)
         
-        # 使用 request.data 兼容 DRF Request
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        # 使用 validate_body 处理后的数据
+        data = request.validated_data
         group_ids = data.get('groupIds', [])
         delete_events = data.get('deleteEvents', False)
 
@@ -886,6 +904,15 @@ def get_todos(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@validate_body({
+    'title': {'type': str, 'required': True, 'comment': '待办事项标题'},
+    'description': {'type': str, 'synonyms': ['context', 'details', 'content'], 'alias': 'context', 'comment': '详细描述'},
+    'due_date': {'type': str, 'default': '', 'comment': '截止日期，格式：YYYY-MM-DD'},
+    'estimated_duration': {'type': (str, int), 'default': '', 'comment': '预计耗时（分钟）'},
+    'importance': {'type': str, 'default': '', 'choices': ['important', 'not-important', ''], 'comment': '重要性'},
+    'urgency': {'type': str, 'default': '', 'choices': ['urgent', 'not-urgent', ''], 'comment': '紧急程度'},
+    'groupID': {'type': str, 'default': '', 'comment': '关联的日程组ID'}
+})
 def create_todo(request):
     """创建新待办事项"""
     if request.method == 'POST':
@@ -895,20 +922,17 @@ def create_todo(request):
         user_todos_data, created, result = UserData.get_or_initialize(django_request, new_key="todos")
         todos = user_todos_data.get_value()
         
-        # 使用 request.data 兼容 DRF Request
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        # 使用验证后的数据
+        data = request.validated_data
         logger.debug(f"1108 {data}")
-        title = data.get('title')
-        description = data.get('description', '')
-        due_date = data.get('due_date', '')
-        estimated_duration = data.get('estimated_duration', 0)
-        importance = data.get('importance', 'medium')
-        urgency = data.get('urgency', 'normal')
-        group_id = data.get('groupID', '')
         
-        # 验证必填字段
-        if not title:
-            return JsonResponse({'status': 'error', 'message': '标题是必填项'}, status=400)
+        title = data.get('title')
+        description = data.get('description')
+        due_date = data.get('due_date')
+        estimated_duration = data.get('estimated_duration')
+        importance = data.get('importance')
+        urgency = data.get('urgency')
+        group_id = data.get('groupID')
         
         new_todo = {
             "id": str(uuid.uuid4()),
@@ -934,6 +958,17 @@ def create_todo(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@validate_body({
+    'id': {'type': str, 'required': True, 'comment': '待办事项ID'},
+    'title': {'type': str, 'comment': '标题'},
+    'description': {'type': str, 'synonyms': ['context', 'details', 'content'], 'alias': 'context', 'comment': '详细描述'},
+    'due_date': {'type': str, 'comment': '截止日期,格式：YYYY-MM-DD'},
+    'estimated_duration': {'type': (str, int), 'default': '', 'comment': '预计耗时'},
+    'importance': {'type': str, 'default': '', 'choices': ['important', 'not-important', ''], 'comment': '重要性'},
+    'urgency': {'type': str, 'default': '', 'choices': ['urgent', 'not-urgent', ''], 'comment': '紧急程度'},
+    'groupID': {'type': str, 'comment': '关联日程组ID'},
+    'status': {'type': str, 'choices': ['pending', 'completed', 'converted'], 'comment': '状态'}
+})
 def update_todo(request):
     """更新待办事项"""
     if request.method == 'POST':
@@ -943,26 +978,32 @@ def update_todo(request):
         user_todos_data, created, result = UserData.get_or_initialize(django_request, new_key="todos")
         todos = user_todos_data.get_value()
         
-        # 使用 request.data 兼容 DRF Request
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        # 使用验证后的数据
+        data = request.validated_data
         todo_id = data.get('id')
-        
-        if not todo_id:
-            return JsonResponse({'status': 'error', 'message': '待办事项ID是必填项'}, status=400)
         
         # 查找要更新的待办事项
         todo_found = False
         for todo in todos:
             if todo['id'] == todo_id:
-                # 更新字段
-                todo['title'] = data.get('title', todo['title'])
-                todo['description'] = data.get('description', todo['description'])
-                todo['due_date'] = data.get('due_date', todo['due_date'])
-                todo['estimated_duration'] = data.get('estimated_duration', todo['estimated_duration'])
-                todo['importance'] = data.get('importance', todo['importance'])
-                todo['urgency'] = data.get('urgency', todo['urgency'])
-                todo['groupID'] = data.get('groupID', todo['groupID'])
-                todo['status'] = data.get('status', todo['status'])
+                # 更新字段 - 仅更新请求中提供的字段
+                if 'title' in data:
+                    todo['title'] = data['title']
+                if 'description' in data:
+                    todo['description'] = data['description']
+                if 'due_date' in data:
+                    todo['due_date'] = data['due_date']
+                if 'estimated_duration' in data:
+                    todo['estimated_duration'] = data['estimated_duration']
+                if 'importance' in data:
+                    todo['importance'] = data['importance']
+                if 'urgency' in data:
+                    todo['urgency'] = data['urgency']
+                if 'groupID' in data:
+                    todo['groupID'] = data['groupID']
+                if 'status' in data:
+                    todo['status'] = data['status']
+                
                 todo['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 todo_found = True
                 break
@@ -979,6 +1020,9 @@ def update_todo(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@validate_body({
+    'id': {'type': str, 'required': True, 'comment': '待办事项ID'}
+})
 def delete_todo(request):
     """删除待办事项"""
     if request.method == 'POST':
@@ -988,12 +1032,9 @@ def delete_todo(request):
         user_todos_data, created, result = UserData.get_or_initialize(django_request, new_key="todos")
         todos = user_todos_data.get_value()
         
-        # 使用 request.data 兼容 DRF Request
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        # 使用验证后的数据
+        data = request.validated_data
         todo_id = data.get('id')
-        
-        if not todo_id:
-            return JsonResponse({'status': 'error', 'message': '待办事项ID是必填项'}, status=400)
         
         # 查找并删除待办事项
         original_length = len(todos)
@@ -1011,6 +1052,11 @@ def delete_todo(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@validate_body({
+    'id': {'type': str, 'required': True, 'comment': '待办事项ID'},
+    'start_time': {'type': str, 'required': True, 'comment': '日程开始时间，格式：YYYY-MM-DDTHH:MM:SS'},
+    'end_time': {'type': str, 'required': True, 'comment': '日程结束时间，格式：YYYY-MM-DDTHH:MM:SS'}
+})
 def convert_todo_to_event(request):
     """将待办事项转换为日程事件"""
     if request.method == 'POST':
@@ -1023,14 +1069,11 @@ def convert_todo_to_event(request):
         user_events_data, created, result = UserData.get_or_initialize(django_request, new_key="events")
         events = user_events_data.get_value()
         
-        # 使用 request.data 兼容 DRF Request
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        # 使用 request.validated_data
+        data = request.validated_data
         todo_id = data.get('id')
         start_time = data.get('start_time')
         end_time = data.get('end_time')
-        
-        if not todo_id or not start_time or not end_time:
-            return JsonResponse({'status': 'error', 'message': '待办事项ID和时间是必填项'}, status=400)
 
         # 查找待办事项
         todo_found = None

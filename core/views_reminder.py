@@ -8,7 +8,8 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 
-from .models import UserData
+from core.models import UserData
+from core.utils.validators import validate_body
 from logger import logger
 
 # 导入我们的新引擎
@@ -408,6 +409,13 @@ def get_reminders(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
+@validate_body({
+    'title': {'type': str, 'required': True, 'comment': '提醒标题'},
+    'trigger_time': {'type': str, 'required': True, 'comment': '触发时间，格式：YYYY-MM-DDTHH:MM:SS'},
+    'content': {'type': str, 'required': False, 'comment': '提醒内容', 'alias': 'description'},
+    'priority': {'type': str, 'required': True, 'default': 'normal', 'choices': ['debug', 'low', 'normal', 'high', 'urgent'], 'comment': '优先级'},
+    'rrule': {'type': str, 'required': False, 'comment': '重复规则字符串', 'alias': 'RRule'},
+})
 def create_reminder(request):
     """创建新提醒 - 使用新的 RRule 引擎"""
     if request.method == 'POST':
@@ -423,17 +431,13 @@ def create_reminder(request):
         
         reminders = user_reminders_data.get_value()
         
-        # 使用 request.data 兼容 DRF Request
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        # 使用 validate_body 处理后的数据
+        data = request.validated_data
         title = data.get('title')
         content = data.get('content', '')
         trigger_time = data.get('trigger_time')
         priority = data.get('priority', 'medium')
         rrule = data.get('rrule', '')
-        
-        # 验证必填字段
-        if not title or not trigger_time:
-            return JsonResponse({'status': 'error', 'message': '标题和触发时间是必填项'}, status=400)
         
         # 准备提醒数据
         reminder_data = {
@@ -489,16 +493,23 @@ def create_reminder(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
+@validate_body({
+    'id': {'type': str, 'required': True, 'comment': '提醒ID'},
+    'title': {'type': str, 'required': False, 'comment': '提醒标题'},
+    'content': {'type': str, 'required': False, 'comment': '提醒内容', 'alias': 'description'},
+    'trigger_time': {'type': str, 'required': False, 'comment': '触发时间，格式：YYYY-MM-DDTHH:MM'},
+    'priority': {'type': str, 'required': False, 'choices': ['debug', 'low', 'normal', 'high', 'urgent'], 'comment': '优先级'},
+    'status': {'type': str, 'required': False, 'choices': ['active', 'completed', 'dismissed', 'snoozed_15m', 'snoozed_1h', 'snoozed_1d', 'snoozed_custom', ''], 'comment': '状态'},
+    'rrule': {'type': str, 'required': False, 'comment': '重复规则', 'alias': 'RRule'},
+    'rrule_change_scope': {'type': str, 'required': False, 'choices': ['all', ''], 'comment': '重复规则修改范围，仅支持all（用于单次转重复）'},
+})
 def update_reminder(request):
     """更新提醒 - 只处理前端实际使用的场景"""
     if request.method == 'POST':
         try:
-            # 使用 request.data 兼容 DRF Request
-            data = request.data if hasattr(request, 'data') else json.loads(request.body)
+            # 使用 validate_body 处理后的数据
+            data = request.validated_data
             reminder_id = data.get('id')
-            
-            if not reminder_id:
-                return JsonResponse({'status': 'error', 'message': '提醒ID是必填项'}, status=400)
             
             # 获取原生 Django request
             django_request = get_django_request(request)
@@ -580,6 +591,11 @@ def update_reminder(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
+@validate_body({
+    'id': {'type': str, 'required': True, 'comment': '提醒ID'},
+    'status': {'type': str, 'required': True, 'choices': ['active', 'completed', 'dismissed', 'snoozed_15m', 'snoozed_1h', 'snoozed_1d', 'snoozed_custom'], 'comment': '新状态'},
+    'snooze_until': {'type': str, 'required': False, 'comment': '延后到的时间，当status为snoozed_custom时必填'},
+})
 def update_reminder_status(request):
     """更新提醒状态（完成/忽略/延后/激活）"""
     if request.method == 'POST':
@@ -589,14 +605,11 @@ def update_reminder_status(request):
         user_reminders_data, created, result = UserData.get_or_initialize(django_request, new_key="reminders")
         reminders = user_reminders_data.get_value()
         
-        # 使用 request.data 兼容 DRF Request
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        # 使用 validate_body 处理后的数据
+        data = request.validated_data
         reminder_id = data.get('id')
         new_status = data.get('status')  # active/completed/dismissed/snoozed_15m/snoozed_1h/snoozed_1d
         snooze_until = data.get('snooze_until', '')
-        
-        if not reminder_id or not new_status:
-            return JsonResponse({'status': 'error', 'message': '提醒ID和状态是必填项'}, status=400)
         
         # 查找要更新的提醒
         reminder_found = False
@@ -623,6 +636,9 @@ def update_reminder_status(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
+@validate_body({
+    'id': {'type': str, 'required': True, 'comment': '提醒ID'},
+})
 def delete_reminder(request):
     """删除提醒"""
     if request.method == 'POST':
@@ -632,12 +648,9 @@ def delete_reminder(request):
         user_reminders_data, created, result = UserData.get_or_initialize(django_request, new_key="reminders")
         reminders = user_reminders_data.get_value()
         
-        # 使用 request.data 兼容 DRF Request
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        # 使用 validate_body 处理后的数据
+        data = request.validated_data
         reminder_id = data.get('id')
-        
-        if not reminder_id:
-            return JsonResponse({'status': 'error', 'message': '提醒ID是必填项'}, status=400)
         
         # 查找并删除提醒
         original_length = len(reminders)
@@ -720,6 +733,22 @@ def get_pending_reminders(request):
 
 
 @csrf_exempt
+@validate_body({
+    'reminder_id': {'type': str, 'required': True, 'alias': 'id', 'comment': '提醒ID'},
+    'operation': {'type': str, 'required': True, 'default': 'edit', 'choices': ['edit', 'delete'], 'comment': '操作类型'},
+    'edit_scope': {'type': str, 'required': False, 'default': 'single', 'choices': ['single', 'all', 'future', 'from_time', 'this_only', 'from_this'], 'comment': '编辑范围'},
+    'from_time': {'type': str, 'required': False, 'comment': '当edit_scope为from_time时必填'},
+    'series_id': {'type': str, 'required': False, 'comment': '系列ID'},
+    'title': {'type': str, 'required': False, 'comment': '标题'},
+    'content': {'type': str, 'required': False, 'comment': '内容'},
+    'description': {'type': str, 'required': False, 'comment': '描述（兼容content）'},
+    'priority': {'type': str, 'required': False, 'choices': ['debug', 'low', 'normal', 'high', 'urgent'], 'comment': '优先级'},
+    'importance': {'type': str, 'required': False, 'comment': '重要性（暂未启用）'},
+    'urgency': {'type': str, 'required': False, 'comment': '紧急性（暂未启用）'},
+    'trigger_time': {'type': str, 'required': False, 'comment': '触发时间, 格式：YYYY-MM-DDTHH:MM:SS'},
+    'rrule': {'type': str, 'required': False, 'alias': 'RRule', 'comment': '重复规则'},
+    'reminder_mode': {'type': str, 'required': False, 'comment': '提醒模式（暂未启用）'},
+})
 def bulk_edit_reminders(request):
     """批量编辑重复提醒"""
     if request.method == 'POST':
@@ -738,8 +767,8 @@ def bulk_edit_reminders(request):
         except:
             reminders = []
         
-        # 使用 request.data 兼容 DRF Request
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        # 使用 validate_body 处理后的数据
+        data = request.validated_data
         logger.debug(f"{data=}")
 
         reminder_id = data.get('reminder_id')

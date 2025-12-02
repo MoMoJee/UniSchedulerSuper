@@ -19,6 +19,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 
 from core.models import UserData
+from core.utils.validators import validate_body
 from integrated_reminder_manager import IntegratedReminderManager, UserDataStorageBackend
 from rrule_engine import RRuleEngine
 from logger import logger
@@ -1300,6 +1301,18 @@ def get_events_impl(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 
 
+@validate_body({
+    'title': {'type': str, 'required': True, 'comment': '事件标题'},
+    'start': {'type': str, 'required': True, 'comment': '开始时间，格式：YYYY-MM-DDTHH:MM:SS'},
+    'end': {'type': str, 'required': True, 'comment': '结束时间，格式：YYYY-MM-DDTHH:MM:SS'},
+    'description': {'type': str, 'required': False, 'comment': '事件描述', 'alias': 'context'},
+    'importance': {'type': str, 'required': False, 'choices': ['important', 'not-important', ''], 'comment': '重要性标记'},
+    'urgency': {'type': str, 'required': False, 'choices': ['urgent', 'not-urgent', ''], 'comment': '紧急性标记'},
+    'groupID': {'type': str, 'required': False, 'comment': '所属群组ID', 'alias': 'groupId'},
+    'ddl': {'type': str, 'required': False, 'comment': '截止时间，格式：YYYY-MM-DDTHH:MM:SS'},
+    'rrule': {'type': str, 'required': False, 'comment': '重复规则字符串', 'alias': 'RRule'},
+    'shared_to_groups': {'type': list, 'required': False, 'comment': '分享到的群组ID列表'},
+})
 def create_event_impl(request):
     """创建新的event"""
     if request.method != 'POST':
@@ -1309,8 +1322,8 @@ def create_event_impl(request):
     manager = EventsRRuleManager(request.user)
     
     try:
-        # 使用 request.data 兼容 DRF Request
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        # 使用 validate_body 处理后的数据
+        data = request.validated_data
         
         # 提取事件数据
         event_data = {
@@ -1457,6 +1470,11 @@ def create_event_impl(request):
         }, status=500)
 
 
+@validate_body({
+    'eventId': {'type': str, 'required': True, 'alias': 'id', 'synonyms': ['uuid', 'event_id', 'eventID'], 'comment': '事件ID。警告：已弃用，建议使用delete_event_impl替代'},
+    'delete_scope': {'type': str, 'required': False, 'default': 'single', 'choices': ['single', 'all', 'future'], 'comment': '删除范围：单个、所有、将来。警告：已弃用，建议使用delete_event_impl替代'},
+    'series_id': {'type': str, 'required': False, 'comment': '重复事件的系列ID，当delete_scope为all或future时建议提供。警告：已弃用，建议使用delete_event_impl替代'},
+})
 def delete_event_impl(request):
     """
     已弃用
@@ -1467,15 +1485,15 @@ def delete_event_impl(request):
         return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
         
     try:
-        # 使用 request.data 兼容 DRF Request
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        # 使用 validate_body 处理后的数据
+        data = request.validated_data
         event_id = data.get('eventId')
         delete_scope = data.get('delete_scope', 'single')  # single, all, future
         
-    except json.JSONDecodeError:
-        return JsonResponse({'status': 'error', 'message': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Invalid data: {str(e)}'}, status=400)
         
-    if event_id is None:
+    if not event_id:
         return JsonResponse({'status': 'error', 'message': 'eventId is missing'}, status=400)
         
     try:
@@ -1603,6 +1621,23 @@ def delete_event_impl(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@validate_body({
+    'event_id': {'type': str, 'required': True, 'alias': 'id', 'synonyms': ['uuid', 'eventId'], 'comment': '事件的唯一标识符'},
+    'operation': {'type': str, 'required': True, 'choices': ['edit', 'delete'], 'comment': '操作类型：编辑或删除'},
+    'edit_scope': {'type': str, 'required': True, 'choices': ['single', 'all', 'future', 'from_time'], 'comment': '编辑范围：单个、所有、将来、从指定时间开始'},
+    'from_time': {'type': str, 'required': False, 'comment': '当 edit_scope 为 from_time 时必填，格式：YYYY-MM-DDTHH:MM:SS'},
+    'series_id': {'type': str, 'required': False, 'comment': '重复事件的系列ID'},
+    'title': {'type': str, 'required': False, 'comment': '事件标题'},
+    'description': {'type': str, 'required': False, 'comment': '事件描述'},
+    'importance': {'type': str, 'required': False, 'choices': ['important', 'not-important', ''], 'comment': '重要性标记，空字符串表示清除'},
+    'urgency': {'type': str, 'required': False, 'choices': ['urgent', 'not-urgent', ''], 'comment': '紧急性标记，空字符串表示清除'},
+    'start': {'type': str, 'required': False, 'comment': '开始时间，格式：YYYY-MM-DDTHH:MM:SS'},
+    'end': {'type': str, 'required': False, 'comment': '结束时间，格式：YYYY-MM-DDTHH:MM:SS'},
+    'rrule': {'type': str, 'required': False, 'comment': '重复规则字符串，空字符串表示取消重复'},
+    'groupID': {'type': str, 'required': False, 'comment': '所属群组ID'},
+    'ddl': {'type': str, 'required': False, 'comment': '截止时间，格式：YYYY-MM-DDTHH:MM:SS，空字符串表示清除'},
+    'shared_to_groups': {'type': list, 'required': False, 'comment': '分享到的群组ID列表'},
+})
 def bulk_edit_events_impl(request):
     """批量编辑事件 - 支持四种编辑模式"""
     if request.method != 'POST':
@@ -1612,8 +1647,8 @@ def bulk_edit_events_impl(request):
     start_time = time.time()
     
     try:
-        # 使用 request.data 兼容 DRF Request
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        # 使用 validate_body 处理后的数据
+        data = request.validated_data
         
         # 提取参数
         event_id = data.get('event_id')
@@ -1633,7 +1668,7 @@ def bulk_edit_events_impl(request):
             'rrule': data.get('rrule'),
             'groupID': data.get('groupID'),
             'ddl': data.get('ddl'),
-            'shared_to_groups': data.get('shared_to_groups'),  # 新增：群组分享
+            'shared_to_groups': data.get('shared_to_groups'),  # 群组分享
         }
         # 过滤掉None值和空字符串（title/description/ddl/rrule/importance/urgency除外，它们允许为空）
         # ddl允许为空表示清除截止时间
@@ -2700,14 +2735,29 @@ def convert_time_format(events):
     return events
 
 
+@validate_body({
+    'eventId': {'type': str, 'required': True, 'alias': 'id', 'synonyms': ['uuid', 'event_id'], 'comment': '事件ID'},
+    'newStart': {'type': str, 'required': False, 'alias': 'start', 'comment': '新的开始时间，格式：YYYY-MM-DDTHH:MM'},
+    'newEnd': {'type': str, 'required': False, 'alias': 'end', 'comment': '新的结束时间，格式：YYYY-MM-DDTHH:MM'},
+    'title': {'type': str, 'required': False, 'comment': '事件标题'},
+    'description': {'type': str, 'required': False, 'comment': '事件描述'},
+    'importance': {'type': str, 'required': False, 'choices': ['important', 'not-important', ''], 'comment': '重要性标记'},
+    'urgency': {'type': str, 'required': False, 'choices': ['urgent', 'not-urgent', ''], 'comment': '紧急性标记'},
+    'groupID': {'type': str, 'required': False, 'comment': '所属群组ID', 'alias': 'groupId'},
+    'ddl': {'type': str, 'required': False, 'comment': '截止时间，格式：YYYY-MM-DDTHH:MM'},
+    'shared_to_groups': {'type': list, 'required': False, 'comment': '分享到的群组ID列表'},
+    'rrule': {'type': str, 'required': False, 'comment': '新的重复规则', 'alias': 'RRule'},
+    'rrule_change_scope': {'type': str, 'required': False, 'default': 'single', 'choices': ['single', 'all', 'future', 'from_time'], 'comment': '重复规则修改范围'},
+    'from_time': {'type': str, 'required': False, 'comment': '当rrule_change_scope为from_time时必填，格式：YYYY-MM-DDTHH:MM'},
+})
 def update_events_impl(request):
     """更新事件 - 支持RRule修改"""
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
         
     try:
-        # 使用 request.data 兼容 DRF Request
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        # 使用 validate_body 处理后的数据
+        data = request.validated_data
         event_id = data.get('eventId')  # 就这狗屎大小写的，前后端、每个数据类型，都tm不一样
         
         if not event_id:

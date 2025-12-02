@@ -2160,8 +2160,8 @@ class ModalManager {
         document.getElementById('newTodoDescription').value = '';
         document.getElementById('newTodoDueDate').value = '';
         document.getElementById('newTodoEstimatedDuration').value = '';
-        document.getElementById('newTodoImportance').value = 'medium';
-        document.getElementById('newTodoUrgency').value = 'normal';
+        document.getElementById('newTodoImportance').value = '';
+        document.getElementById('newTodoUrgency').value = '';
     }
 
     // 清除提醒表单
