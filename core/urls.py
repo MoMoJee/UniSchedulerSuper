@@ -3,6 +3,7 @@ from . import views
 from . import views_events
 from . import views_token
 from . import views_share_groups
+from . import views_rollback
 
 urlpatterns = [
     path('', views.index, name='index'),
@@ -54,6 +55,9 @@ urlpatterns = [
     path("get_calendar/check_modified_events", views.check_modified_events, name="check_modified_events"),
     path('api/events/bulk-edit/', views_events.bulk_edit_events_impl, name='bulk_edit_events'),
     
+    # Agent Rollback API
+    path('api/agent/rollback/', views_rollback.rollback_transaction_impl, name='rollback_transaction'),
+
     # Reminders API
     path('api/reminders/', views.get_reminders, name='get_reminders'),
     path('api/reminders/create/', views.create_reminder, name='create_reminder'),

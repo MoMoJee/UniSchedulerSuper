@@ -17,8 +17,9 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+import reversion
+from core.models import UserData, AgentTransaction
 
-from core.models import UserData
 from core.utils.validators import validate_body
 from integrated_reminder_manager import IntegratedReminderManager, UserDataStorageBackend
 from rrule_engine import RRuleEngine
@@ -1309,9 +1310,9 @@ def get_events_impl(request):
     'importance': {'type': str, 'required': False, 'choices': ['important', 'not-important', ''], 'comment': '重要性标记'},
     'urgency': {'type': str, 'required': False, 'choices': ['urgent', 'not-urgent', ''], 'comment': '紧急性标记'},
     'groupID': {'type': str, 'required': False, 'comment': '所属群组ID', 'alias': 'groupId'},
-    'ddl': {'type': str, 'required': False, 'comment': '截止时间，格式：YYYY-MM-DDTHH:MM:SS'},
     'rrule': {'type': str, 'required': False, 'comment': '重复规则字符串', 'alias': 'RRule'},
     'shared_to_groups': {'type': list, 'required': False, 'comment': '分享到的群组ID列表'},
+    'session_id': {'type': str, 'required': False, 'comment': 'Agent会话ID，用于回滚'},
 })
 def create_event_impl(request):
     """创建新的event"""
@@ -1324,140 +1325,159 @@ def create_event_impl(request):
     try:
         # 使用 validate_body 处理后的数据
         data = request.validated_data
+        session_id = data.get('session_id')
         
-        # 提取事件数据
-        event_data = {
-            'title': data.get('title'),
-            'start': data.get('start'),
-            'end': data.get('end'),
-            'description': data.get('description', ''),
-            'importance': data.get('importance'),
-            'urgency': data.get('urgency'),
-            'groupID': data.get('groupID'),
-            'shared_to_groups': data.get('shared_to_groups', []),  # 新增：分享到的群组列表
-        }
-        
-        logger.info(f"[DEBUG] create_event_impl - received shared_to_groups: {data.get('shared_to_groups', [])}")
-        logger.info(f"[DEBUG] create_event_impl - event_data: {event_data}")
-        
-        # 获取用户偏好设置
-        user_preference_data, created, result = UserData.get_or_initialize(
-            django_request, new_key="user_preference"
-        )
-        if user_preference_data is None:
-            return JsonResponse({'status': 'error', 'message': 'Failed to get user preferences'}, status=500)
-        
-        user_preference = user_preference_data.get_value() or {}
-        
-        # 处理DDL - 如果用户传了ddl就使用，否则根据用户设置决定
-        ddl_from_request = data.get('ddl', '')
-        if ddl_from_request:
-            # 用户明确设置了ddl，直接使用
-            event_data['ddl'] = ddl_from_request
-        elif user_preference.get("auto_ddl", False):
-            # 用户未设置ddl，但启用了auto_ddl，使用end时间
-            event_data['ddl'] = data.get('end', '')
-        else:
-            # 用户未设置ddl，且未启用auto_ddl
-            event_data['ddl'] = ''
+        # 开启版本控制
+        with reversion.create_revision():
+            reversion.set_user(request.user)
+            reversion.set_comment(f"Create event: {data.get('title')}")
             
-        # 处理RRule相关数据
-        rrule = data.get('rrule')
-        if rrule:
-            # 清理 rrule 字符串：移除末尾的分号和空格
-            rrule = rrule.strip().rstrip(';')
-            # 创建重复事件系列
-            main_event = manager.create_recurring_event(event_data, rrule)
+            # 提取事件数据
+            event_data = {
+                'title': data.get('title'),
+                'start': data.get('start'),
+                'end': data.get('end'),
+                'description': data.get('description', ''),
+                'importance': data.get('importance'),
+                'urgency': data.get('urgency'),
+                'groupID': data.get('groupID'),
+                'shared_to_groups': data.get('shared_to_groups', []),  # 新增：分享到的群组列表
+            }
             
-            logger.info(f"[DEBUG] main_event returned from create_recurring_event: {main_event}")
-            logger.info(f"[DEBUG] main_event 的 shared_to_groups: {main_event.get('shared_to_groups', 'NOT FOUND')}")
+            logger.info(f"[DEBUG] create_event_impl - received shared_to_groups: {data.get('shared_to_groups', [])}")
+            logger.info(f"[DEBUG] create_event_impl - event_data: {event_data}")
             
-            # 将主事件保存到events数据中
-            user_events_data, created, result = UserData.get_or_initialize(
-                django_request, new_key="events", data=[]
+            # 获取用户偏好设置
+            user_preference_data, created, result = UserData.get_or_initialize(
+                django_request, new_key="user_preference"
             )
-            if user_events_data is None:
-                return JsonResponse({'status': 'error', 'message': 'Failed to get user events data'}, status=500)
-
-            events = user_events_data.get_value() or []
-            if not isinstance(events, list):
-                events = []
-
-            events.append(main_event)
-            logger.info(f"[DEBUG] Added main_event to events array, main_event series_id: {main_event.get('series_id')}")
+            if user_preference_data is None:
+                return JsonResponse({'status': 'error', 'message': 'Failed to get user preferences'}, status=500)
             
-            # 只有当不包含COUNT和UNTIL限制时，才自动生成后续实例
-            if 'COUNT=' not in rrule and 'UNTIL=' not in rrule:
-                # 无限制重复 - 生成适当数量的实例，与update_events_impl保持一致
-                if 'FREQ=MONTHLY' in rrule:
-                    additional_instances = manager.generate_event_instances(main_event, 365, 36)
-                elif 'FREQ=WEEKLY' in rrule:
-                    additional_instances = manager.generate_event_instances(main_event, 180, 26)
-                else:  # DAILY, YEARLY等
-                    additional_instances = manager.generate_event_instances(main_event, 90, 20)
-                events.extend(additional_instances)
-                logger.info(f"Generated {len(additional_instances)} instances for unlimited recurring event")
-                user_events_data.set_value(events)
+            user_preference = user_preference_data.get_value() or {}
+            
+            # 处理DDL - 如果用户传了ddl就使用，否则根据用户设置决定
+            ddl_from_request = data.get('ddl', '')
+            if ddl_from_request:
+                # 用户明确设置了ddl，直接使用
+                event_data['ddl'] = ddl_from_request
+            elif user_preference.get("auto_ddl", False):
+                # 用户未设置ddl，但启用了auto_ddl，使用end时间
+                event_data['ddl'] = data.get('end', '')
             else:
-                # 有限制的重复事件，手动生成指定数量的实例
-                if 'COUNT=' in rrule:
-                    import re
-                    count_match = re.search(r'COUNT=(\d+)', rrule)
-                    if count_match:
-                        count = int(count_match.group(1))
-                        # 生成指定数量的实例（包括主事件）
-                        # RRule引擎会生成所有实例，generate_event_instances会过滤掉主事件
-                        # 所以需要传递完整的count值确保总数正确
-                        additional_instances = manager.generate_event_instances(main_event, 365, count)
-                        events.extend(additional_instances)
-                elif 'UNTIL=' in rrule:
-                    # 处理UNTIL限制的重复事件
-                    print(f"[DEBUG] Processing UNTIL event with rrule: {rrule}")
-                    # 生成从开始时间到UNTIL时间之间的所有实例
-                    # 使用较大的天数范围和实例数量来确保覆盖整个UNTIL期间
-                    additional_instances = manager.generate_event_instances(main_event, 365 * 2, 1000)  # 2年范围，最多1000个实例
-                    print(f"[DEBUG] Generated {len(additional_instances)} additional instances for UNTIL event")
-                    events.extend(additional_instances)
+                # 用户未设置ddl，且未启用auto_ddl
+                event_data['ddl'] = ''
                 
+            # 处理RRule相关数据
+            rrule = data.get('rrule')
+            if rrule:
+                # 清理 rrule 字符串：移除末尾的分号和空格
+                rrule = rrule.strip().rstrip(';')
+                # 创建重复事件系列
+                main_event = manager.create_recurring_event(event_data, rrule)
+                
+                logger.info(f"[DEBUG] main_event returned from create_recurring_event: {main_event}")
+                logger.info(f"[DEBUG] main_event 的 shared_to_groups: {main_event.get('shared_to_groups', 'NOT FOUND')}")
+                
+                # 将主事件保存到events数据中
+                user_events_data, created, result = UserData.get_or_initialize(
+                    django_request, new_key="events", data=[]
+                )
+                if user_events_data is None:
+                    return JsonResponse({'status': 'error', 'message': 'Failed to get user events data'}, status=500)
+
+                events = user_events_data.get_value() or []
+                if not isinstance(events, list):
+                    events = []
+
+                events.append(main_event)
+                logger.info(f"[DEBUG] Added main_event to events array, main_event series_id: {main_event.get('series_id')}")
+                
+                # 只有当不包含COUNT和UNTIL限制时，才自动生成后续实例
+                if 'COUNT=' not in rrule and 'UNTIL=' not in rrule:
+                    # 无限制重复 - 生成适当数量的实例，与update_events_impl保持一致
+                    if 'FREQ=MONTHLY' in rrule:
+                        additional_instances = manager.generate_event_instances(main_event, 365, 36)
+                    elif 'FREQ=WEEKLY' in rrule:
+                        additional_instances = manager.generate_event_instances(main_event, 180, 26)
+                    else:  # DAILY, YEARLY等
+                        additional_instances = manager.generate_event_instances(main_event, 90, 20)
+                    events.extend(additional_instances)
+                    logger.info(f"Generated {len(additional_instances)} instances for unlimited recurring event")
+                    user_events_data.set_value(events)
+                else:
+                    # 有限制的重复事件，手动生成指定数量的实例
+                    if 'COUNT=' in rrule:
+                        import re
+                        count_match = re.search(r'COUNT=(\d+)', rrule)
+                        if count_match:
+                            count = int(count_match.group(1))
+                            # 生成指定数量的实例（包括主事件）
+                            # RRule引擎会生成所有实例，generate_event_instances会过滤掉主事件
+                            # 所以需要传递完整的count值确保总数正确
+                            additional_instances = manager.generate_event_instances(main_event, 365, count)
+                            events.extend(additional_instances)
+                    elif 'UNTIL=' in rrule:
+                        # 处理UNTIL限制的重复事件
+                        print(f"[DEBUG] Processing UNTIL event with rrule: {rrule}")
+                        # 生成从开始时间到UNTIL时间之间的所有实例
+                        # 使用较大的天数范围和实例数量来确保覆盖整个UNTIL期间
+                        additional_instances = manager.generate_event_instances(main_event, 365 * 2, 1000)  # 2年范围，最多1000个实例
+                        print(f"[DEBUG] Generated {len(additional_instances)} additional instances for UNTIL event")
+                        events.extend(additional_instances)
+                    
+                    user_events_data.set_value(events)
+            else:
+                # 创建单次事件
+                event_data['id'] = str(uuid.uuid4())
+                event_data['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                logger.info(f"[DEBUG] 单次事件 event_data 准备保存: {event_data}")
+                logger.info(f"[DEBUG] 其中 shared_to_groups = {event_data.get('shared_to_groups', 'NOT FOUND')}")
+                
+                # 保存到events数据中
+                user_events_data, created, result = UserData.get_or_initialize(
+                    django_request, new_key="events", data=[]
+                )
+                if user_events_data is None:
+                    return JsonResponse({'status': 'error', 'message': 'Failed to get user events data'}, status=500)
+                
+                events = user_events_data.get_value() or []
+                if not isinstance(events, list):
+                    events = []
+                
+                events.append(event_data)
                 user_events_data.set_value(events)
-        else:
-            # 创建单次事件
-            event_data['id'] = str(uuid.uuid4())
-            event_data['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                logger.info(f"[DEBUG] 保存后，events 数组中的最后一个事件: {events[-1]}")
+                logger.info(f"[DEBUG] 最后一个事件的 shared_to_groups: {events[-1].get('shared_to_groups', 'NOT FOUND')}")
+                
+                main_event = event_data
             
-            logger.info(f"[DEBUG] 单次事件 event_data 准备保存: {event_data}")
-            logger.info(f"[DEBUG] 其中 shared_to_groups = {event_data.get('shared_to_groups', 'NOT FOUND')}")
+            # 新增：如果事件分享到了群组，触发同步
+            shared_to_groups = data.get('shared_to_groups', [])
+            if shared_to_groups:
+                try:
+                    from .views_share_groups import sync_group_calendar_data
+                    sync_group_calendar_data(shared_to_groups, request.user)
+                    logger.info(f"创建事件后同步到群组: {shared_to_groups}")
+                except Exception as e:
+                    logger.error(f"同步群组数据失败: {str(e)}")
+                    # 不影响事件创建，继续返回成功
             
-            # 保存到events数据中
-            user_events_data, created, result = UserData.get_or_initialize(
-                django_request, new_key="events", data=[]
-            )
-            if user_events_data is None:
-                return JsonResponse({'status': 'error', 'message': 'Failed to get user events data'}, status=500)
-            
-            events = user_events_data.get_value() or []
-            if not isinstance(events, list):
-                events = []
-            
-            events.append(event_data)
-            user_events_data.set_value(events)
-            
-            logger.info(f"[DEBUG] 保存后，events 数组中的最后一个事件: {events[-1]}")
-            logger.info(f"[DEBUG] 最后一个事件的 shared_to_groups: {events[-1].get('shared_to_groups', 'NOT FOUND')}")
-            
-            main_event = event_data
-        
-        # 新增：如果事件分享到了群组，触发同步
-        shared_to_groups = data.get('shared_to_groups', [])
-        if shared_to_groups:
-            try:
-                from .views_share_groups import sync_group_calendar_data
-                sync_group_calendar_data(shared_to_groups, request.user)
-                logger.info(f"创建事件后同步到群组: {shared_to_groups}")
-            except Exception as e:
-                logger.error(f"同步群组数据失败: {str(e)}")
-                # 不影响事件创建，继续返回成功
-        
+            # 如果提供了 session_id，记录 AgentTransaction
+            if session_id:
+                try:
+                    reversion.add_meta(
+                        AgentTransaction,
+                        session_id=session_id,
+                        action_type="create_event",
+                        description=f"Created event: {main_event.get('title')}"
+                    )
+                    logger.info(f"Recorded AgentTransaction for session {session_id}")
+                except Exception as e:
+                    logger.error(f"Failed to record AgentTransaction: {e}")
+
         return JsonResponse({
             'status': 'success',
             'event': main_event

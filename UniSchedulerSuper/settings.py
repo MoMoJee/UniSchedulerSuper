@@ -36,10 +36,12 @@ CORS_ORIGIN_ALLOW_ALL = True
 INSTALLED_APPS = [
     'core',
     'ai_chatting',
+    'agent_service', # New Agent Service App
     'planner',
     'corsheaders',
     'rest_framework',
     'rest_framework.authtoken',
+    'reversion',  # django-reversion
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -49,6 +51,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # 'core.middleware.request_logger.RequestLogMiddleware', # Custom Request Logger
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -57,6 +60,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'reversion.middleware.RevisionMiddleware',  # django-reversion middleware
 ]
 
 ROOT_URLCONF = 'UniSchedulerSuper.urls'

@@ -4,18 +4,21 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251113_1712 development&#10;&#10;完成群组功能的开发(beta)">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251202_1908 development&#10;&#10;完成了接口报错机制">
+      <change afterPath="$PROJECT_DIR$/.idea/ai_debugger.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/ai_toolkit.xml" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/static/about.md" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/about.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/static/js/modal-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/modal-manager.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/UniSchedulerSuper/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/UniSchedulerSuper/settings.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/home_new.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/home.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/urls.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/views_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/views_reminder.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_reminder.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/views_share_groups.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_share_groups.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/views_token.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_token.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/群组协作功能升级方案.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/群组协作功能升级方案.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -24,6 +27,10 @@
   </component>
   <component name="DjangoConsoleOptions" custom-start-script="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)">
     <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)" />
+  </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="399" />
+    <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
@@ -49,11 +56,15 @@
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
     &quot;url&quot;: &quot;https://github.com/MoMoJee/UniSchedulerSuper&quot;,
-    &quot;accountId&quot;: &quot;d20d16d3-3249-4859-a19c-0a58c9d37766&quot;
+    &quot;accountId&quot;: &quot;a602f574-96af-4e54-b743-f602b02df597&quot;
   }
 }</component>
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$PROJECT_DIR$/core/Events的RRule功能升级文档.md" root0="FORCE_HIGHLIGHTING" root1="SKIP_HIGHLIGHTING" />
+  </component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
   </component>
   <component name="PerforceDirect.Settings">
     <option name="CHARSET" value="none" />
@@ -69,48 +80,55 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
-    "Django 服务器.UniSchedulerSuper.executor": "Run",
-    "Django 服务器.局域网.executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found": "找到数据库连接形参",
-    "Notification.DoNotAsk-DatabaseConfigFileWatcher.found": "true",
-    "Python.111 (1).executor": "Run",
-    "Python.111.executor": "Run",
-    "Python.UniSchedulerSuper.executor": "Run",
-    "Python.code_line_counter.executor": "Run",
-    "Python.example_reminders_api.executor": "Run",
-    "Python.test_browser_session.executor": "Run",
-    "Python.test_event_operations.executor": "Run",
-    "Python.test_exception_debug.executor": "Run",
-    "Python.test_reminder_operations.executor": "Run",
-    "Python.test_rrule_system.executor": "Run",
-    "Python.test_token_auth.executor": "Run",
-    "Python.test_validator_schema_standalone.executor": "Run",
-    "Python.views.executor": "Run",
-    "RunOnceActivity.OpenDjangoStructureViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.pycharm.django.structure.promotion.once.per.project": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "development__new",
-    "ignore.virus.scanning.warn.message": "true",
-    "junie.onboarding.icon.badge.shown": "true",
-    "last_opened_file_path": "D:/PROJECTS/UniSchedulerSuper/core/templates",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "org.jetbrains.plugins.github.ui.GithubSettingsConfigurable",
-    "to.speed.mode.migration.done": "true",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_MARK_IGNORED_FILES_AS_EXCLUDED&quot;: &quot;true&quot;,
+    &quot;Django 服务器.UniSchedulerSuper.executor&quot;: &quot;Run&quot;,
+    &quot;Django 服务器.局域网.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;找到数据库连接形参&quot;,
+    &quot;Notification.DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;true&quot;,
+    &quot;Python.111 (1).executor&quot;: &quot;Run&quot;,
+    &quot;Python.111.executor&quot;: &quot;Run&quot;,
+    &quot;Python.UniSchedulerSuper.executor&quot;: &quot;Run&quot;,
+    &quot;Python.code_line_counter.executor&quot;: &quot;Run&quot;,
+    &quot;Python.example_reminders_api.executor&quot;: &quot;Run&quot;,
+    &quot;Python.graph.executor&quot;: &quot;Run&quot;,
+    &quot;Python.mcp_server.executor&quot;: &quot;Run&quot;,
+    &quot;Python.mcp_tools.executor&quot;: &quot;Run&quot;,
+    &quot;Python.raw_http_dump_middleware.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_browser_session.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_event_operations.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_exception_debug.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_reminder_operations.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_rrule_system.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_token_auth.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_validator_schema_standalone.executor&quot;: &quot;Run&quot;,
+    &quot;Python.tools.executor&quot;: &quot;Run&quot;,
+    &quot;Python.views.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.OpenDjangoStructureViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.pycharm.django.structure.promotion.once.per.project&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;development__new&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/PROJECTS/UniSchedulerSuper/core/templates&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="D:\PROJECTS\UniSchedulerSuper\core\templates" />
@@ -124,7 +142,55 @@
       <recent name="D:\PROJECTS\UniSchedulerSuper\docs" />
     </key>
   </component>
-  <component name="RunManager">
+  <component name="RunManager" selected="Django 服务器.局域网">
+    <configuration name="graph" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="UniSchedulerSuper" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/agent_service" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/agent_service/graph.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="mcp_server" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="UniSchedulerSuper" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/agent_service" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/agent_service/mcp_server.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="局域网" type="Python.DjangoServer" factoryName="Django server">
       <module name="UniSchedulerSuper" />
       <option name="ENV_FILES" value="" />
@@ -140,6 +206,7 @@
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="RUN_TOOL" value="" />
       <option name="launchJavascriptDebuger" value="false" />
       <option name="port" value="8000" />
       <option name="host" value="0.0.0.0" />
@@ -166,6 +233,7 @@
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="RUN_TOOL" value="" />
       <option name="launchJavascriptDebuger" value="false" />
       <option name="port" value="8000" />
       <option name="host" value="" />
@@ -180,13 +248,21 @@
     <list>
       <item itemvalue="Django 服务器.UniSchedulerSuper" />
       <item itemvalue="Django 服务器.局域网" />
+      <item itemvalue="Python.graph" />
+      <item itemvalue="Python.mcp_server" />
     </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.mcp_server" />
+        <item itemvalue="Python.graph" />
+      </list>
+    </recent_temporary>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-a71380e98a7c-JavaScript-PY-252.28238.29" />
-        <option value="bundled-python-sdk-a101402ee41c-968fe969f28a-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.28238.29" />
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-PY-253.29346.46" />
+        <option value="bundled-python-sdk-dd10acb83ddd-d0d357532b9e-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.29346.46" />
       </set>
     </attachedChunks>
   </component>
@@ -251,7 +327,17 @@
       <workItem from="1763199797935" duration="22990000" />
       <workItem from="1763901256275" duration="13000" />
       <workItem from="1763901280057" duration="15000" />
-      <workItem from="1764608212762" duration="15522000" />
+      <workItem from="1764608212762" duration="39613000" />
+      <workItem from="1765126995124" duration="3401000" />
+      <workItem from="1765211848812" duration="2430000" />
+      <workItem from="1765387958263" duration="3967000" />
+      <workItem from="1765448091766" duration="5062000" />
+      <workItem from="1765474716965" duration="12930000" />
+      <workItem from="1765989820776" duration="1774000" />
+      <workItem from="1765995594594" duration="87000" />
+      <workItem from="1765995702430" duration="5068000" />
+      <workItem from="1766083452660" duration="18272000" />
+      <workItem from="1766223042390" duration="1955000" />
     </task>
     <task id="LOCAL-00001" summary="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
       <option name="closed" value="true" />
@@ -509,7 +595,15 @@
       <option name="project" value="LOCAL" />
       <updated>1763025202409</updated>
     </task>
-    <option name="localTasksCounter" value="33" />
+    <task id="LOCAL-00033" summary="UniSchedulerSuper 1.5.4.20251202_1908 development&#10;&#10;完成了接口报错机制">
+      <option name="closed" value="true" />
+      <created>1764673809563</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1764673809563</updated>
+    </task>
+    <option name="localTasksCounter" value="34" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -545,7 +639,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="UniSchedulerSuper 1.5.3.20250930_1345&#10;正在升级 events 相关的功能。&#10;现在 RRule 编辑功能已经基本全部可用，待测试完毕和删除多余日志项后即可更新" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20251012_1748&#10;正在升级 events 相关的功能。&#10;修复了编辑单个日程为重复日程的时候只保存规则不生成实例的错误&#10;修复了前端“此及以后”模式复选框中日程货不对板的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20251013_0131&#10;升级（实际上是修复之前已经有了的）日程组管理功能：新增group-manager.js，支持日程组操作逻辑；更新模板及交互，整合创建、编辑、删除功能；" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20251013_2033&#10;修复了编辑日程系列的首个时导致后续日程找不到主日程的问题&#10;修复了拖拽编辑日程时自动补全新日程的问题&#10;修复了日程组编辑的相关问题（该死的前端 groupID 大小写错误）" />
@@ -570,21 +663,27 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251111_1812 development&#10;&#10;正在开发群组共享功能，当前已完成了后端核心功能 的所有开发任务" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251111_1837 development&#10;&#10;正在开发群组共享功能，当前已完成了后端核心功能 的所有开发任务" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251113_1712 development&#10;&#10;完成群组功能的开发(beta)" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20251113_1712 development&#10;&#10;完成群组功能的开发(beta)" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20251202_1908 development&#10;&#10;完成了接口报错机制" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20251202_1908 development&#10;&#10;完成了接口报错机制" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_browser_session.coverage" NAME="test_browser_session 覆盖结果" MODIFIED="1762539566092" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_reminder_operations.coverage" NAME="test_reminder_operations 覆盖结果" MODIFIED="1762541044737" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_rrule_system.coverage" NAME="test_rrule_system 覆盖结果" MODIFIED="1756019650259" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/UniSchedulerSuper$UniSchedulerSuper.coverage" NAME="UniSchedulerSuper 覆盖结果" MODIFIED="1762694228421" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
-    <SUITE FILE_PATH="coverage/UniSchedulerSuper$example_reminders_api.coverage" NAME="example_reminders_api 覆盖结果" MODIFIED="1762696347053" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/api_examples" />
-    <SUITE FILE_PATH="coverage/UniSchedulerSuper$111.coverage" NAME="111 覆盖结果" MODIFIED="1764671292757" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/api_examples" />
-    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_exception_debug.coverage" NAME="test_exception_debug 覆盖结果" MODIFIED="1756045494260" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/UniSchedulerSuper$views.coverage" NAME="views 覆盖结果" MODIFIED="1764663740136" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/core" />
-    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_validator_schema_standalone.coverage" NAME="test_validator_schema_standalone 覆盖结果" MODIFIED="1764612118563" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
-    <SUITE FILE_PATH="coverage/UniSchedulerSuper$code_line_counter.coverage" NAME="code_line_counter 覆盖结果" MODIFIED="1755359556811" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_event_operations.coverage" NAME="test_event_operations 覆盖结果" MODIFIED="1762539335202" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$111__1_.coverage" NAME="111 (1) 覆盖结果" MODIFIED="1762698704329" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/api_examples" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$raw_http_dump_middleware.coverage" NAME="raw_http_dump_middleware 覆盖结果" MODIFIED="1766136938370" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$111.coverage" NAME="111 覆盖结果" MODIFIED="1766138421179" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/api_examples" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_exception_debug.coverage" NAME="test_exception_debug 覆盖结果" MODIFIED="1756045494260" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$tools.coverage" NAME="tools 覆盖结果" MODIFIED="1764698201022" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/agent_service" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$code_line_counter.coverage" NAME="code_line_counter 覆盖结果" MODIFIED="1755359556811" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$views.coverage" NAME="views 覆盖结果" MODIFIED="1764663740136" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/core" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$UniSchedulerSuper.coverage" NAME="UniSchedulerSuper 覆盖结果" MODIFIED="1762694228421" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$mcp_server.coverage" NAME="mcp_server 覆盖结果" MODIFIED="1765556907747" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/agent_service" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$example_reminders_api.coverage" NAME="example_reminders_api 覆盖结果" MODIFIED="1762696347053" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/api_examples" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_browser_session.coverage" NAME="test_browser_session 覆盖结果" MODIFIED="1762539566092" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$mcp_tools.coverage" NAME="mcp_tools 覆盖结果" MODIFIED="1764785758204" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/agent_service" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_rrule_system.coverage" NAME="test_rrule_system 覆盖结果" MODIFIED="1756019650259" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_event_operations.coverage" NAME="test_event_operations 覆盖结果" MODIFIED="1762539335202" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_validator_schema_standalone.coverage" NAME="test_validator_schema_standalone 覆盖结果" MODIFIED="1764612118563" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$graph.coverage" NAME="graph 覆盖结果" MODIFIED="1765995732775" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/agent_service" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_reminder_operations.coverage" NAME="test_reminder_operations 覆盖结果" MODIFIED="1762541044737" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

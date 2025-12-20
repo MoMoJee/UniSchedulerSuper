@@ -204,7 +204,7 @@ def home(request):
     # 初始化 rrule_series_storage 。否则直接创建的时候不知道为啥会创建两个 rrule_series_storage，找半天找不到错在哪儿
     rrule_series_storage, created, result = UserData.get_or_initialize(request, new_key="rrule_series_storage")
 
-    return render(request, 'home_new.html', context)
+    return render(request, 'home.html', context)
 
 
 @login_required

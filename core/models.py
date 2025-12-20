@@ -7,7 +7,8 @@ import datetime
 from django.db.utils import IntegrityError
 import random
 import string
-
+import reversion
+from reversion.models import Revision
 
 from logger import logger
 
@@ -1140,8 +1141,23 @@ class UserProfile(models.Model):
 #一对一关系：通过 OneToOneField 将 UserProfile 与 User 模型关联起来，确保每个用户只有一个对应的 UserProfile。
 # 便于管理：可以在 Django Admin 中方便地管理用户及其额外信息。
 
+class AgentTransaction(models.Model):
+    """
+    记录 Agent 执行的高级事务。
+    将 LangGraph 会话/操作与 django-reversion 的 Revision 关联起来。
+    """
+    session_id = models.CharField(max_length=255, help_text="LangGraph Session ID")
+    revision = models.OneToOneField(Revision, on_delete=models.CASCADE)
+    action_type = models.CharField(max_length=100, help_text="操作类型 (例如: create_event)")
+    description = models.TextField(blank=True, help_text="操作的人类可读描述")
+    timestamp = models.DateTimeField(auto_now_add=True)
+    is_reverted = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"[{self.timestamp}] {self.action_type} (Session: {self.session_id})"
 
 
+@reversion.register
 class UserData(models.Model):
     # 这里定义用户数据模型，
     user = models.ForeignKey(User, on_delete=models.CASCADE)

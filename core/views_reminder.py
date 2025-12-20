@@ -7,8 +7,9 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+import reversion
+from core.models import UserData, AgentTransaction
 
-from core.models import UserData
 from core.utils.validators import validate_body
 from logger import logger
 
@@ -415,6 +416,7 @@ def get_reminders(request):
     'content': {'type': str, 'required': False, 'comment': '提醒内容', 'alias': 'description'},
     'priority': {'type': str, 'required': True, 'default': 'normal', 'choices': ['debug', 'low', 'normal', 'high', 'urgent'], 'comment': '优先级'},
     'rrule': {'type': str, 'required': False, 'comment': '重复规则字符串', 'alias': 'RRule'},
+    'session_id': {'type': str, 'required': False, 'comment': 'Agent会话ID，用于回滚'},
 })
 def create_reminder(request):
     """创建新提醒 - 使用新的 RRule 引擎"""
@@ -422,69 +424,90 @@ def create_reminder(request):
         # 获取原生 Django request
         django_request = get_django_request(request)
         
-        user_reminders_data, created, result = UserData.get_or_initialize(django_request, new_key="reminders")
-        
-        # 检查是否成功获取数据
-        if user_reminders_data is None:
-            logger.error(f"Failed to get reminders data: {result}")
-            return JsonResponse({'status': 'error', 'message': result.get('message', '获取提醒数据失败')}, status=500)
-        
-        reminders = user_reminders_data.get_value()
-        
         # 使用 validate_body 处理后的数据
         data = request.validated_data
-        title = data.get('title')
-        content = data.get('content', '')
-        trigger_time = data.get('trigger_time')
-        priority = data.get('priority', 'medium')
-        rrule = data.get('rrule', '')
-        
-        # 准备提醒数据
-        reminder_data = {
-            "title": title,
-            "content": content,
-            "trigger_time": trigger_time,
-            "priority": priority,
-            "status": "active",
-            "snooze_until": "",
-            "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "last_modified": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
+        session_id = data.get('session_id')
         
         try:
-            # 确保 reminders 是列表
-            if not isinstance(reminders, list):
-                reminders = []
-            
-            if rrule and 'FREQ=' in rrule:
-                # 创建重复提醒
-                print(f"DEBUG: Creating recurring reminder with rrule: {rrule}")
-                reminder_mgr = get_reminder_manager(django_request)
-                recurring_reminder = reminder_mgr.create_recurring_reminder(reminder_data, rrule)
-                reminders.append(recurring_reminder)
+            with reversion.create_revision():
+                reversion.set_user(request.user)
+                reversion.set_comment(f"Create reminder: {data.get('title')}")
                 
-                # 处理数据生成实例
-                updated_reminders = reminder_mgr.process_reminder_data(reminders)
-                user_reminders_data.set_value(updated_reminders)
+                user_reminders_data, created, result = UserData.get_or_initialize(django_request, new_key="reminders")
                 
-                return JsonResponse({
-                    'status': 'success', 
-                    'message': f'重复提醒已创建，系列ID: {recurring_reminder["series_id"]}'
-                })
-            else:
-                # 创建单个提醒
-                reminder_data.update({
-                    'id': str(uuid.uuid4()),
-                    'series_id': None,
-                    'rrule': '',
-                    'is_recurring': False,
-                    'is_main_reminder': False,
-                    'is_detached': False
-                })
-                reminders.append(reminder_data)
-                user_reminders_data.set_value(reminders)
+                # 检查是否成功获取数据
+                if user_reminders_data is None:
+                    logger.error(f"Failed to get reminders data: {result}")
+                    return JsonResponse({'status': 'error', 'message': result.get('message', '获取提醒数据失败')}, status=500)
                 
-                return JsonResponse({'status': 'success', 'message': '提醒已创建'})
+                reminders = user_reminders_data.get_value()
+                
+                title = data.get('title')
+                content = data.get('content', '')
+                trigger_time = data.get('trigger_time')
+                priority = data.get('priority', 'medium')
+                rrule = data.get('rrule', '')
+                
+                # 准备提醒数据
+                reminder_data = {
+                    "title": title,
+                    "content": content,
+                    "trigger_time": trigger_time,
+                    "priority": priority,
+                    "status": "active",
+                    "snooze_until": "",
+                    "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "last_modified": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+                
+                # 确保 reminders 是列表
+                if not isinstance(reminders, list):
+                    reminders = []
+                
+                if rrule and 'FREQ=' in rrule:
+                    # 创建重复提醒
+                    print(f"DEBUG: Creating recurring reminder with rrule: {rrule}")
+                    reminder_mgr = get_reminder_manager(django_request)
+                    recurring_reminder = reminder_mgr.create_recurring_reminder(reminder_data, rrule)
+                    reminders.append(recurring_reminder)
+                    
+                    # 处理数据生成实例
+                    updated_reminders = reminder_mgr.process_reminder_data(reminders)
+                    user_reminders_data.set_value(updated_reminders)
+                    
+                    response_data = {
+                        'status': 'success', 
+                        'message': f'重复提醒已创建，系列ID: {recurring_reminder["series_id"]}'
+                    }
+                else:
+                    # 创建单个提醒
+                    reminder_data.update({
+                        'id': str(uuid.uuid4()),
+                        'series_id': None,
+                        'rrule': '',
+                        'is_recurring': False,
+                        'is_main_reminder': False,
+                        'is_detached': False
+                    })
+                    reminders.append(reminder_data)
+                    user_reminders_data.set_value(reminders)
+                    
+                    response_data = {'status': 'success', 'message': '提醒已创建'}
+                
+                # 如果提供了 session_id，记录 AgentTransaction
+                if session_id:
+                    try:
+                        reversion.add_meta(
+                            AgentTransaction,
+                            session_id=session_id,
+                            action_type="create_reminder",
+                            description=f"Created reminder: {title}"
+                        )
+                        logger.info(f"Recorded AgentTransaction for session {session_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to record AgentTransaction: {e}")
+                        
+                return JsonResponse(response_data)
                 
         except Exception as e:
             print(f"ERROR in create_reminder: {e}")
