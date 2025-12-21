@@ -140,6 +140,15 @@
     { "type": "end" }
     ```
 
+5.  **错误 (Error)**:
+    ```json
+    { "type": "error", "code": "TOKEN_EXPIRED", "message": "登录已过期，请刷新页面。" }
+    ```
+
+**连接保活与重连 (Keep-alive & Reconnect):**
+*   **心跳**: 客户端每 30 秒发送 `{ "type": "ping" }`，服务端回复 `{ "type": "pong" }`。
+*   **重连**: WebSocket 断开后，客户端应采用指数退避算法（Exponential Backoff）尝试重连。若重连失败超过 3 次，提示用户手动刷新。
+
 ### 3.3 UI 组件设计 (UI Component)
 
 采用 **DeepChat** Web Component 集成到现有页面中（当前只做了一个占位的框框，没有实际功能）。
@@ -157,6 +166,29 @@
     *   利用 DeepChat 的 `htmlResponse` 特性渲染自定义 HTML 卡片（如日程预览卡片）。
     *   当 Agent 返回特定结构数据时，前端将其转换为 HTML 字符串传给 DeepChat。
     *   当 Agent 需要确认操作（如删除日程）时，渲染 "确认/取消" 按钮。
+
+### 3.4 API 接口定义 (API Endpoints)
+
+为了支持前端交互，后端需提供以下接口：
+
+#### 1. WebSocket (实时通信)
+*   **URL**: `/ws/agent/chat/`
+*   **功能**: 双向通信，发送用户指令，接收流式回复。
+*   **鉴权**: 复用 Django Session (浏览器环境) 或 Token (App 环境)。
+*   **连接参数**: `?session_id=xxx&active_experts=planner,map` (可选，用于指定会话和启用的专家)
+
+#### 2. HTTP API (RESTful)
+
+| 方法 | URL | 功能 | 参数/Body |
+| :--- | :--- | :--- | :--- |
+| **GET** | `/api/agent/sessions/` | 获取用户的会话列表 | - |
+| **POST** | `/api/agent/sessions/` | 创建新会话 (清除快照) | `{ "name": "..." }` |
+| **GET** | `/api/agent/history/` | 获取指定会话历史 | `?session_id=xxx` |
+| **POST** | `/api/agent/rollback/preview/` | 预览回滚操作 | `{ "session_id": "..." }` |
+| **POST** | `/api/agent/rollback/` | 执行回滚操作 | `{ "session_id": "...", "target_timestamp": "..." }` |
+| **GET** | `/api/agent/memory/` | 查看用户画像 (Debug) | - |
+
+*   **注意**: 切换 Session 或修改 `active_experts` 前，前端应调用 `/api/agent/sessions/` 创建新会话或明确提示用户快照将失效。
 
 ---
 
@@ -246,6 +278,37 @@ UniSchedulerSuper/
         *   **装饰器**: 创建 `@agent_transaction(action_type)` 装饰器，包裹所有写操作工具。
         *   **记录**: 装饰器自动开启 `reversion.create_revision()`，并在操作完成后创建 `AgentTransaction` 记录，关联 `session_id` 和 `Revision`。
         *   **恢复**: 完善 `views_rollback.py`，修复“撤销删除”逻辑（即恢复被删除的对象），并提供 API 供前端调用。
+
+6.  **关键机制：并发控制与状态管理 (Concurrency & State Management)**
+    *   **专家选择 (Expert Selection)**:
+        *   允许用户在前端自定义启用的专家（如仅开启聊天，关闭规划）。
+        *   Supervisor 根据 `active_experts` 列表动态过滤路由。
+    *   **Planner 互斥锁 (Planner Mutex)**:
+        *   允许用户多端登录，也允许多个 Agent 实例同时存在。
+        *   **限制**: 同一用户同一时刻只能有一个 **开启了综合规划专家 (Planner)** 的 Agent 在运行。
+        *   **实现**: 使用 Redis 或数据库锁，在 WebSocket 连接建立时检查。若检测到冲突，强制下线旧连接或拒绝新连接（针对 Planner 功能）。
+    *   **回滚快照生命周期 (Snapshot Lifecycle)**:
+        *   **原则**: 回滚快照 (`AgentTransaction`) 仅在当前 Session 有效。
+        *   **失效场景**: 当用户 **切换 Session** 或 **修改 Planner 开关状态** 时，旧的快照将失效（无法再回滚之前的操作）。
+        *   **交互**: 在执行上述操作前，前端必须弹出警告：“切换会话/修改配置将导致之前的操作无法撤销，是否继续？”
+
+### 4.4 MCP 服务集成 (MCP Integration)
+
+地图专家 (Map Agent) 依赖外部 MCP 服务来获取地理信息。
+
+1.  **客户端配置**:
+    *   使用 `langchain_mcp_adapters.client.MultiServerMCPClient` 连接多个 MCP 服务。
+    *   **高德地图服务 (Remote SSE)**:
+        *   URL: `https://mcp.amap.com/sse?key=...`
+        *   Transport: `sse` (Server-Sent Events)
+    *   **本地服务 (Local Stdio)**:
+        *   Command: `python agent_service/mcp_server.py`
+        *   Transport: `stdio` (标准输入输出)
+
+2.  **工具加载与转换**:
+    *   **异步加载**: MCP Client 默认提供异步工具 (`async def`)。
+    *   **同步转换**: 由于 LangGraph 节点通常同步运行，需使用 `async_to_sync_tool` 包装器将 MCP 工具转换为同步函数，利用 `asyncio.run` 或 `concurrent.futures` 在独立线程中执行。
+    *   **生命周期**: 在 Django 启动时或首次调用时初始化 Client，并缓存工具列表以提高性能。
 
 ---
 

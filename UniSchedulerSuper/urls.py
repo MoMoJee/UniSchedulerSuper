@@ -25,4 +25,5 @@ urlpatterns = [
     path('', include('core.urls')),
     path('ai_chatting/', include('ai_chatting.urls')),
     path('planner/', include('planner.urls')),
+    path('api/agent/', include('agent_service.urls')),  # Agent Service API
 ]

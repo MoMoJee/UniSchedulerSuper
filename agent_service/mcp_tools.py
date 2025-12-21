@@ -1,112 +1,75 @@
 import asyncio
+import logging
+from typing import List, Any
+from asgiref.sync import async_to_sync
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain_core.tools import StructuredTool, tool
+from langchain_core.tools import StructuredTool, Tool
 from langchain_core.runnables import RunnableConfig
-from agent_service.memory_store import store
+
+# 配置日志
+logger = logging.getLogger(__name__)
 
 # 配置 MCP 客户端
-client = MultiServerMCPClient(
-    {
-        "amap-amap-sse": {
+# 注意: 这里的配置应该根据实际环境进行调整，或者从 settings 中读取
+MCP_SERVERS_CONFIG = {
+    "amap-amap-sse": {
             "url": "https://mcp.amap.com/sse?key=0473448f0b67ef98d9a6da61c4b220f0",
             "transport": "sse"
         },
-        "unischedulersuper": {
-            "command": "python",
-            "args": ["d:/PROJECTS/UniSchedulerSuper/agent_service/mcp_server.py"],
-            "transport": "stdio"
-        }
-    },
-)
+    # "unischedulersuper": {
+    #     "command": "python",
+    #     "args": ["d:/PROJECTS/UniSchedulerSuper/agent_service/mcp_server.py"],
+    #     "transport": "stdio"
+    # }
+}
 
-async def get_mcp_tools_async():
+client = MultiServerMCPClient(MCP_SERVERS_CONFIG)
+
+async def get_mcp_tools_async() -> List[StructuredTool]:
     """异步获取 MCP 工具"""
     try:
-        return await client.get_tools()
+        # client.get_tools() 返回的是 LangChain Tools 列表
+        tools = await client.get_tools()
+        return tools
     except Exception as e:
-        print(f"警告: 无法连接到 MCP 服务器: {e}")
+        logger.error(f"无法连接到 MCP 服务器: {e}")
         return []
 
-def async_to_sync_tool(async_tool):
-    """将异步工具转换为同步工具"""
-    
-    # 获取原始的异步函数
-    original_coroutine = async_tool.coroutine
-    
-    # 创建同步包装函数
+def convert_async_tool_to_sync(tool: StructuredTool) -> StructuredTool:
+    """
+    将异步 LangChain Tool 转换为同步 Tool。
+    使用 asgiref.sync.async_to_sync 确保在 Django 环境中正确运行。
+    """
+    if not tool.coroutine:
+        return tool
+
+    async_func = tool.coroutine
+
     def sync_wrapper(*args, **kwargs):
-        """同步包装器,在新的事件循环中运行异步函数"""
-        try:
-            # 尝试获取当前事件循环
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # 如果循环正在运行,创建新的循环
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    future = pool.submit(asyncio.run, original_coroutine(*args, **kwargs))
-                    return future.result()
-            else:
-                # 如果循环未运行,直接运行
-                return loop.run_until_complete(original_coroutine(*args, **kwargs))
-        except RuntimeError:
-            # 如果没有事件循环,创建新的
-            return asyncio.run(original_coroutine(*args, **kwargs))
-    
-    # 创建新的同步工具
-    sync_tool = StructuredTool(
-        name=async_tool.name,
-        description=async_tool.description,
+        return async_to_sync(async_func)(*args, **kwargs)
+
+    return StructuredTool.from_function(
         func=sync_wrapper,
-        args_schema=async_tool.args_schema,
+        name=tool.name,
+        description=tool.description,
+        args_schema=tool.args_schema,
+        return_direct=tool.return_direct
     )
-    
-    return sync_tool
 
-# ==========================================
-# 本地记忆检索工具
-# ==========================================
-@tool
-def search_memory(query: str, config: RunnableConfig) -> str:
+def get_mcp_tools_sync() -> List[StructuredTool]:
     """
-    搜索用户的过往记忆细节。
-    当你需要回忆用户的具体偏好、经历或细节，而这些信息不在系统提示词的【核心画像】中时，使用此工具。
-    
-    Args:
-        query: 搜索关键词
+    同步获取并转换所有 MCP 工具。
+    这是给 Agent 使用的主要入口点。
     """
-    user_id = config.get("configurable", {}).get("user_id")
-    if not user_id:
-        return "无法获取用户ID，搜索失败。"
-        
-    # 在 InMemoryStore 中搜索
-    # 注意：由于未配置 Embedding，这里使用简单的文本包含匹配
-    # 生产环境应配置 Vector Store 以支持语义搜索
-    results = store.search(("users", str(user_id), "memories"))
-    
-    matched_memories = []
-    for item in results:
-        content = item.value.get("content", "")
-        # 简单的关键词匹配
-        if query.lower() in content.lower():
-            matched_memories.append(content)
-            
-    if not matched_memories:
-        return f"未找到关于 '{query}' 的相关记忆。"
-        
-    return f"找到以下相关记忆:\n" + "\n".join([f"- {m}" for m in matched_memories])
-
-def load_mcp_tools():
-    """加载并返回同步的 MCP 工具列表"""
-    print("正在加载 MCP 工具...")
     try:
-        async_tools = asyncio.run(get_mcp_tools_async())
-        sync_tools = [async_to_sync_tool(tool) for tool in async_tools]
+        # 1. 异步获取工具 (需要在 async 上下文中运行，或者使用 async_to_sync)
+        # 由于 get_tools 涉及网络 IO，我们需要小心处理
+        async_get = async_to_sync(get_mcp_tools_async)
+        tools = async_get()
         
-        # 添加本地记忆搜索工具
-        sync_tools.append(search_memory)
-        
-        print(f"成功加载 {len(sync_tools)} 个工具 (含本地工具)")
+        # 2. 将每个工具转换为同步版本
+        sync_tools = [convert_async_tool_to_sync(t) for t in tools]
         return sync_tools
     except Exception as e:
-        print(f"加载 MCP 工具失败: {e}")
-        return [search_memory] # 即使 MCP 失败，也返回本地工具
+        logger.error(f"获取 MCP 工具失败: {e}")
+        return []

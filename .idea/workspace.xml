@@ -4,21 +4,21 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251202_1908 development&#10;&#10;完成了接口报错机制">
-      <change afterPath="$PROJECT_DIR$/.idea/ai_debugger.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/ai_toolkit.xml" afterDir="false" />
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251220_2301 development&#10;&#10;我在学 LangGraph, 准备把它集成进我的网站">
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/UniSchedulerSuper/asgi.py" beforeDir="false" afterPath="$PROJECT_DIR$/UniSchedulerSuper/asgi.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/UniSchedulerSuper/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/UniSchedulerSuper/settings.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/templates/home_new.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/home.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/urls.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/views_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/views_reminder.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_reminder.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/UniSchedulerSuper/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/UniSchedulerSuper/urls.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/consumers.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/mcp_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/mcp_tools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/models.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/群组协作功能升级方案.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/群组协作功能升级方案.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Agent_Integration_Plan.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/Agent_Integration_Plan.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Phase1-数据库模型实施完成.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Phase2-后端核心功能实施完成.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Phase3-前端UI实施完成.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -29,7 +29,7 @@
     <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="399" />
+    <option name="cachedIndexableFilesCount" value="412" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -80,55 +80,63 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ASKED_MARK_IGNORED_FILES_AS_EXCLUDED&quot;: &quot;true&quot;,
-    &quot;Django 服务器.UniSchedulerSuper.executor&quot;: &quot;Run&quot;,
-    &quot;Django 服务器.局域网.executor&quot;: &quot;Run&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;找到数据库连接形参&quot;,
-    &quot;Notification.DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;true&quot;,
-    &quot;Python.111 (1).executor&quot;: &quot;Run&quot;,
-    &quot;Python.111.executor&quot;: &quot;Run&quot;,
-    &quot;Python.UniSchedulerSuper.executor&quot;: &quot;Run&quot;,
-    &quot;Python.code_line_counter.executor&quot;: &quot;Run&quot;,
-    &quot;Python.example_reminders_api.executor&quot;: &quot;Run&quot;,
-    &quot;Python.graph.executor&quot;: &quot;Run&quot;,
-    &quot;Python.mcp_server.executor&quot;: &quot;Run&quot;,
-    &quot;Python.mcp_tools.executor&quot;: &quot;Run&quot;,
-    &quot;Python.raw_http_dump_middleware.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_browser_session.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_event_operations.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_exception_debug.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_reminder_operations.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_rrule_system.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_token_auth.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_validator_schema_standalone.executor&quot;: &quot;Run&quot;,
-    &quot;Python.tools.executor&quot;: &quot;Run&quot;,
-    &quot;Python.views.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.OpenDjangoStructureViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.pycharm.django.structure.promotion.once.per.project&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;development__new&quot;,
-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/PROJECTS/UniSchedulerSuper/core/templates&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
-    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
+    "Django 服务器.UniSchedulerSuper.executor": "Run",
+    "Django 服务器.局域网.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found": "找到数据库连接形参",
+    "Notification.DoNotAsk-DatabaseConfigFileWatcher.found": "true",
+    "Python.111 (1).executor": "Run",
+    "Python.111.executor": "Run",
+    "Python.UniSchedulerSuper.executor": "Run",
+    "Python.code_line_counter.executor": "Run",
+    "Python.example_reminders_api.executor": "Run",
+    "Python.graph.executor": "Run",
+    "Python.mcp_server.executor": "Run",
+    "Python.mcp_tools.executor": "Run",
+    "Python.raw_http_dump_middleware.executor": "Run",
+    "Python.test_browser_session.executor": "Run",
+    "Python.test_event_operations.executor": "Run",
+    "Python.test_exception_debug.executor": "Run",
+    "Python.test_reminder_operations.executor": "Run",
+    "Python.test_rrule_system.executor": "Run",
+    "Python.test_token_auth.executor": "Run",
+    "Python.test_validator_schema_standalone.executor": "Run",
+    "Python.tools.executor": "Run",
+    "Python.views.executor": "Run",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.OpenDjangoStructureViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.pycharm.django.structure.promotion.once.per.project": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "ai.playground.ignore.import.keys.banner.in.settings": "true",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "development__new",
+    "ignore.virus.scanning.warn.message": "true",
+    "junie.onboarding.icon.badge.shown": "true",
+    "last_opened_file_path": "D:/PROJECTS/UniSchedulerSuper/core/templates",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "to.speed.mode.migration.done": "true",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
+  <component name="RecapSpentCounter">
+    <option name="endsOfQuotaMs" value="1767852033417" />
+    <option name="spentUsd" value="0.00852085" />
+  </component>
+  <component name="RecapUselessUpdatesCounter">
+    <option name="suspendCountdown" value="7" />
+  </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="D:\PROJECTS\UniSchedulerSuper\core\templates" />
@@ -142,7 +150,7 @@
       <recent name="D:\PROJECTS\UniSchedulerSuper\docs" />
     </key>
   </component>
-  <component name="RunManager" selected="Django 服务器.局域网">
+  <component name="RunManager" selected="Django 服务器.UniSchedulerSuper">
     <configuration name="graph" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="UniSchedulerSuper" />
       <option name="ENV_FILES" value="" />
@@ -261,8 +269,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-PY-253.29346.46" />
-        <option value="bundled-python-sdk-dd10acb83ddd-d0d357532b9e-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.29346.46" />
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-PY-253.29346.142" />
+        <option value="bundled-python-sdk-f2b7a9f6281b-6e1f45a539f7-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.29346.142" />
       </set>
     </attachedChunks>
   </component>
@@ -337,7 +345,8 @@
       <workItem from="1765995594594" duration="87000" />
       <workItem from="1765995702430" duration="5068000" />
       <workItem from="1766083452660" duration="18272000" />
-      <workItem from="1766223042390" duration="1955000" />
+      <workItem from="1766223042390" duration="12227000" />
+      <workItem from="1766299541175" duration="2348000" />
     </task>
     <task id="LOCAL-00001" summary="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
       <option name="closed" value="true" />
@@ -603,7 +612,15 @@
       <option name="project" value="LOCAL" />
       <updated>1764673809563</updated>
     </task>
-    <option name="localTasksCounter" value="34" />
+    <task id="LOCAL-00034" summary="UniSchedulerSuper 1.5.4.20251220_2301 development&#10;&#10;我在学 LangGraph, 准备把它集成进我的网站">
+      <option name="closed" value="true" />
+      <created>1766242922053</created>
+      <option name="number" value="00034" />
+      <option name="presentableId" value="LOCAL-00034" />
+      <option name="project" value="LOCAL" />
+      <updated>1766242922053</updated>
+    </task>
+    <option name="localTasksCounter" value="35" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -639,7 +656,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="UniSchedulerSuper 1.5.3.20251012_1748&#10;正在升级 events 相关的功能。&#10;修复了编辑单个日程为重复日程的时候只保存规则不生成实例的错误&#10;修复了前端“此及以后”模式复选框中日程货不对板的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20251013_0131&#10;升级（实际上是修复之前已经有了的）日程组管理功能：新增group-manager.js，支持日程组操作逻辑；更新模板及交互，整合创建、编辑、删除功能；" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20251013_2033&#10;修复了编辑日程系列的首个时导致后续日程找不到主日程的问题&#10;修复了拖拽编辑日程时自动补全新日程的问题&#10;修复了日程组编辑的相关问题（该死的前端 groupID 大小写错误）" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.&#10;修复了 DDL 设置不生效的问题&#10;优化了 DDL 对重复事件的适配&#10;修复了重复日程无法截断为单个日程的问题&#10;修复了删除重复日程的第一个（仅此模式）后主事件消失的问题" />
@@ -664,7 +680,8 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251111_1837 development&#10;&#10;正在开发群组共享功能，当前已完成了后端核心功能 的所有开发任务" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251113_1712 development&#10;&#10;完成群组功能的开发(beta)" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251202_1908 development&#10;&#10;完成了接口报错机制" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20251202_1908 development&#10;&#10;完成了接口报错机制" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20251220_2301 development&#10;&#10;我在学 LangGraph, 准备把它集成进我的网站" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20251220_2301 development&#10;&#10;我在学 LangGraph, 准备把它集成进我的网站" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

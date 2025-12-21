@@ -34,6 +34,8 @@ CORS_ORIGIN_ALLOW_ALL = True
 # Application definition
 
 INSTALLED_APPS = [
+    # 'daphne',  # Daphne ASGI server - 生产环境需要: pip install daphne
+    'channels',  # Django Channels for WebSocket
     'core',
     'ai_chatting',
     'agent_service', # New Agent Service App
@@ -50,8 +52,18 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 ]
 
+# ASGI Application
+ASGI_APPLICATION = 'UniSchedulerSuper.asgi.application'
+
+# Channels Layer Configuration (使用内存层，生产环境建议使用 Redis)
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
+
 MIDDLEWARE = [
-    # 'core.middleware.request_logger.RequestLogMiddleware', # Custom Request Logger
+    'core.middleware.request_logger.RequestLogMiddleware', # Custom Request Logger
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
