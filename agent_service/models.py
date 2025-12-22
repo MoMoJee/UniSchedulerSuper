@@ -1,6 +1,45 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+class AgentSession(models.Model):
+    """
+    Agent 会话记录
+    存储用户的聊天会话信息，支持历史记录切换
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='agent_sessions')
+    session_id = models.CharField(max_length=200, unique=True, db_index=True, help_text="会话 ID (thread_id)")
+    name = models.CharField(max_length=200, blank=True, default="", help_text="会话名称")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True, help_text="是否为活跃会话")
+    message_count = models.IntegerField(default=0, help_text="消息数量")
+    last_message_preview = models.CharField(max_length=200, blank=True, default="", help_text="最后一条消息预览")
+    
+    class Meta:
+        ordering = ['-updated_at']
+        verbose_name = "Agent 会话"
+        verbose_name_plural = "Agent 会话"
+
+    def __str__(self):
+        return f"{self.user.username}: {self.name or self.session_id}"
+    
+    @classmethod
+    def get_or_create_session(cls, user, session_id=None, name=None):
+        """获取或创建会话"""
+        import uuid
+        if not session_id:
+            session_id = f"user_{user.id}_{uuid.uuid4().hex[:8]}"
+        
+        session, created = cls.objects.get_or_create(
+            session_id=session_id,
+            defaults={
+                'user': user,
+                'name': name or f"对话 {cls.objects.filter(user=user).count() + 1}"
+            }
+        )
+        return session, created
+
+
 class UserMemory(models.Model):
     """
     用户核心画像 (Core Profile)
@@ -40,6 +79,7 @@ class AgentTransaction(models.Model):
     session_id = models.CharField(max_length=200, db_index=True, help_text="会话 ID")
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='agent_transactions', null=True, blank=True)
     action_type = models.CharField(max_length=100, help_text="操作类型 (create_event, delete_todo, etc.)")
+    description = models.TextField(blank=True, default="", help_text="操作描述")
     revision_id = models.IntegerField(null=True, blank=True, help_text="django-reversion 的 Revision ID")
     metadata = models.JSONField(default=dict, help_text="额外的元数据")
     is_rolled_back = models.BooleanField(default=False, help_text="是否已回滚")

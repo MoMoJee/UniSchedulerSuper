@@ -19,6 +19,8 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -27,3 +29,10 @@ urlpatterns = [
     path('planner/', include('planner.urls')),
     path('api/agent/', include('agent_service.urls')),  # Agent Service API
 ]
+
+# 在开发环境和使用 daphne 时服务静态文件
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+else:
+    # 在生产环境使用 daphne 时也需要服务静态文件（如果没有使用 Nginx）
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -82,7 +82,7 @@ def auto_generate_missing_instances(reminders):
             # 如果最晚的提醒时间距离现在少于30天，生成新实例
             days_ahead = (latest_time - now).days
             if days_ahead < 30:
-                print(f"DEBUG: Series {series_id} (no UNTIL) needs new instances, latest is {days_ahead} days ahead")
+                # print(f"DEBUG: Series {series_id} (no UNTIL) needs new instances, latest is {days_ahead} days ahead")
                 
                 # 生成新实例，从最晚时间之后开始
                 new_instances = generate_reminder_instances(base_reminder, 90, 10)
@@ -98,7 +98,7 @@ def auto_generate_missing_instances(reminders):
                 if truly_new_instances:
                     reminders.extend(truly_new_instances)
                     new_instances_count += len(truly_new_instances)
-                    print(f"DEBUG: Added {len(truly_new_instances)} new instances for unlimited series {series_id}")
+                    # print(f"DEBUG: Added {len(truly_new_instances)} new instances for unlimited series {series_id}")
             else:
                 print(f"DEBUG: Series {series_id} (no UNTIL) is good, latest is {days_ahead} days ahead")
     

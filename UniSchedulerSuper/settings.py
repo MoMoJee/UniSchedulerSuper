@@ -63,7 +63,7 @@ CHANNEL_LAYERS = {
 }
 
 MIDDLEWARE = [
-    'core.middleware.request_logger.RequestLogMiddleware', # Custom Request Logger
+    # 'core.middleware.request_logger.RequestLogMiddleware', # Custom Request Logger
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

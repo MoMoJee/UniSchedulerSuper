@@ -9,7 +9,7 @@ from typing import Optional
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from asgiref.sync import sync_to_async
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, AIMessageChunk, ToolMessage
 from django.contrib.auth.models import User
 
 logger = logging.getLogger(__name__)
@@ -38,9 +38,11 @@ class AgentConsumer(AsyncWebsocketConsumer):
         super().__init__(*args, **kwargs)
         self.user: Optional[User] = None
         self.session_id: Optional[str] = None
-        self.active_experts: list = ['planner', 'chat']
+        self.active_experts: list = ['planner', 'map', 'chat']  # 默认启用所有专家
         self.graph = None
         self.is_processing = False
+        self.should_stop = False  # 停止标志
+        self.current_task: Optional[asyncio.Task] = None  # 当前处理任务
     
     async def connect(self):
         """处理 WebSocket 连接"""
@@ -56,7 +58,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
         params = self._parse_query_string(query_string)
         
         self.session_id = params.get("session_id", f"user_{self.user.id}_default")
-        experts_param = params.get("active_experts", "planner,chat")
+        experts_param = params.get("active_experts", "planner,map,chat")
         self.active_experts = [e.strip() for e in experts_param.split(",") if e.strip()]
         
         logger.info(f"用户 {self.user.username} 连接 WebSocket, session={self.session_id}, experts={self.active_experts}")
@@ -89,6 +91,19 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 # 心跳响应
                 await self.send_json({"type": "pong"})
                 
+            elif msg_type == "stop":
+                # 停止当前处理
+                if self.is_processing:
+                    self.should_stop = True
+                    # 取消当前任务
+                    if self.current_task and not self.current_task.done():
+                        self.current_task.cancel()
+                        logger.info(f"用户 {self.user.username} 取消了当前任务")
+                    logger.info(f"用户 {self.user.username} 请求停止处理")
+                    await self.send_json({"type": "stopped", "message": "已停止生成"})
+                else:
+                    await self.send_json({"type": "info", "message": "当前没有正在处理的消息"})
+                
             elif msg_type == "message":
                 # 用户消息
                 content = data.get("content", "").strip()
@@ -100,7 +115,10 @@ class AgentConsumer(AsyncWebsocketConsumer):
                     await self.send_json({"type": "error", "message": "正在处理上一条消息，请稍候"})
                     return
                 
-                await self._process_message(content)
+                # 重置停止标志
+                self.should_stop = False
+                # 创建任务并运行
+                self.current_task = asyncio.create_task(self._process_message(content))
                 
             else:
                 await self.send_json({"type": "error", "message": f"未知消息类型: {msg_type}"})
@@ -112,7 +130,10 @@ class AgentConsumer(AsyncWebsocketConsumer):
             await self.send_json({"type": "error", "message": f"服务器错误: {str(e)}"})
     
     async def _process_message(self, content: str):
-        """处理用户消息并调用 Agent"""
+        """
+        处理用户消息并真正流式输出
+        使用 stream_mode="messages" 获取 token 级别的流式输出
+        """
         self.is_processing = True
         
         try:
@@ -131,29 +152,152 @@ class AgentConsumer(AsyncWebsocketConsumer):
             input_state = {
                 "messages": [HumanMessage(content=content)],
                 "next": "",
-                "active_experts": self.active_experts
+                "active_experts": self.active_experts,
+                "current_agent": ""
             }
             
-            # 调用 Agent (使用流式输出)
-            full_response = ""
+            # 导入 graph
+            from agent_service.agent_graph import app
             
-            # 在同步环境中运行 graph
-            result = await self._invoke_graph(input_state, config)
+            # 使用 queue 在线程和异步代码之间传递事件
+            import queue
+            import threading
             
-            if result and "messages" in result:
-                # 获取最后一条 AI 消息
-                for msg in reversed(result["messages"]):
-                    if isinstance(msg, AIMessage):
-                        full_response = msg.content
+            event_queue = queue.Queue()
+            
+            def run_stream():
+                """
+                在后台线程中运行同步的 stream
+                使用默认 stream 模式获取节点级别的输出
+                """
+                try:
+                    print(f"[Stream] 开始流式处理, input_state keys={input_state.keys()}")
+                    chunk_count = 0
+                    
+                    # 使用默认 stream 模式 (返回 state updates)
+                    for output in app.stream(input_state, config):
+                        chunk_count += 1
+                        print(f"[Stream] chunk #{chunk_count}: output_type={type(output)}")
+                        
+                        # output 是一个字典，key 是节点名称，value 是该节点的输出
+                        for node_name, node_output in output.items():
+                            print(f"[Stream]   node={node_name}, output_type={type(node_output)}")
+                            
+                            # 检查是否有 messages
+                            if isinstance(node_output, dict) and 'messages' in node_output:
+                                for msg in node_output['messages']:
+                                    print(f"[Stream]     msg_type={type(msg).__name__}")
+                                    if hasattr(msg, 'content'):
+                                        print(f"[Stream]     content={msg.content[:100] if msg.content else 'empty'}...")
+                                    if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                                        print(f"[Stream]     tool_calls={msg.tool_calls}")
+                                    
+                                    # 把消息放入队列
+                                    event_queue.put(("message", (node_name, msg)))
+                            
+                        if self.should_stop:
+                            event_queue.put(("stop", None))
+                            break
+                            
+                    print(f"[Stream] 流式处理完成, 共 {chunk_count} 个 outputs")
+                    event_queue.put(("done", None))
+                except Exception as e:
+                    import traceback
+                    print(f"[Stream] 流式处理异常: {e}")
+                    traceback.print_exc()
+                    event_queue.put(("error", f"{str(e)}\n{traceback.format_exc()}"))
+            
+            # 启动后台线程
+            thread = threading.Thread(target=run_stream, daemon=True)
+            thread.start()
+            
+            # 流式输出状态
+            stream_started = False
+            current_tool_calls = {}  # 追踪工具调用
+            
+            # 异步消费队列
+            while True:
+                if self.should_stop:
+                    if stream_started:
+                        await self.send_json({"type": "stream_end"})
+                    break
+                
+                try:
+                    # 非阻塞检查队列
+                    item_type, item = event_queue.get_nowait()
+                    
+                    if item_type == "done" or item_type == "stop":
+                        # 确保流结束
+                        if stream_started:
+                            await self.send_json({"type": "stream_end"})
+                            stream_started = False
                         break
+                    elif item_type == "error":
+                        raise Exception(item)
+                    elif item_type == "message":
+                        # 新格式: (node_name, msg)
+                        node_name, msg = item
+                        
+                        print(f"[Process] Processing message from node={node_name}, msg_type={type(msg).__name__}")
+                        
+                        # 处理 AIMessage 的内容
+                        if hasattr(msg, 'content') and msg.content:
+                            print(f"[Process] content present: {msg.content[:50]}...")
+                            
+                            # 检查是否有工具调用（如果有工具调用，content 可能是工具调用的中间状态）
+                            has_tool_calls = hasattr(msg, 'tool_calls') and msg.tool_calls
+                            
+                            if not has_tool_calls:
+                                # 没有工具调用，显示内容
+                                if not stream_started:
+                                    await self.send_json({"type": "stream_start"})
+                                    stream_started = True
+                                await self.send_json({
+                                    "type": "stream_chunk",
+                                    "content": msg.content
+                                })
+                        
+                        # 处理工具调用
+                        if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                            print(f"[Process] tool_calls present: {msg.tool_calls}")
+                            if stream_started:
+                                await self.send_json({"type": "stream_end"})
+                                stream_started = False
+                            for tc in msg.tool_calls:
+                                await self.send_json({
+                                    "type": "tool_call",
+                                    "name": tc.get("name", "unknown"),
+                                    "args": tc.get("args", {})
+                                })
+                        
+                        # 处理 ToolMessage
+                        if hasattr(msg, 'type') and getattr(msg, 'type', None) == 'tool':
+                            result_str = str(msg.content) if hasattr(msg, 'content') else str(msg)
+                            await self.send_json({
+                                "type": "tool_result",
+                                "name": msg.name if hasattr(msg, 'name') else "tool",
+                                "result": result_str[:200] + "..." if len(result_str) > 200 else result_str
+                            })
+                        
+                except queue.Empty:
+                    await asyncio.sleep(0.01)  # 更短的等待时间以提高响应速度
             
-            # 发送完整响应
-            await self.send_json({
-                "type": "message",
-                "content": full_response,
-                "finished": True
-            })
+            # 等待线程结束
+            thread.join(timeout=2.0)
             
+            # 确保流正确结束
+            if stream_started:
+                await self.send_json({"type": "stream_end"})
+            
+            # 发送完成信号
+            if not self.should_stop:
+                await self.send_json({
+                    "type": "finished",
+                    "message": "处理完成"
+                })
+            
+        except asyncio.CancelledError:
+            logger.info(f"消息处理任务被取消")
         except Exception as e:
             logger.exception(f"Agent 调用失败: {e}")
             await self.send_json({
@@ -162,19 +306,12 @@ class AgentConsumer(AsyncWebsocketConsumer):
             })
         finally:
             self.is_processing = False
-    
-    @database_sync_to_async
-    def _init_graph(self):
-        """初始化 Agent Graph (同步方法的异步包装)"""
+            self.current_task = None
+            self.should_stop = False
+    async def _init_graph(self):
+        """初始化 Agent Graph"""
         from agent_service.agent_graph import app
         self.graph = app
-    
-    @sync_to_async
-    def _invoke_graph(self, input_state, config):
-        """调用 Agent Graph (同步方法的异步包装)"""
-        if not self.graph:
-            raise RuntimeError("Graph 未初始化")
-        return self.graph.invoke(input_state, config)
     
     async def send_json(self, data: dict):
         """发送 JSON 数据"""

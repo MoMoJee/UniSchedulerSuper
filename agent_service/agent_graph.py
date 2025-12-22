@@ -3,12 +3,13 @@ UniScheduler Agent Graph - 新架构实现
 基于 Service Layer 和多专家系统 (Planner/Map/Chat)
 """
 import os
+import sqlite3
 import datetime
 import json
 from typing import Annotated, TypedDict, List, Literal
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
@@ -37,6 +38,7 @@ class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], add_messages]
     next: str  # 下一个节点
     active_experts: List[str]  # 活跃的专家列表 (可选: planner, map, chat)
+    current_agent: str  # 当前执行的 Agent，用于工具调用后返回
 
 # ==========================================
 # 工具定义
@@ -52,18 +54,27 @@ planner_tools = [
 memory_tools = [save_memory, search_memory, get_recent_memories]
 
 # MCP 工具集 (地图等外部工具)
+mcp_tools = []
 try:
+    # 尝试加载 MCP 工具
     mcp_tools = get_mcp_tools_sync()
+    if mcp_tools:
+        print(f"信息: 成功加载 {len(mcp_tools)} 个 MCP 工具")
+    else:
+        print("信息: MCP 工具列表为空")
 except Exception as e:
     print(f"警告: MCP 工具加载失败: {e}")
-    mcp_tools = []
+    import traceback
+    traceback.print_exc()
 
 # ==========================================
 # 模型初始化
 # ==========================================
+# 启用流式输出以支持真正的 token 级别流式传输
 llm = ChatOpenAI(
     model="deepseek-chat",
     temperature=0,
+    streaming=True,  # 启用流式输出
     base_url=os.environ.get("OPENAI_API_BASE")
 )
 
@@ -103,7 +114,13 @@ def supervisor_node(state: AgentState, config: RunnableConfig) -> dict:
 
 用户请求: {user_query}
 
-请只返回一个专家名称: planner, map, chat, 或 FINISH (如果任务已完成)。
+选择规则:
+1. 如果用户询问日程、待办、提醒、时间安排相关问题，选择 planner
+2. 如果用户询问地点、路线、地图、导航、距离相关问题，选择 map
+3. 如果用户进行闲聊、问候、询问你的能力、或其他通用问题，选择 chat
+4. 只有在任务完全处理完毕且不需要回复用户时，才选择 FINISH
+
+请只返回一个专家名称: planner, map, chat, 或 FINISH。
 只返回名称，不要有其他内容。
 """
     
@@ -140,13 +157,14 @@ def planner_agent(state: AgentState, config: RunnableConfig) -> dict:
 1. 创建日程或提醒时，时间格式为: YYYY-MM-DDTHH:MM (例如: 2025-12-25T14:30)
 2. 如果用户没有提供完整时间信息，请礼貌询问
 3. 使用工具时，确保传递正确的参数
+4. 工具调用后，请根据返回结果给用户一个清晰的回复
 """
     
     llm_with_tools = llm.bind_tools(planner_tools)
     full_messages = [SystemMessage(content=system_prompt)] + messages
     
     response = llm_with_tools.invoke(full_messages, config)
-    return {"messages": [response]}
+    return {"messages": [response], "current_agent": "planner"}
 
 def map_agent(state: AgentState, config: RunnableConfig) -> dict:
     """Map Agent: 处理地图相关查询"""
@@ -159,16 +177,17 @@ def map_agent(state: AgentState, config: RunnableConfig) -> dict:
 - 周边信息
 
 请根据用户需求调用合适的工具。
+工具调用后，请根据返回结果给用户一个清晰的回复。
 """
     
     if not mcp_tools:
-        return {"messages": [AIMessage(content="抱歉，地图工具当前不可用。")]}
+        return {"messages": [AIMessage(content="抱歉，地图工具当前不可用。")], "current_agent": "map"}
     
     llm_with_tools = llm.bind_tools(mcp_tools)
     full_messages = [SystemMessage(content=system_prompt)] + messages
     
     response = llm_with_tools.invoke(full_messages, config)
-    return {"messages": [response]}
+    return {"messages": [response], "current_agent": "map"}
 
 def chat_agent(state: AgentState, config: RunnableConfig) -> dict:
     """Chat Agent: 闲聊和记忆管理"""
@@ -181,13 +200,14 @@ def chat_agent(state: AgentState, config: RunnableConfig) -> dict:
 - 回忆之前的对话内容 (使用 search_memory)
 
 如果用户提到重要的个人信息或偏好，请主动保存到记忆中。
+工具调用后，请根据返回结果给用户一个清晰的回复。
 """
     
     llm_with_tools = llm.bind_tools(memory_tools)
     full_messages = [SystemMessage(content=system_prompt)] + messages
     
     response = llm_with_tools.invoke(full_messages, config)
-    return {"messages": [response]}
+    return {"messages": [response], "current_agent": "chat"}
 
 # ==========================================
 # 路由逻辑
@@ -252,18 +272,47 @@ for agent_name in ["planner", "map", "chat"]:
         }
     )
 
-# 工具调用后返回对应的 Agent
-# 注意: 这里简化处理，统一返回 supervisor 重新路由
-workflow.add_edge("tools", "supervisor")
+# 工具调用后返回到调用工具的 Agent
+def route_after_tools(state: AgentState) -> Literal["planner", "map", "chat", "supervisor"]:
+    """\u5de5\u5177\u6267\u884c\u540e\uff0c\u8fd4\u56de\u5230\u8c03\u7528\u5de5\u5177\u7684 Agent"""
+    current_agent = state.get("current_agent", "")
+    if current_agent in ["planner", "map", "chat"]:
+        return current_agent
+    return "supervisor"
+
+workflow.add_conditional_edges(
+    "tools",
+    route_after_tools,
+    {
+        "planner": "planner",
+        "map": "map", 
+        "chat": "chat",
+        "supervisor": "supervisor"
+    }
+)
 
 # ==========================================
 # 编译图
 # ==========================================
-# 使用 MemorySaver 作为 checkpointer (开发测试用，重启后数据会丢失)
-# 生产环境建议使用持久化存储
-checkpointer = MemorySaver()
+# 数据库文件存放在 agent_service/checkpoints/ 目录
+CHECKPOINTS_DIR = os.path.join(os.path.dirname(__file__), 'checkpoints')
+os.makedirs(CHECKPOINTS_DIR, exist_ok=True)
+CHECKPOINT_DB_PATH = os.path.join(CHECKPOINTS_DIR, 'agent_checkpoints.sqlite')
 
+# 创建同步的 SqliteSaver（线程安全）
+def get_checkpointer():
+    """获取一个新的 SqliteSaver 实例"""
+    conn = sqlite3.connect(CHECKPOINT_DB_PATH, check_same_thread=False)
+    return SqliteSaver(conn)
+
+# 创建全局 checkpointer
+checkpointer = get_checkpointer()
+
+# 编译带 checkpointer 的 app
 app = workflow.compile(checkpointer=checkpointer)
+
+# 也提供无 checkpointer 的版本
+app_no_checkpointer = workflow.compile()
 
 # ==========================================
 # 辅助函数
@@ -271,12 +320,13 @@ app = workflow.compile(checkpointer=checkpointer)
 def create_initial_state(user, active_experts=None):
     """创建初始状态"""
     if active_experts is None:
-        active_experts = ['planner', 'chat']  # 默认启用 planner 和 chat
+        active_experts = ['planner', 'map', 'chat']  # 默认启用所有专家
     
     return {
         "messages": [],
         "next": "",
-        "active_experts": active_experts
+        "active_experts": active_experts,
+        "current_agent": ""
     }
 
 def get_config(user, thread_id=None):

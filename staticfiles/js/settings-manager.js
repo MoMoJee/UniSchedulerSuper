@@ -7,8 +7,8 @@ class SettingsManager {
         this.debounceTimers = new Map();
         this.settings = {
             todoFilters: {
-                statusFilter: '', // 空字符串表示显示所有未完成的
-                sortBy: 'priority'
+                priorities: ['important-urgent', 'important-not-urgent', 'not-important-urgent', 'not-important-not-urgent', 'unspecified'],
+                groups: ['all']
             },
             reminderFilters: {
                 timeRange: 'today',
@@ -130,7 +130,13 @@ class SettingsManager {
 
     // 批量更新设置
     updateCategorySettings(category, settings) {
-        this.settings[category] = { ...this.settings[category], ...settings };
+        // 如果 settings 是简单类型（字符串、数字、布尔值），直接赋值
+        if (typeof settings !== 'object' || settings === null || Array.isArray(settings)) {
+            this.settings[category] = settings;
+        } else {
+            // 如果是对象，使用展开语法合并
+            this.settings[category] = { ...this.settings[category], ...settings };
+        }
         
         // 立即保存到localStorage
         localStorage.setItem('userInterfaceSettings', JSON.stringify(this.settings));
@@ -232,6 +238,9 @@ class SettingsManager {
     applySettings() {
         // console.log('开始应用设置到界面:', this.settings);
         
+        // 应用待办视图模式
+        this.applyTodoViewMode();
+        
         // 应用待办筛选设置
         this.applyTodoFilters();
         
@@ -241,24 +250,40 @@ class SettingsManager {
         // 应用日历视图设置
         this.applyCalendarView();
         
-        // 应用面板布局设置
+        // 应用面板布局设置（这会触发 setLayout，进而触发 adjustQuadrantLayout）
         this.applyPanelLayout();
         
         // console.log('设置应用完成');
+    }
+
+    // 应用待办视图模式
+    applyTodoViewMode() {
+        if (window.todoManager && this.settings.todoViewMode) {
+            window.todoManager.currentViewMode = this.settings.todoViewMode;
+            window.todoManager.updateViewModeUI();
+        }
     }
 
     // 应用待办筛选设置
     applyTodoFilters() {
         const filters = this.settings.todoFilters;
         if (window.todoManager) {
-            if (filters.statusFilter !== undefined) {
-                const statusSelect = document.querySelector('#todoStatusFilter');
-                if (statusSelect) statusSelect.value = filters.statusFilter;
+            // 应用优先级筛选
+            if (filters.priorities && filters.priorities.length > 0) {
+                const priorityCheckboxes = document.querySelectorAll('#todoPriorityFilterList input[type="checkbox"]');
+                priorityCheckboxes.forEach(checkbox => {
+                    checkbox.checked = filters.priorities.includes(checkbox.value);
+                });
             }
-            if (filters.sortBy) {
-                const sortSelect = document.querySelector('#todoSortBy');
-                if (sortSelect) sortSelect.value = filters.sortBy;
+            
+            // 应用日程组筛选
+            if (filters.groups && filters.groups.length > 0) {
+                const groupCheckboxes = document.querySelectorAll('#todoGroupFilterList input[type="checkbox"]');
+                groupCheckboxes.forEach(checkbox => {
+                    checkbox.checked = filters.groups.includes(checkbox.value);
+                });
             }
+            
             // 触发筛选
             setTimeout(() => window.todoManager?.applyFilters(), 100);
         }
@@ -373,6 +398,14 @@ class SettingsManager {
                 layout.centerPanelWidth,
                 layout.rightPanelWidth
             );
+        } else {
+            // 如果没有 panelResizer 或使用默认布局，手动触发布局检查
+            if (window.todoManager && window.todoManager.currentViewMode === 'quadrant') {
+                setTimeout(() => {
+                    console.log('applyPanelLayout: 使用默认布局，触发 adjustQuadrantLayout');
+                    window.todoManager.adjustQuadrantLayout();
+                }, 300);
+            }
         }
     }
 

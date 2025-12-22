@@ -1,7 +1,8 @@
 import asyncio
 import logging
+import threading
+import concurrent.futures
 from typing import List, Any
-from asgiref.sync import async_to_sync
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_core.tools import StructuredTool, Tool
 from langchain_core.runnables import RunnableConfig
@@ -35,10 +36,38 @@ async def get_mcp_tools_async() -> List[StructuredTool]:
         logger.error(f"无法连接到 MCP 服务器: {e}")
         return []
 
+def _run_async_in_thread(coro):
+    """
+    在新线程中运行异步协程，避免与现有事件循环冲突。
+    """
+    result = None
+    exception = None
+    
+    def run():
+        nonlocal result, exception
+        try:
+            # 创建新的事件循环
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                result = loop.run_until_complete(coro)
+            finally:
+                loop.close()
+        except Exception as e:
+            exception = e
+    
+    thread = threading.Thread(target=run)
+    thread.start()
+    thread.join(timeout=30)  # 30秒超时
+    
+    if exception:
+        raise exception
+    return result
+
 def convert_async_tool_to_sync(tool: StructuredTool) -> StructuredTool:
     """
     将异步 LangChain Tool 转换为同步 Tool。
-    使用 asgiref.sync.async_to_sync 确保在 Django 环境中正确运行。
+    使用线程池确保在任何环境中都能正确运行。
     """
     if not tool.coroutine:
         return tool
@@ -46,7 +75,8 @@ def convert_async_tool_to_sync(tool: StructuredTool) -> StructuredTool:
     async_func = tool.coroutine
 
     def sync_wrapper(*args, **kwargs):
-        return async_to_sync(async_func)(*args, **kwargs)
+        """在新线程中执行异步函数"""
+        return _run_async_in_thread(async_func(*args, **kwargs))
 
     return StructuredTool.from_function(
         func=sync_wrapper,
@@ -60,16 +90,22 @@ def get_mcp_tools_sync() -> List[StructuredTool]:
     """
     同步获取并转换所有 MCP 工具。
     这是给 Agent 使用的主要入口点。
+    使用线程来避免与现有事件循环冲突。
     """
     try:
-        # 1. 异步获取工具 (需要在 async 上下文中运行，或者使用 async_to_sync)
-        # 由于 get_tools 涉及网络 IO，我们需要小心处理
-        async_get = async_to_sync(get_mcp_tools_async)
-        tools = async_get()
+        # 在新线程中获取工具
+        tools = _run_async_in_thread(get_mcp_tools_async())
         
-        # 2. 将每个工具转换为同步版本
+        if not tools:
+            logger.warning("MCP 工具列表为空")
+            return []
+        
+        # 将每个工具转换为同步版本
         sync_tools = [convert_async_tool_to_sync(t) for t in tools]
+        logger.info(f"成功加载 {len(sync_tools)} 个 MCP 工具: {[t.name for t in sync_tools]}")
         return sync_tools
     except Exception as e:
         logger.error(f"获取 MCP 工具失败: {e}")
+        import traceback
+        traceback.print_exc()
         return []

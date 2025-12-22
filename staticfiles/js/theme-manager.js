@@ -11,6 +11,7 @@ class ThemeManager {
         ];
         this.currentTheme = 'light';
         this.systemTheme = 'light';
+        this.useGoldTheme = false; // 金色主题开关
         this.mediaQuery = null;
     }
 
@@ -25,9 +26,10 @@ class ThemeManager {
         
         // 从用户设置加载主题
         const savedTheme = window.userSettings?.theme || 'light';
+        this.useGoldTheme = window.userSettings?.use_gold_theme || false;
         this.applyTheme(savedTheme, false); // false表示不保存,因为是从设置加载的
         
-        console.log('✅ 主题管理器初始化完成,当前主题:', this.currentTheme);
+        console.log('✅ 主题管理器初始化完成,当前主题:', this.currentTheme, '金色主题:', this.useGoldTheme);
     }
 
     /**
@@ -52,6 +54,12 @@ class ThemeManager {
             // 手动指定
             effectiveTheme = theme;
             console.log(`应用手动主题: ${effectiveTheme}`);
+        }
+        
+        // 如果启用了金色主题，并且当前是浅色或深色主题，替换为金色版本
+        if (this.useGoldTheme && (effectiveTheme === 'light' || effectiveTheme === 'dark')) {
+            effectiveTheme = effectiveTheme === 'light' ? 'platinum-light' : 'platinum-dark';
+            console.log(`金色主题已启用,切换到: ${effectiveTheme}`);
         }
         
         // 设置HTML属性
@@ -127,14 +135,28 @@ class ThemeManager {
         // 更新全局设置
         if (window.userSettings) {
             window.userSettings.theme = theme;
+            window.userSettings.use_gold_theme = this.useGoldTheme;
         }
         
         // 通过设置管理器保存
         if (window.settingsManager) {
             window.settingsManager.updateSetting('userPreferences', 'theme', theme);
+            window.settingsManager.updateSetting('userPreferences', 'use_gold_theme', this.useGoldTheme);
         }
         
-        console.log('主题已保存:', theme);
+        console.log('主题已保存:', theme, '金色主题:', this.useGoldTheme);
+    }
+
+    /**
+     * 切换金色主题
+     * @param {boolean} enabled - 是否启用金色主题
+     */
+    toggleGoldTheme(enabled) {
+        this.useGoldTheme = enabled;
+        console.log('金色主题切换:', enabled);
+        
+        // 重新应用当前主题
+        this.applyTheme(this.currentTheme);
     }
 
     /**

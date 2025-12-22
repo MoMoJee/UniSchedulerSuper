@@ -328,4 +328,8 @@ UniSchedulerSuper/
 ### Phase 3: 体验优化
 *   [ ] 引入 Vector Store (如 Chroma/FAISS) 替换简单的文本匹配记忆搜索。
 *   [ ] 增加前端交互式卡片支持。
+*   [ ] **继续完善真正的 Token 级别流式传输 (打字机效果)**: 当前 LangGraph 的 `stream(mode="messages")` 返回的是整条消息而非真正的逐 Token 流式。要实现真正的流式，可能需要：
+    *   使用 `astream_events()` API
+    *   或者绕过 LangGraph 直接调用 LLM 的 `astream()` 方法
+    *   更改架构，让工具调用和对话生成分离
 

@@ -82,15 +82,33 @@
 ## Phase 4: 前端集成 (Frontend Integration)
 
 ### 4.1 UI 组件
-- [ ] **引入 DeepChat**: 在 `base.html` 或 `home.html` 中引入 JS 库。
-- [ ] **侧边栏容器**: 添加 Bootstrap Offcanvas 结构。
-- [ ] **悬浮按钮**: 添加触发按钮。
+- [x] **Agent 聊天面板**: 在 `home.html` 右侧面板中实现完整的 Agent 聊天界面。
+- [x] **展开模态框**: 添加全屏聊天模态框 (`agentChatModal`)。
+- [x] **快捷提示按钮**: 添加常用操作的快捷提示按钮。
+- [x] **状态指示器**: WebSocket 连接状态徽章。
 
 ### 4.2 交互逻辑
-- [ ] **初始化**: 页面加载时连接 WebSocket。
-- [ ] **消息处理**: 处理流式 Token、Tool Call 显示、Adaptive Cards。
-- [ ] **会话管理**: 实现“新会话”按钮，处理 Session ID 存储。
+- [x] **WebSocket 连接**: 页面加载时自动连接 `/ws/agent/`。
+- [x] **消息处理**: 
+    - [x] 处理 `response`, `stream_*`, `tool_call`, `tool_result` 等消息类型
+    - [x] 打字指示器动画
+    - [x] 消息格式化 (基础 Markdown)
+- [x] **会话管理**: 
+    - [x] Session ID 存储到 localStorage
+    - [x] 新建会话功能
+    - [x] 加载历史消息
+- [x] **操作预览/确认**: 支持 `action_preview` 和确认/取消交互。
+- [x] **数据刷新**: 操作执行后自动刷新相关数据 (events/todos/reminders)。
+
+### 4.3 样式
+- [x] **创建 `agent-chat.css`**: 完整的聊天界面样式。
+- [x] **深色主题支持**: `[data-theme="dark"]` 样式适配。
+- [x] **响应式设计**: 移动端适配。
+
+### 4.4 待完善 (可选)
 - [ ] **专家开关**: 添加 UI 允许用户选择启用的专家。
+- [ ] **流式消息**: 完善流式消息的渲染（目前支持基础流式）。
+- [ ] **Markdown 渲染**: 引入完整的 Markdown 渲染库 (如 marked.js)。
 
 ## Phase 5: 测试与验证
 - [ ] **单元测试**: 测试 Service Layer 函数。

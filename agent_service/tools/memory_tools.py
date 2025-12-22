@@ -21,6 +21,7 @@ def save_memory(content: str, category: str = "general", importance: int = 1, co
         user_memory, _ = UserMemory.objects.get_or_create(user=user)
         MemoryItem.objects.create(
             memory=user_memory,
+            user=user,  # 添加必填的 user 字段
             content=content,
             category=category,
             importance=importance

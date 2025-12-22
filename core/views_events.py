@@ -193,9 +193,9 @@ class EventsRRuleManager(IntegratedReminderManager):
                 'last_modified': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             })
             
-            logger.info(f"[DEBUG] Created main_event with series_id: {series_id}")
-            logger.info(f"[DEBUG] Main event data: {main_event}")
-            logger.info(f"Created recurring event series {series_id} with rrule: {rrule}")
+            # logger.info(f"[DEBUG] Created main_event with series_id: {series_id}")
+            # logger.info(f"[DEBUG] Main event data: {main_event}")
+            # logger.info(f"Created recurring event series {series_id} with rrule: {rrule}")
             return main_event
             
         except Exception as e:
@@ -376,7 +376,7 @@ class EventsRRuleManager(IntegratedReminderManager):
         # 使用本地时区的现在时间
         now = datetime.datetime.now()
         
-        logger.info(f"[DEBUG] auto_generate_missing_instances called with {len(events)} events")
+        # logger.info(f"[DEBUG] auto_generate_missing_instances called with {len(events)} events")
         
         # 获取所有重复系列
         recurring_series = {}
@@ -384,7 +384,7 @@ class EventsRRuleManager(IntegratedReminderManager):
             series_id = event.get('series_id')
             rrule = event.get('rrule')
             
-            logger.debug(f"Processing event: series_id={series_id}, rrule={rrule}, is_detached={event.get('is_detached', False)}")
+            # logger.debug(f"Processing event: series_id={series_id}, rrule={rrule}, is_detached={event.get('is_detached', False)}")
             
             if series_id and rrule and 'FREQ=' in rrule and not event.get('is_detached', False):
                 if series_id not in recurring_series:
@@ -398,17 +398,17 @@ class EventsRRuleManager(IntegratedReminderManager):
                 if event.get('is_main_event'):
                     recurring_series[series_id]['main_event'] = event
         
-        logger.info(f"[DEBUG] Found {len(recurring_series)} recurring series")
+        # logger.info(f"[DEBUG] Found {len(recurring_series)} recurring series")
         
         # 检查每个系列是否需要生成新实例
         for series_id, series_data in recurring_series.items():
-            logger.info(f"[DEBUG] Processing series {series_id}")
+            # logger.info(f"[DEBUG] Processing series {series_id}")
             series_events = series_data['events']
             rrule = series_data['rrule']
             main_event = series_data['main_event']
             
             if not main_event:
-                logger.warning(f"[DEBUG] No main event found for series {series_id}")
+                # logger.warning(f"[DEBUG] No main event found for series {series_id}")
                 continue
             
             # 检查是否有COUNT限制
@@ -487,11 +487,11 @@ class EventsRRuleManager(IntegratedReminderManager):
             if latest_time:
                 # 如果最晚的事件时间距离现在少于30天，生成新实例
                 days_ahead = (latest_time - now).days
-                logger.info(f"Series {series_id} latest event is {days_ahead} days from now")
+                # logger.info(f"Series {series_id} latest event is {days_ahead} days from now")
                 
                 # 修复逻辑：如果没有足够的未来实例（少于30天或只有主事件），则生成
                 if days_ahead < 30 or len(series_events) == 1:
-                    logger.info(f"Series {series_id} (no UNTIL) needs new instances, latest is {days_ahead} days ahead, count: {len(series_events)}")
+                    # logger.info(f"Series {series_id} (no UNTIL) needs new instances, latest is {days_ahead} days ahead, count: {len(series_events)}")
                     
                     # 根据重复频率调整生成参数
                     rrule = main_event.get('rrule', '')
@@ -516,9 +516,10 @@ class EventsRRuleManager(IntegratedReminderManager):
                     if truly_new_instances:
                         events.extend(truly_new_instances)
                         new_instances_count += len(truly_new_instances)
-                        logger.info(f"Added {len(truly_new_instances)} new instances for unlimited series {series_id}")
+                        # logger.info(f"Added {len(truly_new_instances)} new instances for unlimited series {series_id}")
                 else:
-                    logger.info(f"Series {series_id} (no UNTIL) is good, latest is {days_ahead} days ahead")
+                    pass
+                    # logger.info(f"Series {series_id} (no UNTIL) is good, latest is {days_ahead} days ahead")
         
         return new_instances_count
     
@@ -583,7 +584,7 @@ class EventsRRuleManager(IntegratedReminderManager):
                     'recurrence_id': instance_time.strftime("%Y%m%dT%H%M%S"),
                     'last_modified': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 })
-                logger.debug(f"Generated instance with series_id: {instance.get('series_id')}")
+                # logger.debug(f"Generated instance with series_id: {instance.get('series_id')}")
                 instances.append(instance)
                 
         except Exception as e:
@@ -693,7 +694,7 @@ class EventsRRuleManager(IntegratedReminderManager):
                         'recurrence_id': current_time.strftime("%Y%m%dT%H%M%S"),
                         'last_modified': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     })
-                    logger.info(f"[DEBUG] Generated instance with series_id: {instance.get('series_id')}")
+                    # logger.info(f"[DEBUG] Generated instance with series_id: {instance.get('series_id')}")
                     instances.append(instance)
                     current_time += timedelta(days=interval)
             # FREQ=WEEKLY
@@ -1344,8 +1345,8 @@ def create_event_impl(request):
                 'shared_to_groups': data.get('shared_to_groups', []),  # 新增：分享到的群组列表
             }
             
-            logger.info(f"[DEBUG] create_event_impl - received shared_to_groups: {data.get('shared_to_groups', [])}")
-            logger.info(f"[DEBUG] create_event_impl - event_data: {event_data}")
+            # logger.info(f"[DEBUG] create_event_impl - received shared_to_groups: {data.get('shared_to_groups', [])}")
+            # logger.info(f"[DEBUG] create_event_impl - event_data: {event_data}")
             
             # 获取用户偏好设置
             user_preference_data, created, result = UserData.get_or_initialize(
@@ -1376,8 +1377,8 @@ def create_event_impl(request):
                 # 创建重复事件系列
                 main_event = manager.create_recurring_event(event_data, rrule)
                 
-                logger.info(f"[DEBUG] main_event returned from create_recurring_event: {main_event}")
-                logger.info(f"[DEBUG] main_event 的 shared_to_groups: {main_event.get('shared_to_groups', 'NOT FOUND')}")
+                # logger.info(f"[DEBUG] main_event returned from create_recurring_event: {main_event}")
+                # logger.info(f"[DEBUG] main_event 的 shared_to_groups: {main_event.get('shared_to_groups', 'NOT FOUND')}")
                 
                 # 将主事件保存到events数据中
                 user_events_data, created, result = UserData.get_or_initialize(
@@ -1391,7 +1392,7 @@ def create_event_impl(request):
                     events = []
 
                 events.append(main_event)
-                logger.info(f"[DEBUG] Added main_event to events array, main_event series_id: {main_event.get('series_id')}")
+                # logger.info(f"[DEBUG] Added main_event to events array, main_event series_id: {main_event.get('series_id')}")
                 
                 # 只有当不包含COUNT和UNTIL限制时，才自动生成后续实例
                 if 'COUNT=' not in rrule and 'UNTIL=' not in rrule:
@@ -1419,11 +1420,11 @@ def create_event_impl(request):
                             events.extend(additional_instances)
                     elif 'UNTIL=' in rrule:
                         # 处理UNTIL限制的重复事件
-                        print(f"[DEBUG] Processing UNTIL event with rrule: {rrule}")
+                        # print(f"[DEBUG] Processing UNTIL event with rrule: {rrule}")
                         # 生成从开始时间到UNTIL时间之间的所有实例
                         # 使用较大的天数范围和实例数量来确保覆盖整个UNTIL期间
                         additional_instances = manager.generate_event_instances(main_event, 365 * 2, 1000)  # 2年范围，最多1000个实例
-                        print(f"[DEBUG] Generated {len(additional_instances)} additional instances for UNTIL event")
+                        # print(f"[DEBUG] Generated {len(additional_instances)} additional instances for UNTIL event")
                         events.extend(additional_instances)
                     
                     user_events_data.set_value(events)
@@ -1432,8 +1433,8 @@ def create_event_impl(request):
                 event_data['id'] = str(uuid.uuid4())
                 event_data['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 
-                logger.info(f"[DEBUG] 单次事件 event_data 准备保存: {event_data}")
-                logger.info(f"[DEBUG] 其中 shared_to_groups = {event_data.get('shared_to_groups', 'NOT FOUND')}")
+                # logger.info(f"[DEBUG] 单次事件 event_data 准备保存: {event_data}")
+                # logger.info(f"[DEBUG] 其中 shared_to_groups = {event_data.get('shared_to_groups', 'NOT FOUND')}")
                 
                 # 保存到events数据中
                 user_events_data, created, result = UserData.get_or_initialize(
@@ -1449,8 +1450,8 @@ def create_event_impl(request):
                 events.append(event_data)
                 user_events_data.set_value(events)
                 
-                logger.info(f"[DEBUG] 保存后，events 数组中的最后一个事件: {events[-1]}")
-                logger.info(f"[DEBUG] 最后一个事件的 shared_to_groups: {events[-1].get('shared_to_groups', 'NOT FOUND')}")
+                # logger.info(f"[DEBUG] 保存后，events 数组中的最后一个事件: {events[-1]}")
+                # logger.info(f"[DEBUG] 最后一个事件的 shared_to_groups: {events[-1].get('shared_to_groups', 'NOT FOUND')}")
                 
                 main_event = event_data
             
@@ -1697,14 +1698,14 @@ def bulk_edit_events_impl(request):
         updates = {k: v for k, v in updates.items() 
                    if v is not None and (v != '' or k in ['title', 'description', 'ddl', 'rrule', 'importance', 'urgency'])}
         
-        logger.info(f"Bulk edit events - Operation: {operation}, Scope: {edit_scope}, Event ID: {event_id}, Series ID: {series_id}")
-        logger.info(f"[DEBUG] shared_to_groups from request: {data.get('shared_to_groups')}")
-        logger.info(f"[DEBUG] groupID from request: {data.get('groupID')}, type: {type(data.get('groupID'))}")
-        logger.info(f"[DEBUG] ddl from request: {data.get('ddl')}, type: {type(data.get('ddl'))}")
-        logger.info(f"[DEBUG] Filtered updates: {updates}")
+        # logger.info(f"Bulk edit events - Operation: {operation}, Scope: {edit_scope}, Event ID: {event_id}, Series ID: {series_id}")
+        # logger.info(f"[DEBUG] shared_to_groups from request: {data.get('shared_to_groups')}")
+        # logger.info(f"[DEBUG] groupID from request: {data.get('groupID')}, type: {type(data.get('groupID'))}")
+        # logger.info(f"[DEBUG] ddl from request: {data.get('ddl')}, type: {type(data.get('ddl'))}")
+        # logger.info(f"[DEBUG] Filtered updates: {updates}")
         
         # 添加调试信息：检查事件数据结构
-        logger.info(f"[DEBUG] Request data keys: {list(data.keys())}")
+        # logger.info(f"[DEBUG] Request data keys: {list(data.keys())}")
         
         if not event_id:
             return JsonResponse({'status': 'error', 'message': '事件ID是必填项'}, status=400)
@@ -1737,11 +1738,11 @@ def bulk_edit_events_impl(request):
                     series_id = event.get('series_id')
                     logger.info(f"Found series_id from event data: {series_id}")
                     # 添加调试信息：显示事件的详细信息
-                    logger.info(f"[DEBUG] Event data: id={event.get('id')}, series_id={event.get('series_id')}, rrule={event.get('rrule')}, is_recurring={event.get('is_recurring')}")
+                    # logger.info(f"[DEBUG] Event data: id={event.get('id')}, series_id={event.get('series_id')}, rrule={event.get('rrule')}, is_recurring={event.get('is_recurring')}")
                     break
         
-        # 添加调试信息：最终使用的series_id
-        logger.info(f"[DEBUG] Final series_id to use: {series_id}")
+        # # 添加调试信息：最终使用的series_id
+        # logger.info(f"[DEBUG] Final series_id to use: {series_id}")
         
         if operation == 'delete':
             # 【关键修复】在删除前先收集受影响的群组
@@ -1755,7 +1756,7 @@ def bulk_edit_events_impl(request):
                     event_shared_groups = event.get('shared_to_groups', [])
                     if event_shared_groups:
                         affected_groups_before_delete.update(event_shared_groups)
-                        logger.info(f"[DELETE_SYNC] 收集到被删除事件 {event_id} 的群组: {event_shared_groups}")
+                        # logger.info(f"[DELETE_SYNC] 收集到被删除事件 {event_id} 的群组: {event_shared_groups}")
                     break
             
             # 如果是删除系列，收集该系列所有事件的群组
@@ -2091,13 +2092,13 @@ def bulk_edit_events_impl(request):
                             filtered_updates = {k: v for k, v in updates.items() 
                                                 if v != '' or k in ['title', 'description', 'importance', 'urgency', 'shared_to_groups']}
                             
-                            logger.info(f"[DEBUG] Applying filtered_updates to event {event_id}: {filtered_updates}")
+                            # logger.info(f"[DEBUG] Applying filtered_updates to event {event_id}: {filtered_updates}")
                             
                             # 更新事件数据
                             event.update(filtered_updates)
                             event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             
-                            logger.info(f"[DEBUG] After update, event['shared_to_groups']: {event.get('shared_to_groups')}")
+                            # logger.info(f"[DEBUG] After update, event['shared_to_groups']: {event.get('shared_to_groups')}")
                             
                             # 标记为例外事件,从系列中独立出去
                             event['is_exception'] = True  # 标记为例外
@@ -2685,7 +2686,7 @@ def bulk_edit_events_impl(request):
                         saved_events = user_events_data.get_value() or []
                         for evt in saved_events:
                             if evt.get('series_id') == series_id:
-                                logger.info(f"[DEBUG] After save - Event {evt.get('id')} shared_to_groups: {evt.get('shared_to_groups')}")
+                                # logger.info(f"[DEBUG] After save - Event {evt.get('id')} shared_to_groups: {evt.get('shared_to_groups')}")
                                 break
                         
                         # 【关键修复】同步群组数据，传入编辑前收集的群组
@@ -2795,8 +2796,8 @@ def update_events_impl(request):
         shared_to_groups = data.get('shared_to_groups', [])  # 新增：分享到的群组
         last_modified = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        logger.info(f"[DEBUG] update_events_impl - received shared_to_groups: {data.get('shared_to_groups', [])}")
-        logger.info(f"[DEBUG] update_events_impl - title: {title}, description: {description}")
+        # logger.info(f"[DEBUG] update_events_impl - received shared_to_groups: {data.get('shared_to_groups', [])}")
+        # logger.info(f"[DEBUG] update_events_impl - title: {title}, description: {description}")
         
         # RRule相关字段
         rrule_change_scope = data.get('rrule_change_scope', 'single')  # single, all, future, from_time

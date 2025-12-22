@@ -96,10 +96,10 @@ class UserDataStorageBackend:
         uid_segments = [s for s in segments if s.get("uid") == uid]
         
         if uid_segments:
-            logger.info(f"Loaded {len(uid_segments)} segments for uid {uid}")
+            # logger.info(f"Loaded {len(uid_segments)} segments for uid {uid}")
             return uid_segments
         else:
-            logger.info(f"No segments found for uid {uid}")
+            # logger.info(f"No segments found for uid {uid}")
             return None
     
     def delete_segments(self, uid: str):
@@ -123,7 +123,7 @@ class UserDataStorageBackend:
         
         # 保存回UserData
         user_data.set_value(current_data)
-        logger.info(f"Deleted {deleted_count} segments for uid {uid}")
+        # logger.info(f"Deleted {deleted_count} segments for uid {uid}")
     
     def save_exception(self, series_id: str, exception_date: str, exception_type: str, new_data: Optional[Dict] = None):
         """保存异常数据到UserData"""

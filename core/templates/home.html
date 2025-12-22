@@ -13,6 +13,8 @@
     <link rel="stylesheet" href="{% static 'css/home-styles.css' %}?v=20251107-011">
     <!-- Share Groups CSS -->
     <link rel="stylesheet" href="{% static 'css/share-groups.css' %}?v=20251111-001">
+    <!-- Agent Chat CSS -->
+    <link rel="stylesheet" href="{% static 'css/agent-chat.css' %}?v=20251201-001">
     
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">    <!-- 强制隐藏editEventRecurringInfo元素的样式 -->
@@ -773,49 +775,70 @@
         <!-- 调节器 -->
         <div class="resize-handle right-resize" data-target="center-panel"></div>
 
-        <!-- 右侧面板 - AI助手 -->
+        <!-- 右侧面板 - AI Agent 助手 -->
         <div class="right-panel resizable-panel" data-min-width="20" data-max-width="50">
             <div class="panel-header">
-                <h5><i class="fas fa-robot me-2"></i>AI助手</h5>
-                <button class="btn btn-outline-primary btn-sm" id="aiChatToggle">
-                    <i class="fas fa-comment"></i>
-                </button>
-            </div>
-            
-            <div class="panel-content scrollable-content">
-                <div class="ai-quick-actions mb-3">
-                    <button class="btn btn-outline-info btn-sm w-100 mb-2" onclick="aiAssistant.smartSchedule()">
-                        <i class="fas fa-magic me-1"></i>智能安排
+                <h5><i class="fas fa-robot me-2"></i>AI Agent</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="agent-status-badge" id="agentStatusBadge">
+                        <span class="status-dot disconnected"></span>
+                        <span class="status-text">未连接</span>
+                    </span>
+                    <!-- 会话历史记录按钮 -->
+                    <button class="btn btn-outline-secondary btn-sm" id="sessionHistoryBtn" title="会话历史">
+                        <i class="fas fa-history"></i>
                     </button>
-                    <button class="btn btn-outline-success btn-sm w-100 mb-2" onclick="aiAssistant.analyzePriority()">
-                        <i class="fas fa-chart-line me-1"></i>优先级分析
+                    <!-- 新建会话按钮 -->
+                    <button class="btn btn-outline-primary btn-sm" id="newSessionBtn" title="新建会话">
+                        <i class="fas fa-plus"></i>
                     </button>
-                    <button class="btn btn-outline-warning btn-sm w-100 mb-2" onclick="aiAssistant.timeBlocking()">
-                        <i class="fas fa-clock me-1"></i>时间块分配
+                    <button class="btn btn-outline-primary btn-sm" id="agentExpandBtn" title="展开聊天">
+                        <i class="fas fa-expand-alt"></i>
                     </button>
                 </div>
+            </div>
+            
+            <div class="panel-content scrollable-content agent-panel-content">
+                <!-- 会话历史面板（上方，默认隐藏） -->
+                <div class="session-history-panel" id="sessionHistoryPanel" style="display: none;">
+                    <div class="session-history-header">
+                        <span class="fw-bold"><i class="fas fa-history me-2"></i>会话历史</span>
+                        <button class="btn btn-sm btn-link text-muted" id="closeSessionHistoryBtn" title="关闭">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="session-list-container" id="sessionList">
+                        <div class="text-muted text-center py-3">加载中...</div>
+                    </div>
+                </div>
                 
-                <div class="ai-chat-area">
-                    <div class="chat-messages" id="aiChatMessages">
-                        <div class="welcome-message">
-                            <i class="fas fa-robot"></i>
-                            <p>你好！我是你的AI助手，可以帮你：</p>
-                            <ul>
-                                <li>智能安排日程</li>
-                                <li>分析任务优先级</li>
-                                <li>优化时间分配</li>
-                                <li>提供效率建议</li>
-                            </ul>
-                        </div>
+                <!-- Agent 聊天区域 -->
+                <div class="agent-chat-container" id="agentChatContainer">
+                    <div class="agent-messages" id="agentMessages">
+                        <!-- 欢迎消息只在没有历史消息时显示，由 JS 控制 -->
                     </div>
                     
-                    <div class="chat-input-area">
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="aiChatInput" placeholder="输入你的问题...">
-                            <button class="btn btn-primary" id="aiSendButton">
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-                        </div>
+                    <!-- 打字指示器 -->
+                    <div class="typing-indicator" id="agentTyping" style="display: none;">
+                        <span></span><span></span><span></span>
+                        <span class="typing-text">Agent 正在思考...</span>
+                    </div>
+                </div>
+                
+                <!-- 输入区域 -->
+                <div class="agent-input-area" id="agentInputArea">
+                    <div class="input-wrapper">
+                        <textarea class="form-control" id="agentInput" 
+                            placeholder="输入消息，按 Enter 发送..." 
+                            rows="1"></textarea>
+                        <button class="btn btn-primary send-btn" id="agentSendBtn" disabled>
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div class="input-hint">
+                        <small class="text-muted">
+                            <kbd>Enter</kbd> 发送 | <kbd>Shift + Enter</kbd> 换行
+                        </small>
                     </div>
                 </div>
             </div>
@@ -2194,40 +2217,38 @@
         </div>
     </div>
 
-    <!-- AI聊天模态框 -->
-    <div class="modal" id="aiChatModal">
-        <div class="modal-content modal-lg">
+    <!-- Agent 聊天模态框（展开版） -->
+    <div class="modal" id="agentChatModal">
+        <div class="modal-content modal-xl agent-modal">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="fas fa-robot me-2"></i>AI智能助手
+                    <i class="fas fa-robot me-2"></i>AI Agent 助手
                 </h5>
-                <span class="close">&times;</span>
+                <div class="modal-header-actions">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="agentChat.newSession()" title="新建会话">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <span class="close">&times;</span>
+                </div>
             </div>
             
-            <div class="modal-body">
-                <div class="chat-container">
-                    <div id="chatMessages" class="chat-messages">
-                        <div class="ai-message">
-                            <div class="message-avatar">
-                                <i class="fas fa-robot"></i>
-                            </div>
-                            <div class="message-content">
-                                您好！我是您的AI助手，可以帮助您：
-                                <ul>
-                                    <li>智能安排日程</li>
-                                    <li>分析任务优先级</li>
-                                    <li>优化时间分配</li>
-                                    <li>提供日程建议</li>
-                                </ul>
-                                有什么可以帮助您的吗？
-                            </div>
-                        </div>
+            <div class="modal-body agent-modal-body">
+                <div class="agent-chat-fullscreen">
+                    <div id="modalAgentMessages" class="agent-messages-full">
+                        <!-- 消息将从侧边栏同步 -->
                     </div>
                     
-                    <div class="chat-input">
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="chatInput" placeholder="输入您的问题...">
-                            <button class="btn btn-primary" type="button" onclick="aiAssistant.sendMessage()">
+                    <div class="typing-indicator" id="modalAgentTyping" style="display: none;">
+                        <span></span><span></span><span></span>
+                        <span class="typing-text">Agent 正在思考...</span>
+                    </div>
+                    
+                    <div class="agent-input-area-full">
+                        <div class="input-wrapper-full">
+                            <textarea class="form-control" id="modalAgentInput" 
+                                placeholder="输入消息，按 Enter 发送..." 
+                                rows="2"></textarea>
+                            <button class="btn btn-primary send-btn-full" id="modalAgentSendBtn">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
@@ -3845,148 +3866,14 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
     <script src="{% static 'js/calendar-touch-swipe.js' %}?v=20251104-003"></script>
     <script src="{% static 'js/container-query-polyfill.js' %}?v=20251107-001"></script>
     
-    <!-- AI助手模块 -->
+    <!-- AI Agent 模块 -->
+    <script src="{% static 'js/agent-chat.js' %}?v=20251222-001"></script>
     <script>
-        class AIAssistant {
-            constructor() {
-                this.chatModal = document.getElementById('aiChatModal');
-                this.chatMessages = document.getElementById('chatMessages');
-                this.chatInput = document.getElementById('chatInput');
-                this.init();
-            }
-
-            init() {
-                // AI聊天切换按钮
-                document.getElementById('aiChatToggle').addEventListener('click', () => {
-                    this.chatModal.style.display = 'block';
-                });
-
-                // 回车发送消息
-                this.chatInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        this.sendMessage();
-                    }
-                });
-            }
-
-            async sendMessage() {
-                const message = this.chatInput.value.trim();
-                if (!message) return;
-
-                // 添加用户消息
-                this.addMessage(message, 'user');
-                this.chatInput.value = '';
-
-                try {
-                    const response = await fetch('/ai_chatting/chat/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': window.CSRF_TOKEN
-                        },
-                        body: JSON.stringify({ message: message })
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        this.addMessage(data.response, 'ai');
-                    } else {
-                        this.addMessage('抱歉，我现在无法回应。请稍后再试。', 'ai');
-                    }
-                } catch (error) {
-                    console.error('AI聊天错误:', error);
-                    this.addMessage('网络连接出现问题，请检查网络后重试。', 'ai');
-                }
-            }
-
-            addMessage(content, type) {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = `${type}-message`;
-                
-                messageDiv.innerHTML = `
-                    <div class="message-avatar">
-                        <i class="fas fa-${type === 'user' ? 'user' : 'robot'}"></i>
-                    </div>
-                    <div class="message-content">${content}</div>
-                `;
-                
-                this.chatMessages.appendChild(messageDiv);
-                this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
-            }
-
-            async smartSchedule() {
-                try {
-                    const response = await fetch('/planner/smart_schedule/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': window.CSRF_TOKEN
-                        }
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        modalManager.showNotification('智能安排已完成', 'success');
-                        eventManager.loadEvents();
-                    } else {
-                        modalManager.showNotification('智能安排失败', 'error');
-                    }
-                } catch (error) {
-                    console.error('智能安排错误:', error);
-                    modalManager.showNotification('智能安排出现错误', 'error');
-                }
-            }
-
-            async analyzePriority() {
-                try {
-                    const response = await fetch('/planner/analyze_priority/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': window.CSRF_TOKEN
-                        }
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        modalManager.showNotification('优先级分析已完成', 'success');
-                        todoManager.loadTodos();
-                    } else {
-                        modalManager.showNotification('优先级分析失败', 'error');
-                    }
-                } catch (error) {
-                    console.error('优先级分析错误:', error);
-                    modalManager.showNotification('优先级分析出现错误', 'error');
-                }
-            }
-
-            async timeBlocking() {
-                try {
-                    const response = await fetch('/planner/time_blocking/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': window.CSRF_TOKEN
-                        }
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        modalManager.showNotification('时间块分配已完成', 'success');
-                        eventManager.loadEvents();
-                    } else {
-                        modalManager.showNotification('时间块分配失败', 'error');
-                    }
-                } catch (error) {
-                    console.error('时间块分配错误:', error);
-                    modalManager.showNotification('时间块分配出现错误', 'error');
-                }
-            }
-        }
-
-        // 创建AI助手实例
-        const aiAssistant = new AIAssistant();
+        // 初始化 Agent Chat
+        agentChat = new AgentChat({{ user.id }}, window.CSRF_TOKEN);
+        
+        // 保留旧的 aiAssistant 变量以兼容其他可能的引用
+        const aiAssistant = agentChat;
         
         // 创建管理器实例（全局变量）
         window.modalManager = new ModalManager();
