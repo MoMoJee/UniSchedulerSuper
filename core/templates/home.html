@@ -825,12 +825,21 @@
                     </div>
                 </div>
                 
+                <!-- 工具选择面板（分栏显示） -->
+                <div class="tool-select-panel" id="toolSelectPanel" style="display: none;">
+                    <!-- 由 JS 动态渲染 -->
+                </div>
+                
                 <!-- 输入区域 -->
                 <div class="agent-input-area" id="agentInputArea">
                     <div class="input-wrapper">
                         <textarea class="form-control" id="agentInput" 
                             placeholder="输入消息，按 Enter 发送..." 
                             rows="1"></textarea>
+                        <!-- 工具选择按钮 -->
+                        <button class="btn btn-outline-secondary tool-select-btn" id="toolSelectBtn" title="工具选择">
+                            <i class="fas fa-tools"></i>
+                        </button>
                         <button class="btn btn-primary send-btn" id="agentSendBtn" disabled>
                             <i class="fas fa-paper-plane"></i>
                         </button>

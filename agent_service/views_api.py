@@ -13,7 +13,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
-logger = logging.getLogger(__name__)
+from logger import logger
 
 
 # ==========================================
@@ -41,14 +41,40 @@ def list_sessions(request):
     user = request.user
     
     # 获取用户的所有会话
-    sessions = AgentSession.objects.filter(user=user, is_active=True).order_by('-updated_at')
+    sessions = AgentSession.objects.filter(
+        user=user, 
+        is_active=True
+    ).order_by('-updated_at')
+    
+    # 从 LangGraph 检查点获取实际消息数量，过滤掉空会话
+    from agent_service.agent_graph import app
     
     session_list = []
     for session in sessions:
+        # 检查 LangGraph 中是否有消息
+        try:
+            config = {"configurable": {"thread_id": session.session_id}}
+            state = app.get_state(config)
+            actual_message_count = 0
+            if state and state.values:
+                messages = state.values.get("messages", [])
+                # 只计算用户消息数量（更准确地反映对话轮数）
+                actual_message_count = len([m for m in messages if hasattr(m, 'type') and m.type == 'human'])
+                if actual_message_count == 0:
+                    # 备选：计算所有消息
+                    actual_message_count = len(messages)
+        except Exception as e:
+            logger.warning(f"获取会话 {session.session_id} 消息数量失败: {e}")
+            actual_message_count = session.message_count
+        
+        # 跳过空会话
+        if actual_message_count == 0:
+            continue
+            
         session_list.append({
             "session_id": session.session_id,
             "name": session.name,
-            "message_count": session.message_count,
+            "message_count": actual_message_count,
             "last_message_preview": session.last_message_preview,
             "created_at": session.created_at.isoformat(),
             "updated_at": session.updated_at.isoformat()
@@ -233,7 +259,11 @@ def get_history(request):
         formatted_messages = []
         user_message_indices = []  # 记录用户消息的索引
         
-        for idx, msg in enumerate(messages[-limit:]):
+        # 计算起始索引（用于正确返回消息的实际索引）
+        total_messages = len(messages)
+        start_idx = max(0, total_messages - limit)
+        
+        for idx, msg in enumerate(messages[-limit:], start=start_idx):
             if isinstance(msg, HumanMessage):
                 user_message_indices.append(idx)
                 formatted_messages.append({
@@ -494,72 +524,134 @@ def rollback_to_message(request):
         current_messages = current_state.values.get("messages", [])
         logger.info(f"当前消息数: {len(current_messages)}, 要回滚到索引: {message_index}")
         
-        if message_index < 0 or message_index >= len(current_messages):
+        # 打印消息详情用于调试
+        for i, msg in enumerate(current_messages):
+            msg_id = getattr(msg, 'id', None)
+            msg_type = type(msg).__name__
+            logger.debug(f"  消息[{i}]: type={msg_type}, id={msg_id}")
+        
+        # 检查消息列表是否为空
+        if len(current_messages) == 0:
             return Response({
                 "success": False,
-                "message": f"无效的消息索引: {message_index}"
+                "message": "会话消息为空，无法回滚"
+            })
+        
+        # 检查索引有效性 - message_index 是要删除的起始位置
+        if message_index < 0:
+            return Response({
+                "success": False,
+                "message": f"无效的消息索引: {message_index} (不能为负数)"
+            })
+        
+        if message_index >= len(current_messages):
+            return Response({
+                "success": False,
+                "message": f"无效的消息索引: {message_index} (超出范围，当前消息数: {len(current_messages)})"
             })
         
         # 计算需要回滚的消息数量
         rolled_back_messages = len(current_messages) - message_index
         
-        # ====== 直接删除消息 ======
-        # 使用 RemoveMessage 删除 message_index 及之后的所有消息
-        messages_to_remove = []
-        for i, msg in enumerate(current_messages):
-            if i >= message_index:
-                # 获取消息 ID
-                msg_id = getattr(msg, 'id', None)
-                if msg_id:
-                    messages_to_remove.append(RemoveMessage(id=msg_id))
-                    logger.info(f"准备删除消息 {i}: id={msg_id}, type={type(msg).__name__}")
-        
-        if messages_to_remove:
-            # 使用 update_state 删除消息
-            app.update_state(config, {"messages": messages_to_remove})
-            logger.info(f"已提交删除 {len(messages_to_remove)} 条消息")
+        # ====== 特殊处理：删除所有消息（message_index = 0）======
+        if message_index == 0:
+            logger.info("message_index=0，将清空所有消息（直接删除 checkpoint）")
+            
+            # 直接删除该会话的所有 checkpoint - 这是最可靠的方式
+            from agent_service.agent_graph import clear_session_checkpoints
+            success = clear_session_checkpoints(session_id)
+            
+            if success:
+                logger.info(f"已通过删除 checkpoint 清空会话 {session_id}")
+            else:
+                logger.error(f"删除 checkpoint 失败")
+                return Response({
+                    "success": False,
+                    "message": "清空会话失败"
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:
-            # 如果消息没有 ID，尝试使用 checkpointer 直接操作
-            logger.warning("消息没有 ID，尝试直接操作 checkpointer")
+            # ====== 部分删除消息 ======
+            # 使用 RemoveMessage 删除 message_index 及之后的所有消息
+            messages_to_remove = []
+            for i, msg in enumerate(current_messages):
+                if i >= message_index:
+                    # 获取消息 ID
+                    msg_id = getattr(msg, 'id', None)
+                    logger.debug(f"检查消息 {i}: type={type(msg).__name__}, id={msg_id}")
+                    if msg_id:
+                        messages_to_remove.append(RemoveMessage(id=msg_id))
+                        logger.info(f"准备删除消息 {i}: id={msg_id}, type={type(msg).__name__}")
+                    else:
+                        logger.warning(f"消息 {i} 没有 ID: type={type(msg).__name__}")
             
-            # 获取所有历史快照
-            history = list(app.get_state_history(config))
-            logger.info(f"找到 {len(history)} 个历史快照")
+            logger.info(f"共找到 {len(messages_to_remove)} 条有 ID 的消息待删除（共需删除 {rolled_back_messages} 条）")
             
-            # 找到消息数量 < message_index 的最新快照
-            target_snapshot = None
-            for snapshot in history:
-                snapshot_msgs = snapshot.values.get("messages", [])
-                if len(snapshot_msgs) < message_index:
-                    target_snapshot = snapshot
-                    break
-            
-            if target_snapshot:
-                # 使用目标快照的 checkpoint_id
-                target_checkpoint_id = target_snapshot.config.get("configurable", {}).get("checkpoint_id")
-                logger.info(f"使用快照 checkpoint_id={target_checkpoint_id}")
+            if messages_to_remove:
+                # 使用 update_state 删除消息
+                try:
+                    app.update_state(config, {"messages": messages_to_remove})
+                    logger.info(f"已提交删除 {len(messages_to_remove)} 条消息")
+                except Exception as e:
+                    logger.exception(f"update_state 删除消息失败: {e}")
+                    raise
+            else:
+                # 如果消息没有 ID，尝试使用 checkpointer 直接操作
+                logger.warning("消息没有 ID，尝试直接操作 checkpointer")
                 
-                # 直接删除 checkpointer 中较新的 checkpoint
-                if hasattr(checkpointer, 'storage'):
-                    thread_storage = checkpointer.storage.get(session_id, {})
-                    if target_checkpoint_id and target_checkpoint_id in thread_storage:
-                        # 保留目标及之前的 checkpoint，删除之后的
-                        keys_to_delete = []
-                        found_target = False
-                        for cp_id in list(thread_storage.keys()):
-                            if found_target:
-                                keys_to_delete.append(cp_id)
-                            if cp_id == target_checkpoint_id:
-                                found_target = True
+                # 获取所有历史快照
+                try:
+                    history = list(app.get_state_history(config))
+                    logger.info(f"找到 {len(history)} 个历史快照")
+                except Exception as e:
+                    logger.warning(f"获取历史快照失败: {e}")
+                    history = []
+                
+                if not history:
+                    logger.warning("没有找到历史快照，无法通过快照回滚")
+                else:
+                    # 找到消息数量 < message_index 的最新快照
+                    target_snapshot = None
+                    for snapshot in history:
+                        if snapshot.values:
+                            snapshot_msgs = snapshot.values.get("messages", [])
+                            if len(snapshot_msgs) < message_index:
+                                target_snapshot = snapshot
+                                break
+                    
+                    if target_snapshot:
+                        # 使用目标快照的 checkpoint_id
+                        target_checkpoint_id = target_snapshot.config.get("configurable", {}).get("checkpoint_id")
+                        logger.info(f"使用快照 checkpoint_id={target_checkpoint_id}")
                         
-                        for cp_id in keys_to_delete:
-                            del thread_storage[cp_id]
-                        logger.info(f"删除了 {len(keys_to_delete)} 个 checkpoint")
+                        # 直接删除 checkpointer 中较新的 checkpoint
+                        if hasattr(checkpointer, 'storage'):
+                            thread_storage = checkpointer.storage.get(session_id, {})
+                            if target_checkpoint_id and target_checkpoint_id in thread_storage:
+                                # 保留目标及之前的 checkpoint，删除之后的
+                                keys_to_delete = []
+                                found_target = False
+                                for cp_id in list(thread_storage.keys()):
+                                    if found_target:
+                                        keys_to_delete.append(cp_id)
+                                    if cp_id == target_checkpoint_id:
+                                        found_target = True
+                                
+                                for cp_id in keys_to_delete:
+                                    del thread_storage[cp_id]
+                                logger.info(f"删除了 {len(keys_to_delete)} 个 checkpoint")
         
         # 验证删除结果
-        new_state = app.get_state(config)
-        new_messages = new_state.values.get("messages", []) if new_state and new_state.values else []
-        logger.info(f"删除后消息数: {len(new_messages)}")
+        new_messages = []
+        if message_index == 0:
+            # 清空 checkpoint 后，会话状态为空，这是预期行为
+            logger.info("会话已清空，消息数: 0")
+        else:
+            try:
+                new_state = app.get_state(config)
+                new_messages = new_state.values.get("messages", []) if new_state and new_state.values else []
+                logger.info(f"删除后消息数: {len(new_messages)}")
+            except Exception as e:
+                logger.warning(f"获取删除后状态失败: {e}")
         
         # ====== 回滚数据库事务 ======
         # 回滚该 session 中所有未回滚的事务（从最新到最旧）
@@ -616,11 +708,6 @@ def rollback_to_message(request):
             {"error": f"执行回滚失败: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        logger.exception(f"执行回滚失败: {e}")
-        return Response(
-            {"error": f"执行回滚失败: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
 
 
 # ==========================================
@@ -629,19 +716,93 @@ def rollback_to_message(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def get_available_experts(request):
+def get_available_tools(request):
     """
-    获取可用的专家列表
-    GET /api/agent/experts/
+    获取可用的工具列表（按分类）
+    GET /api/agent/tools/
     
     返回:
     {
-        "experts": [
-            {"name": "planner", "display_name": "日程管理", "description": "..."},
-            {"name": "map", "display_name": "地图查询", "description": "..."},
-            {"name": "chat", "display_name": "闲聊助手", "description": "..."},
-        ]
+        "categories": [
+            {
+                "id": "planner",
+                "display_name": "日程管理",
+                "description": "管理日程、待办、提醒",
+                "tools": [
+                    {"name": "get_events", "display_name": "查询日程", "enabled": true},
+                    ...
+                ]
+            },
+            ...
+        ],
+        "default_tools": ["get_events", "create_event", ...]
     }
+    """
+    from agent_service.agent_graph import TOOL_CATEGORIES, get_default_tools
+    
+    # 工具的友好名称映射
+    tool_display_names = {
+        # Planner
+        "get_events": "查询日程",
+        "create_event": "创建日程",
+        "update_event": "更新日程",
+        "delete_event": "删除日程",
+        "get_todos": "查询待办",
+        "create_todo": "创建待办",
+        "update_todo": "更新待办",
+        "delete_todo": "删除待办",
+        "get_reminders": "查询提醒",
+        "create_reminder": "创建提醒",
+        "delete_reminder": "删除提醒",
+        # Memory
+        "save_memory": "保存记忆",
+        "search_memory": "搜索记忆",
+        "get_recent_memories": "获取最近记忆",
+        # Map (MCP)
+        "maps_search_poi": "搜索地点",
+        "maps_search_nearby": "周边搜索",
+        "maps_geo": "地理编码",
+        "maps_regeo": "逆地理编码",
+        "maps_bicycling": "骑行路线",
+        "maps_walking": "步行路线",
+        "maps_driving": "驾车路线",
+        "maps_distance": "距离测量",
+        "maps_weather": "天气查询",
+        "maps_ip": "IP定位",
+    }
+    
+    default_tools = get_default_tools()
+    
+    categories = []
+    for cat_id, cat_info in TOOL_CATEGORIES.items():
+        tools = []
+        for tool_name in cat_info["tools"]:
+            tools.append({
+                "name": tool_name,
+                "display_name": tool_display_names.get(tool_name, tool_name),
+                "enabled": tool_name in default_tools
+            })
+        
+        categories.append({
+            "id": cat_id,
+            "display_name": cat_info["display_name"],
+            "description": cat_info["description"],
+            "tools": tools
+        })
+    
+    return Response({
+        "categories": categories,
+        "default_tools": default_tools
+    })
+
+
+# 保留旧的 API 以兼容
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_available_experts(request):
+    """
+    获取可用的专家列表 (已弃用，请使用 get_available_tools)
+    GET /api/agent/experts/
     """
     experts = [
         {
@@ -654,7 +815,7 @@ def get_available_experts(request):
             "name": "map",
             "display_name": "地图查询",
             "description": "查询地点、规划路线",
-            "available": False  # MCP 服务可能不可用
+            "available": True
         },
         {
             "name": "chat",

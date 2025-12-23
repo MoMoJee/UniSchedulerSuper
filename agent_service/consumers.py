@@ -12,7 +12,7 @@ from asgiref.sync import sync_to_async
 from langchain_core.messages import HumanMessage, AIMessage, AIMessageChunk, ToolMessage
 from django.contrib.auth.models import User
 
-logger = logging.getLogger(__name__)
+from logger import logger
 
 class AgentConsumer(AsyncWebsocketConsumer):
     """
@@ -38,7 +38,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
         super().__init__(*args, **kwargs)
         self.user: Optional[User] = None
         self.session_id: Optional[str] = None
-        self.active_experts: list = ['planner', 'map', 'chat']  # 默认启用所有专家
+        self.active_tools: list = []  # 启用的工具列表
         self.graph = None
         self.is_processing = False
         self.should_stop = False  # 停止标志
@@ -58,10 +58,20 @@ class AgentConsumer(AsyncWebsocketConsumer):
         params = self._parse_query_string(query_string)
         
         self.session_id = params.get("session_id", f"user_{self.user.id}_default")
-        experts_param = params.get("active_experts", "planner,map,chat")
-        self.active_experts = [e.strip() for e in experts_param.split(",") if e.strip()]
         
-        logger.info(f"用户 {self.user.username} 连接 WebSocket, session={self.session_id}, experts={self.active_experts}")
+        # 获取启用的工具（如果未指定，使用默认工具）
+        from agent_service.agent_graph import get_default_tools
+        tools_param = params.get("active_tools", "")
+        if tools_param:
+            self.active_tools = [t.strip() for t in tools_param.split(",") if t.strip()]
+        else:
+            self.active_tools = get_default_tools()
+        
+        logger.debug(f"[WebSocket] 用户 {self.user.username} 连接参数:")
+        logger.debug(f"[WebSocket]   - session_id: {self.session_id}")
+        logger.debug(f"[WebSocket]   - tools_param: '{tools_param}'")
+        logger.debug(f"[WebSocket]   - active_tools 解析结果: {self.active_tools}")
+        logger.info(f"用户 {self.user.username} 连接 WebSocket, session={self.session_id}, tools={len(self.active_tools)} 个")
         
         # 3. 初始化 Agent Graph
         await self._init_graph()
@@ -69,11 +79,25 @@ class AgentConsumer(AsyncWebsocketConsumer):
         # 4. 接受连接
         await self.accept()
         
-        # 5. 发送欢迎消息
+        # 5. 获取当前消息数量
+        current_message_count = 0
+        try:
+            from agent_service.agent_graph import app
+            config = {"configurable": {"thread_id": self.session_id}}
+            state = await sync_to_async(app.get_state)(config)
+            if state and state.values:
+                messages = state.values.get("messages", [])
+                current_message_count = len(messages)
+                logger.debug(f"[WebSocket] 当前会话消息数: {current_message_count}")
+        except Exception as e:
+            logger.warning(f"[WebSocket] 获取消息数量失败: {e}")
+        
+        # 6. 发送欢迎消息（包含消息数量）
         await self.send_json({
             "type": "connected",
             "session_id": self.session_id,
-            "active_experts": self.active_experts,
+            "active_tools": self.active_tools,
+            "message_count": current_message_count,
             "message": f"欢迎, {self.user.username}!"
         })
     
@@ -119,6 +143,17 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 self.should_stop = False
                 # 创建任务并运行
                 self.current_task = asyncio.create_task(self._process_message(content))
+            
+            elif msg_type == "continue":
+                # 用户选择继续执行（达到递归限制后）
+                logger.info(f"用户 {self.user.username} 选择继续执行")
+                if self.is_processing:
+                    await self.send_json({"type": "error", "message": "正在处理中，请稍候"})
+                    return
+                
+                # 重置停止标志并继续
+                self.should_stop = False
+                self.current_task = asyncio.create_task(self._continue_processing())
                 
             else:
                 await self.send_json({"type": "error", "message": f"未知消息类型: {msg_type}"})
@@ -144,17 +179,21 @@ class AgentConsumer(AsyncWebsocketConsumer):
             config = {
                 "configurable": {
                     "thread_id": self.session_id,
-                    "user": self.user
+                    "user": self.user,
+                    "active_tools": self.active_tools  # 传递 active_tools 到 config
                 }
             }
             
             # 准备输入
             input_state = {
                 "messages": [HumanMessage(content=content)],
-                "next": "",
-                "active_experts": self.active_experts,
-                "current_agent": ""
+                "active_tools": self.active_tools
             }
+            
+            logger.debug(f"[消息处理] 准备输入状态:")
+            logger.debug(f"[消息处理]   - 用户消息: {content[:100]}...")
+            logger.debug(f"[消息处理]   - active_tools (input_state): {self.active_tools}")
+            logger.debug(f"[消息处理]   - active_tools (config): {config['configurable']['active_tools']}")
             
             # 导入 graph
             from agent_service.agent_graph import app
@@ -203,9 +242,15 @@ class AgentConsumer(AsyncWebsocketConsumer):
                     event_queue.put(("done", None))
                 except Exception as e:
                     import traceback
+                    error_str = str(e)
                     print(f"[Stream] 流式处理异常: {e}")
                     traceback.print_exc()
-                    event_queue.put(("error", f"{str(e)}\n{traceback.format_exc()}"))
+                    
+                    # 检查是否是递归限制错误
+                    if "Recursion limit" in error_str or "GraphRecursionError" in type(e).__name__:
+                        event_queue.put(("recursion_limit", error_str))
+                    else:
+                        event_queue.put(("error", f"{error_str}\n{traceback.format_exc()}"))
             
             # 启动后台线程
             thread = threading.Thread(target=run_stream, daemon=True)
@@ -232,6 +277,17 @@ class AgentConsumer(AsyncWebsocketConsumer):
                             await self.send_json({"type": "stream_end"})
                             stream_started = False
                         break
+                    elif item_type == "recursion_limit":
+                        # 达到递归限制，通知前端
+                        logger.warning(f"达到递归限制: {item}")
+                        if stream_started:
+                            await self.send_json({"type": "stream_end"})
+                            stream_started = False
+                        await self.send_json({
+                            "type": "recursion_limit",
+                            "message": "工具调用次数达到上限，是否继续执行？"
+                        })
+                        break
                     elif item_type == "error":
                         raise Exception(item)
                     elif item_type == "message":
@@ -240,26 +296,24 @@ class AgentConsumer(AsyncWebsocketConsumer):
                         
                         print(f"[Process] Processing message from node={node_name}, msg_type={type(msg).__name__}")
                         
-                        # 处理 AIMessage 的内容
+                        # 处理 AIMessage 的内容（无论是否有工具调用都要显示）
                         if hasattr(msg, 'content') and msg.content:
-                            print(f"[Process] content present: {msg.content[:50]}...")
+                            content_preview = msg.content[:50] if len(msg.content) > 50 else msg.content
+                            print(f"[Process] content present: {content_preview}...")
                             
-                            # 检查是否有工具调用（如果有工具调用，content 可能是工具调用的中间状态）
-                            has_tool_calls = hasattr(msg, 'tool_calls') and msg.tool_calls
-                            
-                            if not has_tool_calls:
-                                # 没有工具调用，显示内容
-                                if not stream_started:
-                                    await self.send_json({"type": "stream_start"})
-                                    stream_started = True
-                                await self.send_json({
-                                    "type": "stream_chunk",
-                                    "content": msg.content
-                                })
+                            # 显示内容（即使有工具调用也要显示思考过程）
+                            if not stream_started:
+                                await self.send_json({"type": "stream_start"})
+                                stream_started = True
+                            await self.send_json({
+                                "type": "stream_chunk",
+                                "content": msg.content
+                            })
                         
                         # 处理工具调用
                         if hasattr(msg, 'tool_calls') and msg.tool_calls:
                             print(f"[Process] tool_calls present: {msg.tool_calls}")
+                            # 如果有内容正在流式输出，先结束它
                             if stream_started:
                                 await self.send_json({"type": "stream_end"})
                                 stream_started = False
@@ -289,11 +343,22 @@ class AgentConsumer(AsyncWebsocketConsumer):
             if stream_started:
                 await self.send_json({"type": "stream_end"})
             
-            # 发送完成信号
+            # 获取最终消息数量
+            final_message_count = 0
+            try:
+                final_state = await sync_to_async(app.get_state)(config)
+                if final_state and final_state.values:
+                    final_messages = final_state.values.get("messages", [])
+                    final_message_count = len(final_messages)
+            except Exception as e:
+                logger.warning(f"获取最终消息数量失败: {e}")
+            
+            # 发送完成信号（包含消息数量）
             if not self.should_stop:
                 await self.send_json({
                     "type": "finished",
-                    "message": "处理完成"
+                    "message": "处理完成",
+                    "message_count": final_message_count
                 })
             
         except asyncio.CancelledError:
@@ -308,6 +373,222 @@ class AgentConsumer(AsyncWebsocketConsumer):
             self.is_processing = False
             self.current_task = None
             self.should_stop = False
+
+    async def _continue_processing(self):
+        """
+        继续处理（达到递归限制后用户选择继续）
+        添加一条继续执行的消息，让 Agent 从中断处继续
+        """
+        self.is_processing = True
+        
+        try:
+            await self.send_json({"type": "processing", "message": "继续执行..."})
+            
+            from agent_service.agent_graph import app
+            from langchain_core.messages import HumanMessage
+            
+            config = {
+                "configurable": {
+                    "thread_id": self.session_id,
+                    "user": self.user,
+                    "active_tools": self.active_tools
+                }
+            }
+            
+            # 先检查并清理不完整的工具调用
+            await self._cleanup_incomplete_tool_calls(config)
+            
+            # 构建继续执行的输入消息
+            continue_message = HumanMessage(content="继续执行上述任务，完成未完成的工作。")
+            input_state = {"messages": [continue_message]}
+            
+            import queue
+            import threading
+            
+            event_queue = queue.Queue()
+            
+            def run_continue():
+                """继续执行，发送一条继续消息触发 Agent"""
+                try:
+                    print(f"[Continue] 发送继续消息触发执行")
+                    chunk_count = 0
+                    
+                    # 使用新消息触发 Agent 继续执行
+                    for output in app.stream(input_state, config):
+                        chunk_count += 1
+                        print(f"[Continue] chunk #{chunk_count}: output_type={type(output)}")
+                        
+                        for node_name, node_output in output.items():
+                            if isinstance(node_output, dict) and 'messages' in node_output:
+                                for msg in node_output['messages']:
+                                    event_queue.put(("message", (node_name, msg)))
+                            
+                        if self.should_stop:
+                            event_queue.put(("stop", None))
+                            break
+                            
+                    print(f"[Continue] 继续执行完成, 共 {chunk_count} 个 outputs")
+                    event_queue.put(("done", None))
+                except Exception as e:
+                    import traceback
+                    error_str = str(e)
+                    print(f"[Continue] 继续执行异常: {e}")
+                    traceback.print_exc()
+                    
+                    if "Recursion limit" in error_str or "GraphRecursionError" in type(e).__name__:
+                        event_queue.put(("recursion_limit", error_str))
+                    else:
+                        event_queue.put(("error", f"{error_str}\n{traceback.format_exc()}"))
+            
+            thread = threading.Thread(target=run_continue, daemon=True)
+            thread.start()
+            
+            stream_started = False
+            
+            while True:
+                if self.should_stop:
+                    if stream_started:
+                        await self.send_json({"type": "stream_end"})
+                    break
+                
+                try:
+                    item_type, item = event_queue.get_nowait()
+                    
+                    if item_type == "done" or item_type == "stop":
+                        if stream_started:
+                            await self.send_json({"type": "stream_end"})
+                            stream_started = False
+                        break
+                    elif item_type == "recursion_limit":
+                        logger.warning(f"继续执行时再次达到递归限制: {item}")
+                        if stream_started:
+                            await self.send_json({"type": "stream_end"})
+                            stream_started = False
+                        await self.send_json({
+                            "type": "recursion_limit",
+                            "message": "工具调用次数再次达到上限，是否继续执行？"
+                        })
+                        break
+                    elif item_type == "error":
+                        raise Exception(item)
+                    elif item_type == "message":
+                        node_name, msg = item
+                        
+                        if hasattr(msg, 'content') and msg.content:
+                            has_tool_calls = hasattr(msg, 'tool_calls') and msg.tool_calls
+                            if not has_tool_calls:
+                                if not stream_started:
+                                    await self.send_json({"type": "stream_start"})
+                                    stream_started = True
+                                await self.send_json({
+                                    "type": "stream_chunk",
+                                    "content": msg.content
+                                })
+                        
+                        if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                            if stream_started:
+                                await self.send_json({"type": "stream_end"})
+                                stream_started = False
+                            for tc in msg.tool_calls:
+                                await self.send_json({
+                                    "type": "tool_call",
+                                    "name": tc.get("name", "unknown"),
+                                    "args": tc.get("args", {})
+                                })
+                        
+                        if hasattr(msg, 'type') and getattr(msg, 'type', None) == 'tool':
+                            result_str = str(msg.content) if hasattr(msg, 'content') else str(msg)
+                            await self.send_json({
+                                "type": "tool_result",
+                                "name": msg.name if hasattr(msg, 'name') else "tool",
+                                "result": result_str[:200] + "..." if len(result_str) > 200 else result_str
+                            })
+                        
+                except queue.Empty:
+                    await asyncio.sleep(0.01)
+            
+            thread.join(timeout=2.0)
+            
+            if stream_started:
+                await self.send_json({"type": "stream_end"})
+            
+            # 获取最终消息数量
+            final_message_count = 0
+            try:
+                final_state = await sync_to_async(app.get_state)(config)
+                if final_state and final_state.values:
+                    final_messages = final_state.values.get("messages", [])
+                    final_message_count = len(final_messages)
+            except Exception as e:
+                logger.warning(f"获取最终消息数量失败: {e}")
+            
+            if not self.should_stop:
+                await self.send_json({
+                    "type": "finished",
+                    "message": "处理完成",
+                    "message_count": final_message_count
+                })
+            
+        except asyncio.CancelledError:
+            logger.info(f"继续处理任务被取消")
+        except Exception as e:
+            logger.exception(f"继续处理失败: {e}")
+            await self.send_json({
+                "type": "error",
+                "message": f"继续处理失败: {str(e)}"
+            })
+        finally:
+            self.is_processing = False
+            self.current_task = None
+            self.should_stop = False
+
+    async def _cleanup_incomplete_tool_calls(self, config):
+        """
+        清理不完整的工具调用消息
+        当递归限制中断时，可能存在 AIMessage 有 tool_calls 但没有对应的 ToolMessage
+        """
+        from agent_service.agent_graph import app
+        from langchain_core.messages import AIMessage, ToolMessage
+        
+        try:
+            state = await sync_to_async(app.get_state)(config)
+            if not state or not state.values:
+                return
+            
+            messages = state.values.get("messages", [])
+            if not messages:
+                return
+            
+            last_msg = messages[-1]
+            
+            # 检查最后一条消息是否是带有 tool_calls 的 AIMessage
+            if isinstance(last_msg, AIMessage) and hasattr(last_msg, 'tool_calls') and last_msg.tool_calls:
+                logger.info(f"检测到不完整的工具调用，需要清理")
+                
+                # 为每个未完成的 tool_call 添加一个假的 ToolMessage
+                fake_tool_messages = []
+                for tc in last_msg.tool_calls:
+                    tool_call_id = tc.get("id", "")
+                    tool_name = tc.get("name", "unknown")
+                    fake_tool_messages.append(
+                        ToolMessage(
+                            content=f"[工具调用被中断，未完成执行]",
+                            tool_call_id=tool_call_id,
+                            name=tool_name
+                        )
+                    )
+                
+                if fake_tool_messages:
+                    # 更新状态添加假的工具响应
+                    await sync_to_async(app.update_state)(
+                        config, 
+                        {"messages": fake_tool_messages}
+                    )
+                    logger.info(f"已添加 {len(fake_tool_messages)} 个占位工具响应")
+                    
+        except Exception as e:
+            logger.warning(f"清理不完整工具调用时出错: {e}")
+
     async def _init_graph(self):
         """初始化 Agent Graph"""
         from agent_service.agent_graph import app
@@ -319,12 +600,14 @@ class AgentConsumer(AsyncWebsocketConsumer):
     
     def _parse_query_string(self, query_string: str) -> dict:
         """解析 URL 查询参数"""
+        from urllib.parse import unquote
         params = {}
         if query_string:
             for pair in query_string.split("&"):
                 if "=" in pair:
                     key, value = pair.split("=", 1)
-                    params[key] = value
+                    # URL 解码参数值
+                    params[key] = unquote(value)
         return params
 
 

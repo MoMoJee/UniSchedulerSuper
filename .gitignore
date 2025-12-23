@@ -1,3 +1,10 @@
 /default_files/
 /logs/
 db.sqlite3
+/agent_service/checkpoints
+/staticfiles
+/agent_service/agent_service/long_term_memory.json
+/agent_service/MCP测试.py
+/.idea/dataSources/a90fd367-285e-4cef-a2c7-4755172f4dc0.xml
+/.idea/dataSources.local.xml
+/.idea/dataSources/a90fd367-285e-4cef-a2c7-4755172f4dc0/storage_v2/_src_/schema/main.uQUzAA.meta

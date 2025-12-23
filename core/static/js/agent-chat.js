@@ -28,6 +28,12 @@ class AgentChat {
         // 会话切换时的回滚标记起点
         this.rollbackBaseIndex = 0;
         
+        // 工具选择状态
+        this.availableTools = [];  // 可用工具列表（从服务器获取）
+        this.activeTools = [];     // 当前启用的工具
+        this.pendingTools = [];    // 待确认的工具选择
+        this.toolPanelVisible = false;
+        
         // DOM 元素
         this.messagesContainer = document.getElementById('agentMessages');
         this.inputField = document.getElementById('agentInput');
@@ -42,6 +48,8 @@ class AgentChat {
         this.newSessionBtn = document.getElementById('newSessionBtn');
         this.agentChatContainer = document.getElementById('agentChatContainer');
         this.agentInputArea = document.getElementById('agentInputArea');
+        this.toolSelectBtn = document.getElementById('toolSelectBtn');
+        this.toolSelectPanel = document.getElementById('toolSelectPanel');
         
         // 消息计数（用于跟踪消息索引）
         this.messageCount = 0;
@@ -81,6 +89,9 @@ class AgentChat {
         // 绑定事件
         this.bindEvents();
         
+        // 加载可用工具列表
+        this.loadAvailableTools();
+        
         // 连接 WebSocket
         this.connect();
         
@@ -105,6 +116,24 @@ class AgentChat {
             localStorage.setItem(storageKey, sessionId);
         }
         return sessionId;
+    }
+
+    /**
+     * 获取当前会话的回滚基准点
+     */
+    getRollbackBaseIndex() {
+        const key = `rollback_base_${this.sessionId}`;
+        const stored = localStorage.getItem(key);
+        return stored !== null ? parseInt(stored, 10) : 0;
+    }
+
+    /**
+     * 保存当前会话的回滚基准点
+     */
+    saveRollbackBaseIndex(index) {
+        const key = `rollback_base_${this.sessionId}`;
+        localStorage.setItem(key, index.toString());
+        this.rollbackBaseIndex = index;
     }
 
     /**
@@ -176,6 +205,23 @@ class AgentChat {
                 this.createNewSession();
             });
         }
+        
+        // 工具选择按钮
+        if (this.toolSelectBtn) {
+            this.toolSelectBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleToolPanel();
+            });
+        }
+        
+        // 点击外部关闭工具面板
+        document.addEventListener('click', (e) => {
+            if (this.toolPanelVisible && this.toolSelectPanel && 
+                !this.toolSelectPanel.contains(e.target) && 
+                !this.toolSelectBtn.contains(e.target)) {
+                this.hideToolPanel();
+            }
+        });
     }
 
     /**
@@ -214,7 +260,16 @@ class AgentChat {
      */
     connect() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws/agent/?session_id=${this.sessionId}`;
+        // 构建 WebSocket URL，包含 session_id 和 active_tools
+        let wsUrl = `${protocol}//${window.location.host}/ws/agent/?session_id=${this.sessionId}`;
+        if (this.activeTools.length > 0) {
+            wsUrl += `&active_tools=${encodeURIComponent(this.activeTools.join(','))}`;
+        }
+        
+        console.log('🔌 WebSocket 连接:');
+        console.log('   - URL:', wsUrl);
+        console.log('   - activeTools:', this.activeTools);
+        console.log('   - 工具数量:', this.activeTools.length);
         
         try {
             this.socket = new WebSocket(wsUrl);
@@ -290,6 +345,11 @@ class AgentChat {
         switch (data.type) {
             case 'connected':
                 console.log('Agent 连接成功:', data.message);
+                // 同步服务器端的消息数量
+                if (data.message_count !== undefined) {
+                    this.messageCount = data.message_count;
+                    console.log('📊 同步消息计数:', this.messageCount);
+                }
                 break;
             
             case 'processing':
@@ -337,6 +397,11 @@ class AgentChat {
                 this.hideTyping();
                 this.isProcessing = false;
                 this.updateSendButton();
+                // 同步服务器端的消息数量（确保与后端一致）
+                if (data.message_count !== undefined) {
+                    this.messageCount = data.message_count;
+                    console.log('📊 处理完成，同步消息计数:', this.messageCount);
+                }
                 console.log('Agent 处理完成');
                 break;
                 
@@ -370,6 +435,14 @@ class AgentChat {
                 this.showNotification('已停止生成', 'info');
                 break;
                 
+            case 'recursion_limit':
+                // 达到递归限制，询问用户是否继续
+                this.hideTyping();
+                this.isProcessing = false;
+                this.updateSendButton();
+                this.showRecursionLimitMessage(data.message || '工具调用次数达到上限，是否继续执行？');
+                break;
+                
             default:
                 console.log('未知消息类型:', data.type);
         }
@@ -391,9 +464,12 @@ class AgentChat {
         const welcome = this.messagesContainer.querySelector('.agent-welcome');
         if (welcome) welcome.style.display = 'none';
         
-        // 添加用户消息（带消息索引）
+        // 添加用户消息（带消息索引 - 这是后端 LangGraph 中的索引）
+        // messageCount 在发送前表示后端消息列表的当前长度，也就是新消息的索引
         const currentIndex = this.messageCount;
         this.addMessage(message, 'user', {}, currentIndex);
+        // 注意: 不在这里增加 messageCount，等 'finished' 事件从服务器同步
+        // 但为了回滚功能，需要临时增加1表示用户消息已发送
         this.messageCount += 1;
         
         // 标记为处理中
@@ -476,13 +552,16 @@ class AgentChat {
             metadataHtml += `<span class="action-badge">${metadata.actions_count} 个操作</span>`;
         }
         
-        // 用户消息添加回滚按钮（只有在回滚基准点之后的消息才显示）
-        let rollbackBtn = '';
+        // 用户消息添加回滚按钮（只有在回滚基准点之后的消息才显示，且仅当前会话）
+        let rollbackInfo = '';
         if (type === 'user' && messageIndex !== null && messageIndex >= this.rollbackBaseIndex) {
-            rollbackBtn = `
-                <button class="rollback-btn" title="回到此消息前重新编辑" onclick="agentChat.showRollbackConfirm(${messageIndex}, this)">
-                    <i class="fas fa-undo"></i>
-                </button>
+            rollbackInfo = `
+                <div class="rollback-info-wrapper">
+                    <span class="rollback-info-text">可回滚此消息</span>
+                    <button class="rollback-btn" title="回到此消息前重新编辑" onclick="agentChat.showRollbackConfirm(${messageIndex}, this)">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                </div>
             `;
         }
         
@@ -493,8 +572,8 @@ class AgentChat {
             <div class="message-body">
                 <div class="message-content">${this.formatContent(content)}</div>
                 ${metadataHtml ? `<div class="message-meta">${metadataHtml}</div>` : ''}
+                ${rollbackInfo}
             </div>
-            ${rollbackBtn}
         `;
         
         this.messagesContainer.appendChild(messageDiv);
@@ -569,6 +648,8 @@ class AgentChat {
                 body.insertAdjacentHTML('beforeend', metaHtml);
             }
         }
+        
+        // 注意: 消息计数会在 'finished' 事件中从服务器同步，这里不增加
         
         // 更新处理状态
         this.isProcessing = false;
@@ -746,31 +827,49 @@ class AgentChat {
                 this.messageCount = 0;
                 
                 if (messages.length > 0) {
-                    // 设置回滚基准点为当前消息数（切换会话后的消息才能回滚）
-                    this.rollbackBaseIndex = 0;
+                    const totalMessages = data.total_messages || messages.length;
+                    this.messageCount = totalMessages;
+                    
+                    // 【关键】从 localStorage 恢复回滚基准点
+                    // 如果没有存储值，说明是首次加载或切换后首次加载，使用消息总数
+                    const storedBaseIndex = this.getRollbackBaseIndex();
+                    // 如果存储的基准点有效（<=消息总数），使用它；否则使用消息总数
+                    if (storedBaseIndex <= totalMessages) {
+                        this.rollbackBaseIndex = storedBaseIndex;
+                    } else {
+                        // 存储的值无效（可能是回滚后消息减少了），重置为消息总数
+                        this.saveRollbackBaseIndex(totalMessages);
+                    }
                     
                     // 渲染历史消息
                     messages.forEach(msg => {
-                        if (msg.role === 'tool') return; // 跳过工具消息
-                        
-                        const type = msg.role === 'user' ? 'user' : 'agent';
                         const index = msg.index !== undefined ? msg.index : null;
                         
-                        // 恢复工具调用信息
-                        if (msg.tool_calls && msg.tool_calls.length > 0) {
-                            msg.tool_calls.forEach(tc => {
-                                this.addToolCallIndicatorFromHistory(tc.name);
-                            });
+                        if (msg.role === 'user') {
+                            // 用户消息
+                            if (msg.content && msg.content.trim()) {
+                                this.addMessage(msg.content, 'user', {}, index);
+                            }
+                        } else if (msg.role === 'assistant') {
+                            // AI消息
+                            // 第一步：显示AI的思考内容（如果有）
+                            if (msg.content && msg.content.trim()) {
+                                this.addMessage(msg.content, 'agent', {}, index);
+                            }
+                            
+                            // 第二步：显示工具调用指示器（如果有）
+                            if (msg.tool_calls && msg.tool_calls.length > 0) {
+                                msg.tool_calls.forEach(tc => {
+                                    this.addToolCallIndicatorFromHistory(tc.name);
+                                });
+                            }
+                        } else if (msg.role === 'tool') {
+                            // 工具执行结果
+                            if (msg.content && msg.content.trim()) {
+                                this.showToolResultFromHistory(msg.content);
+                            }
                         }
-                        
-                        this.addMessage(msg.content, type, {}, index);
                     });
-                    
-                    // 更新消息计数
-                    this.messageCount = data.total_messages || messages.length;
-                    
-                    // 更新回滚基准点
-                    this.rollbackBaseIndex = this.messageCount;
                 } else {
                     this.showWelcomeMessage();
                 }
@@ -799,6 +898,23 @@ class AgentChat {
         `;
         toolDiv.style.opacity = '0.6';
         this.messagesContainer.appendChild(toolDiv);
+    }
+
+    /**
+     * 从历史记录恢复工具执行结果
+     */
+    showToolResultFromHistory(result) {
+        // 截断过长的结果
+        const displayResult = result.length > 200 ? result.substring(0, 200) + '...' : result;
+        
+        const resultDiv = document.createElement('div');
+        resultDiv.className = 'tool-result-indicator';
+        resultDiv.innerHTML = `
+            <i class="fas fa-reply text-info me-2"></i>
+            <span class="tool-result-text">${this.formatContent(displayResult)}</span>
+        `;
+        resultDiv.style.opacity = '0.7';
+        this.messagesContainer.appendChild(resultDiv);
     }
 
     /**
@@ -945,12 +1061,8 @@ class AgentChat {
             return;
         }
         
-        // 确认切换（回滚功能会失效）
-        const hasMessages = this.messagesContainer.querySelectorAll('.agent-message.user-message').length > 0;
-        if (hasMessages) {
-            const confirmed = confirm('切换会话后，当前会话的回滚功能将不可用。是否继续？');
-            if (!confirmed) return;
-        }
+        // 【关键】切换前，将当前会话的回滚基准点设为消息总数（使所有消息不可回滚）
+        this.saveRollbackBaseIndex(this.messageCount);
         
         // 保存新的会话ID
         this.saveSessionId(sessionId);
@@ -960,13 +1072,15 @@ class AgentChat {
         
         // 重置状态
         this.messageCount = 0;
-        this.rollbackBaseIndex = 0;
         
         // 清空消息容器
         this.messagesContainer.innerHTML = '';
         
         // 重新连接 WebSocket
         this.reconnect();
+        
+        // 【关键】切换后，将新会话的回滚基准点设为很大的数（稍后在 loadHistory 中会设置为实际消息数）
+        this.saveRollbackBaseIndex(999999);
         
         // 加载新会话历史
         await this.loadHistory();
@@ -988,6 +1102,13 @@ class AgentChat {
             return;
         }
         
+        // 弹出确认对话框：提示回滚功能将失效
+        const confirmed = confirm('创建新会话后，当前会话的所有消息将无法回滚。是否继续？');
+        if (!confirmed) return;
+        
+        // 【关键】新建前，将当前会话的回滚基准点设为消息总数（使所有消息不可回滚）
+        this.saveRollbackBaseIndex(this.messageCount);
+        
         try {
             const response = await fetch('/api/agent/sessions/create/', {
                 method: 'POST',
@@ -1007,9 +1128,10 @@ class AgentChat {
                 // 关闭历史面板
                 this.hideSessionHistoryPanel();
                 
-                // 重置状态
+                // 重置状态：新会话从0开始，所有新消息都可回滚
                 this.messageCount = 0;
-                this.rollbackBaseIndex = 0;
+                // 【关键】新会话的回滚基准点为0，所有新消息都可回滚
+                this.saveRollbackBaseIndex(0);
                 
                 // 清空并显示欢迎消息
                 this.messagesContainer.innerHTML = '';
@@ -1099,6 +1221,338 @@ class AgentChat {
         }
         if (this.agentInputArea) {
             this.agentInputArea.classList.remove('dimmed');
+        }
+    }
+
+    // ==========================================
+    // 工具选择功能
+    // ==========================================
+
+    /**
+     * 加载可用工具列表
+     */
+    async loadAvailableTools() {
+        try {
+            const response = await fetch('/api/agent/tools/', {
+                headers: {
+                    'X-CSRFToken': this.csrfToken
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                this.availableTools = data.categories || [];
+                this.activeTools = data.default_tools || [];
+                this.pendingTools = [...this.activeTools];
+                
+                // 更新工具按钮状态
+                this.updateToolButtonBadge();
+                
+                console.log('✅ 加载工具列表成功:', this.availableTools);
+            } else {
+                console.error('加载工具列表失败:', response.status);
+            }
+        } catch (error) {
+            console.error('加载工具列表失败:', error);
+        }
+    }
+
+    /**
+     * 切换工具选择面板
+     */
+    toggleToolPanel() {
+        if (this.toolPanelVisible) {
+            this.hideToolPanel();
+        } else {
+            this.showToolPanel();
+        }
+    }
+
+    /**
+     * 显示工具选择面板
+     */
+    showToolPanel() {
+        if (!this.toolSelectPanel) return;
+        
+        // 隐藏其他面板
+        this.hideSessionHistoryPanel();
+        
+        // 重置待确认的工具为当前激活的工具
+        this.pendingTools = [...this.activeTools];
+        
+        // 渲染工具列表
+        this.renderToolPanel();
+        
+        // 添加分栏样式
+        const panelContent = document.querySelector('.agent-panel-content');
+        if (panelContent) {
+            panelContent.classList.add('tool-selecting');
+        }
+        
+        // 禁用其他按钮
+        this.setOtherButtonsDisabled(true);
+        
+        // 更新工具按钮状态
+        this.toolSelectBtn.classList.add('active');
+        
+        this.toolSelectPanel.style.display = 'flex';
+        this.toolPanelVisible = true;
+    }
+
+    /**
+     * 隐藏工具选择面板
+     */
+    hideToolPanel() {
+        if (!this.toolSelectPanel) return;
+        
+        // 移除分栏样式
+        const panelContent = document.querySelector('.agent-panel-content');
+        if (panelContent) {
+            panelContent.classList.remove('tool-selecting');
+        }
+        
+        // 恢复其他按钮
+        this.setOtherButtonsDisabled(false);
+        
+        // 更新工具按钮状态
+        this.toolSelectBtn.classList.remove('active');
+        
+        this.toolSelectPanel.style.display = 'none';
+        this.toolPanelVisible = false;
+    }
+
+    /**
+     * 设置其他按钮的禁用状态
+     */
+    setOtherButtonsDisabled(disabled) {
+        // 发送按钮
+        if (this.sendBtn) {
+            if (disabled) {
+                this.sendBtn.classList.add('disabled-by-tool-panel');
+            } else {
+                this.sendBtn.classList.remove('disabled-by-tool-panel');
+            }
+        }
+        
+        // 输入框
+        if (this.inputField) {
+            this.inputField.disabled = disabled;
+        }
+        
+        // 会话历史按钮
+        if (this.sessionHistoryBtn) {
+            if (disabled) {
+                this.sessionHistoryBtn.classList.add('disabled-by-tool-panel');
+                this.sessionHistoryBtn.style.pointerEvents = 'none';
+                this.sessionHistoryBtn.style.opacity = '0.5';
+            } else {
+                this.sessionHistoryBtn.classList.remove('disabled-by-tool-panel');
+                this.sessionHistoryBtn.style.pointerEvents = '';
+                this.sessionHistoryBtn.style.opacity = '';
+            }
+        }
+        
+        // 展开按钮
+        if (this.expandBtn) {
+            if (disabled) {
+                this.expandBtn.classList.add('disabled-by-tool-panel');
+                this.expandBtn.style.pointerEvents = 'none';
+                this.expandBtn.style.opacity = '0.5';
+            } else {
+                this.expandBtn.classList.remove('disabled-by-tool-panel');
+                this.expandBtn.style.pointerEvents = '';
+                this.expandBtn.style.opacity = '';
+            }
+        }
+        
+        // 新建会话按钮
+        if (this.newSessionBtn) {
+            if (disabled) {
+                this.newSessionBtn.classList.add('disabled-by-tool-panel');
+                this.newSessionBtn.style.pointerEvents = 'none';
+                this.newSessionBtn.style.opacity = '0.5';
+            } else {
+                this.newSessionBtn.classList.remove('disabled-by-tool-panel');
+                this.newSessionBtn.style.pointerEvents = '';
+                this.newSessionBtn.style.opacity = '';
+            }
+        }
+    }
+
+    /**
+     * 渲染工具选择面板
+     */
+    renderToolPanel() {
+        if (!this.toolSelectPanel) return;
+        
+        let html = `
+            <div class="tool-panel-header">
+                <span class="fw-bold"><i class="fas fa-tools me-2"></i>选择工具</span>
+                <button class="btn btn-sm btn-link text-muted" onclick="agentChat.hideToolPanel()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="tool-panel-body">
+        `;
+        
+        this.availableTools.forEach(category => {
+            const allSelected = category.tools.every(t => this.pendingTools.includes(t.name));
+            const someSelected = category.tools.some(t => this.pendingTools.includes(t.name));
+            
+            html += `
+                <div class="tool-category">
+                    <div class="tool-category-header">
+                        <label class="form-check">
+                            <input type="checkbox" class="form-check-input category-checkbox" 
+                                   data-category="${category.id}"
+                                   ${allSelected ? 'checked' : ''} 
+                                   ${someSelected && !allSelected ? 'indeterminate' : ''}
+                                   onchange="agentChat.toggleCategory('${category.id}', this.checked)">
+                            <span class="form-check-label fw-bold">${category.display_name}</span>
+                        </label>
+                        <small class="text-muted">${category.description}</small>
+                    </div>
+                    <div class="tool-list">
+            `;
+            
+            category.tools.forEach(tool => {
+                const isChecked = this.pendingTools.includes(tool.name);
+                html += `
+                    <label class="form-check tool-item">
+                        <input type="checkbox" class="form-check-input tool-checkbox" 
+                               data-tool="${tool.name}" data-category="${category.id}"
+                               ${isChecked ? 'checked' : ''}
+                               onchange="agentChat.toggleTool('${tool.name}', this.checked)">
+                        <span class="form-check-label">${tool.display_name}</span>
+                    </label>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+            </div>
+            <div class="tool-panel-footer">
+                <button class="btn btn-sm btn-secondary" onclick="agentChat.hideToolPanel()">取消</button>
+                <button class="btn btn-sm btn-primary" onclick="agentChat.applyToolSelection()">
+                    <i class="fas fa-check me-1"></i>应用
+                </button>
+            </div>
+        `;
+        
+        this.toolSelectPanel.innerHTML = html;
+        
+        // 设置 indeterminate 状态
+        this.availableTools.forEach(category => {
+            const allSelected = category.tools.every(t => this.pendingTools.includes(t.name));
+            const someSelected = category.tools.some(t => this.pendingTools.includes(t.name));
+            const checkbox = this.toolSelectPanel.querySelector(`input[data-category="${category.id}"].category-checkbox`);
+            if (checkbox && someSelected && !allSelected) {
+                checkbox.indeterminate = true;
+            }
+        });
+    }
+
+    /**
+     * 切换整个分类
+     */
+    toggleCategory(categoryId, checked) {
+        const category = this.availableTools.find(c => c.id === categoryId);
+        if (!category) return;
+        
+        category.tools.forEach(tool => {
+            if (checked) {
+                if (!this.pendingTools.includes(tool.name)) {
+                    this.pendingTools.push(tool.name);
+                }
+            } else {
+                this.pendingTools = this.pendingTools.filter(t => t !== tool.name);
+            }
+        });
+        
+        // 更新UI
+        this.renderToolPanel();
+    }
+
+    /**
+     * 切换单个工具
+     */
+    toggleTool(toolName, checked) {
+        if (checked) {
+            if (!this.pendingTools.includes(toolName)) {
+                this.pendingTools.push(toolName);
+            }
+        } else {
+            this.pendingTools = this.pendingTools.filter(t => t !== toolName);
+        }
+        
+        // 更新分类复选框状态
+        this.updateCategoryCheckboxes();
+    }
+
+    /**
+     * 更新分类复选框状态
+     */
+    updateCategoryCheckboxes() {
+        this.availableTools.forEach(category => {
+            const allSelected = category.tools.every(t => this.pendingTools.includes(t.name));
+            const someSelected = category.tools.some(t => this.pendingTools.includes(t.name));
+            const checkbox = this.toolSelectPanel.querySelector(`input[data-category="${category.id}"].category-checkbox`);
+            if (checkbox) {
+                checkbox.checked = allSelected;
+                checkbox.indeterminate = someSelected && !allSelected;
+            }
+        });
+    }
+
+    /**
+     * 应用工具选择
+     */
+    applyToolSelection() {
+        this.activeTools = [...this.pendingTools];
+        
+        console.log('📦 应用工具选择:');
+        console.log('   - activeTools:', this.activeTools);
+        console.log('   - 工具数量:', this.activeTools.length);
+        
+        // 更新工具按钮徽章
+        this.updateToolButtonBadge();
+        
+        // 重新连接 WebSocket 以使用新的工具配置
+        console.log('🔄 重新连接 WebSocket...');
+        this.reconnect();
+        
+        this.hideToolPanel();
+        this.showNotification(`已启用 ${this.activeTools.length} 个工具`, 'success');
+    }
+
+    /**
+     * 更新工具按钮徽章
+     */
+    updateToolButtonBadge() {
+        if (!this.toolSelectBtn) return;
+        
+        const totalTools = this.availableTools.reduce((sum, cat) => sum + cat.tools.length, 0);
+        const activeCount = this.activeTools.length;
+        
+        // 更新按钮标题
+        this.toolSelectBtn.title = `工具选择 (${activeCount}/${totalTools})`;
+        
+        // 如果不是全部启用，显示徽章
+        let badge = this.toolSelectBtn.querySelector('.tool-badge');
+        if (activeCount < totalTools) {
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'tool-badge';
+                this.toolSelectBtn.appendChild(badge);
+            }
+            badge.textContent = activeCount;
+        } else if (badge) {
+            badge.remove();
         }
     }
 
@@ -1347,6 +1801,72 @@ class AgentChat {
         if (refreshTypes.includes('reminders') && window.reminderManager) {
             window.reminderManager.loadReminders();
         }
+    }
+
+    /**
+     * 显示递归限制提示并询问是否继续
+     */
+    showRecursionLimitMessage(message) {
+        const container = document.createElement('div');
+        container.className = 'message-wrapper agent-message recursion-limit-wrapper';
+        
+        container.innerHTML = `
+            <div class="message-avatar">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="message-content">
+                <div class="recursion-limit-content">
+                    <div class="recursion-limit-text">
+                        <i class="fas fa-pause-circle me-2"></i>
+                        ${message}
+                    </div>
+                    <div class="recursion-limit-actions mt-3">
+                        <button class="btn btn-primary btn-sm continue-btn me-2">
+                            <i class="fas fa-play-circle me-1"></i>继续执行
+                        </button>
+                        <button class="btn btn-secondary btn-sm cancel-btn">
+                            <i class="fas fa-stop-circle me-1"></i>停止
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 绑定按钮事件
+        const continueBtn = container.querySelector('.continue-btn');
+        const cancelBtn = container.querySelector('.cancel-btn');
+        
+        continueBtn.addEventListener('click', () => {
+            // 禁用按钮并显示处理中
+            continueBtn.disabled = true;
+            cancelBtn.disabled = true;
+            continueBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>继续中...';
+            
+            // 发送继续消息
+            if (this.socket && this.isConnected) {
+                this.socket.send(JSON.stringify({ type: 'continue' }));
+                this.isProcessing = true;
+                this.updateSendButton();
+                // 先移除这个提示框，再显示 typing indicator
+                container.remove();
+                this.showTyping();
+            } else {
+                // 连接断开，恢复按钮
+                continueBtn.disabled = false;
+                cancelBtn.disabled = false;
+                continueBtn.innerHTML = '<i class="fas fa-play-circle me-1"></i>继续执行';
+                this.showNotification('连接已断开，请刷新页面', 'error');
+            }
+        });
+        
+        cancelBtn.addEventListener('click', () => {
+            // 直接移除这个提示
+            container.remove();
+            this.showNotification('已停止继续执行', 'info');
+        });
+        
+        this.messagesContainer.appendChild(container);
+        this.scrollToBottom();
     }
 
     /**

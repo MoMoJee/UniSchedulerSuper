@@ -24,6 +24,9 @@ urlpatterns = [
     path('rollback/', views_api.execute_rollback, name='execute_rollback'),
     path('rollback/to-message/', views_api.rollback_to_message, name='rollback_to_message'),
     
-    # 专家配置
+    # 工具配置 (新)
+    path('tools/', views_api.get_available_tools, name='get_tools'),
+    
+    # 专家配置 (旧，兼容)
     path('experts/', views_api.get_available_experts, name='get_experts'),
 ]

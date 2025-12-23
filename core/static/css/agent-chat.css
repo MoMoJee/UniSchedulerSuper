@@ -957,3 +957,335 @@
 [data-theme="dark"] .rollback-popup-footer {
     background: var(--bg-tertiary);
 }
+
+/* ==========================================
+   工具选择面板样式
+   ========================================== */
+
+/* 工具选择按钮 */
+.tool-select-btn {
+    position: relative;
+    padding: 6px 10px;
+    border-radius: 8px;
+}
+
+.tool-select-btn .tool-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #0d6efd;
+    color: white;
+    font-size: 10px;
+    min-width: 16px;
+    height: 16px;
+    line-height: 16px;
+    text-align: center;
+    border-radius: 8px;
+    padding: 0 4px;
+}
+
+/* 工具选择激活状态 */
+.tool-select-btn.active {
+    background: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+
+/* 输入区域调整 */
+.agent-input-area .input-wrapper {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+/* 工具选择模式：侧边栏上下分栏 */
+.agent-panel-content.tool-selecting {
+    display: flex;
+    flex-direction: column;
+}
+
+.agent-panel-content.tool-selecting .agent-chat-container {
+    flex: 1;
+    min-height: 0;
+    border-bottom: 2px solid #0d6efd;
+}
+
+.agent-panel-content.tool-selecting .tool-select-panel {
+    flex: 0 0 auto;
+    max-height: 50%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 禁用状态的按钮 */
+.agent-input-area .btn:disabled,
+.agent-input-area .btn.disabled-by-tool-panel {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* 工具选择面板 - 分栏模式 */
+.tool-select-panel {
+    background: white;
+    border-top: 1px solid var(--border-color-light, #e0e0e0);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.tool-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-color-light, #e0e0e0);
+    background: linear-gradient(135deg, #0d6efd15, #6f42c115);
+    flex-shrink: 0;
+}
+
+.tool-panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    min-height: 0;
+}
+
+.tool-panel-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border-color-light, #e0e0e0);
+    background: var(--bg-secondary, #f8f9fa);
+    flex-shrink: 0;
+}
+
+/* 工具分类 */
+.tool-category {
+    margin-bottom: 16px;
+}
+
+.tool-category:last-child {
+    margin-bottom: 0;
+}
+
+.tool-category-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color-light, #e0e0e0);
+}
+
+.tool-category-header .form-check {
+    margin-bottom: 0;
+}
+
+.tool-category-header small {
+    margin-left: 24px;
+}
+
+/* 工具列表 */
+.tool-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px 16px;
+    padding-left: 24px;
+}
+
+.tool-item {
+    margin-bottom: 0;
+    padding: 4px 0;
+}
+
+.tool-item .form-check-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #6c757d);
+}
+
+.tool-item input:checked + .form-check-label {
+    color: var(--text-primary, #212529);
+}
+
+/* 深色主题 */
+[data-theme="dark"] .tool-select-panel {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .tool-panel-header {
+    background: linear-gradient(135deg, rgba(13, 110, 253, 0.15), rgba(111, 66, 193, 0.15));
+}
+
+[data-theme="dark"] .tool-panel-footer {
+    background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .tool-category-header {
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .tool-select-btn .tool-badge {
+    background: #0d6efd;
+}
+
+[data-theme="dark"] .tool-select-btn.active {
+    background: #0d6efd;
+    color: white;
+}
+
+/* === 递归限制提示 === */
+.recursion-limit-wrapper {
+    margin: 12px 0;
+}
+
+.recursion-limit-wrapper .message-avatar {
+    background: linear-gradient(135deg, #ffc107, #fd7e14);
+    color: white;
+}
+
+.recursion-limit-content {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(253, 126, 20, 0.1));
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.recursion-limit-text {
+    font-size: 0.95rem;
+    color: var(--text-primary, #212529);
+    display: flex;
+    align-items: center;
+}
+
+.recursion-limit-text i {
+    color: #fd7e14;
+    font-size: 1.1rem;
+}
+
+.recursion-limit-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.recursion-limit-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+
+.recursion-limit-actions .continue-btn {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border: none;
+    color: white;
+}
+
+.recursion-limit-actions .continue-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.recursion-limit-actions .cancel-btn {
+    background: var(--bg-tertiary, #f8f9fa);
+    border: 1px solid var(--border-color, #dee2e6);
+    color: var(--text-secondary, #6c757d);
+}
+
+.recursion-limit-actions .cancel-btn:hover {
+    background: var(--bg-secondary, #e9ecef);
+}
+
+/* 深色主题递归限制样式 */
+[data-theme="dark"] .recursion-limit-content {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(253, 126, 20, 0.15));
+    border-color: rgba(255, 193, 7, 0.4);
+}
+
+[data-theme="dark"] .recursion-limit-text {
+    color: var(--text-primary);
+}
+
+/* === 工具执行结果指示器 === */
+.tool-result-indicator {
+    display: flex;
+    align-items: flex-start;
+    padding: 8px 16px;
+    margin: 4px 0 4px 48px;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #6c757d);
+    background: rgba(23, 162, 184, 0.05);
+    border-left: 2px solid rgba(23, 162, 184, 0.3);
+    border-radius: 0 8px 8px 0;
+}
+
+.tool-result-indicator i {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.tool-result-text {
+    word-break: break-word;
+}
+
+[data-theme="dark"] .tool-result-indicator {
+    background: rgba(23, 162, 184, 0.1);
+    border-left-color: rgba(23, 162, 184, 0.4);
+}
+
+/* === 回滚按钮样式改进 === */
+.rollback-info-wrapper {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color, #dee2e6);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.rollback-info-text {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #6c757d);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    max-width: 200px;
+}
+
+/* 鼠标悬停在消息上时显示回滚信息 */
+.agent-message:hover .rollback-info-text {
+    opacity: 1;
+}
+
+.rollback-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #6c757d);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    opacity: 0;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+.agent-message:hover .rollback-btn {
+    opacity: 1;
+    background: var(--bg-tertiary, #f8f9fa);
+}
+
+.rollback-btn:hover {
+    color: #dc3545;
+    background: rgba(220, 53, 69, 0.1);
+}
+
+[data-theme="dark"] .rollback-info-wrapper {
+    border-top-color: var(--border-color);
+}
+
+[data-theme="dark"] .rollback-btn:hover {
+    background: rgba(220, 53, 69, 0.15);
+}
