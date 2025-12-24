@@ -136,6 +136,71 @@ class AgentChat {
         this.rollbackBaseIndex = index;
     }
 
+    // ==========================================
+    // 配置存储系统
+    // ==========================================
+
+    /**
+     * 获取用户配置存储的 key
+     */
+    getConfigStorageKey() {
+        return `agent_config_${this.userId}`;
+    }
+
+    /**
+     * 加载用户配置
+     * @returns {Object} 配置对象
+     */
+    loadUserConfig() {
+        try {
+            const stored = localStorage.getItem(this.getConfigStorageKey());
+            if (stored) {
+                return JSON.parse(stored);
+            }
+        } catch (e) {
+            console.error('加载用户配置失败:', e);
+        }
+        // 默认配置
+        return {
+            activeTools: null,  // null 表示使用服务器默认值
+            llmModel: 'deepseek-chat',  // 预留字段
+            llmTemperature: 0,  // 预留字段
+            theme: 'auto',  // 预留字段
+        };
+    }
+
+    /**
+     * 保存用户配置
+     * @param {Object} config 配置对象
+     */
+    saveUserConfig(config) {
+        try {
+            const currentConfig = this.loadUserConfig();
+            const newConfig = { ...currentConfig, ...config };
+            localStorage.setItem(this.getConfigStorageKey(), JSON.stringify(newConfig));
+            console.log('💾 保存用户配置:', newConfig);
+        } catch (e) {
+            console.error('保存用户配置失败:', e);
+        }
+    }
+
+    /**
+     * 获取已保存的工具选择
+     * @returns {Array|null} 工具列表，或 null 表示使用默认
+     */
+    getSavedActiveTools() {
+        const config = this.loadUserConfig();
+        return config.activeTools;
+    }
+
+    /**
+     * 保存工具选择
+     * @param {Array} tools 工具列表
+     */
+    saveActiveTools(tools) {
+        this.saveUserConfig({ activeTools: tools });
+    }
+
     /**
      * 保存当前会话ID
      */
@@ -1242,7 +1307,19 @@ class AgentChat {
             if (response.ok) {
                 const data = await response.json();
                 this.availableTools = data.categories || [];
-                this.activeTools = data.default_tools || [];
+                
+                // 从存储中恢复工具选择
+                const savedTools = this.getSavedActiveTools();
+                if (savedTools !== null) {
+                    // 过滤掉不在可用工具中的（可能工具已被移除）
+                    const allToolNames = this.availableTools.flatMap(cat => cat.tools.map(t => t.name));
+                    this.activeTools = savedTools.filter(t => allToolNames.includes(t));
+                    console.log('🔄 从存储恢复工具选择:', this.activeTools);
+                } else {
+                    // 使用服务器默认值
+                    this.activeTools = data.default_tools || [];
+                    console.log('ℹ️ 使用默认工具:', this.activeTools);
+                }
                 this.pendingTools = [...this.activeTools];
                 
                 // 更新工具按钮状态
@@ -1518,6 +1595,9 @@ class AgentChat {
         console.log('📦 应用工具选择:');
         console.log('   - activeTools:', this.activeTools);
         console.log('   - 工具数量:', this.activeTools.length);
+        
+        // 保存到存储
+        this.saveActiveTools(this.activeTools);
         
         // 更新工具按钮徽章
         this.updateToolButtonBadge();

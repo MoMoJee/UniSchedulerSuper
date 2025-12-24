@@ -217,6 +217,93 @@ def route_after_agent(state: AgentState) -> Literal["tools", "END"]:
 # ==========================================
 # 图构建
 # ==========================================
+def create_tool_node_with_permission_check():
+    """
+    创建带权限检查的工具节点
+    只有在 active_tools 中的工具才能被调用，否则返回错误消息
+    """
+    from langchain_core.messages import ToolMessage
+    
+    all_tools_dict = ALL_TOOLS
+    
+    def tool_node_with_check(state: AgentState, config: RunnableConfig) -> dict:
+        """执行工具调用，并检查工具权限"""
+        messages = state['messages']
+        last_message = messages[-1]
+        
+        # 获取当前启用的工具列表
+        configurable = config.get("configurable", {})
+        active_tool_names = configurable.get("active_tools") or state.get('active_tools') or get_default_tools()
+        
+        logger.debug(f"[ToolNode] 权限检查:")
+        logger.debug(f"[ToolNode]   - active_tools: {active_tool_names}")
+        
+        if not hasattr(last_message, 'tool_calls') or not last_message.tool_calls:
+            return {"messages": []}
+        
+        tool_messages = []
+        for tool_call in last_message.tool_calls:
+            tool_name = tool_call.get("name")
+            tool_call_id = tool_call.get("id")
+            tool_args = tool_call.get("args", {})
+            
+            logger.debug(f"[ToolNode]   - 请求调用工具: {tool_name}")
+            
+            # 检查工具是否被启用
+            if tool_name not in active_tool_names:
+                # 工具未启用，返回错误消息
+                error_msg = f"工具 '{tool_name}' 未启用。请在工具选择面板中启用该工具后再试。"
+                logger.warning(f"[ToolNode] 工具权限拒绝: {tool_name} 不在 active_tools 中")
+                tool_messages.append(
+                    ToolMessage(
+                        content=error_msg,
+                        tool_call_id=tool_call_id,
+                        name=tool_name
+                    )
+                )
+                continue
+            
+            # 检查工具是否存在
+            if tool_name not in all_tools_dict:
+                error_msg = f"工具 '{tool_name}' 不存在。"
+                logger.error(f"[ToolNode] 工具不存在: {tool_name}")
+                tool_messages.append(
+                    ToolMessage(
+                        content=error_msg,
+                        tool_call_id=tool_call_id,
+                        name=tool_name
+                    )
+                )
+                continue
+            
+            # 执行工具
+            try:
+                tool = all_tools_dict[tool_name]
+                result = tool.invoke(tool_args, config)
+                logger.debug(f"[ToolNode]   - 工具执行成功: {tool_name}")
+                tool_messages.append(
+                    ToolMessage(
+                        content=str(result),
+                        tool_call_id=tool_call_id,
+                        name=tool_name
+                    )
+                )
+            except Exception as e:
+                error_msg = f"工具 '{tool_name}' 执行失败: {str(e)}"
+                logger.exception(f"[ToolNode] 工具执行异常: {tool_name}")
+                tool_messages.append(
+                    ToolMessage(
+                        content=error_msg,
+                        tool_call_id=tool_call_id,
+                        name=tool_name
+                    )
+                )
+        
+        return {"messages": tool_messages}
+    
+    return tool_node_with_check
+
+
 def create_workflow():
     """创建工作流图"""
     workflow = StateGraph(AgentState)
@@ -224,9 +311,8 @@ def create_workflow():
     # 添加节点
     workflow.add_node("agent", agent_node)
     
-    # 工具节点 (使用所有工具，实际可用性由 active_tools 控制)
-    all_tools_list = list(ALL_TOOLS.values())
-    workflow.add_node("tools", ToolNode(all_tools_list))
+    # 使用带权限检查的工具节点
+    workflow.add_node("tools", create_tool_node_with_permission_check())
     
     # 设置入口点
     workflow.set_entry_point("agent")
