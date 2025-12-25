@@ -4,13 +4,19 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251224_0154 development">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251225_0105 development">
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/home.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/agent_service/agent_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/static/js/agent-chat.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/agent-chat.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/models.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/API参数验证实施总结.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/API示例代码创建总结.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/TODO操作Token认证修复总结.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Token认证Request.body错误修复.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Token认证全面支持综合总结.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Token认证实施总结.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/修复验证指南.md" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -21,7 +27,7 @@
     <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="462" />
+    <option name="cachedIndexableFilesCount" value="456" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -124,10 +130,7 @@
 }</component>
   <component name="RecapSpentCounter">
     <option name="endsOfQuotaMs" value="1767852033417" />
-    <option name="spentUsd" value="0.38022792" />
-  </component>
-  <component name="RecapUselessUpdatesCounter">
-    <option name="suspendCountdown" value="5" />
+    <option name="spentUsd" value="0.38736767" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
@@ -343,7 +346,7 @@
       <workItem from="1766452527641" duration="18235000" />
       <workItem from="1766553512183" duration="4608000" />
       <workItem from="1766564142333" duration="167000" />
-      <workItem from="1766564339388" duration="4067000" />
+      <workItem from="1766564339388" duration="8944000" />
     </task>
     <task id="LOCAL-00001" summary="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
       <option name="closed" value="true" />
@@ -633,7 +636,15 @@
       <option name="project" value="LOCAL" />
       <updated>1766512496233</updated>
     </task>
-    <option name="localTasksCounter" value="37" />
+    <task id="LOCAL-00037" summary="UniSchedulerSuper 1.5.4.20251225_0105 development">
+      <option name="closed" value="true" />
+      <created>1766595911386</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
+      <option name="project" value="LOCAL" />
+      <updated>1766595911386</updated>
+    </task>
+    <option name="localTasksCounter" value="38" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -669,7 +680,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="UniSchedulerSuper 1.5.3.&#10;修复了 DDL 设置不生效的问题&#10;优化了 DDL 对重复事件的适配&#10;修复了重复日程无法截断为单个日程的问题&#10;修复了删除重复日程的第一个（仅此模式）后主事件消失的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20251017_2038&#10;修复了日程的重要紧急性维度选项失效的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20251101_1501&#10;修复了月视图无法正常显示的问题&#10;优化日视图为两天制&#10;将提醒同步到了日历界面中" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20251101&#10;启用并升级了设置界面&#10;增加了退出登录、帮助功能" />
@@ -694,7 +704,8 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251220_2301 development&#10;&#10;我在学 LangGraph, 准备把它集成进我的网站" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251221_1714 development&#10;&#10;已完成前三个阶段的升级（后端）" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251224_0154 development" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20251224_0154 development" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20251225_0105 development" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20251225_0105 development" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

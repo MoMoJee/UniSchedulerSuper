@@ -22,6 +22,19 @@ from agent_service.tools.planner_tools import (
     get_reminders, create_reminder, delete_reminder
 )
 from agent_service.tools.memory_tools import save_memory, search_memory, get_recent_memories
+# 导入新的记忆工具 V2
+from agent_service.tools.memory_tools_v2 import (
+    save_personal_info, get_personal_info, update_personal_info, delete_personal_info,
+    get_dialog_style, update_dialog_style,
+    save_workflow_rule, get_workflow_rules, update_workflow_rule, delete_workflow_rule,
+    ALL_MEMORY_TOOLS_V2
+)
+# 导入 TODO 工具
+from agent_service.tools.todo_tools import (
+    create_todo as create_session_todo,
+    update_todo_status, get_session_todos, clear_completed_todos,
+    TODO_TOOLS
+)
 from agent_service.mcp_tools import get_mcp_tools_sync
 
 from logger import logger
@@ -49,11 +62,36 @@ PLANNER_TOOLS = {
     "delete_reminder": delete_reminder,
 }
 
-# Memory 工具
-MEMORY_TOOLS = {
+# Memory 工具 (旧版，保留兼容)
+MEMORY_TOOLS_LEGACY = {
     "save_memory": save_memory,
     "search_memory": search_memory,
     "get_recent_memories": get_recent_memories,
+}
+
+# Memory 工具 V2 (新版)
+MEMORY_TOOLS = {
+    # 个人信息工具
+    "save_personal_info": save_personal_info,
+    "get_personal_info": get_personal_info,
+    "update_personal_info": update_personal_info,
+    "delete_personal_info": delete_personal_info,
+    # 对话风格工具
+    "get_dialog_style": get_dialog_style,
+    "update_dialog_style": update_dialog_style,
+    # 工作流规则工具
+    "save_workflow_rule": save_workflow_rule,
+    "get_workflow_rules": get_workflow_rules,
+    "update_workflow_rule": update_workflow_rule,
+    "delete_workflow_rule": delete_workflow_rule,
+}
+
+# TODO 工具
+TODO_TOOLS_MAP = {
+    "create_session_todo": create_session_todo,
+    "update_todo_status": update_todo_status,
+    "get_session_todos": get_session_todos,
+    "clear_completed_todos": clear_completed_todos,
 }
 
 # MCP 工具 (动态加载)
@@ -77,8 +115,13 @@ TOOL_CATEGORIES = {
     },
     "memory": {
         "display_name": "记忆管理",
-        "description": "保存和搜索用户偏好与重要信息",
+        "description": "保存和管理用户个人信息、偏好、工作流规则",
         "tools": list(MEMORY_TOOLS.keys())
+    },
+    "todo": {
+        "display_name": "任务追踪",
+        "description": "创建和管理会话级 TODO 列表，追踪多步骤任务进度",
+        "tools": list(TODO_TOOLS_MAP.keys())
     },
     "map": {
         "display_name": "地图服务",
@@ -88,7 +131,7 @@ TOOL_CATEGORIES = {
 }
 
 # 所有工具合集
-ALL_TOOLS = {**PLANNER_TOOLS, **MEMORY_TOOLS, **MCP_TOOLS}
+ALL_TOOLS = {**PLANNER_TOOLS, **MEMORY_TOOLS, **TODO_TOOLS_MAP, **MCP_TOOLS}
 
 def get_tools_by_names(tool_names: List[str]) -> list:
     """根据工具名称列表获取工具对象"""
@@ -104,8 +147,8 @@ def get_all_tool_names() -> List[str]:
 
 def get_default_tools() -> List[str]:
     """获取默认启用的工具"""
-    # 默认启用所有 planner 和 memory 工具
-    return list(PLANNER_TOOLS.keys()) + list(MEMORY_TOOLS.keys())
+    # 默认启用所有 planner、memory 和 todo 工具
+    return list(PLANNER_TOOLS.keys()) + list(MEMORY_TOOLS.keys()) + list(TODO_TOOLS_MAP.keys())
 
 # ==========================================
 # 状态定义
@@ -125,6 +168,96 @@ llm = ChatOpenAI(
 )
 
 # ==========================================
+# System Prompt 构建
+# ==========================================
+def build_system_prompt(user, active_tool_names: List[str], current_time: str) -> str:
+    """
+    构建 System Prompt
+    - 加载用户的对话风格模板（如果有），否则使用默认模板
+    - 添加工作流规则查询提示
+    - 可选加载少量个人信息
+    """
+    from agent_service.models import DialogStyle, UserPersonalInfo
+    
+    # 1. 加载用户的对话风格模板
+    try:
+        if user and user.is_authenticated:
+            dialog_style = DialogStyle.get_or_create_default(user)
+            base_prompt = dialog_style.content
+        else:
+            base_prompt = DialogStyle.DEFAULT_TEMPLATE
+    except Exception as e:
+        logger.warning(f"[Agent] 加载对话风格失败: {e}")
+        base_prompt = DialogStyle.DEFAULT_TEMPLATE
+    
+    # 2. 构建能力描述
+    capabilities = []
+    if any(t in active_tool_names for t in PLANNER_TOOLS.keys()):
+        capabilities.append("- 管理日程 (Events): 查询、创建、更新、删除")
+        capabilities.append("- 管理待办 (Todos): 查询、创建、更新、删除")
+        capabilities.append("- 管理提醒 (Reminders): 查询、创建、删除")
+    if any(t in active_tool_names for t in MEMORY_TOOLS.keys()):
+        capabilities.append("- 记忆管理: 保存用户个人信息、偏好、工作流规则")
+    if any(t in active_tool_names for t in TODO_TOOLS_MAP.keys()):
+        capabilities.append("- 任务追踪: 创建和管理会话级 TODO 列表")
+    if any(t in active_tool_names for t in MCP_TOOLS.keys()):
+        capabilities.append("- 地图服务: 查询地点、规划路线、周边搜索")
+    
+    capabilities_str = "\n".join(capabilities) if capabilities else "- 基础对话功能"
+    
+    # 3. 工作流规则提示（不预加载，提示可查询）
+    workflow_hint = ""
+    if any(t in active_tool_names for t in ['get_workflow_rules', 'save_workflow_rule']):
+        workflow_hint = """
+
+## 工作流规则
+如果用户给你布置了复杂的多步骤任务，你可以：
+1. 使用 `get_workflow_rules` 工具查询是否有相关的工作流规则
+2. 按照规则指导的步骤执行任务
+3. 如果用户纠正了某个流程，使用 `save_workflow_rule` 或 `update_workflow_rule` 更新规则"""
+    
+    # 4. TODO 提示
+    todo_hint = ""
+    if any(t in active_tool_names for t in TODO_TOOLS_MAP.keys()):
+        todo_hint = """
+
+## 任务追踪
+对于复杂的多步骤任务，你可以：
+1. 使用 `create_session_todo` 创建任务列表，追踪需要完成的步骤
+2. 使用 `update_todo_status` 更新任务状态 (pending/in_progress/done)
+3. 完成所有任务后，使用 `clear_completed_todos` 清理已完成项"""
+    
+    # 5. 加载少量关键个人信息
+    info_hint = ""
+    try:
+        if user and user.is_authenticated:
+            key_infos = UserPersonalInfo.objects.filter(user=user)[:5]
+            if key_infos.exists():
+                info_hint = "\n\n## 用户基本信息\n" + "\n".join([f"- {i.key}: {i.value}" for i in key_infos])
+    except Exception as e:
+        logger.warning(f"[Agent] 加载个人信息失败: {e}")
+    
+    # 6. 组装完整 prompt
+    system_prompt = f"""{base_prompt}
+
+当前时间: {current_time}
+
+你的能力:
+{capabilities_str}
+
+你当前可用的工具列表: {', '.join(active_tool_names) if active_tool_names else '无可用工具'}
+
+注意事项:
+1. 创建日程或提醒时，时间格式为: YYYY-MM-DDTHH:MM (例如: 2025-12-25T14:30)
+2. 如果用户请求的功能不在你当前的能力范围内，请友好地告知用户
+3. 如果用户没有提供完整信息，请礼貌询问
+4. 工具调用后，请根据返回结果给用户一个清晰的回复
+5. 如果用户提到重要的个人信息或偏好，请使用 save_personal_info 保存{workflow_hint}{todo_hint}{info_hint}"""
+    
+    return system_prompt
+
+
+# ==========================================
 # Agent 节点
 # ==========================================
 def agent_node(state: AgentState, config: RunnableConfig) -> dict:
@@ -139,6 +272,7 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     # 优先从 config 获取 active_tools，否则从 state 获取，最后使用默认值
     configurable = config.get("configurable", {})
     active_tool_names = configurable.get("active_tools") or state.get('active_tools') or get_default_tools()
+    user = configurable.get("user")
     
     # 详细记录工具状态
     logger.debug(f"[Agent] agent_node 调用:")
@@ -153,34 +287,8 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     now = datetime.datetime.now()
     current_time = now.strftime("%Y-%m-%d %H:%M:%S")
     
-    # 根据启用的工具构建能力描述
-    capabilities = []
-    if any(t in active_tool_names for t in PLANNER_TOOLS.keys()):
-        capabilities.append("- 管理日程 (Events): 查询、创建、更新、删除")
-        capabilities.append("- 管理待办 (Todos): 查询、创建、更新、删除")
-        capabilities.append("- 管理提醒 (Reminders): 查询、创建、删除")
-    if any(t in active_tool_names for t in MEMORY_TOOLS.keys()):
-        capabilities.append("- 记忆管理: 保存用户偏好和重要信息，搜索历史记忆")
-    if any(t in active_tool_names for t in MCP_TOOLS.keys()):
-        capabilities.append("- 地图服务: 查询地点、规划路线、周边搜索")
-    
-    capabilities_str = "\n".join(capabilities) if capabilities else "- 基础对话功能"
-    
-    system_prompt = f"""你是一个智能日程助手。
-当前时间: {current_time}
-
-你的能力:
-{capabilities_str}
-
-你当前可用的工具列表: {', '.join(active_tool_names) if active_tool_names else '无可用工具'}
-
-注意事项:
-1. 创建日程或提醒时，时间格式为: YYYY-MM-DDTHH:MM (例如: 2025-12-25T14:30)
-2. 如果用户请求的功能不在你当前的能力范围内，请友好地告知用户
-3. 如果用户没有提供完整信息，请礼貌询问
-4. 工具调用后，请根据返回结果给用户一个清晰的回复
-5. 如果用户提到重要的个人信息或偏好，请主动保存到记忆中
-"""
+    # 构建 system prompt（使用新的构建函数）
+    system_prompt = build_system_prompt(user, active_tool_names, current_time)
     
     # 动态获取工具
     tools = get_tools_by_names(active_tool_names)

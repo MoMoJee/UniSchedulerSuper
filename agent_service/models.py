@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+import json
 
 class AgentSession(models.Model):
     """
@@ -44,6 +45,7 @@ class UserMemory(models.Model):
     """
     用户核心画像 (Core Profile)
     存储用户的长期偏好、身份信息等结构化数据。
+    【旧模型，保留用于数据迁移】
     """
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='memory')
     profile_data = models.JSONField(default=dict, help_text="核心画像数据 (JSON)")
@@ -56,6 +58,7 @@ class MemoryItem(models.Model):
     """
     细节记忆 (Detailed Memories)
     存储用户的具体对话片段、事实性信息等。
+    【旧模型，保留用于数据迁移，新记忆使用 UserPersonalInfo】
     """
     memory = models.ForeignKey(UserMemory, on_delete=models.CASCADE, related_name='items', null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='memory_items')
@@ -69,6 +72,171 @@ class MemoryItem(models.Model):
 
     def __str__(self):
         return f"{self.user.username}: {self.content[:50]}..."
+
+
+# ==========================================
+# 新记忆系统模型 (Phase 1)
+# ==========================================
+
+class UserPersonalInfo(models.Model):
+    """
+    用户个人信息记忆
+    存储用户的基本信息、偏好等键值对数据
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='personal_infos')
+    key = models.CharField(max_length=100, help_text="信息键，如 '姓名', '生日', '饮食偏好'")
+    value = models.TextField(help_text="信息值")
+    description = models.TextField(blank=True, default="", help_text="补充说明")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['user', 'key']
+        ordering = ['-updated_at']
+        verbose_name = "用户个人信息"
+        verbose_name_plural = "用户个人信息"
+    
+    def __str__(self):
+        return f"{self.user.username}: {self.key} = {self.value[:30]}..."
+
+
+class DialogStyle(models.Model):
+    """
+    对话风格/角色设定
+    每用户一个完整的对话风格模板
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='dialog_style')
+    content = models.TextField(help_text="完整的对话风格模板")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # 默认模板（硬编码）
+    DEFAULT_TEMPLATE = """你是一个智能日程管理助手。
+你的职责是帮助用户管理日程、提醒、待办事项。
+回答风格：简洁明了，友好专业。
+当需要执行操作时，使用可用的工具完成任务。
+如果用户提出了复杂的多步骤任务，你可以使用工作流规则来指导执行顺序。"""
+    
+    class Meta:
+        verbose_name = "对话风格"
+        verbose_name_plural = "对话风格"
+    
+    def __str__(self):
+        return f"DialogStyle for {self.user.username}"
+    
+    @classmethod
+    def get_or_create_default(cls, user):
+        """获取用户的对话风格，如果不存在则创建默认模板"""
+        style, created = cls.objects.get_or_create(
+            user=user,
+            defaults={'content': cls.DEFAULT_TEMPLATE}
+        )
+        return style
+
+
+class WorkflowRule(models.Model):
+    """
+    工作流程规则
+    纯文本的任务执行流程指导
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='workflow_rules')
+    name = models.CharField(max_length=100, help_text="规则名称，如 '创建日程流程'")
+    trigger = models.CharField(max_length=200, help_text="触发条件描述，如 '当用户要求创建日程时'")
+    steps = models.TextField(help_text="纯文本步骤描述")
+    is_active = models.BooleanField(default=True, help_text="是否启用")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-updated_at']
+        verbose_name = "工作流规则"
+        verbose_name_plural = "工作流规则"
+    
+    def __str__(self):
+        status = "✓" if self.is_active else "✗"
+        return f"[{status}] {self.user.username}: {self.name}"
+
+
+class SessionTodoItem(models.Model):
+    """
+    会话级 TODO 列表
+    支持跨对话和回滚
+    """
+    STATUS_CHOICES = [
+        ('pending', '待处理'),
+        ('in_progress', '进行中'),
+        ('done', '已完成'),
+    ]
+    
+    session = models.ForeignKey(AgentSession, on_delete=models.CASCADE, related_name='todo_items')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='session_todos')
+    title = models.CharField(max_length=200, help_text="TODO 标题")
+    description = models.TextField(blank=True, default="", help_text="详细描述")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', help_text="状态")
+    order = models.IntegerField(default=0, help_text="排序顺序")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['order', 'created_at']
+        verbose_name = "会话 TODO"
+        verbose_name_plural = "会话 TODO"
+    
+    def __str__(self):
+        status_icons = {'pending': '☐', 'in_progress': '⏳', 'done': '✅'}
+        icon = status_icons.get(self.status, '?')
+        return f"{icon} {self.title}"
+    
+    def get_status_display_icon(self):
+        """获取状态图标"""
+        status_icons = {'pending': '☐', 'in_progress': '⏳', 'done': '✅'}
+        return status_icons.get(self.status, '?')
+
+
+class SessionTodoSnapshot(models.Model):
+    """
+    TODO 列表快照
+    用于回滚同步（类似日程回滚机制）
+    """
+    session = models.ForeignKey(AgentSession, on_delete=models.CASCADE, related_name='todo_snapshots')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='todo_snapshots')
+    checkpoint_id = models.CharField(max_length=100, db_index=True, help_text="对应的对话检查点ID")
+    snapshot_data = models.TextField(help_text="JSON: 该检查点时刻的 TODO 列表完整状态")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "TODO 快照"
+        verbose_name_plural = "TODO 快照"
+    
+    def __str__(self):
+        return f"Snapshot {self.checkpoint_id} for session {self.session_id}"
+    
+    def get_todos_data(self) -> list:
+        """解析并返回 TODO 数据列表"""
+        try:
+            return json.loads(self.snapshot_data)
+        except json.JSONDecodeError:
+            return []
+    
+    @classmethod
+    def create_snapshot(cls, session, checkpoint_id):
+        """为当前会话创建 TODO 快照"""
+        todos = SessionTodoItem.objects.filter(session=session)
+        snapshot_data = json.dumps([{
+            'id': t.id,
+            'title': t.title,
+            'description': t.description,
+            'status': t.status,
+            'order': t.order
+        } for t in todos], ensure_ascii=False)
+        
+        return cls.objects.create(
+            session=session,
+            user=session.user,
+            checkpoint_id=checkpoint_id,
+            snapshot_data=snapshot_data
+        )
 
 
 class AgentTransaction(models.Model):
