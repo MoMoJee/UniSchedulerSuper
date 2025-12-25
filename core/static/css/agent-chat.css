@@ -814,12 +814,9 @@
     margin-top: 2px;
 }
 
-/* 当历史面板打开时，聊天区域变灰 */
-.agent-chat-container.dimmed {
-    opacity: 0.5;
-    pointer-events: none;
-}
-
+/* 当历史面板打开或记忆优化时，聊天区域变灰 */
+.agent-chat-container.dimmed,
+.agent-panel-content.dimmed,
 .agent-input-area.dimmed {
     opacity: 0.5;
     pointer-events: none;
@@ -1288,4 +1285,222 @@
 
 [data-theme="dark"] .rollback-btn:hover {
     background: rgba(220, 53, 69, 0.15);
+}
+
+/* ========================================
+   记忆优化按钮和记忆管理样式
+   ======================================== */
+
+/* 记忆优化按钮 */
+.memory-optimize-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+    border-color: var(--border-color, #dee2e6);
+}
+
+.memory-optimize-btn:hover {
+    transform: scale(1.05);
+    background: linear-gradient(135deg, #6f42c1, #0d6efd);
+    color: white;
+    border-color: transparent;
+}
+
+.memory-optimize-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.memory-optimize-btn.optimizing {
+    animation: pulse-memory 1.5s infinite;
+}
+
+@keyframes pulse-memory {
+    0%, 100% { 
+        background: linear-gradient(135deg, #6f42c1, #0d6efd);
+        color: white;
+    }
+    50% { 
+        background: linear-gradient(135deg, #0d6efd, #6f42c1);
+    }
+}
+
+/* 记忆管理列表 */
+.memory-list {
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.memory-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--bg-secondary, #f8f9fa);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    transition: all 0.2s ease;
+}
+
+.memory-item:hover {
+    background: var(--bg-tertiary, #e9ecef);
+}
+
+.memory-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.memory-item-key {
+    font-weight: 600;
+    color: var(--text-primary, #212529);
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+}
+
+.memory-item-value {
+    color: var(--text-secondary, #6c757d);
+    font-size: 0.85rem;
+    word-break: break-word;
+}
+
+.memory-item-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-left: 12px;
+}
+
+.memory-item-actions .btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 0.75rem;
+}
+
+/* 工作流规则项 */
+.workflow-rule-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--bg-secondary, #f8f9fa);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border-left: 4px solid var(--primary-color, #0d6efd);
+    transition: all 0.2s ease;
+}
+
+.workflow-rule-item.disabled {
+    opacity: 0.6;
+    border-left-color: var(--text-muted, #adb5bd);
+}
+
+.workflow-rule-item:hover {
+    background: var(--bg-tertiary, #e9ecef);
+}
+
+.workflow-rule-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.workflow-rule-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.workflow-rule-name {
+    font-weight: 600;
+    color: var(--text-primary, #212529);
+    font-size: 0.9rem;
+}
+
+.workflow-rule-priority {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: var(--bg-tertiary, #e9ecef);
+    color: var(--text-secondary, #6c757d);
+}
+
+.workflow-rule-priority.high {
+    background: rgba(220, 53, 69, 0.15);
+    color: #dc3545;
+}
+
+.workflow-rule-priority.low {
+    background: rgba(108, 117, 125, 0.15);
+    color: #6c757d;
+}
+
+.workflow-rule-trigger,
+.workflow-rule-action {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #6c757d);
+    margin-bottom: 4px;
+}
+
+.workflow-rule-trigger i,
+.workflow-rule-action i {
+    width: 16px;
+    margin-right: 4px;
+}
+
+/* 空状态 */
+.memory-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted, #adb5bd);
+}
+
+.memory-empty i {
+    font-size: 3rem;
+    margin-bottom: 16px;
+}
+
+/* 深色主题适配 */
+[data-theme="dark"] .memory-item,
+[data-theme="dark"] .workflow-rule-item {
+    background: var(--bg-secondary, #2d2d2d);
+}
+
+[data-theme="dark"] .memory-item:hover,
+[data-theme="dark"] .workflow-rule-item:hover {
+    background: var(--bg-tertiary, #3d3d3d);
+}
+
+/* 记忆优化提示条 */
+.memory-optimize-prompt {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, rgba(111, 66, 193, 0.1), rgba(13, 110, 253, 0.1));
+    border: 1px solid rgba(111, 66, 193, 0.2);
+    border-radius: 8px;
+    margin: 8px 16px;
+}
+
+.memory-optimize-prompt-text {
+    flex: 1;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #6c757d);
+}
+
+.memory-optimize-prompt-actions {
+    display: flex;
+    gap: 8px;
 }

@@ -103,14 +103,53 @@ class UserPersonalInfo(models.Model):
 class DialogStyle(models.Model):
     """
     对话风格/角色设定
-    每用户一个完整的对话风格模板
+    支持结构化配置和自定义指令
     """
+    # 语气选项
+    TONE_CHOICES = [
+        ('neutral', '中性'),
+        ('formal', '正式'),
+        ('casual', '轻松'),
+        ('professional', '专业'),
+        ('friendly', '友好'),
+    ]
+    
+    # 详细程度选项
+    VERBOSITY_CHOICES = [
+        ('concise', '简洁'),
+        ('normal', '适中'),
+        ('detailed', '详细'),
+    ]
+    
+    # 语言选项
+    LANGUAGE_CHOICES = [
+        ('zh-CN', '简体中文'),
+        ('en', 'English'),
+        ('auto', '自动检测'),
+    ]
+    
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='dialog_style')
-    content = models.TextField(help_text="完整的对话风格模板")
+    
+    # 结构化字段
+    tone = models.CharField(max_length=20, choices=TONE_CHOICES, default='neutral', help_text="语气风格")
+    verbosity = models.CharField(max_length=20, choices=VERBOSITY_CHOICES, default='normal', help_text="详细程度")
+    language = models.CharField(max_length=20, choices=LANGUAGE_CHOICES, default='zh-CN', help_text="语言偏好")
+    custom_instructions = models.TextField(blank=True, default='', help_text="自定义指令")
+    
+    # 自定义选项（JSON 存储用户添加的选项）
+    custom_tones = models.JSONField(default=list, blank=True, help_text="用户自定义的语气选项")
+    custom_verbosities = models.JSONField(default=list, blank=True, help_text="用户自定义的详细程度选项")
+    custom_languages = models.JSONField(default=list, blank=True, help_text="用户自定义的语言选项")
+    
+    # 记忆优化设置
+    memory_batch_size = models.IntegerField(default=20, help_text="记忆优化批次大小")
+
+    # 保留 content 字段用于生成完整模板
+    content = models.TextField(blank=True, help_text="完整的对话风格模板（自动生成）")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
-    # 默认模板（硬编码）
+    # 默认模板基础
     DEFAULT_TEMPLATE = """你是一个智能日程管理助手。
 你的职责是帮助用户管理日程、提醒、待办事项。
 回答风格：简洁明了，友好专业。
@@ -124,14 +163,76 @@ class DialogStyle(models.Model):
     def __str__(self):
         return f"DialogStyle for {self.user.username}"
     
+    def generate_content(self):
+        """根据结构化设置生成完整的对话风格模板"""
+        tone_map = dict(self.TONE_CHOICES)
+        verbosity_map = dict(self.VERBOSITY_CHOICES)
+        language_map = dict(self.LANGUAGE_CHOICES)
+        
+        tone_text = tone_map.get(self.tone, self.tone)
+        verbosity_text = verbosity_map.get(self.verbosity, self.verbosity)
+        language_text = language_map.get(self.language, self.language)
+        
+        content = f"""你是一个智能日程管理助手。
+你的职责是帮助用户管理日程、提醒、待办事项。
+
+【对话风格】
+- 语气风格：{tone_text}
+- 回答详细程度：{verbosity_text}
+- 使用语言：{language_text}
+
+当需要执行操作时，使用可用的工具完成任务。
+如果用户提出了复杂的多步骤任务，你可以使用工作流规则来指导执行顺序。"""
+        
+        if self.custom_instructions:
+            content += f"\n\n【自定义指令】\n{self.custom_instructions}"
+        
+        return content
+    
+    def save(self, *args, **kwargs):
+        """保存时自动生成 content"""
+        self.content = self.generate_content()
+        super().save(*args, **kwargs)
+    
     @classmethod
     def get_or_create_default(cls, user):
-        """获取用户的对话风格，如果不存在则创建默认模板"""
+        """获取用户的对话风格，如果不存在则创建默认配置"""
         style, created = cls.objects.get_or_create(
             user=user,
-            defaults={'content': cls.DEFAULT_TEMPLATE}
+            defaults={
+                'tone': 'neutral',
+                'verbosity': 'normal',
+                'language': 'zh-CN',
+                'custom_instructions': '',
+            }
         )
+        if created:
+            style.save()  # 触发 generate_content
         return style
+    
+    def get_all_tone_choices(self):
+        """获取所有语气选项（包括自定义）"""
+        choices = list(self.TONE_CHOICES)
+        for custom in self.custom_tones:
+            if isinstance(custom, dict) and 'value' in custom and 'label' in custom:
+                choices.append((custom['value'], custom['label']))
+        return choices
+    
+    def get_all_verbosity_choices(self):
+        """获取所有详细程度选项（包括自定义）"""
+        choices = list(self.VERBOSITY_CHOICES)
+        for custom in self.custom_verbosities:
+            if isinstance(custom, dict) and 'value' in custom and 'label' in custom:
+                choices.append((custom['value'], custom['label']))
+        return choices
+    
+    def get_all_language_choices(self):
+        """获取所有语言选项（包括自定义）"""
+        choices = list(self.LANGUAGE_CHOICES)
+        for custom in self.custom_languages:
+            if isinstance(custom, dict) and 'value' in custom and 'label' in custom:
+                choices.append((custom['value'], custom['label']))
+        return choices
 
 
 class WorkflowRule(models.Model):

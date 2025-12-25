@@ -792,6 +792,10 @@
                     <button class="btn btn-outline-primary btn-sm" id="newSessionBtn" title="新建会话">
                         <i class="fas fa-plus"></i>
                     </button>
+                    <!-- 记忆优化按钮 -->
+                    <button class="btn btn-outline-secondary btn-sm memory-optimize-btn" id="memoryOptimizeBtn" title="记忆优化">
+                        <i class="fas fa-brain"></i>
+                    </button>
                     <button class="btn btn-outline-primary btn-sm" id="agentExpandBtn" title="展开聊天">
                         <i class="fas fa-expand-alt"></i>
                     </button>
@@ -824,22 +828,22 @@
                         <span class="typing-text">Agent 正在思考...</span>
                     </div>
                 </div>
-                
-                <!-- 工具选择面板（分栏显示） -->
-                <div class="tool-select-panel" id="toolSelectPanel" style="display: none;">
-                    <!-- 由 JS 动态渲染 -->
+
+                <!-- 工具选择面板 -->
+                <div class="tool-select-panel" id="toolSelectPanel">
+                    <!-- JS 动态填充 -->
                 </div>
                 
                 <!-- 输入区域 -->
                 <div class="agent-input-area" id="agentInputArea">
                     <div class="input-wrapper">
+                        <button class="btn btn-outline-secondary tool-select-btn" id="toolSelectBtn" title="选择工具">
+                            <i class="fas fa-tools"></i>
+                            <span class="tool-badge" style="display: none;">0</span>
+                        </button>
                         <textarea class="form-control" id="agentInput" 
                             placeholder="输入消息，按 Enter 发送..." 
                             rows="1"></textarea>
-                        <!-- 工具选择按钮 -->
-                        <button class="btn btn-outline-secondary tool-select-btn" id="toolSelectBtn" title="工具选择">
-                            <i class="fas fa-tools"></i>
-                        </button>
                         <button class="btn btn-primary send-btn" id="agentSendBtn" disabled>
                             <i class="fas fa-paper-plane"></i>
                         </button>
@@ -2656,28 +2660,131 @@
 
                         <!-- AI 设置 -->
                         <div class="tab-pane fade" id="ai-settings" role="tabpanel">
-                            <h6 class="mb-3 text-primary"><i class="fas fa-brain me-2"></i>AI 助手选项</h6>
+                            <h6 class="mb-3 text-primary"><i class="fas fa-brain me-2"></i>AI 助手设置</h6>
                             
-                            <div class="row g-3">
-                                <div class="col-12">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="aiEnabled" checked disabled>
-                                        <label class="form-check-label" for="aiEnabled">
-                                            启用 AI 功能
-                                            <span class="badge bg-secondary">即将推出</span>
-                                        </label>
+                            <!-- AI 记忆管理标签页 -->
+                            <ul class="nav nav-pills mb-3" id="aiMemoryTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="ai-personal-info-tab" data-bs-toggle="pill" 
+                                        data-bs-target="#ai-personal-info" type="button" role="tab">
+                                        <i class="fas fa-user me-1"></i>个人信息
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="ai-dialog-style-tab" data-bs-toggle="pill" 
+                                        data-bs-target="#ai-dialog-style" type="button" role="tab">
+                                        <i class="fas fa-comment-dots me-1"></i>对话风格
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="ai-workflow-rules-tab" data-bs-toggle="pill" 
+                                        data-bs-target="#ai-workflow-rules" type="button" role="tab">
+                                        <i class="fas fa-cogs me-1"></i>工作流规则
+                                    </button>
+                                </li>
+                            </ul>
+                            
+                            <div class="tab-content" id="aiMemoryTabsContent">
+                                <!-- 个人信息 -->
+                                <div class="tab-pane fade show active" id="ai-personal-info" role="tabpanel">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <small class="text-muted">AI 记住的关于您的信息</small>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="showAddPersonalInfoModal()">
+                                            <i class="fas fa-plus me-1"></i>添加
+                                        </button>
                                     </div>
-                                    <small class="text-muted">启用或关闭所有 AI 相关功能</small>
+                                    <div id="personalInfoList" class="memory-list" style="max-height: 300px; overflow-y: auto;">
+                                        <div class="text-center text-muted py-4">
+                                            <i class="fas fa-spinner fa-spin me-2"></i>加载中...
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="col-12">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="aiAutoSuggest" disabled>
-                                        <label class="form-check-label" for="aiAutoSuggest">
-                                            AI 自动建议
-                                            <span class="badge bg-secondary">即将推出</span>
-                                        </label>
+                                
+                                <!-- 对话风格 -->
+                                <div class="tab-pane fade" id="ai-dialog-style" role="tabpanel">
+                                    <div class="mb-3">
+                                        <small class="text-muted">设置 AI 助手的对话风格偏好</small>
                                     </div>
-                                    <small class="text-muted">AI 会自动分析你的日程并提供优化建议</small>
+                                    <form id="dialogStyleForm">
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <label for="dialogStyleTone" class="form-label">语气风格</label>
+                                                <div class="input-group">
+                                                    <select class="form-select" id="dialogStyleTone">
+                                                        <option value="neutral">中性</option>
+                                                        <option value="formal">正式</option>
+                                                        <option value="casual">轻松</option>
+                                                        <option value="professional">专业</option>
+                                                        <option value="friendly">友好</option>
+                                                    </select>
+                                                    <button class="btn btn-outline-secondary" type="button" onclick="addCustomOption('tone')" title="添加自定义">
+                                                        <i class="fas fa-plus"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label for="dialogStyleVerbosity" class="form-label">详细程度</label>
+                                                <div class="input-group">
+                                                    <select class="form-select" id="dialogStyleVerbosity">
+                                                        <option value="concise">简洁</option>
+                                                        <option value="normal">适中</option>
+                                                        <option value="detailed">详细</option>
+                                                    </select>
+                                                    <button class="btn btn-outline-secondary" type="button" onclick="addCustomOption('verbosity')" title="添加自定义">
+                                                        <i class="fas fa-plus"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label for="dialogStyleLanguage" class="form-label">语言偏好</label>
+                                                <div class="input-group">
+                                                    <select class="form-select" id="dialogStyleLanguage">
+                                                        <option value="zh-CN">简体中文</option>
+                                                        <option value="en">English</option>
+                                                        <option value="auto">自动检测</option>
+                                                    </select>
+                                                    <button class="btn btn-outline-secondary" type="button" onclick="addCustomOption('language')" title="添加自定义">
+                                                        <i class="fas fa-plus"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="col-12">
+                                                <label for="dialogStyleCustomInstructions" class="form-label">自定义指令</label>
+                                                <textarea class="form-control" id="dialogStyleCustomInstructions" rows="3"
+                                                    placeholder="例如：回答时多使用表情符号，或者总是用列表格式..."></textarea>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="memoryBatchSize" class="form-label">记忆优化批次大小</label>
+                                                <input type="number" class="form-control" id="memoryBatchSize" value="20" min="5" max="100" step="5">
+                                                <div class="form-text">每次优化处理的消息数量 (5-100)</div>
+                                            </div>
+                                            <div class="col-12">
+                                                <div class="d-flex gap-2">
+                                                    <button type="button" class="btn btn-primary" onclick="saveDialogStyle()">
+                                                        <i class="fas fa-save me-1"></i>保存
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-secondary" onclick="resetDialogStyle()">
+                                                        <i class="fas fa-undo me-1"></i>重置默认
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                                
+                                <!-- 工作流规则 -->
+                                <div class="tab-pane fade" id="ai-workflow-rules" role="tabpanel">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <small class="text-muted">自定义 AI 处理特定任务的规则</small>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="showAddWorkflowRuleModal()">
+                                            <i class="fas fa-plus me-1"></i>添加规则
+                                        </button>
+                                    </div>
+                                    <div id="workflowRulesList" class="memory-list" style="max-height: 300px; overflow-y: auto;">
+                                        <div class="text-center text-muted py-4">
+                                            <i class="fas fa-spinner fa-spin me-2"></i>加载中...
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2926,6 +3033,89 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                     </button>
                     <button type="button" class="btn btn-primary" id="saveSettings">
                         <i class="fas fa-save me-1"></i>保存设置
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑个人信息模态框 -->
+    <div class="modal fade" id="personalInfoEditModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="personalInfoEditTitle">
+                        <i class="fas fa-user-plus me-2"></i>添加个人信息
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="personalInfoForm">
+                        <input type="hidden" id="personalInfoId">
+                        <div class="mb-3">
+                            <label for="personalInfoKey" class="form-label">信息类型</label>
+                            <input type="text" class="form-control" id="personalInfoKey" 
+                                placeholder="例如：姓名、职业、爱好" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="personalInfoValue" class="form-label">信息内容</label>
+                            <textarea class="form-control" id="personalInfoValue" rows="3"
+                                placeholder="具体的信息内容..." required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="savePersonalInfo()">
+                        <i class="fas fa-save me-1"></i>保存
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑工作流规则模态框 -->
+    <div class="modal fade" id="workflowRuleEditModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="workflowRuleEditTitle">
+                        <i class="fas fa-plus-circle me-2"></i>添加工作流规则
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="workflowRuleForm">
+                        <input type="hidden" id="workflowRuleId">
+                        <div class="mb-3">
+                            <label for="workflowRuleName" class="form-label">规则名称</label>
+                            <input type="text" class="form-control" id="workflowRuleName" 
+                                placeholder="例如：创建日程时自动添加提醒" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="workflowRuleTrigger" class="form-label">触发条件</label>
+                            <textarea class="form-control" id="workflowRuleTrigger" rows="2"
+                                placeholder="当...时触发此规则" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="workflowRuleAction" class="form-label">执行动作</label>
+                            <textarea class="form-control" id="workflowRuleAction" rows="2"
+                                placeholder="AI 应该执行的操作..." required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="workflowRulePriority" class="form-label">优先级</label>
+                            <select class="form-select" id="workflowRulePriority">
+                                <option value="1">低</option>
+                                <option value="5" selected>中</option>
+                                <option value="10">高</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveWorkflowRule()">
+                        <i class="fas fa-save me-1"></i>保存
                     </button>
                 </div>
             </div>
@@ -5056,6 +5246,481 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
             } catch (error) {
                 showToast('修改失败: ' + error.message, 'danger');
             }
+        }
+        
+        // ===== AI 记忆管理功能 =====
+        
+        // 当设置模态框打开时，如果切换到AI设置标签，加载数据
+        document.addEventListener('DOMContentLoaded', function() {
+            // 监听 AI 设置标签激活
+            const aiSettingsTab = document.querySelector('[data-bs-target="#ai-settings"]');
+            if (aiSettingsTab) {
+                aiSettingsTab.addEventListener('shown.bs.tab', function() {
+                    loadPersonalInfo();
+                    loadDialogStyle();
+                    loadWorkflowRules();
+                });
+            }
+        });
+        
+        // 加载个人信息列表
+        async function loadPersonalInfo() {
+            const container = document.getElementById('personalInfoList');
+            container.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>加载中...</div>';
+            
+            try {
+                const response = await fetch('/api/agent/memory/personal-info/', {
+                    headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.items && data.items.length > 0) {
+                        container.innerHTML = data.items.map(item => `
+                            <div class="memory-item" data-id="${item.id}">
+                                <div class="memory-item-content">
+                                    <div class="memory-item-key">${escapeHtml(item.key)}</div>
+                                    <div class="memory-item-value">${escapeHtml(item.value)}</div>
+                                </div>
+                                <div class="memory-item-actions">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="editPersonalInfo(${item.id}, '${escapeHtml(item.key)}', '${escapeHtml(item.value)}')" title="编辑">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deletePersonalInfo(${item.id})" title="删除">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        container.innerHTML = `
+                            <div class="memory-empty">
+                                <i class="fas fa-user-circle"></i>
+                                <p>还没有保存任何个人信息</p>
+                                <small>AI 会在对话中自动学习您的信息，您也可以手动添加</small>
+                            </div>
+                        `;
+                    }
+                } else {
+                    container.innerHTML = '<div class="alert alert-danger">加载失败</div>';
+                }
+            } catch (error) {
+                container.innerHTML = '<div class="alert alert-danger">加载失败: ' + error.message + '</div>';
+            }
+        }
+        
+        // 显示添加个人信息模态框
+        function showAddPersonalInfoModal() {
+            document.getElementById('personalInfoEditTitle').innerHTML = '<i class="fas fa-user-plus me-2"></i>添加个人信息';
+            document.getElementById('personalInfoId').value = '';
+            document.getElementById('personalInfoKey').value = '';
+            document.getElementById('personalInfoValue').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('personalInfoEditModal'));
+            modal.show();
+        }
+        
+        // 编辑个人信息
+        function editPersonalInfo(id, key, value) {
+            document.getElementById('personalInfoEditTitle').innerHTML = '<i class="fas fa-user-edit me-2"></i>编辑个人信息';
+            document.getElementById('personalInfoId').value = id;
+            document.getElementById('personalInfoKey').value = key;
+            document.getElementById('personalInfoValue').value = value;
+            const modal = new bootstrap.Modal(document.getElementById('personalInfoEditModal'));
+            modal.show();
+        }
+        
+        // 保存个人信息
+        async function savePersonalInfo() {
+            const id = document.getElementById('personalInfoId').value;
+            const key = document.getElementById('personalInfoKey').value.trim();
+            const value = document.getElementById('personalInfoValue').value.trim();
+            
+            if (!key || !value) {
+                showToast('请填写完整信息', 'warning');
+                return;
+            }
+            
+            try {
+                const url = id ? `/api/agent/memory/personal-info/${id}/` : '/api/agent/memory/personal-info/create/';
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': window.CSRF_TOKEN
+                    },
+                    body: JSON.stringify({ key, value })
+                });
+                
+                if (response.ok) {
+                    showToast(id ? '更新成功' : '添加成功', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('personalInfoEditModal')).hide();
+                    loadPersonalInfo();
+                } else {
+                    const data = await response.json();
+                    showToast(data.error || '保存失败', 'danger');
+                }
+            } catch (error) {
+                showToast('保存失败: ' + error.message, 'danger');
+            }
+        }
+        
+        // 删除个人信息
+        async function deletePersonalInfo(id) {
+            if (!confirm('确定要删除这条信息吗？')) return;
+            
+            try {
+                const response = await fetch(`/api/agent/memory/personal-info/${id}/delete/`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+                });
+                
+                if (response.ok) {
+                    showToast('删除成功', 'success');
+                    loadPersonalInfo();
+                } else {
+                    showToast('删除失败', 'danger');
+                }
+            } catch (error) {
+                showToast('删除失败: ' + error.message, 'danger');
+            }
+        }
+        
+        // 存储当前对话风格数据（用于自定义选项管理）
+        let currentDialogStyleData = null;
+        
+        // 加载对话风格
+        async function loadDialogStyle() {
+            try {
+                const response = await fetch('/api/agent/memory/dialog-style/', {
+                    headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    currentDialogStyleData = data;
+                    
+                    // 更新选项列表（包含自定义选项）
+                    updateSelectOptions('dialogStyleTone', data.tone_choices, data.tone);
+                    updateSelectOptions('dialogStyleVerbosity', data.verbosity_choices, data.verbosity);
+                    updateSelectOptions('dialogStyleLanguage', data.language_choices, data.language);
+                    
+                    document.getElementById('dialogStyleCustomInstructions').value = data.custom_instructions || '';
+                    if (data.memory_batch_size) {
+                        document.getElementById('memoryBatchSize').value = data.memory_batch_size;
+                    }
+                }
+            } catch (error) {
+                console.error('加载对话风格失败:', error);
+            }
+        }
+        
+        // 更新选择框选项
+        function updateSelectOptions(selectId, choices, selectedValue) {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            
+            select.innerHTML = choices.map(([value, label]) => 
+                `<option value="${escapeHtml(value)}" ${value === selectedValue ? 'selected' : ''}>${escapeHtml(label)}</option>`
+            ).join('');
+        }
+        
+        // 添加自定义选项
+        async function addCustomOption(type) {
+            const typeLabels = {
+                'tone': '语气风格',
+                'verbosity': '详细程度',
+                'language': '语言'
+            };
+            
+            const value = prompt(`请输入新的${typeLabels[type]}值（英文标识）：`);
+            if (!value) return;
+            
+            const label = prompt(`请输入显示名称：`);
+            if (!label) return;
+            
+            try {
+                // 获取当前数据
+                const response = await fetch('/api/agent/memory/dialog-style/', {
+                    headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // 添加新选项到对应列表
+                    const customKey = `custom_${type}s`;
+                    const customList = data[customKey] || [];
+                    customList.push({ value, label });
+                    
+                    // 保存更新
+                    const updateData = {
+                        [customKey]: customList,
+                        [type]: value  // 同时选中新添加的选项
+                    };
+                    
+                    const updateResponse = await fetch('/api/agent/memory/dialog-style/update/', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': window.CSRF_TOKEN
+                        },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    if (updateResponse.ok) {
+                        showToast(`已添加自定义${typeLabels[type]}：${label}`, 'success');
+                        loadDialogStyle();  // 重新加载以更新选项列表
+                    } else {
+                        showToast('添加失败', 'danger');
+                    }
+                }
+            } catch (error) {
+                showToast('添加失败: ' + error.message, 'danger');
+            }
+        }
+        
+        // 保存对话风格
+        async function saveDialogStyle() {
+            const data = {
+                tone: document.getElementById('dialogStyleTone').value,
+                verbosity: document.getElementById('dialogStyleVerbosity').value,
+                language: document.getElementById('dialogStyleLanguage').value,
+                custom_instructions: document.getElementById('dialogStyleCustomInstructions').value,
+                memory_batch_size: document.getElementById('memoryBatchSize').value
+            };
+            
+            try {
+                const response = await fetch('/api/agent/memory/dialog-style/update/', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': window.CSRF_TOKEN
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    showToast('对话风格已保存', 'success');
+                } else {
+                    showToast('保存失败', 'danger');
+                }
+            } catch (error) {
+                showToast('保存失败: ' + error.message, 'danger');
+            }
+        }
+        
+        // 重置对话风格
+        async function resetDialogStyle() {
+            if (!confirm('确定要重置对话风格为默认值吗？')) return;
+            
+            try {
+                const response = await fetch('/api/agent/memory/dialog-style/reset/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+                });
+                
+                if (response.ok) {
+                    showToast('已重置为默认风格', 'success');
+                    loadDialogStyle();
+                } else {
+                    showToast('重置失败', 'danger');
+                }
+            } catch (error) {
+                showToast('重置失败: ' + error.message, 'danger');
+            }
+        }
+        
+        // 加载工作流规则列表
+        async function loadWorkflowRules() {
+            const container = document.getElementById('workflowRulesList');
+            container.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>加载中...</div>';
+            
+            try {
+                const response = await fetch('/api/agent/memory/workflow-rules/', {
+                    headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.items && data.items.length > 0) {
+                        container.innerHTML = data.items.map(rule => `
+                            <div class="workflow-rule-item ${rule.is_active ? '' : 'disabled'}" data-id="${rule.id}">
+                                <div class="workflow-rule-content">
+                                    <div class="workflow-rule-header">
+                                        <span class="workflow-rule-name">${escapeHtml(rule.name)}</span>
+                                        <span class="workflow-rule-priority ${rule.priority >= 8 ? 'high' : rule.priority <= 3 ? 'low' : ''}">
+                                            ${rule.priority >= 8 ? '高优先级' : rule.priority <= 3 ? '低优先级' : '中优先级'}
+                                        </span>
+                                    </div>
+                                    <div class="workflow-rule-trigger">
+                                        <i class="fas fa-bolt"></i>触发: ${escapeHtml(rule.trigger_condition)}
+                                    </div>
+                                    <div class="workflow-rule-action">
+                                        <i class="fas fa-play"></i>动作: ${escapeHtml(rule.action_description)}
+                                    </div>
+                                </div>
+                                <div class="memory-item-actions">
+                                    <button class="btn btn-sm btn-outline-${rule.is_active ? 'warning' : 'success'}" 
+                                        onclick="toggleWorkflowRule(${rule.id})" 
+                                        title="${rule.is_active ? '禁用' : '启用'}">
+                                        <i class="fas fa-${rule.is_active ? 'pause' : 'play'}"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary" 
+                                        onclick="editWorkflowRule(${rule.id})" title="编辑">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" 
+                                        onclick="deleteWorkflowRule(${rule.id})" title="删除">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        container.innerHTML = `
+                            <div class="memory-empty">
+                                <i class="fas fa-cogs"></i>
+                                <p>还没有设置任何工作流规则</p>
+                                <small>工作流规则可以让 AI 按照您的偏好自动执行特定操作</small>
+                            </div>
+                        `;
+                    }
+                } else {
+                    container.innerHTML = '<div class="alert alert-danger">加载失败</div>';
+                }
+            } catch (error) {
+                container.innerHTML = '<div class="alert alert-danger">加载失败: ' + error.message + '</div>';
+            }
+        }
+        
+        // 显示添加工作流规则模态框
+        function showAddWorkflowRuleModal() {
+            document.getElementById('workflowRuleEditTitle').innerHTML = '<i class="fas fa-plus-circle me-2"></i>添加工作流规则';
+            document.getElementById('workflowRuleId').value = '';
+            document.getElementById('workflowRuleName').value = '';
+            document.getElementById('workflowRuleTrigger').value = '';
+            document.getElementById('workflowRuleAction').value = '';
+            document.getElementById('workflowRulePriority').value = '5';
+            const modal = new bootstrap.Modal(document.getElementById('workflowRuleEditModal'));
+            modal.show();
+        }
+        
+        // 编辑工作流规则
+        async function editWorkflowRule(id) {
+            try {
+                const response = await fetch('/api/agent/memory/workflow-rules/', {
+                    headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const rule = data.items.find(r => r.id === id);
+                    if (rule) {
+                        document.getElementById('workflowRuleEditTitle').innerHTML = '<i class="fas fa-edit me-2"></i>编辑工作流规则';
+                        document.getElementById('workflowRuleId').value = rule.id;
+                        document.getElementById('workflowRuleName').value = rule.name;
+                        document.getElementById('workflowRuleTrigger').value = rule.trigger_condition;
+                        document.getElementById('workflowRuleAction').value = rule.action_description;
+                        document.getElementById('workflowRulePriority').value = rule.priority;
+                        const modal = new bootstrap.Modal(document.getElementById('workflowRuleEditModal'));
+                        modal.show();
+                    }
+                }
+            } catch (error) {
+                showToast('加载规则失败', 'danger');
+            }
+        }
+        
+        // 保存工作流规则
+        async function saveWorkflowRule() {
+            const id = document.getElementById('workflowRuleId').value;
+            const data = {
+                name: document.getElementById('workflowRuleName').value.trim(),
+                trigger_condition: document.getElementById('workflowRuleTrigger').value.trim(),
+                action_description: document.getElementById('workflowRuleAction').value.trim(),
+                priority: parseInt(document.getElementById('workflowRulePriority').value)
+            };
+            
+            if (!data.name || !data.trigger_condition || !data.action_description) {
+                showToast('请填写完整信息', 'warning');
+                return;
+            }
+            
+            try {
+                const url = id ? `/api/agent/memory/workflow-rules/${id}/` : '/api/agent/memory/workflow-rules/create/';
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': window.CSRF_TOKEN
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    showToast(id ? '更新成功' : '添加成功', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('workflowRuleEditModal')).hide();
+                    loadWorkflowRules();
+                } else {
+                    const result = await response.json();
+                    showToast(result.error || '保存失败', 'danger');
+                }
+            } catch (error) {
+                showToast('保存失败: ' + error.message, 'danger');
+            }
+        }
+        
+        // 切换工作流规则状态
+        async function toggleWorkflowRule(id) {
+            try {
+                const response = await fetch(`/api/agent/memory/workflow-rules/${id}/toggle/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showToast(data.is_active ? '规则已启用' : '规则已禁用', 'success');
+                    loadWorkflowRules();
+                } else {
+                    showToast('操作失败', 'danger');
+                }
+            } catch (error) {
+                showToast('操作失败: ' + error.message, 'danger');
+            }
+        }
+        
+        // 删除工作流规则
+        async function deleteWorkflowRule(id) {
+            if (!confirm('确定要删除这条规则吗？')) return;
+            
+            try {
+                const response = await fetch(`/api/agent/memory/workflow-rules/${id}/delete/`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+                });
+                
+                if (response.ok) {
+                    showToast('删除成功', 'success');
+                    loadWorkflowRules();
+                } else {
+                    showToast('删除失败', 'danger');
+                }
+            } catch (error) {
+                showToast('删除失败: ' + error.message, 'danger');
+            }
+        }
+        
+        // HTML转义辅助函数
+        function escapeHtml(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
         }
         
     </script>

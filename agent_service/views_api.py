@@ -488,6 +488,7 @@ def rollback_to_message(request):
     """
     import reversion
     from agent_service.agent_graph import app, checkpointer
+    from agent_service.tools.todo_tools import rollback_todos
     from agent_service.models import AgentTransaction
     from langchain_core.messages import HumanMessage, AIMessage, RemoveMessage
     
@@ -553,6 +554,28 @@ def rollback_to_message(request):
         # 计算需要回滚的消息数量
         rolled_back_messages = len(current_messages) - message_index
         
+        # 在删除前，尝试定位目标检查点用于 TODO 回滚
+        target_checkpoint_id = None
+        try:
+            history = list(app.get_state_history(config))
+            # 首选：找到消息数恰好等于目标索引的快照
+            for snapshot in history:
+                if snapshot.values:
+                    msgs = snapshot.values.get("messages", [])
+                    if len(msgs) == message_index:
+                        target_checkpoint_id = snapshot.config.get("configurable", {}).get("checkpoint_id")
+                        break
+            # 备选：找到消息数少于目标索引的最近快照
+            if not target_checkpoint_id:
+                for snapshot in history:
+                    if snapshot.values:
+                        msgs = snapshot.values.get("messages", [])
+                        if len(msgs) < message_index:
+                            target_checkpoint_id = snapshot.config.get("configurable", {}).get("checkpoint_id")
+                            break
+        except Exception as e:
+            logger.warning(f"获取用于 TODO 回滚的历史快照失败: {e}")
+
         # ====== 特殊处理：删除所有消息（message_index = 0）======
         if message_index == 0:
             logger.info("message_index=0，将清空所有消息（直接删除 checkpoint）")
@@ -692,12 +715,23 @@ def rollback_to_message(request):
                 logger.info(f"事务 #{trans.id} 没有 revision_id，已标记为回滚")
         
         logger.info(f"共回滚了 {rolled_back_transactions} 个数据库事务")
+
+        # ====== 同步回滚 TODO 列表 ======
+        todo_rolled_back = False
+        try:
+            # 若未能定位 checkpoint，则传入一个不会命中的占位符，函数会清空列表
+            cp_for_todo = target_checkpoint_id or f"rollback_{message_index}"
+            todo_rolled_back = rollback_todos(session_id, cp_for_todo)
+            logger.info(f"TODO 回滚结果: {todo_rolled_back}, checkpoint_id={cp_for_todo}")
+        except Exception as e:
+            logger.warning(f"TODO 回滚失败: {e}")
         
         return Response({
             "success": True,
             "rolled_back_messages": rolled_back_messages,
             "rolled_back_transactions": rolled_back_transactions,
             "rolled_back_details": rolled_back_details,
+            "todo_rolled_back": todo_rolled_back,
             "remaining_messages": len(new_messages),
             "message": f"成功回滚，删除了 {rolled_back_messages} 条消息，撤销了 {rolled_back_transactions} 个操作"
         })
@@ -842,3 +876,229 @@ def health_check(request):
         "status": "healthy",
         "service": "agent_service"
     })
+
+
+# ==========================================
+# 记忆优化 API
+# ==========================================
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def optimize_memory(request):
+    """
+    记忆优化端点 (支持分批处理和上下文精简)
+    POST /api/agent/optimize-memory/
+    """
+    from agent_service.agent_graph import app, llm
+    from agent_service.models import UserPersonalInfo, WorkflowRule, DialogStyle
+    from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
+    import json
+    import re
+
+    user = request.user
+    data = request.data
+    session_id = data.get("session_id", f"user_{user.id}_default")
+
+    if not session_id.startswith(f"user_{user.id}_"):
+        return Response({"error": "无权访问此会话"}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        # 1. 获取配置
+        try:
+            style = DialogStyle.get_or_create_default(user)
+            batch_size = getattr(style, 'memory_batch_size', 20)
+        except Exception:
+            batch_size = 20
+
+        # 2. 获取会话消息
+        config = {"configurable": {"thread_id": session_id, "user": user}}
+        state = app.get_state(config)
+        all_messages = state.values.get("messages", []) if state and state.values else []
+
+        # 3. 预处理消息 (精简上下文)
+        pruned_messages = []
+        for m in all_messages:
+            if isinstance(m, SystemMessage):
+                continue
+            if isinstance(m, ToolMessage):
+                # 替换工具输出为占位符
+                m_copy = ToolMessage(content="(Tool output omitted for optimization)", tool_call_id=m.tool_call_id)
+                pruned_messages.append(m_copy)
+            else:
+                pruned_messages.append(m)
+
+        if not pruned_messages:
+            return Response({"success": True, "summary": "没有发现可优化的对话内容", "applied": {}})
+
+        # 4. 分批处理
+        chunks = [pruned_messages[i:i + batch_size] for i in range(0, len(pruned_messages), batch_size)]
+        
+        total_applied = {
+            "personal_info": {"add": 0, "update": 0, "delete": 0}, 
+            "workflow_rules": {"add": 0, "update": 0, "delete": 0}
+        }
+        summaries = []
+
+        # 辅助函数
+        def format_personal_info(u):
+            infos = UserPersonalInfo.objects.filter(user=u)
+            if not infos.exists(): return "(无)"
+            return "\n".join([f"- {i.key}: {i.value}" for i in infos])
+
+        def format_workflow_rules(u):
+            rules = WorkflowRule.objects.filter(user=u, is_active=True)
+            if not rules.exists(): return "(无)"
+            return "\n".join([f"- {r.name} | 触发: {r.trigger}\n  步骤: {r.steps}" for r in rules])
+
+        def format_messages(msgs):
+            lines = []
+            for m in msgs:
+                role = 'user' if isinstance(m, HumanMessage) else 'assistant' if isinstance(m, AIMessage) else 'tool'
+                content = getattr(m, 'content', '')
+                lines.append(f"[{role}] {content}")
+            return "\n".join(lines)
+
+        # 循环处理每一批
+        for i, chunk in enumerate(chunks):
+            # 重新获取当前状态 (因为上一轮可能更新了数据库)
+            current_info = format_personal_info(user)
+            current_rules = format_workflow_rules(user)
+            chunk_text = format_messages(chunk)
+
+            optimize_prompt = f"""
+你是一个记忆优化助手。正在处理第 {i+1}/{len(chunks)} 批对话记录。
+请分析以下对话片段，并决定需要对用户记忆进行哪些操作。
+
+## 当前用户个人信息 (实时状态)
+{current_info}
+
+## 当前工作流规则 (实时状态)
+{current_rules}
+
+## 本次对话片段 ({len(chunk)} 条消息)
+{chunk_text}
+
+## 你的任务
+分析对话中的信息，判断是否需要：
+1. 新增个人信息（用户提到的新事实）
+2. 更新个人信息（用户纠正的旧信息）
+3. 删除过时的个人信息
+4. 新增/更新/删除工作流规则
+
+请以 JSON 格式输出你的操作建议：
+{{
+  "personal_info": {{
+    "add": [{{"key": "...", "value": "...", "description": "..."}}],
+    "update": [{{"key": "...", "new_value": "...", "reason": "..."}}],
+    "delete": [{{"key": "...", "reason": "..."}}]
+  }},
+  "workflow_rules": {{
+    "add": [{{"name": "...", "trigger": "...", "steps": "..."}}],
+    "update": [{{"name": "...", "new_steps": "...", "reason": "..."}}],
+    "delete": [{{"name": "...", "reason": "..."}}]
+  }},
+  "summary": "本批次优化的简要说明"
+}}
+"""
+            # 调用 LLM
+            llm_msgs = [SystemMessage(content="你是一个记忆优化助手。"), HumanMessage(content=optimize_prompt)]
+            result = llm.invoke(llm_msgs, config)
+            text = getattr(result, 'content', '') if result else ''
+
+            # 解析与执行
+            try:
+                ops = {"personal_info": {}, "workflow_rules": {}, "summary": ""}
+                m = re.search(r"\{[\s\S]*\}", text)
+                if m:
+                    ops = json.loads(m.group(0))
+                else:
+                    # 尝试直接解析，如果失败则忽略
+                    try: ops = json.loads(text)
+                    except: pass
+                
+                if ops.get("summary"):
+                    summaries.append(f"批次 {i+1}: {ops['summary']}")
+
+                # 执行操作
+                # Personal Info
+                for item in ops.get("personal_info", {}).get("add", []) or []:
+                    key, value, desc = item.get("key"), item.get("value"), item.get("description", "")
+                    if key and value:
+                        UserPersonalInfo.objects.update_or_create(user=user, key=key, defaults={"value": value, "description": desc})
+                        total_applied["personal_info"]["add"] += 1
+                
+                for item in ops.get("personal_info", {}).get("update", []) or []:
+                    key, new_value = item.get("key"), item.get("new_value")
+                    if key and new_value is not None:
+                        obj = UserPersonalInfo.objects.filter(user=user, key=key).first()
+                        if obj:
+                            obj.value = new_value
+                            obj.save()
+                            total_applied["personal_info"]["update"] += 1
+
+                for item in ops.get("personal_info", {}).get("delete", []) or []:
+                    key = item.get("key")
+                    if key:
+                        UserPersonalInfo.objects.filter(user=user, key=key).delete()
+                        total_applied["personal_info"]["delete"] += 1
+
+                # Workflow Rules
+                for r in ops.get("workflow_rules", {}).get("add", []) or []:
+                    name, trigger, steps = r.get("name"), r.get("trigger", ""), r.get("steps", "")
+                    if name:
+                        WorkflowRule.objects.update_or_create(user=user, name=name, defaults={"trigger": trigger, "steps": steps, "is_active": True})
+                        total_applied["workflow_rules"]["add"] += 1
+
+                for r in ops.get("workflow_rules", {}).get("update", []) or []:
+                    name, new_steps = r.get("name"), r.get("new_steps")
+                    if name and new_steps is not None:
+                        obj = WorkflowRule.objects.filter(user=user, name=name).first()
+                        if obj:
+                            obj.steps = new_steps
+                            obj.save()
+                            total_applied["workflow_rules"]["update"] += 1
+
+                for r in ops.get("workflow_rules", {}).get("delete", []) or []:
+                    name = r.get("name")
+                    if name:
+                        WorkflowRule.objects.filter(user=user, name=name).delete()
+                        total_applied["workflow_rules"]["delete"] += 1
+
+            except Exception as e:
+                logger.warning(f"批次 {i+1} 优化失败: {e}")
+                summaries.append(f"批次 {i+1} 失败: {str(e)}")
+
+        # 基于实际操作数计算总结
+        total_ops = sum([
+            total_applied["personal_info"]["add"],
+            total_applied["personal_info"]["update"],
+            total_applied["personal_info"]["delete"],
+            total_applied["workflow_rules"]["add"],
+            total_applied["workflow_rules"]["update"],
+            total_applied["workflow_rules"]["delete"]
+        ])
+        
+        if total_ops > 0:
+            summary_parts = []
+            pi = total_applied["personal_info"]
+            wr = total_applied["workflow_rules"]
+            if pi["add"]: summary_parts.append(f"新增{pi['add']}条个人信息")
+            if pi["update"]: summary_parts.append(f"更新{pi['update']}条个人信息")
+            if pi["delete"]: summary_parts.append(f"删除{pi['delete']}条个人信息")
+            if wr["add"]: summary_parts.append(f"新增{wr['add']}条工作流规则")
+            if wr["update"]: summary_parts.append(f"更新{wr['update']}条工作流规则")
+            if wr["delete"]: summary_parts.append(f"删除{wr['delete']}条工作流规则")
+            final_summary = "、".join(summary_parts)
+        else:
+            final_summary = "未发现可优化的内容"
+        
+        return Response({
+            "success": True,
+            "summary": final_summary,
+            "applied": total_applied,
+            "total_operations": total_ops
+        })
+
+    except Exception as e:
+        logger.exception(f"记忆优化失败: {e}")
+        return Response({"error": f"记忆优化失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

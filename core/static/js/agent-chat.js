@@ -220,6 +220,12 @@ class AgentChat {
         // 发送/终止按钮
         this.sendBtn.addEventListener('click', () => this.handleSendButtonClick());
         
+        // 记忆优化按钮
+        const memoryOptimizeBtn = document.getElementById('memoryOptimizeBtn');
+        if (memoryOptimizeBtn) {
+            memoryOptimizeBtn.addEventListener('click', () => this.optimizeMemory());
+        }
+        
         // 输入框事件
         this.inputField.addEventListener('input', () => {
             this.autoResize();
@@ -1126,6 +1132,11 @@ class AgentChat {
             return;
         }
         
+        // 如果当前会话有足够消息，提示是否优化记忆
+        if (this.messageCount >= 4) {
+            await this.showMemoryOptimizePrompt();
+        }
+        
         // 【关键】切换前，将当前会话的回滚基准点设为消息总数（使所有消息不可回滚）
         this.saveRollbackBaseIndex(this.messageCount);
         
@@ -1976,6 +1987,124 @@ class AgentChat {
             notification.style.opacity = '0';
             setTimeout(() => notification.remove(), 300);
         }, 3000);
+    }
+
+    /**
+     * 记忆优化 - 分析当前对话并提取有用信息到记忆系统
+     */
+    async optimizeMemory() {
+        const btn = document.getElementById('memoryOptimizeBtn');
+        if (!btn) return;
+        
+        // 检查消息数量
+        if (this.messageCount < 2) {
+            this.showNotification('对话太短，无需优化记忆', 'info');
+            return;
+        }
+        
+        // 确认对话框
+        const confirmed = confirm('是否分析当前对话并优化 AI 记忆？\n\nAI 将从对话中提取有用信息（如个人偏好、工作习惯等）并保存到记忆系统。');
+        if (!confirmed) return;
+        
+        // 显示加载状态
+        btn.disabled = true;
+        btn.classList.add('optimizing');
+        const originalIcon = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        
+        // 禁用 UI - 变灰整个 Agent 面板内容区域
+        const agentPanelContent = document.querySelector('.agent-panel-content');
+        if (agentPanelContent) agentPanelContent.classList.add('dimmed');
+        if (this.agentChatContainer) this.agentChatContainer.classList.add('dimmed');
+        if (this.inputField) this.inputField.disabled = true;
+        if (this.sendBtn) this.sendBtn.disabled = true;
+        
+        try {
+            const response = await fetch('/api/agent/optimize-memory/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.csrfToken
+                },
+                body: JSON.stringify({
+                    session_id: this.sessionId
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('记忆优化响应:', data);
+                
+                // 使用后端返回的 total_operations 字段
+                const totalOps = data.total_operations || 0;
+                
+                if (totalOps > 0) {
+                    this.showNotification(`记忆优化完成：${data.summary || `执行了 ${totalOps} 个操作`}`, 'success');
+                } else {
+                    this.showNotification('未发现需要更新的记忆', 'info');
+                }
+            } else {
+                const error = await response.json();
+                this.showNotification(error.message || '记忆优化失败', 'error');
+            }
+        } catch (error) {
+            console.error('记忆优化失败:', error);
+            this.showNotification('记忆优化失败: ' + error.message, 'error');
+        } finally {
+            // 恢复按钮状态
+            btn.disabled = false;
+            btn.classList.remove('optimizing');
+            btn.innerHTML = originalIcon;
+            
+            // 恢复 UI
+            const agentPanelContent = document.querySelector('.agent-panel-content');
+            if (agentPanelContent) agentPanelContent.classList.remove('dimmed');
+            if (this.agentChatContainer) this.agentChatContainer.classList.remove('dimmed');
+            if (this.inputField) this.inputField.disabled = false;
+            if (this.sendBtn) this.sendBtn.disabled = false;
+        }
+    }
+
+    /**
+     * 会话切换时的记忆优化提示
+     */
+    showMemoryOptimizePrompt() {
+        // 创建提示条
+        const existingPrompt = this.messagesContainer.querySelector('.memory-optimize-prompt');
+        if (existingPrompt) existingPrompt.remove();
+        
+        const prompt = document.createElement('div');
+        prompt.className = 'memory-optimize-prompt';
+        prompt.innerHTML = `
+            <i class="fas fa-lightbulb text-warning"></i>
+            <div class="memory-optimize-prompt-text">
+                切换会话前，是否要分析当前对话并保存有用信息到记忆？
+            </div>
+            <div class="memory-optimize-prompt-actions">
+                <button class="btn btn-sm btn-outline-primary optimize-yes">
+                    <i class="fas fa-brain me-1"></i>优化
+                </button>
+                <button class="btn btn-sm btn-outline-secondary optimize-no">
+                    跳过
+                </button>
+            </div>
+        `;
+        
+        this.messagesContainer.appendChild(prompt);
+        this.scrollToBottom();
+        
+        return new Promise((resolve) => {
+            prompt.querySelector('.optimize-yes').addEventListener('click', async () => {
+                prompt.remove();
+                await this.optimizeMemory();
+                resolve(true);
+            });
+            
+            prompt.querySelector('.optimize-no').addEventListener('click', () => {
+                prompt.remove();
+                resolve(false);
+            });
+        });
     }
 }
 
