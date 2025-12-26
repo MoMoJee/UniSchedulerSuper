@@ -1313,6 +1313,7 @@ def get_events_impl(request):
     'groupID': {'type': str, 'required': False, 'comment': '所属群组ID', 'alias': 'groupId'},
     'rrule': {'type': str, 'required': False, 'comment': '重复规则字符串', 'alias': 'RRule'},
     'shared_to_groups': {'type': list, 'required': False, 'comment': '分享到的群组ID列表'},
+    'ddl': {'type': str, 'required': False, 'comment': '截止时间，格式：YYYY-MM-DDTHH:MM:SS'},
     'session_id': {'type': str, 'required': False, 'comment': 'Agent会话ID，用于回滚'},
 })
 def create_event_impl(request):
