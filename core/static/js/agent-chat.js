@@ -134,13 +134,21 @@ class AgentChat {
 
     /**
      * 获取或创建会话ID
+     * 关键：必须验证存储的 sessionId 是否属于当前用户，防止用户切换时使用错误的会话
      */
     getOrCreateSessionId() {
         const storageKey = 'agent_session_id';
+        const userKey = 'agent_session_user_id';
+        
         let sessionId = localStorage.getItem(storageKey);
-        if (!sessionId) {
+        const storedUserId = localStorage.getItem(userKey);
+        
+        // 验证：如果存储的用户ID与当前用户不匹配，需要清除并创建新会话
+        if (!sessionId || storedUserId !== String(this.userId)) {
             sessionId = `user_${this.userId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             localStorage.setItem(storageKey, sessionId);
+            localStorage.setItem(userKey, String(this.userId));
+            console.log(`[AgentChat] 为用户 ${this.userId} 创建新会话: ${sessionId}`);
         }
         return sessionId;
     }
@@ -230,9 +238,11 @@ class AgentChat {
 
     /**
      * 保存当前会话ID
+     * 同时保存用户ID以确保用户隔离
      */
     saveSessionId(sessionId) {
         localStorage.setItem('agent_session_id', sessionId);
+        localStorage.setItem('agent_session_user_id', String(this.userId));
         this.sessionId = sessionId;
     }
 

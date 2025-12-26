@@ -26,19 +26,37 @@ class AgentSession(models.Model):
     
     @classmethod
     def get_or_create_session(cls, user, session_id=None, name=None):
-        """获取或创建会话"""
+        """
+        获取或创建会话
+        关键安全检查：验证 session_id 是否属于当前用户
+        """
         import uuid
         if not session_id:
             session_id = f"user_{user.id}_{uuid.uuid4().hex[:8]}"
         
-        session, created = cls.objects.get_or_create(
+        # 先检查是否存在该 session_id
+        existing = cls.objects.filter(session_id=session_id).first()
+        if existing:
+            # 安全检查：如果会话存在但不属于当前用户，创建新会话
+            if existing.user_id != user.id:
+                # 会话 ID 冲突，为当前用户生成新的会话 ID
+                session_id = f"user_{user.id}_{uuid.uuid4().hex[:8]}"
+                session = cls.objects.create(
+                    session_id=session_id,
+                    user=user,
+                    name=name or f"对话 {cls.objects.filter(user=user).count() + 1}"
+                )
+                return session, True
+            else:
+                return existing, False
+        
+        # 会话不存在，创建新会话
+        session = cls.objects.create(
             session_id=session_id,
-            defaults={
-                'user': user,
-                'name': name or f"对话 {cls.objects.filter(user=user).count() + 1}"
-            }
+            user=user,
+            name=name or f"对话 {cls.objects.filter(user=user).count() + 1}"
         )
-        return session, created
+        return session, True
 
 
 class UserMemory(models.Model):
