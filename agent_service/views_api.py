@@ -788,10 +788,22 @@ def get_available_tools(request):
         "get_reminders": "查询提醒",
         "create_reminder": "创建提醒",
         "delete_reminder": "删除提醒",
-        # Memory
-        "save_memory": "保存记忆",
-        "search_memory": "搜索记忆",
-        "get_recent_memories": "获取最近记忆",
+        # Memory V2
+        "save_personal_info": "保存个人信息",
+        "get_personal_info": "获取个人信息",
+        "update_personal_info": "更新个人信息",
+        "delete_personal_info": "删除个人信息",
+        "get_dialog_style": "获取对话风格",
+        "update_dialog_style": "更新对话风格",
+        "save_workflow_rule": "保存工作流规则",
+        "get_workflow_rules": "获取工作流规则",
+        "update_workflow_rule": "更新工作流规则",
+        "delete_workflow_rule": "删除工作流规则",
+        # Session TO DO (任务追踪)
+        "add_task": "添加任务",
+        "update_task_status": "更新任务状态",
+        "get_task_list": "获取任务列表",
+        "clear_completed_tasks": "清除已完成任务",
         # Map (MCP)
         "maps_search_poi": "搜索地点",
         "maps_search_nearby": "周边搜索",
@@ -1102,3 +1114,47 @@ def optimize_memory(request):
     except Exception as e:
         logger.exception(f"记忆优化失败: {e}")
         return Response({"error": f"记忆优化失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ==========================================
+# 会话 TO DO 列表 API
+# ==========================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_session_todos(request):
+    """
+    获取当前会话的 TO DO 列表
+    GET /api/agent/session-todos/?session_id=xxx
+    """
+    from agent_service.models import SessionTodoItem, AgentSession
+    
+    user = request.user
+    session_id = request.GET.get('session_id', f"user_{user.id}_default")
+    
+    if not session_id.startswith(f"user_{user.id}_"):
+        return Response({"error": "无权访问此会话"}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        session = AgentSession.objects.filter(session_id=session_id).first()
+        if not session:
+            return Response({"todos": [], "count": 0})
+        
+        todos = SessionTodoItem.objects.filter(session=session).order_by('order', 'id')
+        todo_list = [{
+            "id": t.id,
+            "title": t.title,
+            "description": t.description,
+            "status": t.status,
+            "order": t.order,
+            "created_at": t.created_at.isoformat(),
+            "updated_at": t.updated_at.isoformat()
+        } for t in todos]
+        
+        return Response({
+            "todos": todo_list,
+            "count": len(todo_list)
+        })
+    except Exception as e:
+        logger.exception(f"获取 TODO 列表失败: {e}")
+        return Response({"error": f"获取 TODO 列表失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

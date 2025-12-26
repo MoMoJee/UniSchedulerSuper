@@ -28,6 +28,9 @@ urlpatterns = [
     # 记忆优化
     path('optimize-memory/', views_api.optimize_memory, name='optimize_memory'),
     
+    # 会话 TO DO
+    path('session-todos/', views_api.get_session_todos, name='get_session_todos'),
+    
     # 工具配置 (新)
     path('tools/', views_api.get_available_tools, name='get_tools'),
     

@@ -29,10 +29,9 @@ from agent_service.tools.memory_tools_v2 import (
     save_workflow_rule, get_workflow_rules, update_workflow_rule, delete_workflow_rule,
     ALL_MEMORY_TOOLS_V2
 )
-# 导入 TODO 工具
+# 导入 to do 工具（任务追踪）
 from agent_service.tools.todo_tools import (
-    create_todo as create_session_todo,
-    update_todo_status, get_session_todos, clear_completed_todos,
+    add_task, update_task_status, get_task_list, clear_completed_tasks,
     TODO_TOOLS
 )
 from agent_service.mcp_tools import get_mcp_tools_sync
@@ -86,12 +85,12 @@ MEMORY_TOOLS = {
     "delete_workflow_rule": delete_workflow_rule,
 }
 
-# TODO 工具
+# TO DO 工具（任务追踪 - 用于 Agent 执行复杂多步骤任务时的进度追踪）
 TODO_TOOLS_MAP = {
-    "create_session_todo": create_session_todo,
-    "update_todo_status": update_todo_status,
-    "get_session_todos": get_session_todos,
-    "clear_completed_todos": clear_completed_todos,
+    "add_task": add_task,
+    "update_task_status": update_task_status,
+    "get_task_list": get_task_list,
+    "clear_completed_tasks": clear_completed_tasks,
 }
 
 # MCP 工具 (动态加载)
@@ -120,7 +119,7 @@ TOOL_CATEGORIES = {
     },
     "todo": {
         "display_name": "任务追踪",
-        "description": "创建和管理会话级 TODO 列表，追踪多步骤任务进度",
+        "description": "Agent 执行复杂任务时追踪进度（不是用户的待办事项）",
         "tools": list(TODO_TOOLS_MAP.keys())
     },
     "map": {
@@ -216,16 +215,20 @@ def build_system_prompt(user, active_tool_names: List[str], current_time: str) -
 2. 按照规则指导的步骤执行任务
 3. 如果用户纠正了某个流程，使用 `save_workflow_rule` 或 `update_workflow_rule` 更新规则"""
     
-    # 4. TODO 提示
+    # 4. 任务追踪提示
     todo_hint = ""
     if any(t in active_tool_names for t in TODO_TOOLS_MAP.keys()):
         todo_hint = """
 
-## 任务追踪
-对于复杂的多步骤任务，你可以：
-1. 使用 `create_session_todo` 创建任务列表，追踪需要完成的步骤
-2. 使用 `update_todo_status` 更新任务状态 (pending/in_progress/done)
-3. 完成所有任务后，使用 `clear_completed_todos` 清理已完成项"""
+## 任务追踪（注意：这不是用户的"待办事项"！）
+当你执行复杂的多步骤任务时，可以使用任务追踪功能来管理执行进度：
+1. 使用 `add_task` 添加任务到追踪列表
+2. 使用 `update_task_status` 更新任务状态 (pending/in_progress/done)
+3. 完成所有任务后，使用 `clear_completed_tasks` 清理已完成项
+
+重要区分：
+- `add_task` 等是 Agent 的任务追踪工具，用于追踪当前对话中要执行的步骤
+- `create_todo` 等是用户的待办事项工具，用于创建用户自己的待办清单"""
     
     # 5. 加载少量关键个人信息
     info_hint = ""

@@ -4,10 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251225_1712 development&#10;升级Agent中 - Phase 1 &amp; 2 已完成">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251225_1712 development&#10;升级Agent中 - Phase 3 &amp; 4 &amp; 5 已完成">
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/agent_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/tools/todo_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/tools/todo_tools.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/agent_service/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/urls.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/agent_service/views_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_api.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/static/css/agent-chat.css" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/css/agent-chat.css" afterDir="false" />
@@ -15,7 +15,6 @@
       <change beforePath="$PROJECT_DIR$/core/templates/home.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/home.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/记忆系统升级方案.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级与开发文档/记忆系统升级方案.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/staticfiles/home.html" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/home.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -129,7 +128,10 @@
 }]]></component>
   <component name="RecapSpentCounter">
     <option name="endsOfQuotaMs" value="1767852033417" />
-    <option name="spentUsd" value="0.38736767" />
+    <option name="spentUsd" value="0.40347093" />
+  </component>
+  <component name="RecapUselessUpdatesCounter">
+    <option name="suspendCountdown" value="2" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
@@ -346,7 +348,7 @@
       <workItem from="1766452527641" duration="18235000" />
       <workItem from="1766553512183" duration="4608000" />
       <workItem from="1766564142333" duration="167000" />
-      <workItem from="1766564339388" duration="15665000" />
+      <workItem from="1766564339388" duration="22556000" />
     </task>
     <task id="LOCAL-00001" summary="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
       <option name="closed" value="true" />
@@ -652,7 +654,15 @@
       <option name="project" value="LOCAL" />
       <updated>1766654092080</updated>
     </task>
-    <option name="localTasksCounter" value="39" />
+    <task id="LOCAL-00039" summary="UniSchedulerSuper 1.5.4.20251225_1712 development&#10;升级Agent中 - Phase 3 &amp; 4 &amp; 5 已完成">
+      <option name="closed" value="true" />
+      <created>1766682589508</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1766682589508</updated>
+    </task>
+    <option name="localTasksCounter" value="40" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -688,7 +698,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="UniSchedulerSuper 1.5.3.20251101_1501&#10;修复了月视图无法正常显示的问题&#10;优化日视图为两天制&#10;将提醒同步到了日历界面中" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20251101&#10;启用并升级了设置界面&#10;增加了退出登录、帮助功能" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20251103_0146&#10;启用并升级了设置界面&#10;增加了退出登录、帮助功能" />
     <MESSAGE value="UniSchedulerSuper 1.5.3.20251103_0253&#10;升级了深色模式和一堆创意色调模式" />
@@ -713,7 +722,8 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251224_0154 development" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251225_0105 development" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251225_1712 development&#10;升级Agent中 - Phase 1 &amp; 2 已完成" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20251225_1712 development&#10;升级Agent中 - Phase 1 &amp; 2 已完成" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20251225_1712 development&#10;升级Agent中 - Phase 3 &amp; 4 &amp; 5 已完成" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20251225_1712 development&#10;升级Agent中 - Phase 3 &amp; 4 &amp; 5 已完成" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

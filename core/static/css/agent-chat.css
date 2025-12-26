@@ -724,6 +724,83 @@
     transition: opacity 0.3s ease;
 }
 
+/* === TO DO 任务面板 === */
+.session-todo-panel {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
+    border-bottom: 2px solid #f0c36d;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.session-todo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background: rgba(255, 193, 7, 0.15);
+    border-bottom: 1px solid rgba(240, 195, 109, 0.5);
+}
+
+.session-todo-header .fw-bold {
+    color: #856404;
+    font-size: 0.85rem;
+}
+
+.session-todo-list {
+    padding: 8px 16px 12px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.todo-summary {
+    padding: 4px 0;
+}
+
+.todo-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.todo-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+
+.todo-item:hover {
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.todo-item .todo-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.todo-item .todo-title {
+    flex: 1;
+    color: #5a4a1a;
+}
+
+.todo-item.todo-done {
+    opacity: 0.6;
+}
+
+.todo-item.todo-done .todo-title {
+    text-decoration: line-through;
+    color: #856404;
+}
+
+.todo-item.todo-in-progress {
+    background: rgba(255, 193, 7, 0.2);
+    border-left: 3px solid #ffc107;
+}
+
 /* === 会话历史面板（上下分栏模式） === */
 .session-history-panel {
     background: var(--bg-secondary, #f8f9fa);
@@ -823,6 +900,39 @@
 }
 
 /* 深色主题 */
+[data-theme="dark"] .session-todo-panel {
+    background: linear-gradient(135deg, #3d3520 0%, #4a4025 100%);
+    border-bottom-color: #6a5a30;
+}
+
+[data-theme="dark"] .session-todo-header {
+    background: rgba(255, 193, 7, 0.1);
+}
+
+[data-theme="dark"] .session-todo-header .fw-bold {
+    color: #ffc107;
+}
+
+[data-theme="dark"] .todo-item {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .todo-item:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .todo-item .todo-title {
+    color: #ffe69c;
+}
+
+[data-theme="dark"] .todo-item.todo-done .todo-title {
+    color: #a89050;
+}
+
+[data-theme="dark"] .todo-item.todo-in-progress {
+    background: rgba(255, 193, 7, 0.15);
+}
+
 [data-theme="dark"] .session-history-panel {
     background: var(--bg-secondary);
 }

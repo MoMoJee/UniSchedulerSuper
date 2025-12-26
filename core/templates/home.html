@@ -803,6 +803,19 @@
             </div>
             
             <div class="panel-content scrollable-content agent-panel-content">
+                <!-- TO DO 面板（上方，有内容时显示） -->
+                <div class="session-todo-panel" id="sessionTodoPanel" style="display: none;">
+                    <div class="session-todo-header">
+                        <span class="fw-bold"><i class="fas fa-tasks me-2"></i>任务列表</span>
+                        <button class="btn btn-sm btn-link text-muted" id="closeTodoPanelBtn" title="收起">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </div>
+                    <div class="session-todo-list" id="sessionTodoList">
+                        <!-- JS 动态填充 -->
+                    </div>
+                </div>
+                
                 <!-- 会话历史面板（上方，默认隐藏） -->
                 <div class="session-history-panel" id="sessionHistoryPanel" style="display: none;">
                     <div class="session-history-header">
@@ -3101,14 +3114,6 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                             <label for="workflowRuleAction" class="form-label">执行动作</label>
                             <textarea class="form-control" id="workflowRuleAction" rows="2"
                                 placeholder="AI 应该执行的操作..." required></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="workflowRulePriority" class="form-label">优先级</label>
-                            <select class="form-select" id="workflowRulePriority">
-                                <option value="1">低</option>
-                                <option value="5" selected>中</option>
-                                <option value="10">高</option>
-                            </select>
                         </div>
                     </form>
                 </div>
@@ -5602,7 +5607,6 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
             document.getElementById('workflowRuleName').value = '';
             document.getElementById('workflowRuleTrigger').value = '';
             document.getElementById('workflowRuleAction').value = '';
-            document.getElementById('workflowRulePriority').value = '5';
             const modal = new bootstrap.Modal(document.getElementById('workflowRuleEditModal'));
             modal.show();
         }
@@ -5621,9 +5625,8 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                         document.getElementById('workflowRuleEditTitle').innerHTML = '<i class="fas fa-edit me-2"></i>编辑工作流规则';
                         document.getElementById('workflowRuleId').value = rule.id;
                         document.getElementById('workflowRuleName').value = rule.name;
-                        document.getElementById('workflowRuleTrigger').value = rule.trigger_condition;
-                        document.getElementById('workflowRuleAction').value = rule.action_description;
-                        document.getElementById('workflowRulePriority').value = rule.priority;
+                        document.getElementById('workflowRuleTrigger').value = rule.trigger;
+                        document.getElementById('workflowRuleAction').value = rule.steps;
                         const modal = new bootstrap.Modal(document.getElementById('workflowRuleEditModal'));
                         modal.show();
                     }
@@ -5638,12 +5641,11 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
             const id = document.getElementById('workflowRuleId').value;
             const data = {
                 name: document.getElementById('workflowRuleName').value.trim(),
-                trigger_condition: document.getElementById('workflowRuleTrigger').value.trim(),
-                action_description: document.getElementById('workflowRuleAction').value.trim(),
-                priority: parseInt(document.getElementById('workflowRulePriority').value)
+                trigger: document.getElementById('workflowRuleTrigger').value.trim(),
+                steps: document.getElementById('workflowRuleAction').value.trim()
             };
             
-            if (!data.name || !data.trigger_condition || !data.action_description) {
+            if (!data.name || !data.trigger || !data.steps) {
                 showToast('请填写完整信息', 'warning');
                 return;
             }

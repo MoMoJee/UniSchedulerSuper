@@ -51,6 +51,13 @@ class AgentChat {
         this.toolSelectBtn = document.getElementById('toolSelectBtn');
         this.toolSelectPanel = document.getElementById('toolSelectPanel');
         
+        // TO DO 面板元素
+        this.todoPanelElement = document.getElementById('sessionTodoPanel');
+        this.todoListElement = document.getElementById('sessionTodoList');
+        this.closeTodoPanelBtn = document.getElementById('closeTodoPanelBtn');
+        this.sessionTodos = [];  // 当前会话的 TO DO 列表
+        this.todoPanelCollapsed = false;  // TO DO 面板是否收起
+        
         // 消息计数（用于跟踪消息索引）
         this.messageCount = 0;
         
@@ -71,6 +78,23 @@ class AgentChat {
             'save_memory': '保存记忆',
             'search_memory': '搜索记忆',
             'get_recent_memories': '获取最近记忆',
+            // Memory V2
+            'save_personal_info': '保存个人信息',
+            'get_personal_info': '获取个人信息',
+            'update_personal_info': '更新个人信息',
+            'delete_personal_info': '删除个人信息',
+            'get_dialog_style': '获取对话风格',
+            'update_dialog_style': '更新对话风格',
+            'save_workflow_rule': '保存工作流规则',
+            'get_workflow_rules': '获取工作流规则',
+            'update_workflow_rule': '更新工作流规则',
+            'delete_workflow_rule': '删除工作流规则',
+            // Session TO DO (任务追踪)
+            'add_task': '添加任务',
+            'update_task_status': '更新任务状态',
+            'get_task_list': '获取任务列表',
+            'clear_completed_tasks': '清除已完成任务',
+            // MCP
             'amap_search': '搜索地点',
             'amap_weather': '查询天气',
             'amap_route': '规划路线'
@@ -82,17 +106,17 @@ class AgentChat {
     /**
      * 初始化
      */
-    init() {
+    async init() {
         // 生成或恢复会话ID
         this.sessionId = this.getOrCreateSessionId();
         
         // 绑定事件
         this.bindEvents();
         
-        // 加载可用工具列表
-        this.loadAvailableTools();
+        // 加载可用工具列表（必须等待完成，因为后续 WebSocket 连接需要工具列表）
+        await this.loadAvailableTools();
         
-        // 连接 WebSocket
+        // 连接 WebSocket（现在 activeTools 已经准备好了）
         this.connect();
         
         // 加载历史消息
@@ -103,6 +127,9 @@ class AgentChat {
         
         // 加载会话列表
         this.loadSessionList();
+        
+        // 加载当前会话的 TOD O 列表
+        this.loadSessionTodos();
     }
 
     /**
@@ -285,6 +312,14 @@ class AgentChat {
             });
         }
         
+        // TO DO 面板收起按钮
+        if (this.closeTodoPanelBtn) {
+            this.closeTodoPanelBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleTodoPanelCollapse();
+            });
+        }
+        
         // 点击外部关闭工具面板
         document.addEventListener('click', (e) => {
             if (this.toolPanelVisible && this.toolSelectPanel && 
@@ -462,6 +497,8 @@ class AgentChat {
                 
             case 'tool_result':
                 this.showToolResult(data.name || data.tool, data.result);
+                // 检查是否是 TO DO 相关工具，实时更新 TO DO 面板
+                this.updateTodoFromToolResult(data.name || data.tool, data.result);
                 break;
             
             case 'finished':
@@ -1132,6 +1169,9 @@ class AgentChat {
             return;
         }
         
+        // 先恢复 UI（取消变灰），这样优化提示框可以点击
+        this.hideSessionHistoryPanel();
+        
         // 如果当前会话有足够消息，提示是否优化记忆
         if (this.messageCount >= 4) {
             await this.showMemoryOptimizePrompt();
@@ -1142,9 +1182,6 @@ class AgentChat {
         
         // 保存新的会话ID
         this.saveSessionId(sessionId);
-        
-        // 关闭历史面板
-        this.hideSessionHistoryPanel();
         
         // 重置状态
         this.messageCount = 0;
@@ -1161,6 +1198,9 @@ class AgentChat {
         // 加载新会话历史
         await this.loadHistory();
         
+        // 加载新会话的 TO DO 列表
+        this.loadSessionTodos();
+        
         // 刷新会话列表
         this.loadSessionList();
         
@@ -1176,6 +1216,14 @@ class AgentChat {
             this.showNotification('当前会话还没有消息，无需新建', 'info');
             this.hideSessionHistoryPanel();
             return;
+        }
+        
+        // 先关闭历史面板，恢复 UI
+        this.hideSessionHistoryPanel();
+        
+        // 如果当前会话有足够消息，提示是否优化记忆
+        if (this.messageCount >= 4) {
+            await this.showMemoryOptimizePrompt();
         }
         
         // 弹出确认对话框：提示回滚功能将失效
@@ -1215,6 +1263,10 @@ class AgentChat {
                 
                 // 重新连接 WebSocket
                 this.reconnect();
+                
+                // 清空 TO DO 列表（新会话没有 TO DO）
+                this.sessionTodos = [];
+                this.renderTodoPanel();
                 
                 // 刷新会话列表
                 this.loadSessionList();
@@ -2105,6 +2157,115 @@ class AgentChat {
                 resolve(false);
             });
         });
+    }
+
+    // ==========================================
+    // TO DO 面板功能
+    // ==========================================
+
+    /**
+     * 加载当前会话的 TO DO 列表
+     */
+    async loadSessionTodos() {
+        try {
+            const response = await fetch(`/api/agent/session-todos/?session_id=${encodeURIComponent(this.sessionId)}`, {
+                headers: {
+                    'X-CSRFToken': this.csrfToken
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                this.sessionTodos = data.todos || [];
+                this.renderTodoPanel();
+                console.log('✅ 加载 TODO 列表:', this.sessionTodos.length, '项');
+            } else {
+                console.error('加载 TODO 列表失败:', response.status);
+            }
+        } catch (error) {
+            console.error('加载 TODO 列表失败:', error);
+        }
+    }
+
+    /**
+     * 渲染 TO DO 面板
+     */
+    renderTodoPanel() {
+        if (!this.todoPanelElement || !this.todoListElement) return;
+        
+        // 如果没有 TO DO，隐藏面板
+        if (!this.sessionTodos || this.sessionTodos.length === 0) {
+            this.todoPanelElement.style.display = 'none';
+            return;
+        }
+        
+        // 显示面板
+        this.todoPanelElement.style.display = 'block';
+        
+        // 如果面板收起状态，只显示摘要
+        if (this.todoPanelCollapsed) {
+            const pendingCount = this.sessionTodos.filter(t => t.status !== 'done').length;
+            const doneCount = this.sessionTodos.filter(t => t.status === 'done').length;
+            this.todoListElement.innerHTML = `
+                <div class="todo-summary text-muted">
+                    <small>${pendingCount} 项待完成，${doneCount} 项已完成</small>
+                </div>
+            `;
+            this.closeTodoPanelBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
+            return;
+        }
+        
+        // 展开状态，显示完整列表
+        this.closeTodoPanelBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+        
+        const statusIcons = {
+            'pending': '☐',
+            'in_progress': '⏳',
+            'done': '✅'
+        };
+        
+        const statusClasses = {
+            'pending': 'todo-pending',
+            'in_progress': 'todo-in-progress',
+            'done': 'todo-done'
+        };
+        
+        let html = '<div class="todo-items">';
+        this.sessionTodos.forEach((todo, index) => {
+            const icon = statusIcons[todo.status] || '?';
+            const statusClass = statusClasses[todo.status] || '';
+            html += `
+                <div class="todo-item ${statusClass}" data-todo-id="${todo.id}">
+                    <span class="todo-icon">${icon}</span>
+                    <span class="todo-title">${this.escapeHtml(todo.title)}</span>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        this.todoListElement.innerHTML = html;
+    }
+
+    /**
+     * 切换 TO DO 面板收起/展开
+     */
+    toggleTodoPanelCollapse() {
+        this.todoPanelCollapsed = !this.todoPanelCollapsed;
+        this.renderTodoPanel();
+    }
+
+    /**
+     * 更新任务追踪列表（当收到 WebSocket 消息时调用）
+     */
+    updateTodoFromToolResult(toolName, result) {
+        // 当检测到任务追踪相关工具被调用时，重新加载任务列表
+        const taskToolNames = ['add_task', 'update_task_status', 'clear_completed_tasks'];
+        if (taskToolNames.includes(toolName)) {
+            // 延迟一下确保后端已处理完成
+            setTimeout(() => {
+                this.loadSessionTodos();
+            }, 500);
+        }
     }
 }
 

@@ -41,9 +41,10 @@ def _format_todo_list(todos, highlight_id=None) -> str:
     
     status_icons = {'pending': '☐', 'in_progress': '⏳', 'done': '✅'}
     lines = []
-    for i, todo in enumerate(todos, 1):
+    for todo in todos:
         icon = status_icons.get(todo.status, '?')
-        line = f"{i}. {icon} {todo.title}"
+        # 显示实际的数据库 ID，而不是序号
+        line = f"#{todo.id}. {icon} {todo.title}"
         if todo.id == highlight_id:
             line += "  ← 刚更新"
         lines.append(line)
@@ -70,19 +71,22 @@ def _save_snapshot_if_needed(session, checkpoint_id: Optional[str] = None):
     return checkpoint_id
 
 
-@tool
-@agent_transaction(action_type="create_todo")
-def create_todo(title: str, description: str = "", config: RunnableConfig = None) -> str:
+@tool("add_task")
+@agent_transaction(action_type="add_task")
+def add_task(title: str, description: str = "", config: RunnableConfig = None) -> str:
     """
-    创建当前会话的 TODO 项。用于追踪多步骤任务的进度。
+    添加任务到当前会话的任务追踪列表。用于追踪复杂多步骤任务的执行进度。
+    
+    注意: 这是“任务追踪”功能，不是用户的“待办事项”。
+    如果用户让你创建待办事项，请使用 create_todo 工具。
     
     Args:
-        title: TODO 标题
+        title: 任务标题
         description: 可选，详细描述
     
     Examples:
-        - create_todo("查询明天的日程")
-        - create_todo("创建会议日程", "需要确认时间和地点")
+        - add_task("查询明天的日程")
+        - add_task("创建会议日程", "需要确认时间和地点")
     """
     session, user, error = _get_session_from_config(config)
     if error:
@@ -106,29 +110,29 @@ def create_todo(title: str, description: str = "", config: RunnableConfig = None
         )
         
         # 获取当前所有 TODO
-        all_todos = SessionTodoItem.objects.filter(session=session)
+        all_todos = SessionTodoItem.objects.filter(session=session).order_by('order', 'id')
         
-        result = f"✅ 已创建 TODO: {title}\n\n"
-        result += f"📋 当前任务列表:\n{_format_todo_list(all_todos, todo.id)}"
+        result = f"✅ 已创建任务 (ID={todo.id}): {title}\n\n"
+        result += f"📋 当前任务列表（使用 # 后的数字作为 task_id）:\n{_format_todo_list(all_todos, todo.id)}"
         
         return result
     except Exception as e:
         logger.exception(f"[TODO] 创建失败: {e}")
-        return f"❌ 创建 TODO 失败: {str(e)}"
+        return f"❌ 创建任务失败: {str(e)}"
 
 
-@tool
-@agent_transaction(action_type="update_todo_status")
-def update_todo_status(todo_id: int, new_status: str, config: RunnableConfig = None) -> str:
+@tool("update_task_status")
+@agent_transaction(action_type="update_task_status")
+def update_task_status(task_id: int, new_status: str, config: RunnableConfig = None) -> str:
     """
-    更新 TODO 状态。返回"之前→之后"对照，帮助追踪任务进度。
+    更新任务追踪列表中某项任务的状态。返回“之前→之后”对照，帮助追踪执行进度。
     
     Args:
-        todo_id: TODO 的 ID
+        task_id: 任务 ID
         new_status: 新状态，可选值: "pending"(待处理), "in_progress"(进行中), "done"(已完成)
     
     返回格式:
-        ✅ TODO #1 状态已更新
+        ✅ 任务 #1 状态已更新
         【之前】pending: 查询日程
         【之后】in_progress: 查询日程
         
@@ -146,9 +150,9 @@ def update_todo_status(todo_id: int, new_status: str, config: RunnableConfig = N
         return f"❌ 无效的状态值: {new_status}。可选值: {', '.join(valid_statuses)}"
     
     try:
-        todo = SessionTodoItem.objects.filter(id=todo_id, session=session).first()
+        todo = SessionTodoItem.objects.filter(id=task_id, session=session).first()
         if not todo:
-            return f"❌ 未找到 ID 为 {todo_id} 的 TODO"
+            return f"❌ 未找到 ID 为 {task_id} 的任务。请使用 get_task_list 工具查看当前任务列表，任务 ID 是 # 后面的数字。"
         
         # 保存快照
         checkpoint_id = config.get("configurable", {}).get("checkpoint_id")
@@ -164,7 +168,7 @@ def update_todo_status(todo_id: int, new_status: str, config: RunnableConfig = N
         # 获取当前所有 TODO
         all_todos = SessionTodoItem.objects.filter(session=session)
         
-        result = f"✅ TODO #{todo_id} 状态已更新\n"
+        result = f"✅ 任务 #{task_id} 状态已更新\n"
         result += f"【之前】{old_icon} {old_status}: {todo.title}\n"
         result += f"【之后】{new_icon} {new_status}: {todo.title}\n\n"
         result += f"📋 当前任务列表:\n{_format_todo_list(all_todos, todo.id)}"
@@ -172,20 +176,20 @@ def update_todo_status(todo_id: int, new_status: str, config: RunnableConfig = N
         return result
     except Exception as e:
         logger.exception(f"[TODO] 更新状态失败: {e}")
-        return f"❌ 更新 TODO 状态失败: {str(e)}"
+        return f"❌ 更新任务状态失败: {str(e)}"
 
 
-@tool
-def get_session_todos(config: RunnableConfig = None) -> str:
+@tool("get_task_list")
+def get_task_list(config: RunnableConfig = None) -> str:
     """
-    获取当前会话的所有 TODO。查看任务列表和进度。
+    获取当前会话的任务追踪列表。查看执行进度和剩余任务。
     """
     session, user, error = _get_session_from_config(config)
     if error:
         return error
     
     try:
-        todos = SessionTodoItem.objects.filter(session=session)
+        todos = SessionTodoItem.objects.filter(session=session).order_by('order', 'id')
         
         if not todos.exists():
             return "📋 当前会话暂无任务"
@@ -196,19 +200,20 @@ def get_session_todos(config: RunnableConfig = None) -> str:
         done_count = todos.filter(status='done').count()
         
         result = f"📋 当前任务列表 (待处理: {pending_count}, 进行中: {in_progress_count}, 已完成: {done_count}):\n"
+        result += "（使用 # 后的数字作为 task_id 来更新状态）\n"
         result += _format_todo_list(todos)
         
         return result
     except Exception as e:
         logger.exception(f"[TODO] 获取列表失败: {e}")
-        return f"❌ 获取 TODO 列表失败: {str(e)}"
+        return f"❌ 获取任务列表失败: {str(e)}"
 
 
-@tool
-@agent_transaction(action_type="clear_completed_todos")
-def clear_completed_todos(config: RunnableConfig = None) -> str:
+@tool("clear_completed_tasks")
+@agent_transaction(action_type="clear_completed_tasks")
+def clear_completed_tasks(config: RunnableConfig = None) -> str:
     """
-    清除已完成的 TODO。保留未完成的任务。
+    清除任务追踪列表中已完成的任务。保留未完成的任务。
     """
     session, user, error = _get_session_from_config(config)
     if error:
@@ -345,8 +350,8 @@ def get_todos_for_frontend(session_id: str) -> list:
 # ==========================================
 
 TODO_TOOLS = [
-    create_todo,
-    update_todo_status,
-    get_session_todos,
-    clear_completed_todos,
+    add_task,
+    update_task_status,
+    get_task_list,
+    clear_completed_tasks,
 ]
