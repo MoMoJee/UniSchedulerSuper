@@ -847,12 +847,60 @@
                     <!-- JS 动态填充 -->
                 </div>
                 
+                <!-- 已选附件预览 -->
+                <div class="selected-attachments" id="selectedAttachments" style="display: none;">
+                    <!-- 动态显示已选附件 -->
+                </div>
+                
                 <!-- 输入区域 -->
                 <div class="agent-input-area" id="agentInputArea">
+                    <!-- 附件选择面板 - 定位在输入区域上方 -->
+                    <div class="attachment-panel" id="attachmentPanel" style="display: none;">
+                        <div class="attachment-panel-header">
+                            <span id="attachmentPanelTitle"><i class="fas fa-paperclip me-1"></i>选择附件类型</span>
+                            <button class="btn btn-sm btn-link" id="closeAttachmentPanel">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="attachment-panel-body" id="attachmentPanelBody">
+                            <!-- 第一级：附件类型选择 -->
+                            <div class="attachment-type-list" id="attachmentTypeList">
+                                <div class="attachment-type-item" data-type="workflow">
+                                    <i class="fas fa-project-diagram"></i>
+                                    <span>工作流规则</span>
+                                    <i class="fas fa-chevron-right ms-auto"></i>
+                                </div>
+                                <div class="attachment-type-item disabled" data-type="image" title="即将支持">
+                                    <i class="fas fa-image"></i>
+                                    <span>图片</span>
+                                    <span class="badge bg-secondary ms-auto">即将支持</span>
+                                </div>
+                                <div class="attachment-type-item disabled" data-type="document" title="即将支持">
+                                    <i class="fas fa-file-alt"></i>
+                                    <span>文档</span>
+                                    <span class="badge bg-secondary ms-auto">即将支持</span>
+                                </div>
+                            </div>
+                            <!-- 第二级：具体内容选择 -->
+                            <div class="attachment-content-list" id="attachmentContentList" style="display: none;">
+                                <div class="attachment-back-btn" id="attachmentBackBtn">
+                                    <i class="fas fa-arrow-left me-2"></i>返回
+                                </div>
+                                <div class="attachment-content-items" id="attachmentContentItems">
+                                    <!-- 动态加载 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="input-wrapper">
                         <button class="btn btn-outline-secondary tool-select-btn" id="toolSelectBtn" title="选择工具">
                             <i class="fas fa-tools"></i>
                             <span class="tool-badge" style="display: none;">0</span>
+                        </button>
+                        <button class="btn btn-outline-secondary attachment-btn" id="attachmentBtn" title="添加附件">
+                            <i class="fas fa-paperclip"></i>
+                            <span class="attachment-badge" style="display: none;">0</span>
                         </button>
                         <textarea class="form-control" id="agentInput" 
                             placeholder="输入消息，按 Enter 发送..." 

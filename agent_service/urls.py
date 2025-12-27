@@ -58,4 +58,8 @@ urlpatterns = [
     path('memory/workflow-rules/<int:pk>/', views_memory_api.update_workflow_rule, name='update_workflow_rule'),
     path('memory/workflow-rules/<int:pk>/delete/', views_memory_api.delete_workflow_rule, name='delete_workflow_rule'),
     path('memory/workflow-rules/<int:pk>/toggle/', views_memory_api.toggle_workflow_rule, name='toggle_workflow_rule'),
+    
+    # 附件系统
+    path('attachments/', views_api.get_attachable_items, name='get_attachable_items'),
+    path('attachments/format/', views_api.format_attachment_content, name='format_attachment_content'),
 ]

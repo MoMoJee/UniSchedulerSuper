@@ -51,6 +51,21 @@ class AgentChat {
         this.toolSelectBtn = document.getElementById('toolSelectBtn');
         this.toolSelectPanel = document.getElementById('toolSelectPanel');
         
+        // 附件系统元素
+        this.attachmentBtn = document.getElementById('attachmentBtn');
+        this.attachmentPanel = document.getElementById('attachmentPanel');
+        this.attachmentPanelBody = document.getElementById('attachmentPanelBody');
+        this.attachmentTypeList = document.getElementById('attachmentTypeList');
+        this.attachmentContentList = document.getElementById('attachmentContentList');
+        this.attachmentContentItems = document.getElementById('attachmentContentItems');
+        this.attachmentBackBtn = document.getElementById('attachmentBackBtn');
+        this.attachmentPanelTitle = document.getElementById('attachmentPanelTitle');
+        this.selectedAttachmentsContainer = document.getElementById('selectedAttachments');
+        this.closeAttachmentPanelBtn = document.getElementById('closeAttachmentPanel');
+        this.selectedAttachments = [];  // 已选择的附件列表（单选，最多一个）
+        this.attachmentPanelVisible = false;
+        this.currentAttachmentType = null;  // 当前选择的附件类型
+        
         // TO DO 面板元素
         this.todoPanelElement = document.getElementById('sessionTodoPanel');
         this.todoListElement = document.getElementById('sessionTodoList');
@@ -322,6 +337,33 @@ class AgentChat {
             });
         }
         
+        // 附件按钮
+        if (this.attachmentBtn) {
+            this.attachmentBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleAttachmentPanel();
+            });
+        }
+        
+        // 关闭附件面板
+        if (this.closeAttachmentPanelBtn) {
+            this.closeAttachmentPanelBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.hideAttachmentPanel();
+            });
+        }
+        
+        // 附件返回按钮
+        if (this.attachmentBackBtn) {
+            this.attachmentBackBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.showAttachmentTypeList();
+            });
+        }
+        
+        // 附件类型选择
+        this.bindAttachmentTypeEvents();
+        
         // TO DO 面板收起按钮
         if (this.closeTodoPanelBtn) {
             this.closeTodoPanelBtn.addEventListener('click', (e) => {
@@ -330,12 +372,17 @@ class AgentChat {
             });
         }
         
-        // 点击外部关闭工具面板
+        // 点击外部关闭工具面板和附件面板
         document.addEventListener('click', (e) => {
             if (this.toolPanelVisible && this.toolSelectPanel && 
                 !this.toolSelectPanel.contains(e.target) && 
                 !this.toolSelectBtn.contains(e.target)) {
                 this.hideToolPanel();
+            }
+            if (this.attachmentPanelVisible && this.attachmentPanel &&
+                !this.attachmentPanel.contains(e.target) &&
+                !this.attachmentBtn.contains(e.target)) {
+                this.hideAttachmentPanel();
             }
         });
     }
@@ -569,7 +616,7 @@ class AgentChat {
     /**
      * 发送消息
      */
-    sendMessage() {
+    async sendMessage() {
         const message = this.inputField.value.trim();
         if (!message || !this.isConnected || this.isProcessing) return;
         
@@ -582,9 +629,21 @@ class AgentChat {
         const welcome = this.messagesContainer.querySelector('.agent-welcome');
         if (welcome) welcome.style.display = 'none';
         
+        // 获取附件内容（如果有）
+        let fullMessage = message;
+        if (this.selectedAttachments.length > 0) {
+            const attachmentContent = await this.getFormattedAttachmentContent();
+            if (attachmentContent) {
+                fullMessage = `${attachmentContent}\n\n${message}`;
+            }
+            // 清空已选附件
+            this.clearSelectedAttachments();
+        }
+        
         // 添加用户消息（带消息索引 - 这是后端 LangGraph 中的索引）
         // messageCount 在发送前表示后端消息列表的当前长度，也就是新消息的索引
         const currentIndex = this.messageCount;
+        // 显示给用户的是原始消息，但发送的包含附件
         this.addMessage(message, 'user', {}, currentIndex);
         // 注意: 不在这里增加 messageCount，等 'finished' 事件从服务器同步
         // 但为了回滚功能，需要临时增加1表示用户消息已发送
@@ -600,7 +659,7 @@ class AgentChat {
         // 发送到 WebSocket
         this.socket.send(JSON.stringify({
             type: 'message',
-            content: message
+            content: fullMessage
         }));
         
         // 更新会话最后消息预览
@@ -2275,6 +2334,337 @@ class AgentChat {
             setTimeout(() => {
                 this.loadSessionTodos();
             }, 500);
+        }
+    }
+
+    // ==========================================
+    // 附件系统
+    // ==========================================
+
+    /**
+     * 绑定附件类型选择事件
+     */
+    bindAttachmentTypeEvents() {
+        if (this.attachmentTypeList) {
+            this.attachmentTypeList.querySelectorAll('.attachment-type-item:not(.disabled)').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const type = item.dataset.type;
+                    this.selectAttachmentType(type);
+                });
+            });
+        }
+    }
+
+    /**
+     * 切换附件面板显示
+     */
+    toggleAttachmentPanel() {
+        if (this.attachmentPanelVisible) {
+            this.hideAttachmentPanel();
+        } else {
+            this.showAttachmentPanel();
+        }
+    }
+
+    /**
+     * 显示附件面板（显示类型选择列表）
+     */
+    showAttachmentPanel() {
+        if (this.attachmentPanel) {
+            // 重置到类型选择视图
+            this.showAttachmentTypeList();
+            
+            this.attachmentPanel.style.display = 'block';
+            this.attachmentPanelVisible = true;
+            if (this.attachmentBtn) {
+                this.attachmentBtn.classList.add('active');
+            }
+            
+            // 添加禁用效果类到父容器
+            const panelContent = document.querySelector('.agent-panel-content');
+            if (panelContent) {
+                panelContent.classList.add('attachment-mode');
+            }
+        }
+    }
+
+    /**
+     * 隐藏附件面板
+     */
+    hideAttachmentPanel() {
+        if (this.attachmentPanel) {
+            this.attachmentPanel.style.display = 'none';
+            this.attachmentPanelVisible = false;
+            if (this.attachmentBtn) {
+                this.attachmentBtn.classList.remove('active');
+            }
+            
+            // 移除禁用效果类
+            const panelContent = document.querySelector('.agent-panel-content');
+            if (panelContent) {
+                panelContent.classList.remove('attachment-mode');
+            }
+        }
+    }
+
+    /**
+     * 显示附件类型列表（第一级）
+     */
+    showAttachmentTypeList() {
+        if (this.attachmentTypeList) {
+            this.attachmentTypeList.style.display = 'block';
+        }
+        if (this.attachmentContentList) {
+            this.attachmentContentList.style.display = 'none';
+        }
+        if (this.attachmentPanelTitle) {
+            this.attachmentPanelTitle.innerHTML = '<i class="fas fa-paperclip me-1"></i>选择附件类型';
+        }
+        this.currentAttachmentType = null;
+    }
+
+    /**
+     * 选择附件类型，显示内容列表（第二级）
+     */
+    async selectAttachmentType(type) {
+        this.currentAttachmentType = type;
+        
+        // 更新标题
+        const typeLabels = {
+            'workflow': '工作流规则'
+        };
+        if (this.attachmentPanelTitle) {
+            this.attachmentPanelTitle.innerHTML = `<i class="fas fa-project-diagram me-1"></i>${typeLabels[type] || type}`;
+        }
+        
+        // 切换视图
+        if (this.attachmentTypeList) {
+            this.attachmentTypeList.style.display = 'none';
+        }
+        if (this.attachmentContentList) {
+            this.attachmentContentList.style.display = 'block';
+        }
+        
+        // 加载该类型的内容
+        await this.loadAttachmentContent(type);
+    }
+
+    /**
+     * 加载指定类型的附件内容
+     */
+    async loadAttachmentContent(type) {
+        if (!this.attachmentContentItems) return;
+        
+        // 显示加载中
+        this.attachmentContentItems.innerHTML = `
+            <div class="text-center py-3">
+                <i class="fas fa-spinner fa-spin"></i> 加载中...
+            </div>
+        `;
+        
+        try {
+            const response = await fetch(`/api/agent/attachments/?type=${type}`, {
+                headers: { 'X-CSRFToken': this.csrfToken }
+            });
+            
+            if (!response.ok) {
+                throw new Error('加载失败');
+            }
+            
+            const data = await response.json();
+            this.renderAttachmentContentList(data.items);
+        } catch (error) {
+            console.error('加载附件内容失败:', error);
+            this.attachmentContentItems.innerHTML = `
+                <div class="attachment-empty">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>加载失败</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * 渲染附件内容列表（单选模式）
+     */
+    renderAttachmentContentList(items) {
+        if (!this.attachmentContentItems) return;
+        
+        if (!items || items.length === 0) {
+            this.attachmentContentItems.innerHTML = `
+                <div class="attachment-empty">
+                    <i class="fas fa-folder-open"></i>
+                    <p>暂无可用内容</p>
+                    <small class="text-muted">在"记忆设置"中添加工作流规则</small>
+                </div>
+            `;
+            return;
+        }
+
+        // 检查当前是否有选中项
+        const selectedItem = this.selectedAttachments.length > 0 ? this.selectedAttachments[0] : null;
+        
+        let html = '';
+        items.forEach(item => {
+            const isSelected = selectedItem && 
+                               selectedItem.type === item.type && 
+                               selectedItem.id === item.id;
+            const isDisabled = selectedItem && !isSelected;
+            
+            html += `
+                <div class="attachment-item ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}" 
+                     data-type="${item.type}" 
+                     data-id="${item.id}"
+                     data-name="${this.escapeHtml(item.name)}">
+                    <input type="checkbox" class="attachment-item-checkbox" 
+                           ${isSelected ? 'checked' : ''} 
+                           ${isDisabled ? 'disabled' : ''}>
+                    <div class="attachment-item-content">
+                        <div class="attachment-item-name">${this.escapeHtml(item.name)}</div>
+                        <div class="attachment-item-preview">${this.escapeHtml(item.preview)}</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        this.attachmentContentItems.innerHTML = html;
+
+        // 绑定点击事件
+        this.attachmentContentItems.querySelectorAll('.attachment-item:not(.disabled)').forEach(el => {
+            el.addEventListener('click', () => {
+                const type = el.dataset.type;
+                const id = parseInt(el.dataset.id);
+                const name = el.dataset.name;
+                this.toggleAttachmentSingle(type, id, name);
+            });
+        });
+    }
+
+    /**
+     * 切换附件选择状态（单选模式）
+     */
+    toggleAttachmentSingle(type, id, name) {
+        const isCurrentlySelected = this.selectedAttachments.length > 0 &&
+                                     this.selectedAttachments[0].type === type &&
+                                     this.selectedAttachments[0].id === id;
+
+        if (isCurrentlySelected) {
+            // 取消选择
+            this.selectedAttachments = [];
+        } else {
+            // 选择新项（替换旧项）
+            this.selectedAttachments = [{ type, id, name }];
+        }
+
+        this.updateAttachmentBadge();
+        this.renderSelectedAttachments();
+        
+        // 重新渲染列表以更新禁用状态
+        this.loadAttachmentContent(this.currentAttachmentType);
+    }
+
+    /**
+     * 更新附件按钮徽章
+     */
+    updateAttachmentBadge() {
+        const badge = this.attachmentBtn?.querySelector('.attachment-badge');
+        if (badge) {
+            const count = this.selectedAttachments.length;
+            badge.textContent = count;
+            badge.style.display = count > 0 ? 'block' : 'none';
+        }
+    }
+
+    /**
+     * 渲染已选附件预览
+     */
+    renderSelectedAttachments() {
+        if (!this.selectedAttachmentsContainer) return;
+
+        if (this.selectedAttachments.length === 0) {
+            this.selectedAttachmentsContainer.style.display = 'none';
+            return;
+        }
+
+        this.selectedAttachmentsContainer.style.display = 'flex';
+        
+        const typeIcons = {
+            'workflow': 'fa-project-diagram'
+        };
+
+        this.selectedAttachmentsContainer.innerHTML = this.selectedAttachments.map(att => `
+            <span class="selected-attachment-tag" data-type="${att.type}" data-id="${att.id}">
+                <i class="fas ${typeIcons[att.type] || 'fa-file'}"></i>
+                ${this.escapeHtml(att.name)}
+                <i class="fas fa-times remove-attachment"></i>
+            </span>
+        `).join('');
+
+        // 绑定移除事件
+        this.selectedAttachmentsContainer.querySelectorAll('.remove-attachment').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const tag = btn.closest('.selected-attachment-tag');
+                const type = tag.dataset.type;
+                const id = parseInt(tag.dataset.id);
+                this.removeAttachment(type, id);
+            });
+        });
+    }
+
+    /**
+     * 移除附件
+     */
+    removeAttachment(type, id) {
+        this.selectedAttachments = [];
+        this.updateAttachmentBadge();
+        this.renderSelectedAttachments();
+        
+        // 如果面板打开，重新渲染内容列表
+        if (this.attachmentPanelVisible && this.currentAttachmentType) {
+            this.loadAttachmentContent(this.currentAttachmentType);
+        }
+    }
+
+    /**
+     * 清空已选附件
+     */
+    clearSelectedAttachments() {
+        this.selectedAttachments = [];
+        this.updateAttachmentBadge();
+        this.renderSelectedAttachments();
+    }
+
+    /**
+     * 获取附件格式化内容（发送消息时调用）
+     */
+    async getFormattedAttachmentContent() {
+        if (this.selectedAttachments.length === 0) {
+            return '';
+        }
+
+        try {
+            const response = await fetch('/api/agent/attachments/format/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.csrfToken
+                },
+                body: JSON.stringify({
+                    attachments: this.selectedAttachments
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('格式化附件失败');
+            }
+
+            const data = await response.json();
+            return data.formatted_content;
+        } catch (error) {
+            console.error('获取附件内容失败:', error);
+            return '';
         }
     }
 }

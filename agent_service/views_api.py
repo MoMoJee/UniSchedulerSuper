@@ -1158,3 +1158,134 @@ def get_session_todos(request):
     except Exception as e:
         logger.exception(f"获取 TODO 列表失败: {e}")
         return Response({"error": f"获取 TODO 列表失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ==========================================
+# 附件系统 API
+# ==========================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_attachable_items(request):
+    """
+    获取可用于附件的资源列表
+    
+    GET /api/agent/attachments/
+    
+    Query Parameters:
+        type: 资源类型 (可选，不传则返回所有类型)
+              - workflow: 工作流规则
+              - (未来扩展: file, image 等)
+    
+    Response:
+    {
+        "items": [
+            {
+                "type": "workflow",
+                "id": 1,
+                "name": "创建日程流程",
+                "preview": "当用户要求创建日程时...",
+                "metadata": {...}
+            }
+        ],
+        "types": ["workflow"]  // 当前支持的附件类型
+    }
+    """
+    from agent_service.models import WorkflowRule
+    
+    user = request.user
+    resource_type = request.query_params.get('type', None)
+    
+    items = []
+    available_types = ['workflow']  # 当前支持的类型
+    
+    # 工作流规则
+    if resource_type is None or resource_type == 'workflow':
+        workflows = WorkflowRule.objects.filter(user=user, is_active=True).order_by('name')
+        for wf in workflows:
+            items.append({
+                "type": "workflow",
+                "id": wf.id,
+                "name": wf.name,
+                "preview": wf.trigger[:50] + "..." if len(wf.trigger) > 50 else wf.trigger,
+                "metadata": {
+                    "trigger": wf.trigger,
+                    "steps": wf.steps,
+                    "created_at": wf.created_at.isoformat(),
+                    "updated_at": wf.updated_at.isoformat()
+                }
+            })
+    
+    # 未来可扩展其他类型
+    # if resource_type is None or resource_type == 'file':
+    #     files = UserFile.objects.filter(user=user)
+    #     for f in files:
+    #         items.append({...})
+    
+    return Response({
+        "items": items,
+        "types": available_types
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def format_attachment_content(request):
+    """
+    格式化附件内容用于发送到 Agent
+    
+    POST /api/agent/attachments/format/
+    
+    Body:
+    {
+        "attachments": [
+            {"type": "workflow", "id": 1},
+            {"type": "workflow", "id": 2}
+        ]
+    }
+    
+    Response:
+    {
+        "formatted_content": "【附件：工作流规则】\n1. 创建日程流程\n触发条件: ...\n执行步骤: ...\n\n",
+        "count": 2
+    }
+    """
+    from agent_service.models import WorkflowRule
+    
+    user = request.user
+    attachments = request.data.get('attachments', [])
+    
+    if not attachments:
+        return Response({"formatted_content": "", "count": 0})
+    
+    formatted_parts = []
+    count = 0
+    
+    # 按类型分组处理
+    workflows = []
+    
+    for att in attachments:
+        att_type = att.get('type')
+        att_id = att.get('id')
+        
+        if att_type == 'workflow':
+            try:
+                wf = WorkflowRule.objects.get(id=att_id, user=user)
+                workflows.append(wf)
+                count += 1
+            except WorkflowRule.DoesNotExist:
+                continue
+    
+    # 格式化工作流规则
+    if workflows:
+        wf_content = "【附件：工作流规则】\n请参考以下工作流规则执行任务：\n\n"
+        for i, wf in enumerate(workflows, 1):
+            wf_content += f"### {i}. {wf.name}\n"
+            wf_content += f"**触发条件**: {wf.trigger}\n"
+            wf_content += f"**执行步骤**: {wf.steps}\n\n"
+        formatted_parts.append(wf_content)
+    
+    return Response({
+        "formatted_content": "\n".join(formatted_parts),
+        "count": count
+    })

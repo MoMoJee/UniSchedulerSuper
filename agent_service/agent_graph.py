@@ -198,7 +198,7 @@ def build_system_prompt(user, active_tool_names: List[str], current_time: str) -
     if any(t in active_tool_names for t in MEMORY_TOOLS.keys()):
         capabilities.append("- 记忆管理: 保存用户个人信息、偏好、工作流规则")
     if any(t in active_tool_names for t in TODO_TOOLS_MAP.keys()):
-        capabilities.append("- 任务追踪: 创建和管理会话级 TODO 列表")
+        capabilities.append("- 任务追踪: 创建和管理会话级任务列表")
     if any(t in active_tool_names for t in MCP_TOOLS.keys()):
         capabilities.append("- 地图服务: 查询地点、规划路线、周边搜索")
     

@@ -803,6 +803,19 @@
             </div>
             
             <div class="panel-content scrollable-content agent-panel-content">
+                <!-- TO DO 面板（上方，有内容时显示） -->
+                <div class="session-todo-panel" id="sessionTodoPanel" style="display: none;">
+                    <div class="session-todo-header">
+                        <span class="fw-bold"><i class="fas fa-tasks me-2"></i>任务列表</span>
+                        <button class="btn btn-sm btn-link text-muted" id="closeTodoPanelBtn" title="收起">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </div>
+                    <div class="session-todo-list" id="sessionTodoList">
+                        <!-- JS 动态填充 -->
+                    </div>
+                </div>
+                
                 <!-- 会话历史面板（上方，默认隐藏） -->
                 <div class="session-history-panel" id="sessionHistoryPanel" style="display: none;">
                     <div class="session-history-header">
@@ -828,10 +841,41 @@
                         <span class="typing-text">Agent 正在思考...</span>
                     </div>
                 </div>
+
+                <!-- 工具选择面板 -->
+                <div class="tool-select-panel" id="toolSelectPanel">
+                    <!-- JS 动态填充 -->
+                </div>
+                
+                <!-- 附件选择面板 -->
+                <div class="attachment-panel" id="attachmentPanel" style="display: none;">
+                    <div class="attachment-panel-header">
+                        <span><i class="fas fa-paperclip me-1"></i>选择附件</span>
+                        <button class="btn btn-sm btn-link" id="closeAttachmentPanel">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="attachment-panel-body" id="attachmentPanelBody">
+                        <!-- 动态加载附件列表 -->
+                    </div>
+                </div>
+                
+                <!-- 已选附件预览 -->
+                <div class="selected-attachments" id="selectedAttachments" style="display: none;">
+                    <!-- 动态显示已选附件 -->
+                </div>
                 
                 <!-- 输入区域 -->
                 <div class="agent-input-area" id="agentInputArea">
                     <div class="input-wrapper">
+                        <button class="btn btn-outline-secondary tool-select-btn" id="toolSelectBtn" title="选择工具">
+                            <i class="fas fa-tools"></i>
+                            <span class="tool-badge" style="display: none;">0</span>
+                        </button>
+                        <button class="btn btn-outline-secondary attachment-btn" id="attachmentBtn" title="添加附件">
+                            <i class="fas fa-paperclip"></i>
+                            <span class="attachment-badge" style="display: none;">0</span>
+                        </button>
                         <textarea class="form-control" id="agentInput" 
                             placeholder="输入消息，按 Enter 发送..." 
                             rows="1"></textarea>
@@ -2744,6 +2788,11 @@
                                                 <textarea class="form-control" id="dialogStyleCustomInstructions" rows="3"
                                                     placeholder="例如：回答时多使用表情符号，或者总是用列表格式..."></textarea>
                                             </div>
+                                            <div class="col-md-6">
+                                                <label for="memoryBatchSize" class="form-label">记忆优化批次大小</label>
+                                                <input type="number" class="form-control" id="memoryBatchSize" value="20" min="5" max="100" step="5">
+                                                <div class="form-text">每次优化处理的消息数量 (5-100)</div>
+                                            </div>
                                             <div class="col-12">
                                                 <div class="d-flex gap-2">
                                                     <button type="button" class="btn btn-primary" onclick="saveDialogStyle()">
@@ -3087,14 +3136,6 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                             <label for="workflowRuleAction" class="form-label">执行动作</label>
                             <textarea class="form-control" id="workflowRuleAction" rows="2"
                                 placeholder="AI 应该执行的操作..." required></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="workflowRulePriority" class="form-label">优先级</label>
-                            <select class="form-select" id="workflowRulePriority">
-                                <option value="1">低</option>
-                                <option value="5" selected>中</option>
-                                <option value="10">高</option>
-                            </select>
                         </div>
                     </form>
                 </div>
@@ -5393,6 +5434,9 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                     updateSelectOptions('dialogStyleLanguage', data.language_choices, data.language);
                     
                     document.getElementById('dialogStyleCustomInstructions').value = data.custom_instructions || '';
+                    if (data.memory_batch_size) {
+                        document.getElementById('memoryBatchSize').value = data.memory_batch_size;
+                    }
                 }
             } catch (error) {
                 console.error('加载对话风格失败:', error);
@@ -5470,7 +5514,8 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                 tone: document.getElementById('dialogStyleTone').value,
                 verbosity: document.getElementById('dialogStyleVerbosity').value,
                 language: document.getElementById('dialogStyleLanguage').value,
-                custom_instructions: document.getElementById('dialogStyleCustomInstructions').value
+                custom_instructions: document.getElementById('dialogStyleCustomInstructions').value,
+                memory_batch_size: document.getElementById('memoryBatchSize').value
             };
             
             try {
@@ -5584,7 +5629,6 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
             document.getElementById('workflowRuleName').value = '';
             document.getElementById('workflowRuleTrigger').value = '';
             document.getElementById('workflowRuleAction').value = '';
-            document.getElementById('workflowRulePriority').value = '5';
             const modal = new bootstrap.Modal(document.getElementById('workflowRuleEditModal'));
             modal.show();
         }
@@ -5603,9 +5647,8 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                         document.getElementById('workflowRuleEditTitle').innerHTML = '<i class="fas fa-edit me-2"></i>编辑工作流规则';
                         document.getElementById('workflowRuleId').value = rule.id;
                         document.getElementById('workflowRuleName').value = rule.name;
-                        document.getElementById('workflowRuleTrigger').value = rule.trigger_condition;
-                        document.getElementById('workflowRuleAction').value = rule.action_description;
-                        document.getElementById('workflowRulePriority').value = rule.priority;
+                        document.getElementById('workflowRuleTrigger').value = rule.trigger;
+                        document.getElementById('workflowRuleAction').value = rule.steps;
                         const modal = new bootstrap.Modal(document.getElementById('workflowRuleEditModal'));
                         modal.show();
                     }
@@ -5620,12 +5663,11 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
             const id = document.getElementById('workflowRuleId').value;
             const data = {
                 name: document.getElementById('workflowRuleName').value.trim(),
-                trigger_condition: document.getElementById('workflowRuleTrigger').value.trim(),
-                action_description: document.getElementById('workflowRuleAction').value.trim(),
-                priority: parseInt(document.getElementById('workflowRulePriority').value)
+                trigger: document.getElementById('workflowRuleTrigger').value.trim(),
+                steps: document.getElementById('workflowRuleAction').value.trim()
             };
             
-            if (!data.name || !data.trigger_condition || !data.action_description) {
+            if (!data.name || !data.trigger || !data.steps) {
                 showToast('请填写完整信息', 'warning');
                 return;
             }

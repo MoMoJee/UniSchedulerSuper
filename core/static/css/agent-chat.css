@@ -1614,3 +1614,279 @@
     display: flex;
     gap: 8px;
 }
+
+/* ==========================================
+   附件系统样式
+   ========================================== */
+
+/* 附件按钮 */
+.attachment-btn {
+    position: relative;
+    padding: 6px 10px;
+    border-radius: 8px;
+}
+
+.attachment-btn .attachment-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #198754;
+    color: white;
+    font-size: 10px;
+    min-width: 16px;
+    height: 16px;
+    line-height: 16px;
+    text-align: center;
+    border-radius: 8px;
+    padding: 0 4px;
+}
+
+.attachment-btn.active {
+    background: #198754;
+    color: white;
+    border-color: #198754;
+}
+
+/* 附件面板 - 定位在输入区域上方 */
+.attachment-panel {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    margin-bottom: 8px;
+    background: var(--bg-primary, #ffffff);
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 12px;
+    max-height: 280px;
+    overflow: hidden;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+    z-index: 1010;
+}
+
+/* 输入区域容器需要相对定位 */
+.agent-input-area {
+    position: relative;
+}
+
+/* 附件面板打开时的遮罩效果 */
+.agent-panel-content.attachment-mode .agent-chat-container,
+.agent-panel-content.attachment-mode .session-todo-panel,
+.agent-panel-content.attachment-mode .session-history-panel,
+.agent-panel-content.attachment-mode .tool-select-panel {
+    opacity: 0.3;
+    pointer-events: none;
+    filter: grayscale(30%);
+    transition: opacity 0.2s, filter 0.2s;
+}
+
+.attachment-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color, #dee2e6);
+    font-weight: 500;
+    font-size: 0.9rem;
+    background: var(--bg-secondary, #f8f9fa);
+}
+
+.attachment-panel-body {
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+/* 附件类型列表（第一级） */
+.attachment-type-list {
+    padding: 8px;
+}
+
+.attachment-type-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 0.9rem;
+}
+
+.attachment-type-item:hover:not(.disabled) {
+    background: var(--bg-hover, rgba(0,0,0,0.05));
+}
+
+.attachment-type-item i:first-child {
+    font-size: 1.1rem;
+    width: 24px;
+    text-align: center;
+    color: #0d6efd;
+}
+
+.attachment-type-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.attachment-type-item.disabled i:first-child {
+    color: var(--text-secondary, #6c757d);
+}
+
+/* 附件内容列表（第二级） */
+.attachment-content-list {
+    padding: 0;
+}
+
+.attachment-back-btn {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    background: var(--bg-secondary, #f8f9fa);
+    border-bottom: 1px solid var(--border-color, #dee2e6);
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #0d6efd;
+    transition: background 0.2s;
+}
+
+.attachment-back-btn:hover {
+    background: var(--bg-hover, #e9ecef);
+}
+
+.attachment-content-items {
+    padding: 8px;
+    max-height: 160px;
+    overflow-y: auto;
+}
+
+/* 附件项（工作流规则等） */
+.attachment-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.attachment-item:hover:not(.disabled) {
+    background: var(--bg-hover, rgba(0,0,0,0.05));
+}
+
+.attachment-item.selected {
+    background: rgba(25, 135, 84, 0.1);
+    border-color: rgba(25, 135, 84, 0.3);
+}
+
+.attachment-item.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.attachment-item-checkbox {
+    margin-top: 3px;
+    accent-color: #198754;
+}
+
+.attachment-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.attachment-item-name {
+    font-weight: 500;
+    font-size: 0.9rem;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.attachment-item-preview {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #6c757d);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 已选附件预览区 */
+.selected-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px;
+    background: var(--bg-secondary, #f8f9fa);
+    border-radius: 8px;
+    margin: 0 8px 8px 8px;
+}
+
+.selected-attachment-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(25, 135, 84, 0.15);
+    color: #198754;
+    border-radius: 16px;
+    font-size: 0.8rem;
+}
+
+.selected-attachment-tag .remove-attachment {
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.selected-attachment-tag .remove-attachment:hover {
+    opacity: 1;
+}
+
+/* 空状态 */
+.attachment-empty {
+    text-align: center;
+    padding: 24px 16px;
+    color: var(--text-secondary, #6c757d);
+}
+
+.attachment-empty i {
+    font-size: 2rem;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}
+
+.attachment-empty p {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+/* 暗色主题 */
+[data-theme="dark"] .attachment-panel {
+    background: var(--bg-primary, #1e1e1e);
+    border-color: var(--border-color, #404040);
+}
+
+[data-theme="dark"] .attachment-panel-header,
+[data-theme="dark"] .attachment-back-btn {
+    background: var(--bg-secondary, #2d2d2d);
+}
+
+[data-theme="dark"] .attachment-type-item:hover:not(.disabled),
+[data-theme="dark"] .attachment-item:hover:not(.disabled),
+[data-theme="dark"] .attachment-back-btn:hover {
+    background: var(--bg-tertiary, #3d3d3d);
+}
+
+[data-theme="dark"] .attachment-item.selected {
+    background: rgba(25, 135, 84, 0.2);
+    border-color: rgba(25, 135, 84, 0.4);
+}
+
+[data-theme="dark"] .selected-attachments {
+    background: var(--bg-secondary, #2d2d2d);
+}
+
+[data-theme="dark"] .selected-attachment-tag {
+    background: rgba(25, 135, 84, 0.25);
+}
