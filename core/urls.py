@@ -4,6 +4,7 @@ from . import views_events
 from . import views_token
 from . import views_share_groups
 from . import views_rollback
+from . import views_import_events
 
 urlpatterns = [
     path('', views.index, name='index'),
@@ -54,6 +55,14 @@ urlpatterns = [
     path("get_calendar/outport_calendar/", views.outport_calendar, name="outport_calendar"),
     path("get_calendar/check_modified_events", views.check_modified_events, name="check_modified_events"),
     path('api/events/bulk-edit/', views_events.bulk_edit_events_impl, name='bulk_edit_events'),
+    
+    # ===== 课表导入 API =====
+    path('api/import/semesters/', views_import_events.get_semesters, name='get_semesters'),
+    path('api/import/fetch/', views_import_events.fetch_courses, name='fetch_courses'),
+    path('api/import/confirm/', views_import_events.confirm_import, name='confirm_import'),
+    # 兼容旧接口
+    path('api/import/fetch-courses/', views_import_events.fetch_and_parse_courses, name='fetch_courses_legacy'),
+    path('api/import/confirm-courses/', views_import_events.confirm_import_courses, name='confirm_import_courses_legacy'),
     
     # Agent Rollback API
     path('api/agent/rollback/', views_rollback.rollback_transaction_impl, name='rollback_transaction'),

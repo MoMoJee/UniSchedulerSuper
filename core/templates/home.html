@@ -640,6 +640,9 @@
                     <button class="btn btn-outline-success btn-sm me-2" onclick="groupManager.showManageGroupsModal()">
                         <i class="fas fa-layer-group me-1"></i>管理日程组
                     </button>
+                    <button class="btn btn-outline-info btn-sm me-2" onclick="courseImporter.showModal()">
+                        <i class="fas fa-file-import me-1"></i>导入课表
+                    </button>
                     <div class="btn-group" role="group">
                         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="eventManager.calendar.today()">今天</button>
                         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="eventManager.calendar.prev()">
@@ -2331,6 +2334,235 @@
             </div>
         </div>
     </div>
+
+    <!-- 导入课表模态框（单窗口多步骤设计） -->
+    <div class="modal fade" id="importCoursesModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-file-import me-2"></i>导入课表
+                        <small class="text-muted ms-2" id="importStepIndicator">步骤 1/4</small>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Step 1: 输入 Cookie -->
+                    <div id="importStep1" class="import-step">
+                        <div class="alert alert-info mb-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            从教务系统导入课表，需要提供登录 Cookie。
+                        </div>
+                        <div class="mb-3">
+                            <label for="importCookie" class="form-label">教务系统 Cookie <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="importCookie" rows="3" placeholder="请粘贴从浏览器复制的 Cookie..."></textarea>
+                            <div class="form-text">
+                                <a href="#" onclick="courseImporter.toggleCookieHelp(); return false;">
+                                    <i class="fas fa-question-circle me-1"></i>如何获取 Cookie？
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- Cookie 帮助面板（默认隐藏） -->
+                        <div id="cookieHelpPanel" class="card bg-light mb-3" style="display: none;">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-question-circle me-2"></i>如何获取 Cookie</h6>
+                                <ol class="mb-0 small">
+                                    <li class="mb-1">打开浏览器，登录教务系统 (<code>jwxs.muc.edu.cn</code>)</li>
+                                    <li class="mb-1">按 <kbd>F12</kbd> 打开开发者工具</li>
+                                    <li class="mb-1">切换到 <strong>Network（网络）</strong> 标签页</li>
+                                    <li class="mb-1">刷新页面或点击任意链接</li>
+                                    <li class="mb-1">在请求列表中点击任意一个请求</li>
+                                    <li class="mb-1">在右侧找到 <strong>Request Headers（请求标头）</strong></li>
+                                    <li class="mb-1">找到 <strong>Cookie</strong> 字段，复制其全部内容</li>
+                                </ol>
+                                <div class="alert alert-warning mt-2 mb-0 py-2 small">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    Cookie 包含您的登录凭证，请勿分享给他人。
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end">
+                            <button class="btn btn-primary" onclick="courseImporter.validateCookie()">
+                                <i class="fas fa-arrow-right me-1"></i>下一步
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 2: 选择导入模式 -->
+                    <div id="importStep2" class="import-step" style="display: none;">
+                        <div class="mb-4">
+                            <h6 class="mb-3"><i class="fas fa-calendar-alt me-2"></i>选择导入方式</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="card h-100 import-mode-card" onclick="courseImporter.selectMode('current')" id="modeCurrentCard">
+                                        <div class="card-body text-center py-4">
+                                            <i class="fas fa-calendar-day fa-3x text-primary mb-3"></i>
+                                            <h5 class="card-title">导入本学期课表</h5>
+                                            <p class="card-text text-muted small">快速导入当前学期的所有课程</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card h-100 import-mode-card" onclick="courseImporter.selectMode('history')" id="modeHistoryCard">
+                                        <div class="card-body text-center py-4">
+                                            <i class="fas fa-history fa-3x text-secondary mb-3"></i>
+                                            <h5 class="card-title">导入历年课表</h5>
+                                            <p class="card-text text-muted small">选择特定学期的课程导入</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 历年课表：学期选择（仅在选择历年模式时显示） -->
+                        <div id="semesterSelectPanel" class="mb-3" style="display: none;">
+                            <h6 class="mb-2"><i class="fas fa-list me-2"></i>选择学期</h6>
+                            <div id="semesterList" class="list-group">
+                                <!-- 动态生成学期列表 -->
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <button class="btn btn-outline-secondary" onclick="courseImporter.goToStep(1)">
+                                <i class="fas fa-arrow-left me-1"></i>上一步
+                            </button>
+                            <button class="btn btn-primary" id="fetchCoursesBtn" onclick="courseImporter.fetchCourses()" disabled>
+                                <i class="fas fa-download me-1"></i>获取课表
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 3: 预览并选择课程 -->
+                    <div id="importStep3" class="import-step" style="display: none;">
+                        <div class="alert alert-success mb-3">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <span id="importSummary">成功获取课表</span>
+                        </div>
+                        
+                        <!-- 课程列表 -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label mb-0">选择要导入的课程：</label>
+                                <div>
+                                    <button class="btn btn-outline-secondary btn-sm me-1" onclick="courseImporter.selectAll()">全选</button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="courseImporter.deselectAll()">全不选</button>
+                                </div>
+                            </div>
+                            <div id="courseList" class="course-list" style="max-height: 280px; overflow-y: auto;">
+                                <!-- 动态生成课程列表 -->
+                            </div>
+                        </div>
+                        
+                        <!-- 日程组选择 -->
+                        <div class="mb-3">
+                            <label for="importGroupId" class="form-label">目标日程组 <span class="text-danger">*</span></label>
+                            <div class="d-flex gap-2">
+                                <select class="form-select" id="importGroupId" style="flex: 1;">
+                                    <!-- 动态加载日程组 -->
+                                </select>
+                                <button class="btn btn-outline-success" onclick="courseImporter.toggleCreateGroupPanel()" title="新建日程组">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 新建日程组面板（默认隐藏） -->
+                        <div id="importCreateGroupPanel" class="card bg-light mb-3" style="display: none;">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-folder-plus me-2"></i>新建日程组</h6>
+                                <div class="row g-2">
+                                    <div class="col-md-8">
+                                        <input type="text" class="form-control form-control-sm" id="importNewGroupName" placeholder="日程组名称">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="d-flex gap-2">
+                                            <input type="color" class="form-control form-control-color form-control-sm" id="importNewGroupColor" value="#3788d8">
+                                            <button class="btn btn-sm btn-success" onclick="courseImporter.createGroup()">创建</button>
+                                            <button class="btn btn-sm btn-outline-secondary" onclick="courseImporter.toggleCreateGroupPanel()">取消</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <button class="btn btn-outline-secondary" onclick="courseImporter.goToStep(2)">
+                                <i class="fas fa-arrow-left me-1"></i>上一步
+                            </button>
+                            <button class="btn btn-primary" onclick="courseImporter.confirmImport()">
+                                <i class="fas fa-check me-1"></i>导入选中课程 (<span id="selectedCourseCount">0</span>)
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 4: 导入完成 -->
+                    <div id="importStep4" class="import-step" style="display: none;">
+                        <div class="text-center py-4">
+                            <div class="mb-3">
+                                <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                            </div>
+                            <h5 id="importResultTitle">导入完成</h5>
+                            <p id="importResultMessage" class="text-muted">成功导入 X 门课程</p>
+                            <div class="d-flex justify-content-center gap-2">
+                                <button class="btn btn-outline-secondary" onclick="courseImporter.goToStep(2)">
+                                    <i class="fas fa-redo me-1"></i>继续导入
+                                </button>
+                                <button class="btn btn-primary" data-bs-dismiss="modal">
+                                    <i class="fas fa-check me-1"></i>完成
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 加载状态 -->
+                    <div id="importLoading" class="import-step" style="display: none;">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary mb-3" role="status">
+                                <span class="visually-hidden">加载中...</span>
+                            </div>
+                            <p id="importLoadingText">正在获取课表...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 导入课表样式 -->
+    <style>
+        .import-mode-card {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+        .import-mode-card:hover {
+            border-color: var(--bs-primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .import-mode-card.selected {
+            border-color: var(--bs-primary);
+            background-color: rgba(var(--bs-primary-rgb), 0.05);
+        }
+        .semester-item {
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .semester-item:hover {
+            background-color: rgba(var(--bs-primary-rgb), 0.1);
+        }
+        .semester-item.selected {
+            background-color: var(--bs-primary);
+            color: white;
+            border-color: var(--bs-primary);
+        }
+        .semester-item.selected .badge {
+            background-color: white !important;
+            color: var(--bs-primary) !important;
+        }
+    </style>
 
     <!-- 日程组管理模态框 -->
     <!-- 日程组管理模态框（单模态框，多面板设计） -->
@@ -5772,6 +6004,402 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
             div.textContent = str;
             return div.innerHTML;
         }
+        
+        // ==========================================
+        // 课程导入器（升级版 - 支持学期选择）
+        // ==========================================
+        const courseImporter = {
+            modal: null,
+            courses: [],           // 获取到的课程列表
+            semesters: [],         // 可用学期列表
+            selectedMode: null,    // 'current' 或 'history'
+            selectedSemester: null, // 选中的学期代码
+            currentSemester: null,  // 当前学期代码
+            cookie: '',            // 保存的 Cookie
+            
+            init() {
+                this.modal = new bootstrap.Modal(document.getElementById('importCoursesModal'));
+                
+                // 监听模态框关闭事件，重置状态
+                document.getElementById('importCoursesModal').addEventListener('hidden.bs.modal', () => {
+                    this.reset();
+                });
+            },
+            
+            showModal() {
+                this.loadEventGroups();
+                this.modal.show();
+            },
+            
+            reset() {
+                this.courses = [];
+                this.selectedMode = null;
+                this.selectedSemester = null;
+                document.getElementById('importCookie').value = '';
+                document.getElementById('cookieHelpPanel').style.display = 'none';
+                document.getElementById('semesterSelectPanel').style.display = 'none';
+                document.getElementById('fetchCoursesBtn').disabled = true;
+                document.querySelectorAll('.import-mode-card').forEach(c => c.classList.remove('selected'));
+                this.goToStep(1);
+            },
+            
+            goToStep(step) {
+                // 隐藏所有步骤
+                document.querySelectorAll('.import-step').forEach(el => el.style.display = 'none');
+                // 显示目标步骤
+                const stepEl = document.getElementById(`importStep${step}`);
+                if (stepEl) {
+                    stepEl.style.display = 'block';
+                }
+                // 更新步骤指示器
+                document.getElementById('importStepIndicator').textContent = `步骤 ${step}/4`;
+            },
+            
+            showLoading(text = '加载中...') {
+                document.querySelectorAll('.import-step').forEach(el => el.style.display = 'none');
+                document.getElementById('importLoadingText').textContent = text;
+                document.getElementById('importLoading').style.display = 'block';
+                document.getElementById('importStepIndicator').textContent = '';
+            },
+            
+            hideLoading() {
+                document.getElementById('importLoading').style.display = 'none';
+            },
+            
+            toggleCookieHelp() {
+                const panel = document.getElementById('cookieHelpPanel');
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            },
+            
+            // Step 1: 验证 Cookie 并进入下一步
+            async validateCookie() {
+                const cookie = document.getElementById('importCookie').value.trim();
+                
+                if (!cookie) {
+                    showToast('请输入教务系统 Cookie', 'warning');
+                    return;
+                }
+                
+                this.cookie = cookie;
+                
+                // 加载学期列表
+                this.showLoading('正在验证 Cookie...');
+                
+                try {
+                    const response = await fetch('/api/import/semesters/', {
+                        method: 'GET',
+                        headers: {
+                            'X-CSRFToken': window.CSRF_TOKEN
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        this.semesters = data.semesters;
+                        this.currentSemester = data.current_semester;
+                        this.renderSemesterList();
+                        this.goToStep(2);
+                    } else {
+                        showToast(data.message || '获取学期列表失败', 'danger');
+                        this.goToStep(1);
+                    }
+                } catch (error) {
+                    console.error('获取学期列表失败:', error);
+                    showToast('网络错误，请重试', 'danger');
+                    this.goToStep(1);
+                }
+            },
+            
+            // 渲染学期列表
+            renderSemesterList() {
+                const container = document.getElementById('semesterList');
+                container.innerHTML = '';
+                
+                this.semesters.forEach(semester => {
+                    const item = document.createElement('a');
+                    item.href = '#';
+                    item.className = 'list-group-item list-group-item-action semester-item d-flex justify-content-between align-items-center';
+                    item.dataset.code = semester.code;
+                    item.innerHTML = `
+                        <span>${escapeHtml(semester.name)}</span>
+                        ${semester.current ? '<span class="badge bg-primary">当前</span>' : ''}
+                    `;
+                    item.onclick = (e) => {
+                        e.preventDefault();
+                        this.selectSemester(semester.code);
+                    };
+                    container.appendChild(item);
+                });
+            },
+            
+            // 选择导入模式
+            selectMode(mode) {
+                this.selectedMode = mode;
+                
+                // 更新卡片选中状态
+                document.querySelectorAll('.import-mode-card').forEach(c => c.classList.remove('selected'));
+                document.getElementById(`mode${mode === 'current' ? 'Current' : 'History'}Card`).classList.add('selected');
+                
+                // 根据模式处理
+                if (mode === 'current') {
+                    // 本学期：隐藏学期选择，直接使用当前学期
+                    document.getElementById('semesterSelectPanel').style.display = 'none';
+                    this.selectedSemester = this.currentSemester;
+                    document.getElementById('fetchCoursesBtn').disabled = false;
+                } else {
+                    // 历年课表：显示学期选择
+                    document.getElementById('semesterSelectPanel').style.display = 'block';
+                    this.selectedSemester = null;
+                    document.getElementById('fetchCoursesBtn').disabled = true;
+                    
+                    // 清除之前的选择
+                    document.querySelectorAll('.semester-item').forEach(item => item.classList.remove('selected'));
+                }
+            },
+            
+            // 选择学期
+            selectSemester(code) {
+                this.selectedSemester = code;
+                
+                // 更新选中状态
+                document.querySelectorAll('.semester-item').forEach(item => {
+                    item.classList.toggle('selected', item.dataset.code === code);
+                });
+                
+                // 启用获取按钮
+                document.getElementById('fetchCoursesBtn').disabled = false;
+            },
+            
+            // 获取课程
+            async fetchCourses() {
+                if (!this.selectedSemester) {
+                    showToast('请选择学期', 'warning');
+                    return;
+                }
+                
+                this.showLoading('正在获取课表...');
+                
+                try {
+                    const response = await fetch('/api/import/fetch/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': window.CSRF_TOKEN
+                        },
+                        body: JSON.stringify({
+                            cookie: this.cookie,
+                            semester: this.selectedSemester
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        this.courses = data.courses;
+                        this.renderCourseList();
+                        document.getElementById('importSummary').textContent = 
+                            `${data.semester.name} - 共 ${data.total_courses} 门课程`;
+                        this.goToStep(3);
+                    } else {
+                        showToast(data.message || '获取课表失败', 'danger');
+                        this.goToStep(2);
+                    }
+                } catch (error) {
+                    console.error('获取课表失败:', error);
+                    showToast('网络错误，请重试', 'danger');
+                    this.goToStep(2);
+                }
+            },
+            
+            async loadEventGroups() {
+                try {
+                    const groups = groupManager.groups || [];
+                    const select = document.getElementById('importGroupId');
+                    select.innerHTML = '<option value="">-- 请选择日程组 --</option>';
+                    
+                    groups.forEach(group => {
+                        const option = document.createElement('option');
+                        option.value = group.id;
+                        option.textContent = group.name;
+                        option.style.borderLeft = `4px solid ${group.color}`;
+                        select.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error('加载日程组失败:', error);
+                }
+            },
+            
+            renderCourseList() {
+                const container = document.getElementById('courseList');
+                container.innerHTML = '';
+                
+                this.courses.forEach((course, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'course-item card mb-2';
+                    item.innerHTML = `
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex align-items-start">
+                                <div class="form-check me-2">
+                                    <input class="form-check-input course-checkbox" type="checkbox" 
+                                        id="course-${index}" data-index="${index}" 
+                                        ${course.selected ? 'checked' : ''}
+                                        onchange="courseImporter.updateSelectedCount()">
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold">${escapeHtml(course.name)}</div>
+                                    <div class="small text-muted">
+                                        <span class="me-2"><i class="fas fa-clock me-1"></i>${escapeHtml(course.weekday_name)} ${course.time_slot}</span>
+                                        ${course.location ? `<span class="me-2"><i class="fas fa-map-marker-alt me-1"></i>${escapeHtml(course.location)}</span>` : ''}
+                                    </div>
+                                    <div class="small">
+                                        ${course.teacher ? `<span class="text-muted me-2"><i class="fas fa-user me-1"></i>${escapeHtml(course.teacher)}</span>` : ''}
+                                        <span class="text-primary"><i class="fas fa-sync-alt me-1"></i>${escapeHtml(course.rrule_text)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+                
+                this.updateSelectedCount();
+            },
+            
+            updateSelectedCount() {
+                const checkboxes = document.querySelectorAll('.course-checkbox:checked');
+                document.getElementById('selectedCourseCount').textContent = checkboxes.length;
+            },
+            
+            selectAll() {
+                document.querySelectorAll('.course-checkbox').forEach(cb => cb.checked = true);
+                this.updateSelectedCount();
+            },
+            
+            deselectAll() {
+                document.querySelectorAll('.course-checkbox').forEach(cb => cb.checked = false);
+                this.updateSelectedCount();
+            },
+            
+            toggleCreateGroupPanel() {
+                const panel = document.getElementById('importCreateGroupPanel');
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+                if (panel.style.display === 'none') {
+                    document.getElementById('importNewGroupName').value = '';
+                }
+            },
+            
+            async createGroup() {
+                const name = document.getElementById('importNewGroupName').value.trim();
+                const color = document.getElementById('importNewGroupColor').value;
+                
+                if (!name) {
+                    showToast('请输入日程组名称', 'warning');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/get_calendar/create_events_group/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': window.CSRF_TOKEN
+                        },
+                        body: JSON.stringify({ name, color, description: '' })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.status === 'success' || data.group) {
+                        showToast('日程组创建成功', 'success');
+                        
+                        await groupManager.reloadGroups();
+                        await this.loadEventGroups();
+                        
+                        const newGroupId = data.group?.id || data.id;
+                        if (newGroupId) {
+                            document.getElementById('importGroupId').value = newGroupId;
+                        }
+                        
+                        this.toggleCreateGroupPanel();
+                    } else {
+                        showToast(data.message || '创建失败', 'danger');
+                    }
+                } catch (error) {
+                    console.error('创建日程组失败:', error);
+                    showToast('创建失败', 'danger');
+                }
+            },
+            
+            async confirmImport() {
+                const groupId = document.getElementById('importGroupId').value;
+                
+                if (!groupId) {
+                    showToast('请选择目标日程组', 'warning');
+                    return;
+                }
+                
+                // 收集选中的课程
+                const selectedCourses = [];
+                document.querySelectorAll('.course-checkbox:checked').forEach(cb => {
+                    const index = parseInt(cb.dataset.index);
+                    const course = this.courses[index];
+                    selectedCourses.push({
+                        name: course.name,
+                        first_start: course.first_start,
+                        first_end: course.first_end,
+                        description: course.description,
+                        rrule: course.rrule,
+                        groupID: groupId,
+                        importance: '',
+                        urgency: ''
+                    });
+                });
+                
+                if (selectedCourses.length === 0) {
+                    showToast('请至少选择一门课程', 'warning');
+                    return;
+                }
+                
+                this.showLoading(`正在导入 ${selectedCourses.length} 门课程...`);
+                
+                try {
+                    const response = await fetch('/api/import/confirm/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': window.CSRF_TOKEN
+                        },
+                        body: JSON.stringify({ courses: selectedCourses })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        document.getElementById('importResultTitle').textContent = '导入完成！';
+                        document.getElementById('importResultMessage').textContent = data.message;
+                        this.goToStep(4);
+                        
+                        // 刷新日历
+                        if (typeof eventManager !== 'undefined' && eventManager.loadEvents) {
+                            eventManager.loadEvents();
+                        }
+                    } else {
+                        showToast(data.message || '导入失败', 'danger');
+                        this.goToStep(3);
+                    }
+                } catch (error) {
+                    console.error('导入失败:', error);
+                    showToast('网络错误，请重试', 'danger');
+                    this.goToStep(3);
+                }
+            }
+        };
+        
+        // 初始化课程导入器
+        document.addEventListener('DOMContentLoaded', function() {
+            courseImporter.init();
+        });
         
     </script>
 </body>
