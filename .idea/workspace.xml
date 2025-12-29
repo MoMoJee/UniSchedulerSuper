@@ -4,17 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251227_0045 development  &#10;增加数据库超时配置及WAL模式，优化并发性能，修复手动写TODO时的数据库锁定问题&#10;添加 `ddl` 参数支持到事件接口，修复创建日程时缺少 ddl 的报错">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.2025129_1907 development&#10;暂时搁置Planner工具的优化，因为还得先优化屎山一样的日程存储结构">
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/scratch_响应.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/教务系统Index.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/agent_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/urls.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/views_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_api.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/static/css/agent-chat.css" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/css/agent-chat.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/static/js/agent-chat.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/agent-chat.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/templates/home.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/home.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/urls.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/views_import_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_import_events.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/staticfiles/home.html" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/home.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -25,13 +23,14 @@
     <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="464" />
+    <option name="cachedIndexableFilesCount" value="467" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
         <option value="Python Script" />
+        <option value="HTML File" />
       </list>
     </option>
   </component>
@@ -79,6 +78,7 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
+    "DefaultHtmlFileTemplate": "HTML File",
     "Django 服务器.UniSchedulerSuper.executor": "Run",
     "Django 服务器.局域网.executor": "Run",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
@@ -115,7 +115,7 @@
     "git-widget-placeholder": "development__new",
     "ignore.virus.scanning.warn.message": "true",
     "junie.onboarding.icon.badge.shown": "true",
-    "last_opened_file_path": "D:/PROJECTS/UniSchedulerSuper/staticfiles",
+    "last_opened_file_path": "D:/PROJECTS/UniSchedulerSuper/core",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -124,6 +124,11 @@
     "settings.editor.selected.configurable": "preferences.language.and.region",
     "to.speed.mode.migration.done": "true",
     "vue.rearranger.settings.migration": "true"
+  },
+  "keyToStringList": {
+    "com.intellij.ide.scratch.ScratchImplUtil$2/新建临时文件": [
+      "JSON"
+    ]
   }
 }]]></component>
   <component name="RecapSpentCounter">
@@ -135,6 +140,7 @@
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="D:\PROJECTS\UniSchedulerSuper\core" />
       <recent name="D:\PROJECTS\UniSchedulerSuper\staticfiles" />
       <recent name="D:\PROJECTS\UniSchedulerSuper\staticfiles\js" />
       <recent name="D:\PROJECTS\UniSchedulerSuper\core\templates" />
@@ -348,7 +354,7 @@
       <workItem from="1766452527641" duration="18235000" />
       <workItem from="1766553512183" duration="4608000" />
       <workItem from="1766564142333" duration="167000" />
-      <workItem from="1766564339388" duration="38674000" />
+      <workItem from="1766564339388" duration="53092000" />
     </task>
     <task id="LOCAL-00001" summary="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
       <option name="closed" value="true" />
@@ -686,7 +692,23 @@
       <option name="project" value="LOCAL" />
       <updated>1766767629478</updated>
     </task>
-    <option name="localTasksCounter" value="43" />
+    <task id="LOCAL-00043" summary="UniSchedulerSuper 1.5.4.2025128_0027 development&#10;&#10;增加附件系统接口与前端支持，包括获取附件列表、格式化附件内容的后端逻辑，以及前端附件面板与交互功能。当前支持将保存的工作流文本作为附件发送">
+      <option name="closed" value="true" />
+      <created>1766852833043</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1766852833043</updated>
+    </task>
+    <task id="LOCAL-00044" summary="UniSchedulerSuper 1.5.4.2025129_1907 development&#10;暂时搁置Planner工具的优化，因为还得先优化屎山一样的日程存储结构">
+      <option name="closed" value="true" />
+      <created>1767006491484</created>
+      <option name="number" value="00044" />
+      <option name="presentableId" value="LOCAL-00044" />
+      <option name="project" value="LOCAL" />
+      <updated>1767006491484</updated>
+    </task>
+    <option name="localTasksCounter" value="45" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -722,10 +744,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="UniSchedulerSuper 1.5.4&#10;&#10;本次更新相较于 1.5.3 版本，有：&#10;已完成 Events 相关的所有功能的升级和已知的所有问题修复&#10;新增设置界面，提供大量自定义选项&#10;日历界面的筛选功能&#10;提供多种新的主题&#10;新增日历界面触屏滑动支持&#10;修改自动ddl的默认值为False" />
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20251106  development&#10;&#10;修复了 views 硬编码导致的新用户默认设置中 auto_ddl 参数被改为 true 而非 models 中定义的 false 的问题&#10;UI 优化&#10;升级了待办事项的筛选器" />
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20251107_2144  development&#10;&#10;新增 TODO 的维度视图功能&#10;新增黑金和白金配色，优化浅色主题的配色&#10;UI 优化" />
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20251107_2256  development&#10;&#10;文档优化&#10;创建 url 说明文档" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251109_0233  development&#10;&#10;新增 API 与 Token 登录功能 (beta)" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251109_2214  development&#10;&#10;新增了一些 API 示例" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251109_2247  development&#10;&#10;修复了 user_setting 在使用 API 装饰器后无法 POST 的问题，报错详情：&#10;[09/Nov/2025 22:31:58] &quot;POST /get_calendar/change_view/ HTTP/1.1&quot; 200 66&#10;Internal Server Error: /get_calendar/user_settings/&#10;&#10;看这一行：&#10;data = json.loads(request.body)&#10;在 DRF 的 `@api_view` 中，应该使用 `request.data`，而不是 `request.body`&#10;&#10;当使用 DRF 的装饰器时：&#10;- `request.data` - DRF 已经解析好的数据&#10;- `request.body` - 原始请求体（stream），**读取后会被消耗**&#10;&#10;问题是：**DRF 的 `SessionAuthentication` 在验证 CSRF 时会读取 `request.body`，导致它被消耗。然后再次尝试读取 `request.body` 时就会失败！**&#10;&#10;同时顺手把还存在相同问题的 import_event， 尽管这个暂时没什么用到" />
@@ -747,7 +765,11 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251226_1813 development  &#10;添加会话隔离逻辑，修复了切换用户时会话 ID 不隔离的错误&#10;添加用户验证以避免错误会话，优化会话安全性" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251226_1813 development  &#10;" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251227_0045 development  &#10;增加数据库超时配置及WAL模式，优化并发性能，修复手动写TODO时的数据库锁定问题&#10;添加 `ddl` 参数支持到事件接口，修复创建日程时缺少 ddl 的报错" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20251227_0045 development  &#10;增加数据库超时配置及WAL模式，优化并发性能，修复手动写TODO时的数据库锁定问题&#10;添加 `ddl` 参数支持到事件接口，修复创建日程时缺少 ddl 的报错" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20251227_0045 development  &#10;" />
+    <MESSAGE value="添加附件系统接口文档，扩展前端和后端支持" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.2025128_0027 development&#10;&#10;增加附件系统接口与前端支持，包括获取附件列表、格式化附件内容的后端逻辑，以及前端附件面板与交互功能。当前支持将保存的工作流文本作为附件发送" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.2025129_1907 development&#10;暂时搁置Planner工具的优化，因为还得先优化屎山一样的日程存储结构" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.2025129_1907 development&#10;暂时搁置Planner工具的优化，因为还得先优化屎山一样的日程存储结构" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
