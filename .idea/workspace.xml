@@ -6,8 +6,15 @@
   <component name="ChangeListManager">
     <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;增加（升级）课表导入功能，包括后端API设计与实现、RRule规则推断、课程数据解析逻辑及完整的前端交互界面 (支持Cookie输入、课程预览、日程组选择与批量导入)。">
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/views_import_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_import_events.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/agent_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/tools/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/tools/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/views_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_api.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/services/event_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/services/event_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/services/reminder_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/services/reminder_service.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/Planner工具优化方案.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级与开发文档/Planner工具优化方案.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -70,62 +77,62 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
-    "DefaultHtmlFileTemplate": "HTML File",
-    "Django 服务器.UniSchedulerSuper.executor": "Run",
-    "Django 服务器.局域网.executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found": "找到数据库连接形参",
-    "Notification.DoNotAsk-DatabaseConfigFileWatcher.found": "true",
-    "Python.111 (1).executor": "Run",
-    "Python.111.executor": "Run",
-    "Python.UniSchedulerSuper.executor": "Run",
-    "Python.code_line_counter.executor": "Run",
-    "Python.example_reminders_api.executor": "Run",
-    "Python.graph.executor": "Run",
-    "Python.mcp_server.executor": "Run",
-    "Python.mcp_tools.executor": "Run",
-    "Python.raw_http_dump_middleware.executor": "Run",
-    "Python.test_browser_session.executor": "Run",
-    "Python.test_event_operations.executor": "Run",
-    "Python.test_exception_debug.executor": "Run",
-    "Python.test_reminder_operations.executor": "Run",
-    "Python.test_rrule_system.executor": "Run",
-    "Python.test_token_auth.executor": "Run",
-    "Python.test_validator_schema_standalone.executor": "Run",
-    "Python.tools.executor": "Run",
-    "Python.views.executor": "Run",
-    "RunOnceActivity.MCP Project settings loaded": "true",
-    "RunOnceActivity.OpenDjangoStructureViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.pycharm.django.structure.promotion.once.per.project": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "ai.playground.ignore.import.keys.banner.in.settings": "true",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "development__new",
-    "ignore.virus.scanning.warn.message": "true",
-    "junie.onboarding.icon.badge.shown": "true",
-    "last_opened_file_path": "D:/PROJECTS/UniSchedulerSuper/core",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "preferences.language.and.region",
-    "to.speed.mode.migration.done": "true",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_MARK_IGNORED_FILES_AS_EXCLUDED&quot;: &quot;true&quot;,
+    &quot;DefaultHtmlFileTemplate&quot;: &quot;HTML File&quot;,
+    &quot;Django 服务器.UniSchedulerSuper.executor&quot;: &quot;Run&quot;,
+    &quot;Django 服务器.局域网.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;找到数据库连接形参&quot;,
+    &quot;Notification.DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;true&quot;,
+    &quot;Python.111 (1).executor&quot;: &quot;Run&quot;,
+    &quot;Python.111.executor&quot;: &quot;Run&quot;,
+    &quot;Python.UniSchedulerSuper.executor&quot;: &quot;Run&quot;,
+    &quot;Python.code_line_counter.executor&quot;: &quot;Run&quot;,
+    &quot;Python.example_reminders_api.executor&quot;: &quot;Run&quot;,
+    &quot;Python.graph.executor&quot;: &quot;Run&quot;,
+    &quot;Python.mcp_server.executor&quot;: &quot;Run&quot;,
+    &quot;Python.mcp_tools.executor&quot;: &quot;Run&quot;,
+    &quot;Python.raw_http_dump_middleware.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_browser_session.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_event_operations.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_exception_debug.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_reminder_operations.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_rrule_system.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_token_auth.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_validator_schema_standalone.executor&quot;: &quot;Run&quot;,
+    &quot;Python.tools.executor&quot;: &quot;Run&quot;,
+    &quot;Python.views.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.OpenDjangoStructureViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.pycharm.django.structure.promotion.once.per.project&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;ai.playground.ignore.import.keys.banner.in.settings&quot;: &quot;true&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;development__new&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/PROJECTS/UniSchedulerSuper/core&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.language.and.region&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
-  "keyToStringList": {
-    "com.intellij.ide.scratch.ScratchImplUtil$2/新建临时文件": [
-      "JSON"
+  &quot;keyToStringList&quot;: {
+    &quot;com.intellij.ide.scratch.ScratchImplUtil$2/新建临时文件&quot;: [
+      &quot;JSON&quot;
     ]
   }
-}]]></component>
+}</component>
   <component name="RecapSpentCounter">
     <option name="endsOfQuotaMs" value="1767852033417" />
     <option name="spentUsd" value="0.43666548" />
@@ -349,7 +356,7 @@
       <workItem from="1766452527641" duration="18235000" />
       <workItem from="1766553512183" duration="4608000" />
       <workItem from="1766564142333" duration="167000" />
-      <workItem from="1766564339388" duration="58968000" />
+      <workItem from="1766564339388" duration="66487000" />
     </task>
     <task id="LOCAL-00001" summary="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
       <option name="closed" value="true" />
@@ -711,7 +718,15 @@
       <option name="project" value="LOCAL" />
       <updated>1767029612355</updated>
     </task>
-    <option name="localTasksCounter" value="46" />
+    <task id="LOCAL-00046" summary="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;增加（升级）课表导入功能，包括后端API设计与实现、RRule规则推断、课程数据解析逻辑及完整的前端交互界面 (支持Cookie输入、课程预览、日程组选择与批量导入)。">
+      <option name="closed" value="true" />
+      <created>1767110255947</created>
+      <option name="number" value="00046" />
+      <option name="presentableId" value="LOCAL-00046" />
+      <option name="project" value="LOCAL" />
+      <updated>1767110255947</updated>
+    </task>
+    <option name="localTasksCounter" value="47" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

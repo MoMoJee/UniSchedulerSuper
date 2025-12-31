@@ -21,6 +21,11 @@ from agent_service.tools.planner_tools import (
     get_todos, create_todo, update_todo, delete_todo,
     get_reminders, create_reminder, delete_reminder
 )
+# 导入统一 Planner 工具（优化版）
+from agent_service.tools.unified_planner_tools import (
+    search_items, create_item, update_item, delete_item,
+    get_event_groups, complete_todo, UNIFIED_PLANNER_TOOLS
+)
 from agent_service.tools.memory_tools import save_memory, search_memory, get_recent_memories
 # 导入新的记忆工具 V2
 from agent_service.tools.memory_tools_v2 import (
@@ -46,8 +51,8 @@ os.environ.setdefault("OPENAI_API_BASE", "https://api.deepseek.com")
 # ==========================================
 # 工具注册表
 # ==========================================
-# Planner 工具
-PLANNER_TOOLS = {
+# Planner 工具（旧版，保留兼容）
+PLANNER_TOOLS_LEGACY = {
     "get_events": get_events,
     "create_event": create_event,
     "update_event": update_event,
@@ -59,6 +64,22 @@ PLANNER_TOOLS = {
     "get_reminders": get_reminders,
     "create_reminder": create_reminder,
     "delete_reminder": delete_reminder,
+}
+
+# Planner 工具（新版 - 统一简化接口）
+# 优化点：
+# - 统一搜索：search_items 替代 get_events/get_todos/get_reminders
+# - 标识符解析：支持 #1/#2（搜索结果序号）、UUID、标题匹配
+# - 事件组映射：自动将组名转为 UUID
+# - 增量编辑：只需传入要修改的参数
+# - 简化重复规则：支持 "每周一三五" 等自然语言格式
+PLANNER_TOOLS = {
+    "search_items": search_items,
+    "create_item": create_item,
+    "update_item": update_item,
+    "delete_item": delete_item,
+    "get_event_groups": get_event_groups,
+    "complete_todo": complete_todo,
 }
 
 # Memory 工具 (旧版，保留兼容)
@@ -109,8 +130,22 @@ except Exception as e:
 TOOL_CATEGORIES = {
     "planner": {
         "display_name": "日程管理",
-        "description": "管理日程、待办、提醒",
-        "tools": list(PLANNER_TOOLS.keys())
+        "description": "统一管理日程、待办、提醒（优化版）",
+        "tools": list(PLANNER_TOOLS.keys()),
+        "tool_descriptions": {
+            "search_items": "统一搜索日程/待办/提醒，返回带序号的结果",
+            "create_item": "创建日程/待办/提醒，支持事件组名称和简化重复规则",
+            "update_item": "更新项目，支持 #序号 引用，增量更新",
+            "delete_item": "删除项目，支持系列删除控制",
+            "get_event_groups": "获取事件组列表",
+            "complete_todo": "快捷完成待办",
+        }
+    },
+    "planner_legacy": {
+        "display_name": "日程管理（旧版）",
+        "description": "管理日程、待办、提醒（兼容旧版）",
+        "tools": list(PLANNER_TOOLS_LEGACY.keys()),
+        "hidden": True  # 隐藏不在 UI 显示，但仍可通过 API 启用
     },
     "memory": {
         "display_name": "记忆管理",
@@ -129,8 +164,8 @@ TOOL_CATEGORIES = {
     }
 }
 
-# 所有工具合集
-ALL_TOOLS = {**PLANNER_TOOLS, **MEMORY_TOOLS, **TODO_TOOLS_MAP, **MCP_TOOLS}
+# 所有工具合集（包含新旧版本）
+ALL_TOOLS = {**PLANNER_TOOLS, **PLANNER_TOOLS_LEGACY, **MEMORY_TOOLS, **TODO_TOOLS_MAP, **MCP_TOOLS}
 
 def get_tools_by_names(tool_names: List[str]) -> list:
     """根据工具名称列表获取工具对象"""
@@ -191,7 +226,16 @@ def build_system_prompt(user, active_tool_names: List[str], current_time: str) -
     
     # 2. 构建能力描述
     capabilities = []
+    # 检查新版统一 Planner 工具
     if any(t in active_tool_names for t in PLANNER_TOOLS.keys()):
+        capabilities.append("- 日程/待办/提醒管理（统一接口）:")
+        capabilities.append("  - search_items: 统一搜索，返回带 #序号 的结果")
+        capabilities.append("  - create_item: 创建日程/待办/提醒，event_group 支持名称，repeat 支持简化格式")
+        capabilities.append("  - update_item: 更新项目，identifier 支持 #1/#2、UUID、标题匹配")
+        capabilities.append("  - delete_item: 删除项目，支持系列删除")
+        capabilities.append("  - complete_todo: 快捷完成待办")
+    # 检查旧版 Planner 工具
+    elif any(t in active_tool_names for t in PLANNER_TOOLS_LEGACY.keys()):
         capabilities.append("- 管理日程 (Events): 查询、创建、更新、删除")
         capabilities.append("- 管理待办 (Todos): 查询、创建、更新、删除")
         capabilities.append("- 管理提醒 (Reminders): 查询、创建、删除")

@@ -716,6 +716,15 @@ def rollback_to_message(request):
         
         logger.info(f"共回滚了 {rolled_back_transactions} 个数据库事务")
 
+        # ====== 清除搜索结果缓存 ======
+        # 回滚后，搜索结果缓存可能已过期，需要清除以避免引用失效的项目
+        try:
+            from agent_service.tools.cache_manager import CacheManager
+            CacheManager.clear_session_cache(session_id)
+            logger.info(f"已清除会话 {session_id} 的搜索结果缓存")
+        except Exception as e:
+            logger.warning(f"清除搜索结果缓存失败: {e}")
+
         # ====== 同步回滚 TODO 列表 ======
         todo_rolled_back = False
         try:
@@ -776,7 +785,14 @@ def get_available_tools(request):
     
     # 工具的友好名称映射
     tool_display_names = {
-        # Planner
+        # Planner 统一工具（新版）
+        "search_items": "统一搜索",
+        "create_item": "创建项目",
+        "update_item": "更新项目",
+        "delete_item": "删除项目",
+        "get_event_groups": "获取事件组",
+        "complete_todo": "完成待办",
+        # Planner 旧版
         "get_events": "查询日程",
         "create_event": "创建日程",
         "update_event": "更新日程",
@@ -821,6 +837,10 @@ def get_available_tools(request):
     
     categories = []
     for cat_id, cat_info in TOOL_CATEGORIES.items():
+        # 跳过隐藏的分类
+        if cat_info.get("hidden"):
+            continue
+        
         tools = []
         for tool_name in cat_info["tools"]:
             tools.append({

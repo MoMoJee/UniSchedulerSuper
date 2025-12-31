@@ -379,3 +379,129 @@ class AgentTransaction(models.Model):
 
     def __str__(self):
         return f"[{self.session_id}] {self.action_type} at {self.created_at}"
+
+
+# ==========================================
+# Planner 工具优化模型
+# ==========================================
+
+class SearchResultCache(models.Model):
+    """
+    搜索结果缓存 - 存储编号到UUID的映射
+    支持会话级别存储和回滚同步清除
+    """
+    session = models.ForeignKey(AgentSession, on_delete=models.CASCADE, related_name='search_caches')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='search_result_caches')
+    
+    # 缓存的结果类型: event, to do, reminder, mixed (混合搜索)
+    result_type = models.CharField(max_length=20, help_text="event/todo/reminder/mixed")
+    
+    # 编号 → UUID 映射 (JSON)
+    # 格式: {"#1": {"uuid": "xxx", "type": "event"}, "#2": {"uuid": "yyy", "type": "to do"}}
+    index_mapping = models.JSONField(default=dict, help_text="编号到UUID的映射")
+    
+    # 名称 → UUID 映射 (JSON) - 用于按标题匹配
+    # 格式: {"会议": {"uuid": "xxx", "type": "event"}, ...}
+    title_mapping = models.JSONField(default=dict, help_text="标题到UUID的映射")
+    
+    # 最后一次查询的筛选条件（用于调试）
+    query_params = models.JSONField(default=dict, help_text="查询参数")
+    
+    # 关联的检查点ID（用于回滚同步，可选）
+    checkpoint_id = models.CharField(max_length=100, blank=True, default="", db_index=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "搜索结果缓存"
+        verbose_name_plural = "搜索结果缓存"
+        indexes = [
+            models.Index(fields=['session', 'result_type']),
+            models.Index(fields=['session', 'updated_at']),
+        ]
+    
+    def __str__(self):
+        return f"Cache for {self.session.session_id} ({self.result_type})"
+    
+    def get_uuid_by_index(self, index: str) -> dict:
+        """根据编号获取UUID和类型"""
+        return self.index_mapping.get(index, None)
+    
+    def get_uuid_by_title(self, title: str) -> dict:
+        """根据标题获取UUID和类型（模糊匹配）"""
+        # 精确匹配
+        if title in self.title_mapping:
+            return self.title_mapping[title]
+        # 模糊匹配
+        for cached_title, info in self.title_mapping.items():
+            if title in cached_title or cached_title in title:
+                return info
+        return None
+
+
+class EventGroupCache(models.Model):
+    """
+    日程组名称缓存
+    自动建立名称→UUID映射，减少用户输入复杂度
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='event_group_cache')
+    
+    # 名称 → UUID 映射
+    # 格式: {"工作": "uuid-xxx", "个人": "uuid-yyy", ...}
+    name_to_uuid = models.JSONField(default=dict, help_text="名称到UUID的映射")
+    
+    # UUID → 完整信息 反向映射（用于展示）
+    # 格式: {"uuid-xxx": {"name": "工作", "color": "#FF5733", "description": "..."}, ...}
+    uuid_to_info = models.JSONField(default=dict, help_text="UUID到完整信息的映射")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "日程组缓存"
+        verbose_name_plural = "日程组缓存"
+    
+    def __str__(self):
+        return f"EventGroupCache for {self.user.username}"
+    
+    def get_uuid_by_name(self, name: str) -> str:
+        """根据名称获取UUID"""
+        return self.name_to_uuid.get(name, None)
+    
+    def get_info_by_uuid(self, uuid: str) -> dict:
+        """根据UUID获取完整信息"""
+        return self.uuid_to_info.get(uuid, None)
+    
+    def get_name_by_uuid(self, uuid: str) -> str:
+        """根据UUID获取名称"""
+        info = self.uuid_to_info.get(uuid, {})
+        return info.get('name', '')
+    
+    def is_stale(self, ttl_seconds: int = 300) -> bool:
+        """检查缓存是否过期（默认5分钟）"""
+        from django.utils import timezone
+        from datetime import timedelta
+        return timezone.now() - self.updated_at > timedelta(seconds=ttl_seconds)
+    
+    def is_valid(self, ttl_seconds: int = 3600) -> bool:
+        """检查缓存是否有效（未过期）"""
+        return not self.is_stale(ttl_seconds)
+    
+    def refresh_from_db_data(self, event_groups: list):
+        """从日程组数据刷新缓存"""
+        self.name_to_uuid = {}
+        self.uuid_to_info = {}
+        
+        for group in event_groups:
+            group_id = group.get('id', '')
+            group_name = group.get('name', '')
+            if group_id and group_name:
+                self.name_to_uuid[group_name] = group_id
+                self.uuid_to_info[group_id] = {
+                    'name': group_name,
+                    'color': group.get('color', ''),
+                    'description': group.get('description', '')
+                }
+        
+        self.save()

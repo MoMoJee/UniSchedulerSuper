@@ -93,7 +93,27 @@ class EventGroupCache(models.Model):
 ```python
 # agent_service/tools/unified_search_tool.py
 
-@tool("search_items")
+用户调用:
+update_item("#1", "event", title="新标题", start="...")
+
+↓ 工具层（接收所有可能参数）
+{
+  title: "新标题",
+  start: "...",
+  due_date: UNSET_VALUE,  // 未传递
+  trigger_time: UNSET_VALUE,
+  ...
+}
+
+↓ ParamAdapter.adapt_params("event", ...)
+{
+  title: "新标题",
+  start: "..."
+  // 自动过滤掉 due_date, trigger_time 等不支持参数
+}
+
+↓ 服务层
+EventService.update_event(user, uuid, title="新标题", start="...")@tool("search_items")
 def search_items(
     item_type: str = "all",           # "event" | "todo" | "reminder" | "all"
     group_name: str = "",             # 日程组名称（仅 event/todo）
@@ -194,7 +214,30 @@ class IdentifierResolver:
         return None
 ```
 
-### 4. 增量编辑设计
+### 4. 增量编辑设计 + 参数兼容层
+
+#### 问题：三种类型参数差异
+
+| 参数名 | Event | Todo | Reminder | 说明 |
+|--------|-------|------|----------|------|
+| title | ✅ | ✅ | ✅ | 通用 |
+| description | ✅ | ✅ | ❌ | Todo 和 Event 有 |
+| content | ❌ | ❌ | ✅ | Reminder 特有 |
+| start / end | ✅ | ❌ | ❌ | Event 特有 |
+| due_date | ❌ | ✅ | ❌ | Todo 特有 |
+| trigger_time | ❌ | ❌ | ✅ | Reminder 特有 |
+| estimated_duration | ❌ | ✅ | ❌ | Todo 特有 |
+| importance | ✅ | ✅ | ❌ | Event 和 Todo |
+| urgency | ✅ | ✅ | ❌ | Event 和 Todo |
+| groupID | ✅ | ✅ | ❌ | Event 和 Todo |
+| rrule | ✅ | ❌ | ✅ | Event 和 Reminder |
+| ddl | ✅ | ❌ | ❌ | Event 特有 |
+| shared_to_groups | ✅ | ❌ | ❌ | Event 特有 |
+| priority | ❌ | ❌ | ✅ | Reminder 特有 |
+| status | ❌ | ✅ | ✅ | Todo 和 Reminder |
+| update_scope | ✅ | ❌ | ❌ | Event 重复编辑 |
+
+#### 解决方案：参数适配器
 
 ```python
 # 核心思想：使用特殊标记区分"不传递"和"清空"
@@ -206,22 +249,140 @@ class UNSET:
 
 UNSET_VALUE = UNSET()
 
+# 参数映射表
+PARAM_MAPPING = {
+    "event": {
+        "common": ["title", "description", "importance", "urgency"],
+        "time": ["start", "end", "ddl"],
+        "group": "groupID",
+        "repeat": "rrule",
+        "special": ["shared_to_groups", "update_scope"]
+    },
+    "todo": {
+        "common": ["title", "description", "importance", "urgency", "status"],
+        "time": ["due_date", "estimated_duration"],
+        "group": "groupID",
+        "repeat": None
+    },
+    "reminder": {
+        "common": ["title", "content", "priority", "status"],
+        "time": ["trigger_time"],
+        "group": None,
+        "repeat": "rrule"
+    }
+}
+
+class ParamAdapter:
+    """参数适配器 - 将统一参数转换为各类型特定参数"""
+    
+    @staticmethod
+    def adapt_params(item_type: str, **kwargs) -> dict:
+        """
+        转换统一参数为特定类型的参数
+        
+        Args:
+            item_type: "event" | "todo" | "reminder"
+            **kwargs: 统一的参数字典
+        
+        Returns:
+            适配后的参数字典（只包含该类型支持的参数）
+        """
+        adapted = {}
+        
+        if item_type == "event":
+            # Event 参数映射
+            if "title" in kwargs and kwargs["title"] is not UNSET_VALUE:
+                adapted["title"] = kwargs["title"]
+            if "description" in kwargs and kwargs["description"] is not UNSET_VALUE:
+                adapted["description"] = kwargs["description"]
+            if "start" in kwargs and kwargs["start"] is not UNSET_VALUE:
+                adapted["start"] = kwargs["start"]
+            if "end" in kwargs and kwargs["end"] is not UNSET_VALUE:
+                adapted["end"] = kwargs["end"]
+            if "importance" in kwargs and kwargs["importance"] is not UNSET_VALUE:
+                adapted["importance"] = kwargs["importance"]
+            if "urgency" in kwargs and kwargs["urgency"] is not UNSET_VALUE:
+                adapted["urgency"] = kwargs["urgency"]
+            if "group_id" in kwargs and kwargs["group_id"] is not UNSET_VALUE:
+                adapted["groupID"] = kwargs["group_id"]  # 注意大小写
+            if "rrule" in kwargs and kwargs["rrule"] is not UNSET_VALUE:
+                adapted["rrule"] = kwargs["rrule"]
+            if "ddl" in kwargs and kwargs["ddl"] is not UNSET_VALUE:
+                adapted["ddl"] = kwargs["ddl"]
+            if "shared_to_groups" in kwargs and kwargs["shared_to_groups"] is not UNSET_VALUE:
+                adapted["shared_to_groups"] = kwargs["shared_to_groups"]
+            if "update_scope" in kwargs:
+                adapted["update_scope"] = kwargs["update_scope"]
+                
+        elif item_type == "todo":
+            # Todo 参数映射
+            if "title" in kwargs and kwargs["title"] is not UNSET_VALUE:
+                adapted["title"] = kwargs["title"]
+            if "description" in kwargs and kwargs["description"] is not UNSET_VALUE:
+                adapted["description"] = kwargs["description"]
+            if "due_date" in kwargs and kwargs["due_date"] is not UNSET_VALUE:
+                adapted["due_date"] = kwargs["due_date"]
+            if "estimated_duration" in kwargs and kwargs["estimated_duration"] is not UNSET_VALUE:
+                adapted["estimated_duration"] = kwargs["estimated_duration"]
+            if "importance" in kwargs and kwargs["importance"] is not UNSET_VALUE:
+                adapted["importance"] = kwargs["importance"]
+            if "urgency" in kwargs and kwargs["urgency"] is not UNSET_VALUE:
+                adapted["urgency"] = kwargs["urgency"]
+            if "group_id" in kwargs and kwargs["group_id"] is not UNSET_VALUE:
+                adapted["groupID"] = kwargs["group_id"]
+            if "status" in kwargs and kwargs["status"] is not UNSET_VALUE:
+                adapted["status"] = kwargs["status"]
+                
+        elif item_type == "reminder":
+            # Reminder 参数映射
+            if "title" in kwargs and kwargs["title"] is not UNSET_VALUE:
+                adapted["title"] = kwargs["title"]
+            if "content" in kwargs and kwargs["content"] is not UNSET_VALUE:
+                adapted["content"] = kwargs["content"]
+            if "trigger_time" in kwargs and kwargs["trigger_time"] is not UNSET_VALUE:
+                adapted["trigger_time"] = kwargs["trigger_time"]
+            if "priority" in kwargs and kwargs["priority"] is not UNSET_VALUE:
+                adapted["priority"] = kwargs["priority"]
+            if "status" in kwargs and kwargs["status"] is not UNSET_VALUE:
+                adapted["status"] = kwargs["status"]
+            if "rrule" in kwargs and kwargs["rrule"] is not UNSET_VALUE:
+                adapted["rrule"] = kwargs["rrule"]
+        
+        return adapted
+
 @tool("update_item")
 def update_item(
     identifier: str,                    # 支持 #1, UUID, 或标题
     item_type: str,                     # "event" | "todo" | "reminder"
-    title: str = UNSET_VALUE,           # 新标题
-    description: str = UNSET_VALUE,     # 新描述
-    start: str = UNSET_VALUE,           # 新开始时间 (event)
-    end: str = UNSET_VALUE,             # 新结束时间 (event)
-    due_date: str = UNSET_VALUE,        # 新截止日期 (todo)
-    trigger_time: str = UNSET_VALUE,    # 新触发时间 (reminder)
-    group_name: str = UNSET_VALUE,      # 新日程组（按名称）
-    importance: str = UNSET_VALUE,      # 重要性
-    urgency: str = UNSET_VALUE,         # 紧急性
-    rrule: str = UNSET_VALUE,           # 重复规则（特殊处理）
-    clear_rrule: bool = False,          # 显式清除重复规则
-    edit_scope: str = "single",         # 编辑范围
+    
+    # 通用字段
+    title: str = UNSET_VALUE,
+    description: str = UNSET_VALUE,     # event, todo
+    content: str = UNSET_VALUE,         # reminder
+    importance: str = UNSET_VALUE,      # event, todo
+    urgency: str = UNSET_VALUE,         # event, todo
+    status: str = UNSET_VALUE,          # todo, reminder
+    
+    # 时间字段
+    start: str = UNSET_VALUE,           # event
+    end: str = UNSET_VALUE,             # event
+    due_date: str = UNSET_VALUE,        # todo
+    trigger_time: str = UNSET_VALUE,    # reminder
+    estimated_duration: str = UNSET_VALUE,  # todo
+    ddl: str = UNSET_VALUE,             # event
+    
+    # 分类字段
+    group_name: str = UNSET_VALUE,      # event, todo (自动转为 groupID)
+    priority: str = UNSET_VALUE,        # reminder
+    
+    # 重复规则
+    rrule: str = UNSET_VALUE,           # event, reminder
+    clear_rrule: bool = False,          # 显式清除重复
+    
+    # Event 特有
+    shared_to_groups: list = UNSET_VALUE,
+    update_scope: str = "single",       # single/all/future
+    
     config: RunnableConfig = None
 ) -> str:
     """
@@ -231,6 +392,7 @@ def update_item(
     - 未传递的参数不会被修改（保持原值）
     - 传递空字符串表示清空该字段
     - rrule 特殊处理：使用 clear_rrule=True 显式清除重复规则
+    - 自动参数适配：根据类型使用对应的参数名
     
     Args:
         identifier: 目标标识符，支持:
@@ -240,15 +402,26 @@ def update_item(
         
         item_type: 项目类型 ("event"/"todo"/"reminder")
         
+        # 通用字段
         title: 新标题（不传=保持原值，""=清空）
-        description: 新描述
-        start/end: 事件时间
-        due_date: 待办截止日期
-        trigger_time: 提醒触发时间
-        group_name: 日程组名称（自动解析为 UUID）
-        importance/urgency: 重要性/紧急性
+        description: 新描述 (event, todo)
+        content: 新内容 (reminder)
+        importance/urgency: 重要性/紧急性 (event, todo)
+        status: 状态 (todo, reminder)
         
-        rrule: 新的重复规则
+        # 时间字段
+        start/end: 事件时间 (event)
+        due_date: 待办截止日期 (todo)
+        trigger_time: 提醒触发时间 (reminder)
+        estimated_duration: 预计时长 (todo)
+        ddl: 截止时间 (event)
+        
+        # 分类字段
+        group_name: 日程组名称（自动解析为 UUID，仅 event/todo）
+        priority: 优先级 (reminder)
+        
+        # 重复规则
+        rrule: 新的重复规则 (event, reminder)
             - 不传: 保持原有规则
             - "FREQ=WEEKLY;COUNT=4": 设置新规则
             - 注意: 不要传空字符串清除规则
@@ -257,7 +430,9 @@ def update_item(
             - True: 显式清除重复规则，将重复日程转为单次
             - False: 不清除（默认）
         
-        edit_scope: 编辑范围（仅对重复事件有效）
+        # Event 特有
+        shared_to_groups: 共享到群组
+        update_scope: 编辑范围（仅对重复事件有效）
             - "single": 仅此一次
             - "all": 所有重复
             - "future": 此及将来
@@ -268,60 +443,135 @@ def update_item(
         - update_item("会议", "event", start="2025-01-15T14:00")  # 只改时间
         - update_item("#1", "event", clear_rrule=True)  # 取消重复
     """
+    user = config.get("configurable", {}).get("user")
+    if not user:
+        return "Error: User not found."
+    
+    session = config.get("configurable", {}).get("thread_id")
+    if not session:
+        return "Error: Session not found."
+    
+    try:
+        # 1. 解析标识符为 UUID
+        resolver = IdentifierResolver()
+        session_obj = AgentSession.objects.filter(session_id=session).first()
+        uuid = resolver.resolve(identifier, item_type, session_obj, user)
+        
+        if not uuid:
+            return f"❌ 无法找到匹配的 {item_type}: {identifier}"
+        
+        # 2. 处理日程组名称 → UUID
+        group_id = UNSET_VALUE
+        if group_name is not UNSET_VALUE and group_name:
+            from agent_service.tools.event_group_service import EventGroupService
+            group_id = EventGroupService.resolve_group_name(user, group_name)
+            if not group_id:
+                return f"❌ 未找到日程组: {group_name}"
+        
+        # 3. 处理 clear_rrule 标记
+        if clear_rrule:
+            rrule = ""  # 设置为空字符串
+            # 添加内部标记
+            _clear_rrule = True
+        else:
+            _clear_rrule = False
+        
+        # 4. 构建参数字典
+        params = {
+            "title": title,
+            "description": description,
+            "content": content,
+            "importance": importance,
+            "urgency": urgency,
+            "status": status,
+            "start": start,
+            "end": end,
+            "due_date": due_date,
+            "trigger_time": trigger_time,
+            "estimated_duration": estimated_duration,
+            "ddl": ddl,
+            "group_id": group_id,
+            "priority": priority,
+            "rrule": rrule,
+            "shared_to_groups": shared_to_groups,
+            "update_scope": update_scope,
+            "_clear_rrule": _clear_rrule
+        }
+        
+        # 5. 使用参数适配器转换
+        adapted_params = ParamAdapter.adapt_params(item_type, **params)
+        
+        # 6. 调用对应的服务层方法
+        if item_type == "event":
+            from core.services.event_service import EventService
+            EventService.update_event(user, uuid, **adapted_params)
+            return f"✅ 日程已更新"
+        elif item_type == "todo":
+            from core.services.todo_service import TodoService
+            TodoService.update_todo(user, uuid, **adapted_params)
+            return f"✅ 待办事项已更新"
+        elif item_type == "reminder":
+            from core.services.reminder_service import ReminderService
+            ReminderService.update_reminder(user, uuid, **adapted_params)
+            return f"✅ 提醒已更新"
+        else:
+            return f"❌ 不支持的类型: {item_type}"
+            
+    except Exception as e:
+        logger.exception(f"更新失败: {e}")
+        return f"❌ 更新失败: {str(e)}"
+```
 ```
 
-### 5. 回滚同步机制
+### 5. 回滚同步机制 ⚠️ 集成现有实现
+
+**现状分析**：
+- ✅ 项目已实现完整的回滚机制（`agent_service/views_api.py` 中的 `rollback_to_message`）
+- ✅ 已有 TODO 回滚同步（`agent_service/tools/todo_tools.py` 中的 `rollback_todos`）
+- ✅ 使用 django-reversion 保存快照，支持精确回滚
+
+**集成方案**：在现有 `rollback_to_message` 函数中添加缓存清理
 
 ```python
-# agent_service/tools/cache_manager.py
+# agent_service/views_api.py - 修改 rollback_to_message 函数
+
+# 在执行回滚前，清除相关缓存
+from agent_service.tools.cache_manager import CacheManager
+
+# ... 现有回滚逻辑 ...
+
+# 新增：清除搜索结果缓存
+try:
+    CacheManager.clear_session_cache(session_id)
+    logger.info(f"已清除会话 {session_id} 的搜索缓存")
+except Exception as e:
+    logger.warning(f"清除缓存失败（不影响回滚）: {e}")
+
+# ... 继续现有的 TODO 回滚逻辑 ...
+todo_rolled_back = rollback_todos(session_id, cp_for_todo)
+```
+
+**缓存管理器实现**：
+
+```python
+# agent_service/tools/cache_manager.py (新建文件)
+
+from agent_service.models import AgentSession, SearchResultCache
+from logger import logger
 
 class CacheManager:
     """缓存管理器 - 处理回滚同步"""
     
     @staticmethod
     def clear_session_cache(session_id: str):
-        """清除会话的所有搜索缓存"""
+        """清除会话的所有搜索缓存（在回滚时调用）"""
         try:
             session = AgentSession.objects.filter(session_id=session_id).first()
             if session:
-                SearchResultCache.objects.filter(session=session).delete()
-                logger.info(f"[Cache] 已清除会话 {session_id} 的搜索缓存")
+                deleted_count = SearchResultCache.objects.filter(session=session).delete()[0]
+                logger.info(f"[Cache] 已清除会话 {session_id} 的 {deleted_count} 条搜索缓存")
         except Exception as e:
             logger.error(f"[Cache] 清除缓存失败: {e}")
-    
-    @staticmethod
-    def rollback_cache(session_id: str, target_checkpoint: str):
-        """
-        回滚缓存到指定检查点
-        
-        逻辑：删除该检查点之后创建的所有缓存
-        （因为缓存中的编号映射可能已经失效）
-        """
-        try:
-            session = AgentSession.objects.filter(session_id=session_id).first()
-            if not session:
-                return
-            
-            # 找到该检查点对应的缓存
-            checkpoint_cache = SearchResultCache.objects.filter(
-                session=session,
-                checkpoint_id=target_checkpoint
-            ).first()
-            
-            if checkpoint_cache:
-                # 删除比这个检查点更新的缓存
-                SearchResultCache.objects.filter(
-                    session=session,
-                    updated_at__gt=checkpoint_cache.updated_at
-                ).delete()
-            else:
-                # 如果没有找到检查点缓存，清空所有缓存
-                SearchResultCache.objects.filter(session=session).delete()
-            
-            logger.info(f"[Cache] 已回滚会话 {session_id} 的缓存到检查点 {target_checkpoint}")
-            
-        except Exception as e:
-            logger.error(f"[Cache] 回滚缓存失败: {e}")
 ```
 
 ---
@@ -969,3 +1219,214 @@ class SearchResultCache(models.Model):
             models.Index(fields=['checkpoint_id']),
         ]
 ```
+
+---
+
+## 🔧 详细实施步骤
+
+### Phase 1: 基础设施 (预计 1 天)
+
+**1.1 创建数据模型** 
+- [ ] 在 `agent_service/models.py` 添加 `SearchResultCache` 模型
+- [ ] 在 `agent_service/models.py` 添加 `EventGroupCache` 模型  
+- [ ] 运行 `python manage.py makemigrations`
+- [ ] 运行 `python manage.py migrate`
+
+**1.2 实现基础工具类**
+- [ ] `agent_service/tools/time_parser.py` - TimeRangeParser
+- [ ] `agent_service/tools/identifier_resolver.py` - IdentifierResolver
+- [ ] `agent_service/tools/cache_manager.py` - CacheManager
+- [ ] `agent_service/tools/param_adapter.py` - ParamAdapter (含 UNSET)
+- [ ] `agent_service/tools/repeat_parser.py` - RepeatParser
+- [ ] `agent_service/tools/event_group_service.py` - EventGroupService
+
+### Phase 2: 服务层修改 (预计 0.5 天)
+
+**2.1 修改 Event Service**
+```python
+# core/services/event_service.py
+
+@staticmethod
+def update_event(..., _clear_rrule=False, ...):
+    # 添加 _clear_rrule 参数处理逻辑
+```
+
+**2.2 修改 Reminder Service**
+```python
+# core/services/reminder_service.py
+
+@staticmethod
+def update_reminder(..., _clear_rrule=False, ...):
+    # 添加 _clear_rrule 参数处理逻辑
+```
+
+### Phase 3: 统一工具实现 (预计 1.5 天)
+
+**3.1 实现 search_items**
+- [ ] 创建 `agent_service/tools/unified_planner_tools.py`
+- [ ] 实现 `search_items` 函数
+  - 类型筛选 (event/todo/reminder/all)
+  - 时间范围筛选（使用 TimeRangeParser）
+  - 日程组筛选（使用 EventGroupService）
+  - 文本搜索（标题、描述）
+  - 编号生成与缓存（使用 SearchResultCache）
+  - 格式化输出
+
+**3.2 实现 create_item**
+- [ ] 参数适配（使用 ParamAdapter）
+- [ ] 日程组名称解析
+- [ ] 简化重复规则解析（使用 RepeatParser）
+- [ ] 调用对应的 Service 层
+- [ ] 添加 @agent_transaction 装饰器
+
+**3.3 实现 update_item**
+- [ ] 标识符解析（使用 IdentifierResolver）
+- [ ] UNSET 哨兵值处理
+- [ ] 参数适配（使用 ParamAdapter）
+- [ ] clear_rrule 特殊处理
+- [ ] 日程组名称解析
+- [ ] 调用对应的 Service 层
+- [ ] 添加 @agent_transaction 装饰器
+
+**3.4 实现 delete_item**
+- [ ] 标识符解析
+- [ ] 删除范围选项 (single/all/future)
+- [ ] 调用对应的 Service 层
+- [ ] 添加 @agent_transaction 装饰器
+
+**3.5 实现 get_event_groups**
+- [ ] 获取用户日程组列表
+- [ ] 缓存名称映射
+- [ ] 格式化输出
+
+### Phase 4: 回滚集成 (预计 0.5 天)
+
+**4.1 修改回滚函数**
+```python
+# agent_service/views_api.py
+
+@api_view(['POST'])
+def rollback_to_message(request):
+    # ... 现有代码 ...
+    
+    # 🆕 添加缓存清理
+    from agent_service.tools.cache_manager import CacheManager
+    try:
+        CacheManager.clear_session_cache(session_id)
+        logger.info(f"已清除会话 {session_id} 的搜索缓存")
+    except Exception as e:
+        logger.warning(f"清除缓存失败（不影响回滚）: {e}")
+    
+    # ... 现有的 TODO 回滚逻辑 ...
+```
+
+### Phase 5: 工具注册 (预计 0.5 天)
+
+**5.1 更新 agent_graph.py**
+```python
+# agent_service/agent_graph.py
+
+# 导入新工具
+from agent_service.tools.unified_planner_tools import (
+    search_items, create_item, update_item, delete_item, get_event_groups
+)
+
+# 新工具字典
+PLANNER_TOOLS_V2 = {
+    "search_items": search_items,
+    "create_item": create_item,
+    "update_item": update_item,
+    "delete_item": delete_item,
+    "get_event_groups": get_event_groups,
+}
+
+# 合并到总工具集
+ALL_TOOLS = {
+    **PLANNER_TOOLS,      # 旧版（保留兼容）
+    **PLANNER_TOOLS_V2,   # 新版
+    **MEMORY_TOOLS,
+    **TODO_TOOLS_MAP,
+    **MCP_TOOLS
+}
+
+# 更新工具分类
+TOOL_CATEGORIES["planner"]["tools"] = list(PLANNER_TOOLS_V2.keys())
+TOOL_CATEGORIES["planner"]["legacy_tools"] = list(PLANNER_TOOLS.keys())
+```
+
+### Phase 6: 测试与优化 (预计 1 天)
+
+**6.1 单元测试**
+- [ ] 时间解析器测试
+- [ ] 标识符解析器测试
+- [ ] 参数适配器测试
+- [ ] 重复规则解析器测试
+
+**6.2 集成测试**
+- [ ] 统一搜索功能测试
+- [ ] 编号引用测试
+- [ ] 增量编辑测试
+- [ ] 日程组名称映射测试
+- [ ] 回滚同步测试
+
+**6.3 性能优化**
+- [ ] 数据库索引验证
+- [ ] 缓存 TTL 调优
+- [ ] 大数据量测试
+
+---
+
+## ✅ 验收标准
+
+1. **功能完整性**
+   - ✅ 支持统一搜索（类型、时间、日程组、文本）
+   - ✅ 支持编号引用 (#1, #2...)
+   - ✅ 支持日程组名称自动解析
+   - ✅ 支持增量编辑（只传修改字段）
+   - ✅ 支持 clear_rrule 显式清除重复
+   - ✅ 回滚时自动清除缓存
+
+2. **性能要求**
+   - ✅ 搜索响应时间 < 500ms
+   - ✅ 编辑响应时间 < 300ms
+   - ✅ 缓存命中率 > 80%
+
+3. **兼容性**
+   - ✅ 旧工具继续可用
+   - ✅ 现有 API 不受影响
+   - ✅ 数据库迁移无损
+
+---
+
+## 📋 两个关键问题的解决方案总结
+
+### 问题 1: 回滚同步机制
+
+**结论**: 集成现有实现，不重写
+
+- ✅ 现有的回滚机制已完善（`rollback_to_message`）
+- ✅ 已支持 TODO 回滚同步（`rollback_todos`）
+- 🆕 只需在现有回滚函数中添加 **搜索缓存清理** 逻辑
+- 实现方式：调用 `CacheManager.clear_session_cache(session_id)`
+
+### 问题 2: 参数差异兼容
+
+**结论**: 使用参数适配器 + UNSET 哨兵值
+
+| 类型 | 独有参数 | 处理方式 |
+|------|----------|----------|
+| Event | start, end, ddl, shared_to_groups | ParamAdapter 自动过滤 |
+| Todo | due_date, estimated_duration, status | ParamAdapter 自动过滤 |
+| Reminder | content, trigger_time, priority | ParamAdapter 自动过滤 |
+
+**核心机制**：
+1. 工具层接受所有可能的参数（使用 UNSET_VALUE 作默认值）
+2. ParamAdapter 根据 item_type 过滤出该类型支持的参数
+3. 只有非 UNSET_VALUE 的参数才会被传递给服务层
+4. 服务层按现有逻辑处理（`if param is not None: ...`）
+
+---
+
+**总预计时间**: 约 5 天
+
+**当前状态**: 方案已确认，等待实施

@@ -69,7 +69,14 @@ class ReminderService:
                 return reminder_data
 
     @staticmethod
-    def update_reminder(user, reminder_id, title=None, content=None, trigger_time=None, priority=None, status=None, rrule=None, session_id=None):
+    def update_reminder(user, reminder_id, title=None, content=None, trigger_time=None, priority=None, status=None, rrule=None, session_id=None, _clear_rrule=False):
+        """
+        更新提醒
+        
+        Args:
+            _clear_rrule: 如果为True，会清除提醒的重复规则（将rrule设为空字符串）
+                         这解决了 rrule=None（不修改）和 rrule=""（清除）的歧义
+        """
         mock_request = MockRequest(user)
         
         with reversion.create_revision():
@@ -96,6 +103,11 @@ class ReminderService:
             if trigger_time is not None: target_reminder['trigger_time'] = trigger_time
             if priority is not None: target_reminder['priority'] = priority
             if status is not None: target_reminder['status'] = status
+            
+            # 处理 _clear_rrule: 显式清除重复规则
+            if _clear_rrule:
+                target_reminder['rrule'] = ''
+                target_reminder['is_recurring'] = False
             
             target_reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             

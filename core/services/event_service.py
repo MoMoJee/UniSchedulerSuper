@@ -185,8 +185,14 @@ class EventService:
             return False
 
     @staticmethod
-    def update_event(user, event_id, title=None, start=None, end=None, description=None, importance=None, urgency=None, groupID=None, rrule=None, shared_to_groups=None, ddl=None, update_scope='single', session_id=None):
-        """更新日程"""
+    def update_event(user, event_id, title=None, start=None, end=None, description=None, importance=None, urgency=None, groupID=None, rrule=None, shared_to_groups=None, ddl=None, update_scope='single', session_id=None, _clear_rrule=False):
+        """
+        更新日程
+        
+        Args:
+            _clear_rrule: 如果为True，会清除事件的重复规则（将rrule设为空字符串）
+                         这解决了 rrule=None（不修改）和 rrule=""（清除）的歧义
+        """
         mock_request = MockRequest(user)
         manager = EventsRRuleManager(user)
         
@@ -222,6 +228,13 @@ class EventService:
             if groupID is not None: target_event['groupID'] = groupID
             if ddl is not None: target_event['ddl'] = ddl
             if shared_to_groups is not None: target_event['shared_to_groups'] = shared_to_groups
+            
+            # 处理 _clear_rrule: 显式清除重复规则
+            if _clear_rrule:
+                target_event['rrule'] = ''
+                target_event['is_recurring'] = False
+                # 注意：这里不会删除系列中的其他实例，只是将当前事件标记为非重复
+                # 如果需要完整删除系列，应使用 delete_event 配合 delete_scope='all'
             
             target_event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
