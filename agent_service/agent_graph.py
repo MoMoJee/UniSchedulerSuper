@@ -434,7 +434,17 @@ def create_tool_node_with_permission_check():
             # 执行工具
             try:
                 tool = all_tools_dict[tool_name]
-                result = tool.invoke(tool_args, config)
+                # 将 tool_call_id 添加到 config 中，用于事务记录
+                tool_config = {**config}
+                if "configurable" in tool_config:
+                    tool_config["configurable"] = {
+                        **tool_config["configurable"],
+                        "tool_call_id": tool_call_id
+                    }
+                else:
+                    tool_config["configurable"] = {"tool_call_id": tool_call_id}
+                
+                result = tool.invoke(tool_args, tool_config)
                 logger.debug(f"[ToolNode]   - 工具执行成功: {tool_name}")
                 tool_messages.append(
                     ToolMessage(

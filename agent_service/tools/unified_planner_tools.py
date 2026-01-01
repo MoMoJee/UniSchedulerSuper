@@ -399,6 +399,9 @@ def update_item(
     identifier: str,
     # 可选：显式指定类型（如果不确定）
     item_type: Optional[Literal["event", "todo", "reminder"]] = None,
+    # 编辑范围（对重复项目生效）
+    edit_scope: Literal["single", "all", "future", "from_time"] = "single",
+    from_time: Optional[str] = None,
     # 通用参数
     title: Optional[str] = None,
     description: Optional[str] = None,
@@ -424,6 +427,8 @@ def update_item(
     """
     更新日程/待办/提醒（增量更新，只需传入要修改的字段）
     
+    对于重复项目，可以指定编辑范围来控制修改影响哪些实例。
+    
     Args:
         identifier: 项目标识，支持多种格式:
             - "#1", "#2": 使用最近搜索结果的序号
@@ -431,41 +436,57 @@ def update_item(
             - "会议": 按标题模糊匹配
         item_type: 可选，显式指定类型（如果从缓存无法确定）
         
+        edit_scope: 编辑范围（对重复日程/提醒生效）
+            - "single": 仅当前实例（从系列独立出来，不影响其他实例）
+            - "all": 整个系列（修改所有实例，不改变各实例时间）
+            - "future": 此实例及之后（修改选中的及后续所有实例）
+            - "from_time": 从指定时间开始（需配合 from_time 参数）
+        from_time: 当 edit_scope="from_time" 时必填，格式如 "2025-01-15T10:00"
+        
         # 通用参数（只传需要修改的）
         title: 新标题
         description: 新描述
-        repeat: 新的重复规则（简化格式）
-        clear_repeat: 如果为True，清除重复规则
+        repeat: 新的重复规则（简化格式，如 "每天;COUNT=10"）
+        clear_repeat: 如果为True，清除重复规则，将重复项目变为单次
         
         # 日程专用
         start: 新开始时间
         end: 新结束时间
-        event_group: 新事件组
-        importance: 新重要程度
-        urgency: 新紧急程度
-        shared_to_groups: 新分享群组列表
-        ddl: 新截止日期
+        event_group: 新事件组（名称）
+        importance: 重要程度 ("important", "not-important", "")
+        urgency: 紧急程度 ("urgent", "not-urgent", "")
+        shared_to_groups: 分享群组列表
+        ddl: 截止日期
         
         # 待办专用
-        due_date: 新截止日期
-        priority: 新优先级
-        status: 新状态 ("pending", "completed")
+        due_date: 截止日期
+        priority: 优先级 ("high", "medium", "low")
+        status: 状态 ("pending", "completed")
         
         # 提醒专用
-        trigger_time: 新触发时间
-        content: 新内容
-        priority: 新优先级
+        trigger_time: 触发时间
+        content: 提醒内容
+        priority: 优先级 ("high", "normal", "low")
     
     Returns:
         更新结果
     
     Examples:
+        # 简单修改（单个实例）
         - update_item(identifier="#1", title="新标题")
-        - update_item(identifier="#2", start="2024-01-16T10:00")
-        - update_item(identifier="周会", event_group="重要")
+        
+        # 修改整个重复系列
+        - update_item(identifier="#1", edit_scope="all", title="系列新标题")
+        
+        # 修改此实例及之后，并更改重复规则
+        - update_item(identifier="#1", edit_scope="future", repeat="每周一三五;COUNT=10")
     """
     user = _get_user_from_config(config)
     session_id = _get_session_id_from_config(config)
+    
+    # 验证 from_time 参数
+    if edit_scope == "from_time" and not from_time:
+        return "❌ 当 edit_scope='from_time' 时，必须提供 from_time 参数"
     
     # 解析标识符
     resolved = IdentifierResolver.resolve_with_type(
@@ -484,6 +505,8 @@ def update_item(
     rrule = None
     if repeat:
         rrule = RepeatParser.parse(repeat)
+    elif clear_repeat:
+        rrule = ""  # 显式清除
     
     try:
         if resolved_type == "event":
@@ -496,27 +519,76 @@ def update_item(
                 else:
                     return f"错误：未找到事件组 '{event_group}'"
             
-            result = EventService.update_event(
-                user=user,
-                event_id=item_uuid,
-                title=title,
-                start=start,
-                end=end,
-                description=description,
-                importance=importance,
-                urgency=urgency,
-                groupID=group_id,
-                rrule=rrule,
-                shared_to_groups=shared_to_groups,
-                ddl=ddl,
-                session_id=session_id,
-                _clear_rrule=clear_repeat
-            )
+            # 检查是否是重复日程，决定使用哪个方法
+            event = EventService.get_event_by_id(user, item_uuid)
+            is_recurring = event and (event.get('is_recurring') or event.get('series_id'))
             
-            return f"✅ 日程更新成功！\n标题: {result.get('title')}\nID: {item_uuid}"
+            if is_recurring and edit_scope != "single":
+                # 使用批量编辑
+                result = EventService.bulk_edit(
+                    user=user,
+                    event_id=item_uuid,
+                    operation='edit',
+                    edit_scope=edit_scope,
+                    from_time=from_time,
+                    title=title,
+                    start=start,
+                    end=end,
+                    description=description,
+                    importance=importance,
+                    urgency=urgency,
+                    groupID=group_id,
+                    rrule=rrule,
+                    ddl=ddl,
+                    shared_to_groups=shared_to_groups,
+                    session_id=session_id
+                )
+                scope_desc = {"all": "整个系列", "future": "此实例及之后", "from_time": f"从 {from_time} 开始"}.get(edit_scope, edit_scope)
+                return f"✅ 日程批量更新成功！\n范围: {scope_desc}\n更新数量: {result.get('updated_count', 'N/A')}"
+            else:
+                # 单个实例编辑（或非重复日程）
+                if is_recurring and edit_scope == "single":
+                    # 从系列独立出来
+                    result = EventService.bulk_edit(
+                        user=user,
+                        event_id=item_uuid,
+                        operation='edit',
+                        edit_scope='single',
+                        title=title,
+                        start=start,
+                        end=end,
+                        description=description,
+                        importance=importance,
+                        urgency=urgency,
+                        groupID=group_id,
+                        rrule=rrule,
+                        ddl=ddl,
+                        shared_to_groups=shared_to_groups,
+                        session_id=session_id
+                    )
+                    return f"✅ 日程实例已独立并更新！\n（已从重复系列中分离）\nID: {item_uuid}"
+                else:
+                    # 普通编辑
+                    result = EventService.update_event(
+                        user=user,
+                        event_id=item_uuid,
+                        title=title,
+                        start=start,
+                        end=end,
+                        description=description,
+                        importance=importance,
+                        urgency=urgency,
+                        groupID=group_id,
+                        rrule=rrule,
+                        shared_to_groups=shared_to_groups,
+                        ddl=ddl,
+                        session_id=session_id,
+                        _clear_rrule=clear_repeat
+                    )
+                    return f"✅ 日程更新成功！\n标题: {result.get('title')}\nID: {item_uuid}"
         
         elif resolved_type == "todo":
-            # To do 使用 importance 而不是 priority
+            # To do 不支持重复，直接更新
             result = TodoService.update_todo(
                 user=user,
                 todo_id=item_uuid,
@@ -531,20 +603,62 @@ def update_item(
             return f"✅ 待办更新成功！\n标题: {result.get('title')}\n状态: {result.get('status')}\nID: {item_uuid}"
         
         elif resolved_type == "reminder":
-            result = ReminderService.update_reminder(
-                user=user,
-                reminder_id=item_uuid,
-                title=title,
-                content=content or description,
-                trigger_time=trigger_time,
-                priority=priority,
-                status=status,
-                rrule=rrule,
-                session_id=session_id,
-                _clear_rrule=clear_repeat
-            )
+            # 检查是否是重复提醒
+            reminder = ReminderService.get_reminder_by_id(user, item_uuid)
+            is_recurring = reminder and (reminder.get('is_recurring') or reminder.get('series_id'))
             
-            return f"✅ 提醒更新成功！\n标题: {result.get('title')}\nID: {item_uuid}"
+            # 转换 edit_scope: Agent 使用 'future'，API 使用 'from_this'
+            api_edit_scope = 'from_this' if edit_scope == 'future' else edit_scope
+            
+            if is_recurring and edit_scope != "single":
+                # 使用批量编辑
+                result = ReminderService.bulk_edit(
+                    user=user,
+                    reminder_id=item_uuid,
+                    operation='edit',
+                    edit_scope=api_edit_scope,
+                    from_time=from_time,
+                    title=title,
+                    content=content or description,
+                    trigger_time=trigger_time,
+                    priority=priority,
+                    status=status,
+                    rrule=rrule,
+                    session_id=session_id
+                )
+                scope_desc = {"all": "整个系列", "from_this": "此实例及之后", "from_time": f"从 {from_time} 开始"}.get(api_edit_scope, api_edit_scope)
+                return f"✅ 提醒批量更新成功！\n范围: {scope_desc}\n更新数量: {result.get('updated_count', 'N/A')}"
+            else:
+                # 单个实例或非重复提醒
+                if is_recurring and edit_scope == "single":
+                    result = ReminderService.bulk_edit(
+                        user=user,
+                        reminder_id=item_uuid,
+                        operation='edit',
+                        edit_scope='single',
+                        title=title,
+                        content=content or description,
+                        trigger_time=trigger_time,
+                        priority=priority,
+                        status=status,
+                        rrule="",  # 清除重复规则以独立
+                        session_id=session_id
+                    )
+                    return f"✅ 提醒实例已独立并更新！\n（已从重复系列中分离）\nID: {item_uuid}"
+                else:
+                    result = ReminderService.update_reminder(
+                        user=user,
+                        reminder_id=item_uuid,
+                        title=title,
+                        content=content or description,
+                        trigger_time=trigger_time,
+                        priority=priority,
+                        status=status,
+                        rrule=rrule,
+                        session_id=session_id,
+                        _clear_rrule=clear_repeat
+                    )
+                    return f"✅ 提醒更新成功！\n标题: {result.get('title')}\nID: {item_uuid}"
         
         else:
             return f"错误：未知的项目类型 '{resolved_type}'"
@@ -565,23 +679,31 @@ def delete_item(
     """
     删除日程/待办/提醒
     
+    对于重复项目，可以指定删除范围。
+    
     Args:
         identifier: 项目标识，支持:
             - "#1", "#2": 使用最近搜索结果的序号
             - UUID: 直接使用项目的UUID
             - "会议": 按标题模糊匹配
         item_type: 可选，显式指定类型
-        delete_scope: 删除范围（仅对重复日程有效）
-            - "single": 仅删除这一个
-            - "all": 删除整个系列
-            - "future": 删除此次及之后的所有
+        delete_scope: 删除范围（对重复日程/提醒生效）
+            - "single": 仅删除这一个实例
+            - "all": 删除整个重复系列
+            - "future": 删除此实例及之后的所有实例
     
     Returns:
         删除结果
     
     Examples:
+        # 删除单个
         - delete_item(identifier="#1")
+        
+        # 删除整个重复系列
         - delete_item(identifier="#3", delete_scope="all")
+        
+        # 删除此次及之后
+        - delete_item(identifier="#2", delete_scope="future")
     """
     user = _get_user_from_config(config)
     session_id = _get_session_id_from_config(config)
@@ -601,18 +723,34 @@ def delete_item(
     
     try:
         if resolved_type == "event":
-            success = EventService.delete_event(
-                user=user,
-                event_id=item_uuid,
-                delete_scope=delete_scope,
-                session_id=session_id
-            )
-            if success:
-                # 从缓存中移除
+            # 检查是否是重复日程
+            event = EventService.get_event_by_id(user, item_uuid)
+            is_recurring = event and (event.get('is_recurring') or event.get('series_id'))
+            
+            if is_recurring and delete_scope != "single":
+                # 使用批量删除
+                result = EventService.bulk_edit(
+                    user=user,
+                    event_id=item_uuid,
+                    operation='delete',
+                    edit_scope=delete_scope,
+                    session_id=session_id
+                )
                 CacheManager.invalidate_item(session_id, item_uuid)
-                scope_text = {"single": "单个", "all": "整个系列", "future": "此次及之后"}.get(delete_scope, "")
-                return f"✅ 日程删除成功！（{scope_text}）\nID: {item_uuid}"
-            return f"❌ 日程删除失败"
+                scope_text = {"all": "整个系列", "future": "此次及之后"}.get(delete_scope, "")
+                return f"✅ 日程批量删除成功！（{scope_text}）\n删除数量: {result.get('deleted_count', 'N/A')}"
+            else:
+                # 单个删除
+                success = EventService.delete_event(
+                    user=user,
+                    event_id=item_uuid,
+                    delete_scope='single',
+                    session_id=session_id
+                )
+                if success:
+                    CacheManager.invalidate_item(session_id, item_uuid)
+                    return f"✅ 日程删除成功！\nID: {item_uuid}"
+                return f"❌ 日程删除失败"
         
         elif resolved_type == "todo":
             success = TodoService.delete_todo(
@@ -626,15 +764,36 @@ def delete_item(
             return f"❌ 待办删除失败"
         
         elif resolved_type == "reminder":
-            success = ReminderService.delete_reminder(
-                user=user,
-                reminder_id=item_uuid,
-                session_id=session_id
-            )
-            if success:
+            # 检查是否是重复提醒
+            reminder = ReminderService.get_reminder_by_id(user, item_uuid)
+            is_recurring = reminder and (reminder.get('is_recurring') or reminder.get('series_id'))
+            
+            # 转换 delete_scope: Agent 使用 'future'，API 使用 'from_this'
+            api_delete_scope = 'from_this' if delete_scope == 'future' else delete_scope
+            
+            if is_recurring and delete_scope != "single":
+                # 使用批量删除
+                result = ReminderService.bulk_edit(
+                    user=user,
+                    reminder_id=item_uuid,
+                    operation='delete',
+                    edit_scope=api_delete_scope,
+                    session_id=session_id
+                )
                 CacheManager.invalidate_item(session_id, item_uuid)
-                return f"✅ 提醒删除成功！\nID: {item_uuid}"
-            return f"❌ 提醒删除失败"
+                scope_text = {"all": "整个系列", "from_this": "此次及之后"}.get(api_delete_scope, "")
+                return f"✅ 提醒批量删除成功！（{scope_text}）"
+            else:
+                # 单个删除
+                success = ReminderService.delete_reminder(
+                    user=user,
+                    reminder_id=item_uuid,
+                    session_id=session_id
+                )
+                if success:
+                    CacheManager.invalidate_item(session_id, item_uuid)
+                    return f"✅ 提醒删除成功！\nID: {item_uuid}"
+                return f"❌ 提醒删除失败"
         
         else:
             return f"错误：未知的项目类型 '{resolved_type}'"

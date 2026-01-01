@@ -134,3 +134,103 @@ class ReminderService:
                 user_reminders_data.set_value(reminders)
                 return True
             return False
+
+    @staticmethod
+    def bulk_edit(user, reminder_id, operation='edit', edit_scope='single',
+                  title=None, content=None, trigger_time=None, priority=None,
+                  status=None, rrule=None, from_time=None, session_id=None):
+        """
+        批量编辑提醒 - 支持四种编辑范围
+        
+        Args:
+            user: 用户对象
+            reminder_id: 目标提醒ID
+            operation: 操作类型 'edit' 或 'delete'
+            edit_scope: 编辑范围
+                - 'single': 仅当前实例（从系列独立出来）
+                - 'all': 整个系列
+                - 'from_this': 此实例及之后
+                - 'from_time': 从指定时间开始（需配合 from_time 参数）
+            from_time: edit_scope='from_time' 时的起始时间
+            session_id: 会话ID（用于 AgentTransaction）
+            其他参数: 要更新的字段
+        
+        Returns:
+            dict: 操作结果
+        """
+        from rest_framework.test import APIRequestFactory
+        from core.views_reminder import bulk_edit_reminders
+        
+        # 首先获取提醒信息以获取 series_id
+        mock_request = MockRequest(user)
+        user_reminders_data, _, _ = UserData.get_or_initialize(mock_request, new_key="reminders")
+        reminders = user_reminders_data.get_value() or []
+        
+        target_reminder = None
+        series_id = None
+        for reminder in reminders:
+            if reminder.get('id') == reminder_id:
+                target_reminder = reminder
+                series_id = reminder.get('series_id')
+                break
+        
+        if not target_reminder:
+            raise Exception(f"Reminder not found: {reminder_id}")
+        
+        # 构建请求数据
+        request_data = {
+            'reminder_id': reminder_id,
+            'operation': operation,
+            'edit_scope': edit_scope,
+        }
+        
+        if series_id:
+            request_data['series_id'] = series_id
+        if from_time:
+            request_data['from_time'] = from_time
+        if title is not None:
+            request_data['title'] = title
+        if content is not None:
+            request_data['content'] = content
+        if trigger_time is not None:
+            request_data['trigger_time'] = trigger_time
+        if priority is not None:
+            request_data['priority'] = priority
+        if status is not None:
+            request_data['status'] = status
+        if rrule is not None:
+            request_data['rrule'] = rrule
+        
+        # 使用 APIRequestFactory 创建模拟请求
+        factory = APIRequestFactory()
+        request = factory.post('/api/reminders/bulk-edit/', request_data, format='json')
+        request.user = user
+        request.validated_data = request_data  # 模拟 @validate_body 装饰器的效果
+        
+        # 调用现有的 bulk_edit_reminders
+        with reversion.create_revision():
+            reversion.set_user(user)
+            reversion.set_comment(f"Bulk edit reminder: {reminder_id}, scope: {edit_scope}")
+            
+            response = bulk_edit_reminders(request)
+        
+        # 解析响应
+        import json
+        response_data = json.loads(response.content)
+        
+        if response.status_code != 200:
+            raise Exception(response_data.get('message', 'Bulk edit failed'))
+        
+        return response_data
+    
+    @staticmethod
+    def get_reminder_by_id(user, reminder_id):
+        """根据ID获取单个提醒"""
+        mock_request = MockRequest(user)
+        user_reminders_data, _, _ = UserData.get_or_initialize(mock_request, new_key="reminders")
+        reminders = user_reminders_data.get_value() or []
+        
+        for reminder in reminders:
+            if reminder.get('id') == reminder_id:
+                return reminder
+        return None

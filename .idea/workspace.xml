@@ -4,17 +4,18 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;增加（升级）课表导入功能，包括后端API设计与实现、RRule规则推断、课程数据解析逻辑及完整的前端交互界面 (支持Cookie输入、课程预览、日程组选择与批量导入)。">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251231_1358 development&#10;对 Agent 的 Planner 工具集做了较大优化&#10;新增缓存与标识符解析模块，支持搜索结果与事件组缓存的管理和名称解析，包括：&#10;- 定义 `EventGroupCache` 和 `SearchResultCache` 模型&#10;- 引入缓存管理器处理搜索缓存的创建、更新与失效逻辑；&#10;- 实现事件组管理模块以提供缓存更新、解析与默认分组查询功能；&#10;- 添加通用标识符解析工具，支持通过编号、UUID、或标题解析项目。">
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/agent_service/agent_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/tools/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/tools/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/tools/repeat_parser.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/tools/repeat_parser.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/tools/unified_planner_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/tools/unified_planner_tools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/utils.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/agent_service/views_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_api.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/services/event_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/services/event_service.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/services/reminder_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/services/reminder_service.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/Planner工具优化方案.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/升级与开发文档/Planner工具优化方案.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/logger.py" beforeDir="false" afterPath="$PROJECT_DIR$/logger.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -25,7 +26,7 @@
     <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="467" />
+    <option name="cachedIndexableFilesCount" value="483" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -356,7 +357,7 @@
       <workItem from="1766452527641" duration="18235000" />
       <workItem from="1766553512183" duration="4608000" />
       <workItem from="1766564142333" duration="167000" />
-      <workItem from="1766564339388" duration="66487000" />
+      <workItem from="1766564339388" duration="73509000" />
     </task>
     <task id="LOCAL-00001" summary="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
       <option name="closed" value="true" />
@@ -726,11 +727,22 @@
       <option name="project" value="LOCAL" />
       <updated>1767110255947</updated>
     </task>
-    <option name="localTasksCounter" value="47" />
+    <task id="LOCAL-00047" summary="UniSchedulerSuper 1.5.4.20251231_1358 development&#10;对 Agent 的 Planner 工具集做了较大优化&#10;新增缓存与标识符解析模块，支持搜索结果与事件组缓存的管理和名称解析，包括：&#10;- 定义 `EventGroupCache` 和 `SearchResultCache` 模型&#10;- 引入缓存管理器处理搜索缓存的创建、更新与失效逻辑；&#10;- 实现事件组管理模块以提供缓存更新、解析与默认分组查询功能；&#10;- 添加通用标识符解析工具，支持通过编号、UUID、或标题解析项目。">
+      <option name="closed" value="true" />
+      <created>1767160865174</created>
+      <option name="number" value="00047" />
+      <option name="presentableId" value="LOCAL-00047" />
+      <option name="project" value="LOCAL" />
+      <updated>1767160865174</updated>
+    </task>
+    <option name="localTasksCounter" value="48" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="UnknownFeatures">
+    <option featureType="com.intellij.fileTypeFactory" implementationName="*.8" />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
     <option name="TAB_STATES">
@@ -762,10 +774,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20251110_1528  development&#10;&#10;新增 token 验证重置密码功能" />
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20251111_0009 development&#10;&#10;给主界面加了全局搜素功能&#10;美化了设置按钮和搜索按钮的UI(beta)" />
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20251111_1812 development&#10;&#10;正在开发群组共享功能，当前已完成了数据库模型的创建和配置" />
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20251111_1812 development&#10;&#10;正在开发群组共享功能，当前已完成了后端核心功能 的所有开发任务" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251111_1837 development&#10;&#10;正在开发群组共享功能，当前已完成了后端核心功能 的所有开发任务" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251113_1712 development&#10;&#10;完成群组功能的开发(beta)" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251202_1908 development&#10;&#10;完成了接口报错机制" />
@@ -787,7 +795,11 @@
     <MESSAGE value="新增课程计划测试 JSON 文件以支持后续日程相关功能开发。" />
     <MESSAGE value="新增课程数据测试文件 `jwxs_response.json`，支持更复杂的课程与选课信息结构" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;增加（升级）课表导入功能，包括后端API设计与实现、RRule规则推断、课程数据解析逻辑及完整的前端交互界面 (支持Cookie输入、课程预览、日程组选择与批量导入)。" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;增加（升级）课表导入功能，包括后端API设计与实现、RRule规则推断、课程数据解析逻辑及完整的前端交互界面 (支持Cookie输入、课程预览、日程组选择与批量导入)。" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;对 Agent 的 planner 工具集做了较大的升级" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;对 Agent 的 planner 工具集做了较大的升级&#10;增加搜索结果缓存与事件组缓存的数据库模型及相关缓存管理逻辑模块，包括 `EventGroupCache` 和 `SearchResultCache` 模型、新的缓存管理器与事件组服务类，支持高效的缓存操作与数据同步功能。" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20251231_1358 development&#10;对 Agent 的 Planner 工具集做了较大优化&#10;新增缓存与标识符解析模块，支持搜索结果与事件组缓存的管理和名称解析，包括：&#10;- 定义 `EventGroupCache` 和 `SearchResultCache` 模型&#10;- 引入缓存管理器处理搜索缓存的创建、更新与失效逻辑；&#10;- 实现事件组管理模块以提供缓存更新、解析与默认分组查询功能；&#10;- 添加通用标识符解析工具，支持通过编号、UUID、或标题解析项目。" />
+    <MESSAGE value="新增 RRule 编辑操作指南，详细描述日程与提醒的重复规则编辑范围及操作，实现相关API逻辑优化，增强事务回滚功能及事件实例生成能力，同时完善 RepeatParser 对中文间隔规则的处理" />
+    <option name="LAST_COMMIT_MESSAGE" value="新增 RRule 编辑操作指南，详细描述日程与提醒的重复规则编辑范围及操作，实现相关API逻辑优化，增强事务回滚功能及事件实例生成能力，同时完善 RepeatParser 对中文间隔规则的处理" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

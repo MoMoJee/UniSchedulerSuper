@@ -235,6 +235,40 @@ class EventService:
                 target_event['is_recurring'] = False
                 # 注意：这里不会删除系列中的其他实例，只是将当前事件标记为非重复
                 # 如果需要完整删除系列，应使用 delete_event 配合 delete_scope='all'
+            elif rrule is not None:
+                # 设置新的重复规则
+                target_event['rrule'] = rrule.strip().rstrip(';') if rrule else ''
+                target_event['is_recurring'] = bool(rrule)
+                # 如果设置了新的重复规则，需要重新生成系列实例
+                if rrule:
+                    # 获取系列ID或创建新的
+                    if not target_event.get('series_id'):
+                        target_event['series_id'] = target_event.get('id')
+                    
+                    # 删除旧的实例（如果有）
+                    series_id = target_event.get('series_id')
+                    events = [e for e in events if e.get('series_id') != series_id or e.get('id') == event_id]
+                    
+                    # 生成新的实例
+                    if 'COUNT=' not in rrule and 'UNTIL=' not in rrule:
+                        if 'FREQ=MONTHLY' in rrule:
+                            additional_instances = manager.generate_event_instances(target_event, 365, 36)
+                        elif 'FREQ=WEEKLY' in rrule:
+                            additional_instances = manager.generate_event_instances(target_event, 180, 26)
+                        else:
+                            additional_instances = manager.generate_event_instances(target_event, 90, 20)
+                        events.extend(additional_instances)
+                    else:
+                        if 'COUNT=' in rrule:
+                            import re as re_module
+                            count_match = re_module.search(r'COUNT=(\d+)', rrule)
+                            if count_match:
+                                count = int(count_match.group(1))
+                                additional_instances = manager.generate_event_instances(target_event, 365, count)
+                                events.extend(additional_instances)
+                        elif 'UNTIL=' in rrule:
+                            additional_instances = manager.generate_event_instances(target_event, 365 * 2, 1000)
+                            events.extend(additional_instances)
             
             target_event['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
@@ -256,3 +290,112 @@ class EventService:
                     logger.error(f"同步群组数据失败: {str(e)}")
                     
             return target_event
+
+    @staticmethod
+    def bulk_edit(user, event_id, operation='edit', edit_scope='single', 
+                  title=None, description=None, start=None, end=None,
+                  importance=None, urgency=None, groupID=None, rrule=None,
+                  ddl=None, shared_to_groups=None, from_time=None, session_id=None):
+        """
+        批量编辑日程 - 支持四种编辑范围
+        
+        Args:
+            user: 用户对象
+            event_id: 目标事件ID
+            operation: 操作类型 'edit' 或 'delete'
+            edit_scope: 编辑范围
+                - 'single': 仅当前实例（从系列独立出来）
+                - 'all': 整个系列
+                - 'future': 此实例及之后
+                - 'from_time': 从指定时间开始（需配合 from_time 参数）
+            from_time: edit_scope='from_time' 时的起始时间
+            session_id: 会话ID（用于 AgentTransaction）
+            其他参数: 要更新的字段
+        
+        Returns:
+            dict: 操作结果
+        """
+        from rest_framework.test import APIRequestFactory
+        from core.views_events import bulk_edit_events_impl
+        
+        # 首先获取事件信息以获取 series_id
+        mock_request = MockRequest(user)
+        user_events_data, _, _ = UserData.get_or_initialize(mock_request, new_key="events", data=[])
+        events = user_events_data.get_value() or []
+        
+        target_event = None
+        series_id = None
+        for event in events:
+            if event.get('id') == event_id:
+                target_event = event
+                series_id = event.get('series_id')
+                break
+        
+        if not target_event:
+            raise Exception(f"Event not found: {event_id}")
+        
+        # 构建请求数据
+        request_data = {
+            'event_id': event_id,
+            'operation': operation,
+            'edit_scope': edit_scope,
+        }
+        
+        if series_id:
+            request_data['series_id'] = series_id
+        if from_time:
+            request_data['from_time'] = from_time
+        if title is not None:
+            request_data['title'] = title
+        if description is not None:
+            request_data['description'] = description
+        if start is not None:
+            request_data['start'] = start
+        if end is not None:
+            request_data['end'] = end
+        if importance is not None:
+            request_data['importance'] = importance
+        if urgency is not None:
+            request_data['urgency'] = urgency
+        if groupID is not None:
+            request_data['groupID'] = groupID
+        if rrule is not None:
+            request_data['rrule'] = rrule
+        if ddl is not None:
+            request_data['ddl'] = ddl
+        if shared_to_groups is not None:
+            request_data['shared_to_groups'] = shared_to_groups
+        
+        # 使用 APIRequestFactory 创建模拟请求
+        factory = APIRequestFactory()
+        request = factory.post('/api/events/bulk-edit/', request_data, format='json')
+        request.user = user
+        request.validated_data = request_data  # 模拟 @validate_body 装饰器的效果
+        
+        # 调用现有的 bulk_edit_events_impl
+        with reversion.create_revision():
+            reversion.set_user(user)
+            reversion.set_comment(f"Bulk edit event: {event_id}, scope: {edit_scope}")
+            
+            response = bulk_edit_events_impl(request)
+        
+        # 解析响应
+        import json
+        response_data = json.loads(response.content)
+        
+        if response.status_code != 200:
+            raise Exception(response_data.get('message', 'Bulk edit failed'))
+        
+        return response_data
+    
+    @staticmethod
+    def get_event_by_id(user, event_id):
+        """根据ID获取单个日程"""
+        mock_request = MockRequest(user)
+        user_events_data, _, _ = UserData.get_or_initialize(mock_request, new_key="events", data=[])
+        events = user_events_data.get_value() or []
+        
+        for event in events:
+            if event.get('id') == event_id:
+                return event
+        return None

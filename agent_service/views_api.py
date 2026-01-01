@@ -554,6 +554,9 @@ def rollback_to_message(request):
         # 计算需要回滚的消息数量
         rolled_back_messages = len(current_messages) - message_index
         
+        # 初始化 deleted_tool_call_ids 列表（用于精确匹配要回滚的事务）
+        deleted_tool_call_ids = []
+        
         # 在删除前，尝试定位目标检查点用于 TODO 回滚
         target_checkpoint_id = None
         try:
@@ -580,6 +583,14 @@ def rollback_to_message(request):
         if message_index == 0:
             logger.info("message_index=0，将清空所有消息（直接删除 checkpoint）")
             
+            # 收集所有 ToolMessage 的 tool_call_id（用于回滚所有事务）
+            for msg in current_messages:
+                if type(msg).__name__ == 'ToolMessage':
+                    tool_call_id = getattr(msg, 'tool_call_id', None)
+                    if tool_call_id:
+                        deleted_tool_call_ids.append(tool_call_id)
+            logger.info(f"清空会话时收集到 {len(deleted_tool_call_ids)} 个 tool_call_id")
+            
             # 直接删除该会话的所有 checkpoint - 这是最可靠的方式
             from agent_service.agent_graph import clear_session_checkpoints
             success = clear_session_checkpoints(session_id)
@@ -596,6 +607,7 @@ def rollback_to_message(request):
             # ====== 部分删除消息 ======
             # 使用 RemoveMessage 删除 message_index 及之后的所有消息
             messages_to_remove = []
+            
             for i, msg in enumerate(current_messages):
                 if i >= message_index:
                     # 获取消息 ID
@@ -604,10 +616,18 @@ def rollback_to_message(request):
                     if msg_id:
                         messages_to_remove.append(RemoveMessage(id=msg_id))
                         logger.info(f"准备删除消息 {i}: id={msg_id}, type={type(msg).__name__}")
+                        
+                        # 如果是 ToolMessage，收集其 tool_call_id
+                        if type(msg).__name__ == 'ToolMessage':
+                            tool_call_id = getattr(msg, 'tool_call_id', None)
+                            if tool_call_id:
+                                deleted_tool_call_ids.append(tool_call_id)
+                                logger.debug(f"  - 收集 tool_call_id: {tool_call_id}")
                     else:
                         logger.warning(f"消息 {i} 没有 ID: type={type(msg).__name__}")
             
             logger.info(f"共找到 {len(messages_to_remove)} 条有 ID 的消息待删除（共需删除 {rolled_back_messages} 条）")
+            logger.info(f"收集到 {len(deleted_tool_call_ids)} 个 tool_call_id: {deleted_tool_call_ids}")
             
             if messages_to_remove:
                 # 使用 update_state 删除消息
@@ -677,9 +697,8 @@ def rollback_to_message(request):
                 logger.warning(f"获取删除后状态失败: {e}")
         
         # ====== 回滚数据库事务 ======
-        # 回滚该 session 中所有未回滚的事务（从最新到最旧）
-        # 因为我们无法精确知道哪些事务对应哪些消息，
-        # 所以简单起见，回滚所有在回滚点之后的事务
+        # 只回滚与被删除的 ToolMessage 对应的事务（通过 tool_call_id 匹配）
+        # 如果是清空会话（message_index=0），回滚所有事务
         transactions = AgentTransaction.objects.filter(
             session_id=session_id,
             is_rolled_back=False
@@ -688,8 +707,29 @@ def rollback_to_message(request):
         rolled_back_transactions = 0
         rolled_back_details = []
         
-        # 回滚所有未回滚的事务
+        # 根据 tool_call_id 匹配回滚
         for trans in transactions:
+            # 检查是否应该回滚此事务
+            should_rollback = False
+            trans_tool_call_id = trans.metadata.get('tool_call_id') if trans.metadata else None
+            
+            if message_index == 0:
+                # 清空会话时，回滚所有事务
+                should_rollback = True
+                logger.debug(f"清空会话，回滚事务 #{trans.id}")
+            elif trans_tool_call_id and trans_tool_call_id in deleted_tool_call_ids:
+                # tool_call_id 匹配，回滚此事务
+                should_rollback = True
+                logger.debug(f"tool_call_id 匹配 ({trans_tool_call_id})，回滚事务 #{trans.id}")
+            elif not trans_tool_call_id:
+                # 旧事务没有 tool_call_id，使用时间范围作为后备方案
+                # 暂时跳过，避免误回滚
+                logger.debug(f"事务 #{trans.id} 没有 tool_call_id，跳过")
+                continue
+            
+            if not should_rollback:
+                continue
+                
             if trans.revision_id:
                 try:
                     revision = reversion.models.Revision.objects.get(id=trans.revision_id)

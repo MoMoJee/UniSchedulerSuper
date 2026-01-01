@@ -31,13 +31,14 @@ def agent_transaction(action_type):
                 
             user = configurable.get('user')
             session_id = configurable.get('thread_id')
+            tool_call_id = configurable.get('tool_call_id')  # 获取 tool_call_id
 
             if not user or not session_id:
                 # 如果没有上下文，直接运行（兼容普通调用）
                 logger.debug(f"agent_transaction: no user ({user}) or session_id ({session_id}), running without tracking")
                 return func(*args, **kwargs)
 
-            logger.info(f"agent_transaction: {action_type} for session {session_id}, user {user}")
+            logger.info(f"agent_transaction: {action_type} for session {session_id}, user {user}, tool_call_id={tool_call_id}")
 
             # 2. 在执行操作之前，先保存当前状态的快照
             # 这样回滚时可以恢复到操作前的状态
@@ -63,6 +64,10 @@ def agent_transaction(action_type):
             # 构建描述
             description = f"Executed {action_type}"
             metadata = {}
+            
+            # 保存 tool_call_id 到 metadata，用于回滚时匹配
+            if tool_call_id:
+                metadata['tool_call_id'] = tool_call_id
             
             # 从 kwargs 中获取标题信息
             title_from_kwargs = kwargs.get('title') or (args[0] if args else None)
