@@ -590,7 +590,16 @@ def delete_event_groups(request):
         events_groups = [group for group in events_groups if group['id'] not in group_ids]  # TODO 这样操作会导致 API 调用的时候，发来了错误的（实际不存在于数据库中的）ID，但仍旧返回 success 的错误
 
         # 如果需要删除日程组下的所有日程
+        affected_share_groups = set()  # 收集受影响的分享组
         if delete_events:
+            # 在删除前，收集要删除的日程所分享到的群组
+            for event in events:
+                if event.get('groupID') in group_ids:
+                    shared_to_groups = event.get('shared_to_groups', [])
+                    if shared_to_groups:
+                        affected_share_groups.update(shared_to_groups)
+            
+            # 删除日程
             events = [event for event in events if event['groupID'] not in group_ids]
 
         # 更新数据库
@@ -599,6 +608,15 @@ def delete_event_groups(request):
 
         user_data_events.value = json.dumps(events)
         user_data_events.save()
+
+        # 如果有受影响的分享组，同步更新
+        if affected_share_groups:
+            try:
+                from .views_share_groups import sync_group_calendar_data
+                sync_group_calendar_data(list(affected_share_groups), django_request.user)
+                logger.info(f"[DELETE_GROUP_SYNC] 删除日程组后同步分享组: {affected_share_groups}")
+            except Exception as sync_error:
+                logger.error(f"[DELETE_GROUP_SYNC] 同步分享组失败: {sync_error}")
 
         return JsonResponse({'status': 'success'})
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)

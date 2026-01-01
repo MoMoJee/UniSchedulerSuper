@@ -85,6 +85,9 @@ class EventsRRuleManager(IntegratedReminderManager):
     """Events专用的RRule管理器 - 继承并适配提醒管理器"""
     
     def __init__(self, user_or_request):
+        # 初始化实例生成计数器
+        self.instances_generated = 0
+        
         # 自动包裹MockRequest，确保有is_authenticated属性
         from django.http import HttpRequest
         class MockRequest:
@@ -360,13 +363,15 @@ class EventsRRuleManager(IntegratedReminderManager):
     def process_event_data(self, events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """处理事件数据，生成RRule实例 - 适配事件时间结构"""
         if not isinstance(events, list):
+            self.instances_generated = 0
             return []
         
         # 自动生成缺失的重复事件实例
         new_instances_count = self.auto_generate_missing_instances(events)
+        self.instances_generated = new_instances_count  # 记录生成的实例数量
         
         if new_instances_count > 0:
-            logger.info(f"Generated {new_instances_count} new event instances")
+            logger.debug(f"Generated {new_instances_count} new event instances")
         
         return events
     
@@ -424,10 +429,11 @@ class EventsRRuleManager(IntegratedReminderManager):
                     current_count = len(series_events)
                     
                     if current_count >= count_limit:
-                        logger.info(f"Series {series_id} has reached COUNT limit {count_limit} (current: {current_count})")
+                        # 已达到COUNT限制，无需生成，也不输出日志
                         continue
                     else:
-                        logger.info(f"Series {series_id} COUNT: {current_count}/{count_limit}")
+                        # 需要补充实例
+                        logger.debug(f"Series {series_id} COUNT: {current_count}/{count_limit}, generating more")
                         # 生成足够的实例来达到目标数量
                         remaining_count = count_limit - current_count
                         # 传递较大的max_instances来确保生成足够的实例
@@ -445,7 +451,7 @@ class EventsRRuleManager(IntegratedReminderManager):
                         if truly_new_instances:
                             events.extend(truly_new_instances)
                             new_instances_count += len(truly_new_instances)
-                            logger.info(f"Added {len(truly_new_instances)} new instances for COUNT-limited series {series_id} (target: {remaining_count})")
+                            logger.debug(f"Added {len(truly_new_instances)} new instances for COUNT-limited series {series_id} (target: {remaining_count})")
                 continue
             
             if has_until:
@@ -485,25 +491,30 @@ class EventsRRuleManager(IntegratedReminderManager):
                     continue
             
             if latest_time:
-                # 如果最晚的事件时间距离现在少于30天，生成新实例
+                # 计算最晚事件距离现在的天数
                 days_ahead = (latest_time - now).days
-                # logger.info(f"Series {series_id} latest event is {days_ahead} days from now")
                 
-                # 修复逻辑：如果没有足够的未来实例（少于30天或只有主事件），则生成
-                if days_ahead < 30 or len(series_events) == 1:
-                    # logger.info(f"Series {series_id} (no UNTIL) needs new instances, latest is {days_ahead} days ahead, count: {len(series_events)}")
-                    
-                    # 根据重复频率调整生成参数
-                    rrule = main_event.get('rrule', '')
-                    if 'FREQ=MONTHLY' in rrule:
-                        # 月度重复需要更长的时间范围和更多实例
-                        new_instances = self.generate_event_instances(main_event, 365, 36)  # 3年的月度实例
-                    elif 'FREQ=WEEKLY' in rrule:
-                        # 周度重复
-                        new_instances = self.generate_event_instances(main_event, 180, 26)  # 半年的周度实例
-                    else:
-                        # 日度或其他重复
-                        new_instances = self.generate_event_instances(main_event, 90, 20)
+                # 根据重复频率计算阈值：当剩余实例不足某个比例时才补充
+                rrule = main_event.get('rrule', '')
+                if 'FREQ=MONTHLY' in rrule:
+                    # 月度重复：当剩余少于6个月时补充
+                    threshold_days = 180
+                    generate_days = 365
+                    max_instances = 36
+                elif 'FREQ=WEEKLY' in rrule:
+                    # 周度重复：当剩余少于8周时补充
+                    threshold_days = 56
+                    generate_days = 180
+                    max_instances = 26
+                else:
+                    # 日度或其他重复：当剩余少于30天时补充
+                    threshold_days = 30
+                    generate_days = 90
+                    max_instances = 20
+                
+                # 如果剩余实例不足阈值，或者只有主事件，则生成新实例
+                if days_ahead < threshold_days or len(series_events) == 1:
+                    new_instances = self.generate_event_instances(main_event, generate_days, max_instances)
                     
                     # 过滤掉已经存在的实例
                     existing_starts = {e['start'] for e in series_events}
@@ -524,7 +535,11 @@ class EventsRRuleManager(IntegratedReminderManager):
         return new_instances_count
     
     def generate_event_instances(self, main_event: Dict[str, Any], days_ahead: int = 90, max_instances: int = 20) -> List[Dict[str, Any]]:
-        """生成事件实例 - 使用RRule引擎以正确处理EXDATE等例外"""
+        """生成事件实例 - 使用RRule引擎以正确处理EXDATE等例外
+        
+        注意：此方法从主事件开始时间生成实例，直到 max(主事件开始时间, 当前时间) + days_ahead
+        这确保即使主事件是过去的时间，也能生成足够的未来实例
+        """
         instances = []
         
         try:
@@ -535,15 +550,25 @@ class EventsRRuleManager(IntegratedReminderManager):
                 return instances
                 
             # 使用RRule引擎生成实例，这会正确处理EXDATE
-            start_time = datetime.datetime.fromisoformat(main_event['start'])
-            end_time = start_time + datetime.timedelta(days=days_ahead)
+            event_start_time = datetime.datetime.fromisoformat(main_event['start'])
+            now = datetime.datetime.now()
             
-            # 从RRule引擎获取实例时间
+            # 关键修复：结束时间应该是 max(事件开始时间, 当前时间) + days_ahead
+            # 这样即使事件开始于过去，也能生成未来的实例
+            reference_time = max(event_start_time, now)
+            end_time = reference_time + datetime.timedelta(days=days_ahead)
+            
+            # 计算从事件开始到结束时间的总天数，用于估算需要多少实例
+            total_days = (end_time - event_start_time).days
+            # 对于日度重复，可能需要 total_days 个实例；为安全起见，请求更多
+            estimated_instances = max(max_instances, total_days + 10)
+            
+            # 从RRule引擎获取实例时间（从事件开始时间到结束时间）
             instance_times = self.rrule_engine.generate_instances(
                 series_id, 
-                start_time, 
+                event_start_time,  # 从事件开始时间开始（保持RRule的正确性）
                 end_time, 
-                max_instances
+                estimated_instances
             )
             
             # 计算持续时间
@@ -1257,8 +1282,10 @@ def get_events_impl(request):
         events_manager = get_events_manager(request)
         processed_events = events_manager.process_event_data(events)
         
-        # 保存处理后的数据
-        user_data.set_value(processed_events)
+        # 只有生成了新实例才保存数据（避免无谓的数据库写入）
+        if events_manager.instances_generated > 0:
+            user_data.set_value(processed_events)
+            logger.debug(f"Saved {events_manager.instances_generated} new event instances to database")
         
         if not processed_events:
             processed_events = []
@@ -1266,35 +1293,33 @@ def get_events_impl(request):
         if not events_groups:
             events_groups = []
 
-        # 添加分享信息：标记哪些事件被分享到了哪些群组
-        # 导入必要的模型
-        from .models import GroupCalendarData, GroupMembership
+        # 添加分享信息：为前端提供群组的详细信息（名称、颜色）
+        # 用户 events 中已存储 shared_to_groups（群组ID列表），这里补充群组详情
+        from .models import GroupMembership
         
-        # 获取用户所属的所有群组
-        user_memberships = GroupMembership.objects.filter(user=django_request.user).select_related('share_group')
+        # 一次性获取用户所属的所有群组信息（只需 1 次数据库查询）
+        user_memberships = GroupMembership.objects.filter(
+            user=django_request.user
+        ).select_related('share_group')
         
-        # 为每个事件添加 shared_groups 字段
+        # 构建群组ID -> 群组详情的映射
+        group_info_map = {
+            m.share_group.share_group_id: {
+                'share_group_id': m.share_group.share_group_id,
+                'share_group_name': m.share_group.share_group_name,
+                'share_group_color': m.share_group.share_group_color
+            }
+            for m in user_memberships
+        }
+        
+        # 为每个事件添加 shared_groups 字段（直接从 shared_to_groups 转换）
         for event in processed_events:
-            event_id = event.get('id')
-            shared_groups = []
-            
-            # 检查每个群组是否包含此事件
-            for membership in user_memberships:
-                try:
-                    group_data = GroupCalendarData.objects.get(share_group=membership.share_group)
-                    # 检查事件ID是否在群组的事件列表中
-                    for group_event in group_data.events_data:
-                        if group_event.get('id') == event_id:
-                            shared_groups.append({
-                                'share_group_id': membership.share_group.share_group_id,
-                                'share_group_name': membership.share_group.share_group_name,
-                                'share_group_color': membership.share_group.share_group_color
-                            })
-                            break
-                except GroupCalendarData.DoesNotExist:
-                    continue
-            
-            event['shared_groups'] = shared_groups
+            shared_to_group_ids = event.get('shared_to_groups', [])
+            event['shared_groups'] = [
+                group_info_map[gid] 
+                for gid in shared_to_group_ids 
+                if gid in group_info_map
+            ]
         
         # 返回事件和日程组数据
         return JsonResponse({"events": processed_events, "events_groups": events_groups})

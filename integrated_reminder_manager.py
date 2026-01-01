@@ -353,12 +353,19 @@ class IntegratedReminderManager:
         # 在 RRule 引擎中创建系列 - 只调用一次
         series_id = self.rrule_engine.create_series(rrule_str, actual_start_time)
         
+        # 检查主提醒是否已过期，如果是则设置状态为 dismissed
+        now = datetime.now()
+        main_status = reminder_data.get('status', 'active')
+        if actual_start_time < now:
+            main_status = 'dismissed'  # 已过期的主提醒自动设为已忽略
+        
         # 更新提醒数据
         reminder_data.update({
             'id': str(uuid.uuid4()),
             'series_id': series_id,  # 使用引擎返回的系列ID
             'rrule': rrule_str,
             'trigger_time': actual_start_time.isoformat(),  # 使用计算出的实际开始时间
+            'status': main_status,
             'is_recurring': True,
             'is_main_reminder': True,  # 标记为主提醒
             'created_at': datetime.now().isoformat(),
@@ -1024,8 +1031,15 @@ class IntegratedReminderManager:
                 return False
     
     def _generate_instances_for_series(self, series_info: Dict[str, Any], 
-                                     start_from: Optional[datetime] = None) -> List[Dict[str, Any]]:
-        """为系列生成新的实例"""
+                                     start_from: Optional[datetime] = None,
+                                     include_past: bool = True) -> List[Dict[str, Any]]:
+        """为系列生成新的实例
+        
+        Args:
+            series_info: 系列信息
+            start_from: 开始时间（如果为None，默认使用主提醒的开始时间或当前时间）
+            include_past: 是否包含过去的实例（默认True，生成从主提醒开始到未来的所有实例）
+        """
         main_reminder = series_info.get('main_reminder')
         if not main_reminder:
             return []
@@ -1036,16 +1050,24 @@ class IntegratedReminderManager:
         if not rrule:
             return []
         
-        if start_from is None:
-            start_from = datetime.now()
-        
         # 获取主提醒的开始时间
         try:
             main_start_time = datetime.fromisoformat(
                 main_reminder.get('trigger_time', '').replace('Z', '+00:00')
             )
         except:
-            main_start_time = start_from
+            main_start_time = datetime.now()
+        
+        now = datetime.now()
+        
+        # 确定生成实例的起始时间
+        if start_from is None:
+            if include_past:
+                # 包含过去的实例：从主提醒开始时间生成
+                start_from = main_start_time
+            else:
+                # 不包含过去的实例：从现在开始生成
+                start_from = now
         
         # 确保RRule引擎中有这个系列
         rrule_series = self.rrule_engine.get_series(series_id)
@@ -1054,10 +1076,16 @@ class IntegratedReminderManager:
             logger.warning(f"Series {series_id} not found in RRule engine, skipping instance generation")
             return []
         
-        # 生成实例时间
-        end_date = start_from + timedelta(days=self.default_future_days)
+        # 生成实例时间：结束时间应该是 max(开始时间, 当前时间) + future_days
+        reference_time = max(start_from, now)
+        end_date = reference_time + timedelta(days=self.default_future_days)
+        
+        # 计算需要请求的实例数量（考虑从过去到未来的时间跨度）
+        total_days = (end_date - start_from).days
+        estimated_instances = max(self.max_instances_per_generation, total_days + 10)
+        
         instance_times = self.rrule_engine.generate_instances(
-            series_id, start_from, end_date, self.max_instances_per_generation
+            series_id, start_from, end_date, estimated_instances
         )
         
         logger.debug(f"Generated {len(instance_times)} instance times for series {series_id}. {series_info=}")
@@ -1117,9 +1145,16 @@ class IntegratedReminderManager:
                 
             if instance_time not in existing_times:
                 new_instance = main_reminder.copy()
+                
+                # 检查实例是否已过期，如果是则设置状态为 dismissed
+                instance_status = 'active'
+                if instance_time < now:
+                    instance_status = 'dismissed'  # 已过期的提醒自动设为已忽略
+                
                 new_instance.update({
                     'id': str(uuid.uuid4()),
                     'trigger_time': instance_time.isoformat(),
+                    'status': instance_status,
                     'is_main_reminder': False,
                     'is_instance': True,
                     'original_reminder_id': main_reminder['id'],

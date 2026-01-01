@@ -80,6 +80,13 @@ const shareGroupManager = {
                 this.state.myGroups = data.groups || [];
                 console.log('[ShareGroupManager] 加载群组列表成功:', this.state.myGroups.length, '个群组');
                 
+                // 初始化 groupVersions，避免轮询时发送 version=0
+                for (const group of this.state.myGroups) {
+                    if (group.version !== undefined && this.state.groupVersions[group.share_group_id] === undefined) {
+                        this.state.groupVersions[group.share_group_id] = group.version;
+                    }
+                }
+                
                 // 渲染群组选项卡和选择器
                 this.renderGroupTabs();
                 this.renderGroupSelectors();

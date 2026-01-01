@@ -150,7 +150,8 @@ def get_my_share_groups(request):
                 "role": "owner",
                 "member_count": 5,
                 "owner_name": "张三",
-                "created_at": "2025-11-11T10:00:00"
+                "created_at": "2025-11-11T10:00:00",
+                "version": 10
             }
         ]
     }
@@ -158,6 +159,13 @@ def get_my_share_groups(request):
     try:
         # 获取用户的所有群组成员关系
         memberships = GroupMembership.objects.filter(user=request.user).select_related('share_group')
+        
+        # 预加载所有群组的版本号，避免 N+1 查询
+        group_ids = [m.share_group.share_group_id for m in memberships]
+        group_versions = {
+            gcd.share_group_id: gcd.version 
+            for gcd in GroupCalendarData.objects.filter(share_group_id__in=group_ids)
+        }
         
         groups = []
         for membership in memberships:
@@ -175,7 +183,8 @@ def get_my_share_groups(request):
                 'owner_id': group.owner.id,
                 'owner_name': group.owner.username,
                 'created_at': group.created_at.isoformat(),
-                'joined_at': membership.joined_at.isoformat()
+                'joined_at': membership.joined_at.isoformat(),
+                'version': group_versions.get(group.share_group_id, 0)  # 返回版本号，用于前端初始化轮询
             })
         
         return JsonResponse({

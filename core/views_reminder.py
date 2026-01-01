@@ -79,13 +79,23 @@ def auto_generate_missing_instances(reminders):
                 latest_time = trigger_time
         
         if latest_time:
-            # 如果最晚的提醒时间距离现在少于30天，生成新实例
+            # 计算最晚提醒距离现在的天数
             days_ahead = (latest_time - now).days
-            if days_ahead < 30:
-                # print(f"DEBUG: Series {series_id} (no UNTIL) needs new instances, latest is {days_ahead} days ahead")
-                
-                # 生成新实例，从最晚时间之后开始
-                new_instances = generate_reminder_instances(base_reminder, 90, 10)
+            
+            # 根据重复频率计算阈值：当剩余实例不足某个比例时才补充
+            if 'FREQ=MONTHLY' in rrule:
+                threshold_days = 180  # 月度重复：剩余少于6个月时补充
+                generate_days = 365
+            elif 'FREQ=WEEKLY' in rrule:
+                threshold_days = 56  # 周度重复：剩余少于8周时补充
+                generate_days = 180
+            else:
+                threshold_days = 30  # 日度或其他重复：剩余少于30天时补充
+                generate_days = 90
+            
+            if days_ahead < threshold_days:
+                # 生成新实例
+                new_instances = generate_reminder_instances(base_reminder, generate_days, 10)
                 
                 # 过滤掉已经存在的实例
                 existing_times = {r['trigger_time'] for r in series_reminders}
@@ -98,9 +108,8 @@ def auto_generate_missing_instances(reminders):
                 if truly_new_instances:
                     reminders.extend(truly_new_instances)
                     new_instances_count += len(truly_new_instances)
-                    # print(f"DEBUG: Added {len(truly_new_instances)} new instances for unlimited series {series_id}")
-            else:
-                print(f"DEBUG: Series {series_id} (no UNTIL) is good, latest is {days_ahead} days ahead")
+                    # logger.debug(f"Added {len(truly_new_instances)} new instances for unlimited series {series_id}")
+            # 系列已有足够的未来实例，无需日志输出
     
     return new_instances_count
 
@@ -123,6 +132,11 @@ def generate_reminder_instances(base_reminder, days_ahead=90, min_instances=10):
         
         rrule = base_reminder['rrule']
         start_time = datetime.fromisoformat(base_reminder['trigger_time'])
+        now = datetime.now()
+        
+        # 关键修复：结束时间应该是 max(提醒开始时间, 当前时间) + days_ahead
+        # 这样即使提醒开始于过去，也能生成未来的实例
+        reference_time = max(start_time, now)
         
         # 解析UNTIL限制
         until_time = None
@@ -130,7 +144,6 @@ def generate_reminder_instances(base_reminder, days_ahead=90, min_instances=10):
             until_match = re.search(r'UNTIL=([^;]+)', rrule)
             if until_match:
                 until_str = until_match.group(1)
-                print(f"DEBUG: Parsing UNTIL string: '{until_str}' from rrule: '{rrule}'")
                 try:
                     if until_str.endswith('Z'):
                         # UTC格式：20250830T000000Z
@@ -146,21 +159,18 @@ def generate_reminder_instances(base_reminder, days_ahead=90, min_instances=10):
                         until_formatted = (until_str[:4] + '-' + until_str[4:6] + '-' + until_str[6:8] + 
                                          'T' + until_str[9:11] + ':' + until_str[11:13] + ':' + until_str[13:15])
                         until_time = datetime.fromisoformat(until_formatted)
-                        print(f"DEBUG: Formatted UNTIL string '{until_str}' -> '{until_formatted}' -> {until_time}")
                     else:
                         # 其他格式，直接解析
                         until_time = datetime.fromisoformat(until_str)
-                    print(f"DEBUG: Parsed UNTIL time: {until_time}")
                 except Exception as e:
-                    print(f"DEBUG: Failed to parse UNTIL {until_str}: {e}")
+                    pass  # 解析失败时静默处理
         
         # 动态计算结束时间，确保生成足够的实例
-        end_time = start_time + timedelta(days=days_ahead)
+        end_time = reference_time + timedelta(days=days_ahead)
         
         # 如果有UNTIL限制，使用更早的时间
         if until_time:
             end_time = min(end_time, until_time)
-            print(f"DEBUG: Using UNTIL limited end_time: {end_time}")
         
         # 对于较长周期的重复，扩展生成范围
         if 'FREQ=MONTHLY' in rrule:
@@ -402,7 +412,7 @@ def get_reminders(request):
         if new_instances_generated > 0:
             # 如果生成了新实例，保存更新后的数据
             user_reminders_data.set_value(reminders)
-            print(f"DEBUG: Auto-generated {new_instances_generated} new reminder instances")
+            logger.debug(f"Auto-generated {new_instances_generated} new reminder instances")
         
         # 返回提醒数据
         return JsonResponse({'reminders': reminders})

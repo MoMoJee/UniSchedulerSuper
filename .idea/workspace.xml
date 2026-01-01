@@ -1,21 +1,211 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="AIDiffSettings">
+    <option name="showAIDiff" value="true" />
+  </component>
+  <component name="AIDiffStorage" id="2">
+    <groups>
+      <group changeListId="05b82437-c50b-4a62-9674-d6975244574d" id="4" name="Add 'affected_share_groups' synchronization after deleting event groups" description="Synchronize affected share groups after deleting event groups to maintain data consistency." importance="0.9">
+        <files>
+          <file summary="Introduces logic to collect `affected_share_groups` before deleting events and calls `sync_group_calendar_data` to update them, ensuring data consistency." importance="0.9" isPending="false">
+            <change beforePath="$PROJECT_DIR$/core/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views.py" afterDir="false" />
+            <ranges>
+              <range afterLine1="592" afterLine2="593" beforeLine1="592" beforeLine2="592" groupId="4" />
+              <range afterLine1="594" afterLine2="602" beforeLine1="593" beforeLine2="593" groupId="4" />
+              <range afterLine1="611" afterLine2="620" beforeLine1="602" beforeLine2="602" groupId="4" />
+            </ranges>
+          </file>
+        </files>
+      </group>
+      <group changeListId="0ad2508d-f4af-438f-82eb-0c5cf6378b16" id="2" name="Enhance event instance generation in 'auto_generate_missing_instances'" description="Improve event instance generation logic by dynamically adjusting parameters based on recurrence frequency." importance="0.85">
+        <files>
+          <file summary="Refines event instance generation logic in `auto_generate_missing_instances` by using frequency-specific thresholds and generation ranges. Corrects `generate_event_instances` to use `max(event_start_time, now)` for `end_time` calculation." importance="0.85" isPending="false">
+            <change beforePath="$PROJECT_DIR$/core/views_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
+            <ranges>
+              <range afterLine1="431" afterLine2="432" beforeLine1="426" beforeLine2="427" groupId="2" />
+              <range afterLine1="434" afterLine2="436" beforeLine1="429" beforeLine2="430" groupId="2" />
+              <range afterLine1="453" afterLine2="454" beforeLine1="447" beforeLine2="448" groupId="2" />
+              <range afterLine1="493" afterLine2="494" beforeLine1="487" beforeLine2="488" groupId="2" />
+              <range afterLine1="495" afterLine2="495" beforeLine1="489" beforeLine2="490" groupId="2" />
+              <range afterLine1="496" afterLine2="517" beforeLine1="491" beforeLine2="506" groupId="2" />
+              <range afterLine1="537" afterLine2="542" beforeLine1="526" beforeLine2="527" groupId="2" />
+              <range afterLine1="552" afterLine2="559" beforeLine1="537" beforeLine2="539" groupId="2" />
+              <range afterLine1="560" afterLine2="566" beforeLine1="540" beforeLine2="541" groupId="2" />
+              <range afterLine1="568" afterLine2="569" beforeLine1="543" beforeLine2="544" groupId="2" />
+              <range afterLine1="570" afterLine2="571" beforeLine1="545" beforeLine2="546" groupId="2" />
+            </ranges>
+          </file>
+        </files>
+      </group>
+      <group changeListId="773b3807-47c3-4f5f-8473-0217f2bcca8e" id="7" name="Enhance reminder instance generation in 'integrated_reminder_manager.py'" description="Improve reminder instance generation by dynamically adjusting parameters and handling past instances." importance="0.85">
+        <files>
+          <file summary="Refines `_generate_instances_for_series` to use `max(start_from, now)` for `end_date` calculation, adds `include_past` parameter, and sets `status` to 'dismissed' for past instances and main reminders." importance="0.85" isPending="false">
+            <change beforePath="$PROJECT_DIR$/integrated_reminder_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/integrated_reminder_manager.py" afterDir="false" />
+            <ranges>
+              <range afterLine1="355" afterLine2="361" beforeLine1="355" beforeLine2="355" groupId="7" />
+              <range afterLine1="367" afterLine2="368" beforeLine1="361" beforeLine2="361" groupId="7" />
+              <range afterLine1="1033" afterLine2="1042" beforeLine1="1026" beforeLine2="1028" groupId="7" />
+              <range afterLine1="1052" afterLine2="1052" beforeLine1="1038" beforeLine2="1041" groupId="7" />
+              <range afterLine1="1058" afterLine2="1070" beforeLine1="1047" beforeLine2="1048" groupId="7" />
+              <range afterLine1="1078" afterLine2="1086" beforeLine1="1056" beforeLine2="1058" groupId="7" />
+              <range afterLine1="1087" afterLine2="1088" beforeLine1="1059" beforeLine2="1060" groupId="7" />
+              <range afterLine1="1147" afterLine2="1153" beforeLine1="1119" beforeLine2="1119" groupId="7" />
+              <range afterLine1="1156" afterLine2="1157" beforeLine1="1122" beforeLine2="1122" groupId="7" />
+            </ranges>
+          </file>
+        </files>
+      </group>
+      <group changeListId="a1aa8768-59b7-4e08-a164-38175e1cbaba" id="1" name="Optimize 'process_event_data' to save only new instances" description="Optimize event processing to save to database only when new instances are generated, reducing unnecessary writes." importance="0.8">
+        <files>
+          <file summary="Introduces `instances_generated` counter in `EventsRRuleManager` and modifies `process_event_data` to conditionally save events based on this counter, reducing database writes." importance="0.8" isPending="false">
+            <change beforePath="$PROJECT_DIR$/core/views_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
+            <ranges>
+              <range afterLine1="87" afterLine2="90" beforeLine1="87" beforeLine2="87" groupId="1" />
+              <range afterLine1="365" afterLine2="366" beforeLine1="362" beforeLine2="362" groupId="1" />
+              <range afterLine1="370" afterLine2="371" beforeLine1="366" beforeLine2="366" groupId="1" />
+              <range afterLine1="1284" afterLine2="1288" beforeLine1="1259" beforeLine2="1261" groupId="1" />
+            </ranges>
+          </file>
+        </files>
+      </group>
+      <group changeListId="0cd498ea-95b1-422f-9527-0665a7d92728" id="8" name="Refine reminder instance generation in 'views_reminder.py'" description="Optimize reminder instance generation by using frequency-specific thresholds and correcting `end_time` calculation." importance="0.8">
+        <files>
+          <file summary="Updates `generate_missing_instances` to use dynamic thresholds for instance generation based on recurrence frequency. Corrects `generate_reminder_instances` to calculate `end_time` from `max(start_time, now)`." importance="0.8" isPending="false">
+            <change beforePath="$PROJECT_DIR$/core/views_reminder.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_reminder.py" afterDir="false" />
+            <ranges>
+              <range afterLine1="81" afterLine2="82" beforeLine1="81" beforeLine2="82" groupId="8" />
+              <range afterLine1="83" afterLine2="98" beforeLine1="83" beforeLine2="88" groupId="8" />
+              <range afterLine1="110" afterLine2="112" beforeLine1="100" beforeLine2="103" groupId="8" />
+              <range afterLine1="134" afterLine2="139" beforeLine1="125" beforeLine2="125" groupId="8" />
+              <range afterLine1="146" afterLine2="146" beforeLine1="132" beforeLine2="133" groupId="8" />
+              <range afterLine1="161" afterLine2="161" beforeLine1="148" beforeLine2="149" groupId="8" />
+              <range afterLine1="164" afterLine2="164" beforeLine1="152" beforeLine2="153" groupId="8" />
+              <range afterLine1="165" afterLine2="166" beforeLine1="154" beforeLine2="155" groupId="8" />
+              <range afterLine1="168" afterLine2="169" beforeLine1="157" beforeLine2="158" groupId="8" />
+              <range afterLine1="173" afterLine2="173" beforeLine1="162" beforeLine2="163" groupId="8" />
+            </ranges>
+          </file>
+        </files>
+      </group>
+      <group changeListId="10e307f8-4295-40df-8296-f9d18c2f601a" id="3" name="Optimize event sharing data retrieval in 'get_events'" description="Optimize event sharing data retrieval by pre-fetching group information to reduce database queries." importance="0.7">
+        <files>
+          <file summary="Refactors `get_events` to pre-fetch all user group memberships and create a `group_info_map`, reducing N+1 queries when adding shared group details to events." importance="0.7" isPending="false">
+            <change beforePath="$PROJECT_DIR$/core/views_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
+            <ranges>
+              <range afterLine1="1295" afterLine2="1298" beforeLine1="1268" beforeLine2="1271" groupId="3" />
+              <range afterLine1="1299" afterLine2="1303" beforeLine1="1272" beforeLine2="1274" groupId="3" />
+              <range afterLine1="1304" afterLine2="1315" beforeLine1="1275" beforeLine2="1276" groupId="3" />
+              <range afterLine1="1316" afterLine2="1322" beforeLine1="1277" beforeLine2="1297" groupId="3" />
+            </ranges>
+          </file>
+        </files>
+      </group>
+      <group changeListId="2a49155d-c548-4baa-901d-7bd3cd503e58" id="6" name="Add 'version' to 'get_share_groups' API response" description="Include `version` in `get_share_groups` API response for client-side synchronization." importance="0.7">
+        <files>
+          <file summary="Modifies `get_share_groups` to fetch and include the `version` from `GroupCalendarData` for each share group in the API response, enabling client-side version tracking." importance="0.7" isPending="false">
+            <change beforePath="$PROJECT_DIR$/core/views_share_groups.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_share_groups.py" afterDir="false" />
+            <ranges>
+              <range afterLine1="152" afterLine2="154" beforeLine1="152" beforeLine2="153" groupId="6" />
+              <range afterLine1="162" afterLine2="169" beforeLine1="161" beforeLine2="161" groupId="6" />
+              <range afterLine1="185" afterLine2="187" beforeLine1="177" beforeLine2="178" groupId="6" />
+            </ranges>
+          </file>
+        </files>
+      </group>
+      <group changeListId="e3bc635b-0350-4cdc-b07c-2b26bad708b1" id="5" name="Initialize 'groupVersions' in 'ShareGroupManager' to prevent version=0 polling" description="Initialize `groupVersions` with actual group versions to prevent unnecessary polling with default version=0." importance="0.6">
+        <files>
+          <file summary="Adds a loop to initialize `this.state.groupVersions` with actual group versions from `this.state.myGroups` to avoid default `version=0` during polling." importance="0.6" isPending="false">
+            <change beforePath="$PROJECT_DIR$/core/static/js/share-groups.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/share-groups.js" afterDir="false" />
+            <ranges>
+              <range afterLine1="82" afterLine2="89" beforeLine1="82" beforeLine2="82" groupId="5" />
+            </ranges>
+          </file>
+        </files>
+      </group>
+      <group changeListId="fd1595cb-43b8-4aca-876a-79f5730ba0bd" id="9" name="Add new 'api_examples/111.py' for TODOs API usage" description="Introduce a new API example file '111.py' demonstrating TODOs API usage with token authentication." importance="0.5">
+        <files>
+          <file summary="Adds a new Python script `111.py` to `api_examples` demonstrating how to use the TODOs API for fetching and creating items with token authentication." importance="0.5" isPending="false">
+            <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
+            <ranges>
+              <range afterLine1="0" afterLine2="150" beforeLine1="0" beforeLine2="0" groupId="9" />
+            </ranges>
+          </file>
+        </files>
+      </group>
+      <group changeListId="27f2b8da-0054-435c-a2e3-ae6486bcfb86" id="10" name="Adjust logging levels from 'info' to 'debug'" description="Change logging levels from 'info' to 'debug' for routine instance generation messages." importance="0.3">
+        <files>
+          <file summary="Changes logging level from `info` to `debug` for event instance generation messages." importance="0.3" isPending="false">
+            <change beforePath="$PROJECT_DIR$/core/views_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
+            <ranges>
+              <range afterLine1="373" afterLine2="374" beforeLine1="368" beforeLine2="369" groupId="10" />
+            </ranges>
+          </file>
+          <file summary="Changes logging level from `info` to `debug` for reminder instance generation messages." importance="0.3" isPending="false">
+            <change beforePath="$PROJECT_DIR$/core/views_reminder.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_reminder.py" afterDir="false" />
+            <ranges>
+              <range afterLine1="414" afterLine2="415" beforeLine1="404" beforeLine2="405" groupId="10" />
+            </ranges>
+          </file>
+        </files>
+      </group>
+      <group changeListId="72082ee9-073a-419b-a947-b2bea5b8a13d" id="11" name="Update '.idea/workspace.xml' with new commit message" description="Update '.idea/workspace.xml' to reflect the latest commit message and duration." importance="0.1">
+        <files>
+          <file summary="Updates the commit message and work item duration in the IDE's workspace configuration file." importance="0.1" isPending="false">
+            <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+            <ranges>
+              <range afterLine1="6" afterLine2="7" beforeLine1="6" beforeLine2="7" groupId="11" />
+              <range afterLine1="9" afterLine2="14" beforeLine1="9" beforeLine2="16" groupId="11" />
+              <range afterLine1="15" afterLine2="16" beforeLine1="17" beforeLine2="18" groupId="11" />
+              <range afterLine1="357" afterLine2="358" beforeLine1="359" beforeLine2="360" groupId="11" />
+              <range afterLine1="735" afterLine2="744" beforeLine1="737" beforeLine2="738" groupId="11" />
+              <range afterLine1="782" afterLine2="782" beforeLine1="776" beforeLine2="778" groupId="11" />
+              <range afterLine1="805" afterLine2="808" beforeLine1="801" beforeLine2="802" groupId="11" />
+            </ranges>
+          </file>
+        </files>
+      </group>
+    </groups>
+  </component>
   <component name="AutoImportSettings">
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20251231_1358 development&#10;对 Agent 的 Planner 工具集做了较大优化&#10;新增缓存与标识符解析模块，支持搜索结果与事件组缓存的管理和名称解析，包括：&#10;- 定义 `EventGroupCache` 和 `SearchResultCache` 模型&#10;- 引入缓存管理器处理搜索缓存的创建、更新与失效逻辑；&#10;- 实现事件组管理模块以提供缓存更新、解析与默认分组查询功能；&#10;- 添加通用标识符解析工具，支持通过编号、UUID、或标题解析项目。">
-      <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/agent_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/tools/repeat_parser.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/tools/repeat_parser.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/tools/unified_planner_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/tools/unified_planner_tools.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/views_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_api.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/services/event_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/services/event_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/services/reminder_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/services/reminder_service.py" afterDir="false" />
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260101_1658 development&#10;&#10;改进重复规则解析器，支持中文数字解析及动态间隔处理。提供 Rrule 编辑详情指南&#10;优化回滚逻辑，支持基于 `tool_call_id` 精确匹配回滚点。增强 `AgentTransaction` 模块，支持 `tool_call_id` 元数据匹配。修复工具执行流程，将 `tool_call_id` 作为配置传递，修复回滚问题。&#10;把日志器的文件大小改成了16MB">
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/logger.py" beforeDir="false" afterPath="$PROJECT_DIR$/logger.py" afterDir="false" />
+    </list>
+    <list id="05b82437-c50b-4a62-9674-d6975244574d" name="Add 'affected_share_groups' synchronization after deleting event groups" comment="Synchronize affected share groups after deleting event groups to maintain data consistency.">
+      <change beforePath="$PROJECT_DIR$/core/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views.py" afterDir="false" />
+    </list>
+    <list id="2a49155d-c548-4baa-901d-7bd3cd503e58" name="Add 'version' to 'get_share_groups' API response" comment="Include `version` in `get_share_groups` API response for client-side synchronization.">
+      <change beforePath="$PROJECT_DIR$/core/views_share_groups.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_share_groups.py" afterDir="false" />
+    </list>
+    <list id="fd1595cb-43b8-4aca-876a-79f5730ba0bd" name="Add new 'api_examples/111.py' for TODOs API usage" comment="Introduce a new API example file '111.py' demonstrating TODOs API usage with token authentication.">
+      <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
+    </list>
+    <list id="27f2b8da-0054-435c-a2e3-ae6486bcfb86" name="Adjust logging levels from 'info' to 'debug'" comment="Change logging levels from 'info' to 'debug' for routine instance generation messages.">
+      <change beforePath="$PROJECT_DIR$/core/views_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/views_reminder.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_reminder.py" afterDir="false" />
+    </list>
+    <list id="0ad2508d-f4af-438f-82eb-0c5cf6378b16" name="Enhance event instance generation in 'auto_generate_missing_instances'" comment="Improve event instance generation logic by dynamically adjusting parameters based on recurrence frequency.">
+      <change beforePath="$PROJECT_DIR$/core/views_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
+    </list>
+    <list id="773b3807-47c3-4f5f-8473-0217f2bcca8e" name="Enhance reminder instance generation in 'integrated_reminder_manager.py'" comment="Improve reminder instance generation by dynamically adjusting parameters and handling past instances.">
+      <change beforePath="$PROJECT_DIR$/integrated_reminder_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/integrated_reminder_manager.py" afterDir="false" />
+    </list>
+    <list id="e3bc635b-0350-4cdc-b07c-2b26bad708b1" name="Initialize 'groupVersions' in 'ShareGroupManager' to prevent version=0 polling" comment="Initialize `groupVersions` with actual group versions to prevent unnecessary polling with default version=0.">
+      <change beforePath="$PROJECT_DIR$/core/static/js/share-groups.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/share-groups.js" afterDir="false" />
+    </list>
+    <list id="a1aa8768-59b7-4e08-a164-38175e1cbaba" name="Optimize 'process_event_data' to save only new instances" comment="Optimize event processing to save to database only when new instances are generated, reducing unnecessary writes.">
+      <change beforePath="$PROJECT_DIR$/core/views_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
+    </list>
+    <list id="10e307f8-4295-40df-8296-f9d18c2f601a" name="Optimize event sharing data retrieval in 'get_events'" comment="Optimize event sharing data retrieval by pre-fetching group information to reduce database queries.">
+      <change beforePath="$PROJECT_DIR$/core/views_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
+    </list>
+    <list id="0cd498ea-95b1-422f-9527-0665a7d92728" name="Refine reminder instance generation in 'views_reminder.py'" comment="Optimize reminder instance generation by using frequency-specific thresholds and correcting `end_time` calculation.">
+      <change beforePath="$PROJECT_DIR$/core/views_reminder.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_reminder.py" afterDir="false" />
+    </list>
+    <list id="72082ee9-073a-419b-a947-b2bea5b8a13d" name="Update '.idea/workspace.xml' with new commit message" comment="Update '.idea/workspace.xml' to reflect the latest commit message and duration.">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -59,6 +249,47 @@
 }</component>
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$PROJECT_DIR$/core/Events的RRule功能升级文档.md" root0="FORCE_HIGHLIGHTING" root1="SKIP_HIGHLIGHTING" />
+  </component>
+  <component name="LineStatusTrackerManager">
+    <file path="$PROJECT_DIR$/core/views_reminder.py">
+      <ranges>
+        <range start1="81" end1="82" start2="81" end2="82" changelist="0cd498ea-95b1-422f-9527-0665a7d92728" />
+        <range start1="83" end1="88" start2="83" end2="98" changelist="0cd498ea-95b1-422f-9527-0665a7d92728" />
+        <range start1="100" end1="103" start2="110" end2="112" changelist="0cd498ea-95b1-422f-9527-0665a7d92728" />
+        <range start1="125" end1="125" start2="134" end2="139" changelist="0cd498ea-95b1-422f-9527-0665a7d92728" />
+        <range start1="132" end1="133" start2="146" end2="146" changelist="0cd498ea-95b1-422f-9527-0665a7d92728" />
+        <range start1="148" end1="149" start2="161" end2="161" changelist="0cd498ea-95b1-422f-9527-0665a7d92728" />
+        <range start1="152" end1="153" start2="164" end2="164" changelist="0cd498ea-95b1-422f-9527-0665a7d92728" />
+        <range start1="154" end1="155" start2="165" end2="166" changelist="0cd498ea-95b1-422f-9527-0665a7d92728" />
+        <range start1="157" end1="158" start2="168" end2="169" changelist="0cd498ea-95b1-422f-9527-0665a7d92728" />
+        <range start1="162" end1="163" start2="173" end2="173" changelist="0cd498ea-95b1-422f-9527-0665a7d92728" />
+        <range start1="404" end1="405" start2="414" end2="415" changelist="27f2b8da-0054-435c-a2e3-ae6486bcfb86" />
+      </ranges>
+    </file>
+    <file path="$PROJECT_DIR$/core/views_events.py">
+      <ranges>
+        <range start1="87" end1="87" start2="87" end2="90" changelist="a1aa8768-59b7-4e08-a164-38175e1cbaba" />
+        <range start1="362" end1="362" start2="365" end2="366" changelist="a1aa8768-59b7-4e08-a164-38175e1cbaba" />
+        <range start1="366" end1="366" start2="370" end2="371" changelist="a1aa8768-59b7-4e08-a164-38175e1cbaba" />
+        <range start1="368" end1="369" start2="373" end2="374" changelist="27f2b8da-0054-435c-a2e3-ae6486bcfb86" />
+        <range start1="426" end1="427" start2="431" end2="432" changelist="0ad2508d-f4af-438f-82eb-0c5cf6378b16" />
+        <range start1="429" end1="430" start2="434" end2="436" changelist="0ad2508d-f4af-438f-82eb-0c5cf6378b16" />
+        <range start1="447" end1="448" start2="453" end2="454" changelist="0ad2508d-f4af-438f-82eb-0c5cf6378b16" />
+        <range start1="487" end1="488" start2="493" end2="494" changelist="0ad2508d-f4af-438f-82eb-0c5cf6378b16" />
+        <range start1="489" end1="490" start2="495" end2="495" changelist="0ad2508d-f4af-438f-82eb-0c5cf6378b16" />
+        <range start1="491" end1="506" start2="496" end2="517" changelist="0ad2508d-f4af-438f-82eb-0c5cf6378b16" />
+        <range start1="526" end1="527" start2="537" end2="542" changelist="0ad2508d-f4af-438f-82eb-0c5cf6378b16" />
+        <range start1="537" end1="539" start2="552" end2="559" changelist="0ad2508d-f4af-438f-82eb-0c5cf6378b16" />
+        <range start1="540" end1="541" start2="560" end2="566" changelist="0ad2508d-f4af-438f-82eb-0c5cf6378b16" />
+        <range start1="543" end1="544" start2="568" end2="569" changelist="0ad2508d-f4af-438f-82eb-0c5cf6378b16" />
+        <range start1="545" end1="546" start2="570" end2="571" changelist="0ad2508d-f4af-438f-82eb-0c5cf6378b16" />
+        <range start1="1259" end1="1261" start2="1284" end2="1288" changelist="a1aa8768-59b7-4e08-a164-38175e1cbaba" />
+        <range start1="1268" end1="1271" start2="1295" end2="1298" changelist="10e307f8-4295-40df-8296-f9d18c2f601a" />
+        <range start1="1272" end1="1274" start2="1299" end2="1303" changelist="10e307f8-4295-40df-8296-f9d18c2f601a" />
+        <range start1="1275" end1="1276" start2="1304" end2="1315" changelist="10e307f8-4295-40df-8296-f9d18c2f601a" />
+        <range start1="1277" end1="1297" start2="1316" end2="1322" changelist="10e307f8-4295-40df-8296-f9d18c2f601a" />
+      </ranges>
+    </file>
   </component>
   <component name="McpProjectServerCommands">
     <commands />
@@ -357,7 +588,7 @@
       <workItem from="1766452527641" duration="18235000" />
       <workItem from="1766553512183" duration="4608000" />
       <workItem from="1766564142333" duration="167000" />
-      <workItem from="1766564339388" duration="73509000" />
+      <workItem from="1766564339388" duration="84186000" />
     </task>
     <task id="LOCAL-00001" summary="1.5.0 UniSchedulerSuper Release&#10;新增了提醒和待办数据模型和功能&#10;重构了主界面&#10;重构了主界面代码，分离CSS与JS与HTML&#10;升级详情见：升级详细文档.md">
       <option name="closed" value="true" />
@@ -735,7 +966,15 @@
       <option name="project" value="LOCAL" />
       <updated>1767160865174</updated>
     </task>
-    <option name="localTasksCounter" value="48" />
+    <task id="LOCAL-00048" summary="UniSchedulerSuper 1.5.4.20260101_1658 development&#10;&#10;改进重复规则解析器，支持中文数字解析及动态间隔处理。提供 Rrule 编辑详情指南&#10;优化回滚逻辑，支持基于 `tool_call_id` 精确匹配回滚点。增强 `AgentTransaction` 模块，支持 `tool_call_id` 元数据匹配。修复工具执行流程，将 `tool_call_id` 作为配置传递，修复回滚问题。&#10;把日志器的文件大小改成了16MB">
+      <option name="closed" value="true" />
+      <created>1767257928904</created>
+      <option name="number" value="00048" />
+      <option name="presentableId" value="LOCAL-00048" />
+      <option name="project" value="LOCAL" />
+      <updated>1767257928904</updated>
+    </task>
+    <option name="localTasksCounter" value="49" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -774,11 +1013,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20251111_1837 development&#10;&#10;正在开发群组共享功能，当前已完成了后端核心功能 的所有开发任务" />
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20251113_1712 development&#10;&#10;完成群组功能的开发(beta)" />
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20251202_1908 development&#10;&#10;完成了接口报错机制" />
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20251220_2301 development&#10;&#10;我在学 LangGraph, 准备把它集成进我的网站" />
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20251221_1714 development&#10;&#10;已完成前三个阶段的升级（后端）" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251224_0154 development" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251225_0105 development" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251225_1712 development&#10;升级Agent中 - Phase 1 &amp; 2 已完成" />
@@ -799,7 +1033,12 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;对 Agent 的 planner 工具集做了较大的升级&#10;增加搜索结果缓存与事件组缓存的数据库模型及相关缓存管理逻辑模块，包括 `EventGroupCache` 和 `SearchResultCache` 模型、新的缓存管理器与事件组服务类，支持高效的缓存操作与数据同步功能。" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251231_1358 development&#10;对 Agent 的 Planner 工具集做了较大优化&#10;新增缓存与标识符解析模块，支持搜索结果与事件组缓存的管理和名称解析，包括：&#10;- 定义 `EventGroupCache` 和 `SearchResultCache` 模型&#10;- 引入缓存管理器处理搜索缓存的创建、更新与失效逻辑；&#10;- 实现事件组管理模块以提供缓存更新、解析与默认分组查询功能；&#10;- 添加通用标识符解析工具，支持通过编号、UUID、或标题解析项目。" />
     <MESSAGE value="新增 RRule 编辑操作指南，详细描述日程与提醒的重复规则编辑范围及操作，实现相关API逻辑优化，增强事务回滚功能及事件实例生成能力，同时完善 RepeatParser 对中文间隔规则的处理" />
-    <option name="LAST_COMMIT_MESSAGE" value="新增 RRule 编辑操作指南，详细描述日程与提醒的重复规则编辑范围及操作，实现相关API逻辑优化，增强事务回滚功能及事件实例生成能力，同时完善 RepeatParser 对中文间隔规则的处理" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260101_1658 development&#10;&#10;改进重复规则解析器，支持中文数字解析及动态间隔处理。提供 Rrule 编辑详情指南&#10;优化回滚逻辑，支持基于 `tool_call_id` 精确匹配回滚点。增强 `AgentTransaction` 模块，支持 `tool_call_id` 元数据匹配。修复工具执行流程，将 `tool_call_id` 作为配置传递，修复回滚问题。&#10;把日志器的文件大小改成了16MB" />
+    <MESSAGE value="改进事件与提醒实例生成逻辑  &#10;&#10;- 添加实例生成计数器，避免无效数据库写入  &#10;- 优化实例生成规则，基于重复频率动态调整生成参数（天数和实例数量）  &#10;- 替换 `info` 日志为 `debug` 级别以减少不必要的日志输出  &#10;- 优化群组共享逻辑，减少数据库查询，提升事件共享信息处理效率  " />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260101_1834 development&#10;&#10;改进事件和提醒实例的生成逻辑，动态调整生成范围以确保覆盖未来时间，同时优化性能并减少不必要的更新与日志输出。&#10;增强群组共享模块，预加载版本信息用于优化轮询逻辑。&#10;调整日志记录级别，使调试信息更清晰。" />
+    <MESSAGE value="改进事件与提醒实例生成逻辑  &#10;&#10;- 添加实例生成计数器，避免无效的数据库写入  &#10;- 优化实例生成规则，基于重复频率动态调整生成参数（天数及实例数量）  &#10;- 替换部分 `info` 日志为 `debug` 级别，减少不必要的日志输出  &#10;- 增强群组共享逻辑，减少数据库查询，优化事件共享和群组版本处理效率" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260101_2000 development&#10;&#10;1. 优化 get_events 时的分享组筛选、rrule检查导致的巨大性能开销&#10;2. 修复前端获取分享组更新时的版本号问题&#10;3. 修复通过日程组删除处在分享组中的日程时的分享组同步缺失问题" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260101_2000 development&#10;&#10;1. 优化 get_events 时的分享组筛选、rrule检查导致的巨大性能开销&#10;2. 修复前端获取分享组更新时的版本号问题&#10;3. 修复通过日程组删除处在分享组中的日程时的分享组同步缺失问题" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
