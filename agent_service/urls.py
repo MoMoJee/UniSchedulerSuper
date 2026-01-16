@@ -4,6 +4,7 @@ Agent Service URL 配置
 from django.urls import path
 from . import views_api
 from . import views_memory_api
+from . import views_config_api
 
 app_name = 'agent_service'
 
@@ -36,6 +37,26 @@ urlpatterns = [
     
     # 专家配置 (旧，兼容)
     path('experts/', views_api.get_available_experts, name='get_experts'),
+    
+    # ==========================================
+    # Agent 配置 API (模型、优化、Token统计)
+    # ==========================================
+    
+    # 综合配置（一次性获取）
+    path('config/', views_config_api.get_all_agent_config, name='get_all_agent_config'),
+    
+    # 模型配置
+    path('model-config/', views_config_api.get_model_config, name='get_model_config'),
+    path('model-config/update/', views_config_api.update_model_config, name='update_model_config'),
+    
+    # 优化配置
+    path('optimization-config/', views_config_api.get_opt_config, name='get_optimization_config'),
+    path('optimization-config/update/', views_config_api.update_opt_config, name='update_optimization_config'),
+    
+    # Token 统计
+    path('token-usage/', views_config_api.get_token_stats, name='get_token_stats'),
+    path('token-usage/reset/', views_config_api.reset_token_stats, name='reset_token_stats'),
+    path('token-usage/quota/', views_config_api.update_quota, name='update_quota'),
     
     # ==========================================
     # 记忆管理 API

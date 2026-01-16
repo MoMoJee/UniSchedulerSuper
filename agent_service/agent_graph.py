@@ -11,7 +11,7 @@ from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph.message import add_messages
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI
 
@@ -40,6 +40,15 @@ from agent_service.tools.todo_tools import (
     TODO_TOOLS
 )
 from agent_service.mcp_tools import get_mcp_tools_sync
+
+# 导入上下文优化模块
+from agent_service.context_optimizer import (
+    TokenCalculator, ToolMessageCompressor,
+    get_current_model_config, get_optimization_config, update_token_usage
+)
+from agent_service.context_summarizer import (
+    ConversationSummarizer, build_optimized_context, build_full_context
+)
 
 from logger import logger
 # ==========================================
@@ -311,6 +320,11 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     """
     统一的 Agent 节点，根据 active_tools 动态绑定工具
     
+    支持:
+    - 动态工具绑定
+    - 上下文优化 (Token 管理)
+    - Token 使用统计
+    
     注意: active_tools 优先从 config 中获取，以确保每次调用都使用最新的工具配置
     这是因为 LangGraph 的 checkpoint 机制会保存/恢复 state，可能导致 active_tools 被旧值覆盖
     """
@@ -321,12 +335,7 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     active_tool_names = configurable.get("active_tools") or state.get('active_tools') or get_default_tools()
     user = configurable.get("user")
     
-    # 详细记录工具状态
     logger.debug(f"[Agent] agent_node 调用:")
-    logger.debug(f"[Agent]   - state keys: {list(state.keys())}")
-    logger.debug(f"[Agent]   - config.configurable: {configurable}")
-    logger.debug(f"[Agent]   - active_tools from config: {configurable.get('active_tools', 'NOT SET')}")
-    logger.debug(f"[Agent]   - active_tools from state: {state.get('active_tools', 'NOT SET')}")
     logger.debug(f"[Agent]   - active_tool_names (最终使用): {active_tool_names}")
     logger.debug(f"[Agent]   - 消息数量: {len(messages)}")
     
@@ -334,8 +343,9 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     now = datetime.datetime.now()
     current_time = now.strftime("%Y-%m-%d %H:%M:%S")
     
-    # 构建 system prompt（使用新的构建函数）
+    # 构建 system prompt
     system_prompt = build_system_prompt(user, active_tool_names, current_time)
+    system_message = SystemMessage(content=system_prompt)
     
     # 动态获取工具
     tools = get_tools_by_names(active_tool_names)
@@ -343,17 +353,196 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     logger.debug(f"[Agent] 工具绑定:")
     logger.debug(f"[Agent]   - 请求的工具名称: {active_tool_names}")
     logger.debug(f"[Agent]   - 实际获取的工具数量: {len(tools)}")
-    logger.debug(f"[Agent]   - 实际工具名称: {[t.name for t in tools]}")
+    
+    # ========== 获取当前模型配置 ==========
+    current_model_id = 'system_deepseek'
+    model_config = None
+    
+    if user and user.is_authenticated:
+        try:
+            current_model_id, model_config = get_current_model_config(user)
+            logger.info(f"[Agent] 获取到模型配置: model_id={current_model_id}")
+            logger.debug(f"[Agent] 模型详情: {model_config}")
+        except Exception as e:
+            logger.warning(f"[Agent] 获取模型配置失败: {e}")
+    
+    # ========== 动态创建 LLM 实例 ==========
+    active_llm = llm  # 默认使用全局 llm
+    
+    if model_config:
+        try:
+            from langchain_openai import ChatOpenAI
+            import os as _os
+            
+            # 根据模型配置创建 LLM
+            # 系统模型使用 api_url，自定义模型也使用 api_url
+            api_url = model_config.get('api_url', '')
+            
+            # 处理 API URL - LangChain 需要的是 base_url（不含 /chat/completions）
+            if api_url:
+                # 移除末尾的 /chat/completions 或 /v1/chat/completions
+                if api_url.endswith('/chat/completions'):
+                    api_url = api_url.rsplit('/chat/completions', 1)[0]
+                # 确保末尾没有斜杠
+                api_url = api_url.rstrip('/')
+            
+            # 获取 API Key
+            # 系统模型使用环境变量，自定义模型直接存储
+            api_key = model_config.get('api_key', '')
+            if not api_key and model_config.get('api_key_env'):
+                api_key = _os.environ.get(model_config['api_key_env'], '')
+            
+            # 系统模型如果没有配置环境变量，使用默认的 OPENAI_API_KEY
+            if not api_key and model_config.get('provider') == 'system':
+                api_key = _os.environ.get('OPENAI_API_KEY', '')
+            
+            # 获取模型名称 - 自定义模型用 model_name，系统模型可能用 model
+            model_name = model_config.get('model_name', model_config.get('model', ''))
+            
+            # 只有当我们有足够的配置信息时才创建自定义 LLM
+            # 系统默认模型 system_deepseek 不需要重新创建（使用全局 llm）
+            if current_model_id != 'system_deepseek' and api_url and model_name:
+                active_llm = ChatOpenAI(
+                    model=model_name,
+                    base_url=api_url,
+                    api_key=api_key if api_key else 'sk-placeholder',  # type: ignore
+                    temperature=0.7,
+                    streaming=True,
+                )
+                logger.info(f"[Agent] 使用自定义模型: {model_name} @ {api_url}")
+            else:
+                logger.debug(f"[Agent] 使用默认模型 (model_id={current_model_id})")
+        except Exception as e:
+            logger.warning(f"[Agent] 创建自定义 LLM 失败，使用默认: {e}")
+            active_llm = llm
     
     if tools:
-        llm_with_tools = llm.bind_tools(tools)
+        llm_with_tools = active_llm.bind_tools(tools)
     else:
-        llm_with_tools = llm
+        llm_with_tools = active_llm
     
-    full_messages = [SystemMessage(content=system_prompt)] + messages
+    # ========== 上下文优化逻辑 ==========
+    optimized_messages = messages
+    optimization_applied = False
+    
+    if user and user.is_authenticated:
+        try:
+            from agent_service.models import DialogStyle
+            dialog_style = DialogStyle.get_or_create_default(user)
+            enable_optimization = getattr(dialog_style, 'enable_context_optimization', True)
+            
+            logger.debug(f"[Agent] 上下文优化检查: enable={enable_optimization}, msg_count={len(messages)}")
+            
+            if enable_optimization and len(messages) > 10:
+                # 获取优化配置
+                opt_config = get_optimization_config(user)
+                
+                # 计算 token 预算
+                context_window = model_config.get('context_window', 128000) if model_config else 128000
+                target_ratio = opt_config.get('target_usage_ratio', 0.6)
+                max_tokens = int(context_window * target_ratio)
+                
+                # 计算 system prompt 占用
+                calculator = TokenCalculator(
+                    method=opt_config.get('token_calculation_method', 'estimate')
+                )
+                system_tokens = calculator.calculate_text(system_prompt)
+                available_tokens = max_tokens - system_tokens
+                
+                # 计算原始消息的 token 总数
+                original_tokens = sum(calculator.calculate_message(m) for m in messages)
+                
+                logger.info(f"[Agent] 上下文优化触发:")
+                logger.info(f"[Agent]   - 上下文窗口: {context_window}, 目标使用率: {target_ratio*100}%")
+                logger.info(f"[Agent]   - 最大可用: {max_tokens}, System占用: {system_tokens}, 剩余可用: {available_tokens}")
+                logger.info(f"[Agent]   - 原始消息: {len(messages)} 条, {original_tokens} tokens")
+                
+                if available_tokens > 0:
+                    # 计算总结和最近对话的 token 预算
+                    summary_ratio = opt_config.get('summary_token_ratio', 0.26)
+                    recent_ratio = opt_config.get('recent_token_ratio', 0.65)
+                    summary_budget = int(available_tokens * summary_ratio)
+                    recent_budget = int(available_tokens * recent_ratio)
+                    
+                    logger.info(f"[Agent]   - 总结预算: {summary_budget}, 最近对话预算: {recent_budget}")
+                    
+                    # 创建工具压缩器
+                    tool_compressor = ToolMessageCompressor(
+                        max_tokens=opt_config.get('tool_output_max_tokens', 200)
+                    ) if opt_config.get('compress_tool_output', True) else None
+                    
+                    # 使用优化上下文（同步调用）
+                    optimized_messages = build_optimized_context(
+                        user=user,
+                        system_prompt=system_prompt,
+                        messages=messages,
+                        summary_metadata=None,  # 暂不使用持久化总结
+                        token_calculator=calculator,
+                        tool_compressor=tool_compressor,
+                        summary_token_budget=summary_budget,
+                        recent_token_budget=recent_budget
+                    )
+                    
+                    # 移除第一个 SystemMessage（因为 build_optimized_context 已经添加了）
+                    if optimized_messages and isinstance(optimized_messages[0], SystemMessage):
+                        optimized_messages = optimized_messages[1:]
+                    
+                    # 计算优化后的 token 总数
+                    optimized_tokens = sum(calculator.calculate_message(m) for m in optimized_messages)
+                    optimization_applied = True
+                    
+                    logger.info(f"[Agent] 上下文优化完成:")
+                    logger.info(f"[Agent]   - 优化后消息: {len(optimized_messages)} 条, {optimized_tokens} tokens")
+                    logger.info(f"[Agent]   - 削减率: {(1 - optimized_tokens/original_tokens)*100:.1f}%")
+                    
+                    # 打印优化后的消息摘要
+                    logger.debug(f"[Agent] 优化后消息列表:")
+                    for i, msg in enumerate(optimized_messages[:10]):  # 只打印前10条
+                        msg_type = type(msg).__name__
+                        content_preview = msg.content[:50].replace('\n', ' ') if msg.content else ''
+                        logger.debug(f"[Agent]   [{i+1}] {msg_type}: {content_preview}...")
+                    if len(optimized_messages) > 10:
+                        logger.debug(f"[Agent]   ... 还有 {len(optimized_messages) - 10} 条消息")
+                else:
+                    logger.warning(f"[Agent] 可用 token 不足，跳过优化")
+        except Exception as e:
+            logger.error(f"[Agent] 上下文优化失败: {e}", exc_info=True)
+            optimized_messages = messages
+    
+    full_messages = [system_message] + list(optimized_messages)
+    
+    # 打印最终发送给 LLM 的消息
+    logger.info(f"[Agent] 发送给 LLM 的消息: {len(full_messages)} 条")
+    if optimization_applied:
+        final_tokens = sum(TokenCalculator(method='estimate').calculate_message(m) for m in full_messages)
+        logger.info(f"[Agent] 最终上下文大小: 约 {final_tokens} tokens")
+    
     response = llm_with_tools.invoke(full_messages, config)
     
+    # ========== Token 统计 ==========
+    if user and user.is_authenticated:
+        try:
+            # 尝试从 response 获取实际 token 使用
+            input_tokens = 0
+            output_tokens = 0
+            
+            if hasattr(response, 'response_metadata'):
+                usage = response.response_metadata.get('token_usage', {})
+                input_tokens = usage.get('prompt_tokens', 0)
+                output_tokens = usage.get('completion_tokens', 0)
+            
+            if input_tokens > 0 or output_tokens > 0:
+                cost_input = model_config.get('cost_per_1k_input', 0) if model_config else 0
+                cost_output = model_config.get('cost_per_1k_output', 0) if model_config else 0
+                cost = (input_tokens * cost_input + output_tokens * cost_output) / 1000
+                
+                update_token_usage(user, input_tokens, output_tokens, current_model_id, cost)
+                logger.debug(f"[Agent] Token 统计: in={input_tokens}, out={output_tokens}, cost={cost:.6f}")
+        except Exception as e:
+            logger.debug(f"[Agent] Token 统计失败: {e}")
+    
     return {"messages": [response]}
+
 
 # ==========================================
 # 路由逻辑

@@ -161,6 +161,12 @@ class DialogStyle(models.Model):
     
     # 记忆优化设置
     memory_batch_size = models.IntegerField(default=20, help_text="记忆优化批次大小")
+    
+    # Agent 上下文优化开关（详细配置存储在 UserData.agent_optimization_config）
+    enable_context_optimization = models.BooleanField(
+        default=True, 
+        help_text="是否启用 Agent 上下文优化（Token 管理、智能总结等）"
+    )
 
     # 保留 content 字段用于生成完整模板
     content = models.TextField(blank=True, help_text="完整的对话风格模板（自动生成）")

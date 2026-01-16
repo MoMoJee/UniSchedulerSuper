@@ -1118,6 +1118,152 @@ DATA_SCHEMA = {
             },
         },
     },
+    # ===== Agent 模型配置和 Token 统计 =====
+    "agent_config": {
+        "type": dict,
+        "nullable": False,
+        "default": {},
+        "items": {
+            # 当前使用的模型 ID
+            "current_model_id": {
+                "type": str,
+                "nullable": False,
+                "default": "system_deepseek",
+            },
+            # 自定义模型列表（系统模型由代码提供）
+            "custom_models": {
+                "type": dict,
+                "nullable": False,
+                "default": {},
+                # 格式: {
+                #   "custom_1": {
+                #     "name": "我的 GPT-4",
+                #     "api_url": "https://api.openai.com/v1/chat/completions",
+                #     "api_key": "sk-xxx",
+                #     "context_window": 128000,
+                #     "cost_per_1k_input": 0.01,
+                #     "cost_per_1k_output": 0.03
+                #   }
+                # }
+            },
+        },
+    },
+    "agent_token_usage": {
+        "type": dict,
+        "nullable": False,
+        "default": {},
+        "items": {
+            # 累计输入 Token
+            "total_input_tokens": {
+                "type": int,
+                "nullable": False,
+                "default": 0,
+            },
+            # 累计输出 Token
+            "total_output_tokens": {
+                "type": int,
+                "nullable": False,
+                "default": 0,
+            },
+            # 累计费用（美元）
+            "total_cost": {
+                "type": float,
+                "nullable": False,
+                "default": 0.0,
+            },
+            # Token 配额（暂时设为大值）
+            "quota": {
+                "type": int,
+                "nullable": False,
+                "default": 9999999,
+            },
+            # 最后更新时间
+            "last_updated": {
+                "type": str,
+                "nullable": True,
+                "default": "",
+            },
+            # 每日统计: {"2026-01-02": {"input": 1000, "output": 500, "cost": 0.01}}
+            "daily_stats": {
+                "type": dict,
+                "nullable": False,
+                "default": {},
+            },
+            # 模型统计: {"system_deepseek": {"input": 1000, "output": 500, "cost": 0.01}}
+            "model_stats": {
+                "type": dict,
+                "nullable": False,
+                "default": {},
+            },
+        },
+    },
+    "agent_optimization_config": {
+        "type": dict,
+        "nullable": False,
+        "default": {},
+        "items": {
+            # 是否启用上下文优化
+            "enable_optimization": {
+                "type": bool,
+                "nullable": False,
+                "default": True,
+            },
+            # 目标窗口使用率 (0-1)
+            "target_usage_ratio": {
+                "type": float,
+                "nullable": False,
+                "default": 0.6,
+            },
+            # Token 计算方式: actual/tiktoken/estimate
+            "token_calculation_method": {
+                "type": str,
+                "nullable": False,
+                "default": "actual",
+            },
+            # 历史总结占比
+            "summary_token_ratio": {
+                "type": float,
+                "nullable": False,
+                "default": 0.26,
+            },
+            # 最近对话占比
+            "recent_token_ratio": {
+                "type": float,
+                "nullable": False,
+                "default": 0.65,
+            },
+            # 是否启用智能总结
+            "enable_summarization": {
+                "type": bool,
+                "nullable": False,
+                "default": True,
+            },
+            # 总结触发阈值
+            "summary_trigger_ratio": {
+                "type": float,
+                "nullable": False,
+                "default": 0.5,
+            },
+            # 最少消息数才开始总结
+            "min_messages_before_summary": {
+                "type": int,
+                "nullable": False,
+                "default": 20,
+            },
+            # 是否压缩工具输出
+            "compress_tool_output": {
+                "type": bool,
+                "nullable": False,
+                "default": True,
+            },
+            # 工具输出最大 Token
+            "tool_output_max_tokens": {
+                "type": int,
+                "nullable": False,
+                "default": 200,
+            },
+        },
+    },
 }
 # 这里定义用户信息类
 

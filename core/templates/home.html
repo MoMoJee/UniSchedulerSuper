@@ -2975,6 +2975,24 @@
                                         <i class="fas fa-cogs me-1"></i>工作流规则
                                     </button>
                                 </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="ai-model-config-tab" data-bs-toggle="pill" 
+                                        data-bs-target="#ai-model-config" type="button" role="tab">
+                                        <i class="fas fa-microchip me-1"></i>模型配置
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="ai-optimization-tab" data-bs-toggle="pill" 
+                                        data-bs-target="#ai-optimization" type="button" role="tab">
+                                        <i class="fas fa-tachometer-alt me-1"></i>上下文优化
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="ai-token-stats-tab" data-bs-toggle="pill" 
+                                        data-bs-target="#ai-token-stats" type="button" role="tab">
+                                        <i class="fas fa-chart-bar me-1"></i>Token 统计
+                                    </button>
+                                </li>
                             </ul>
                             
                             <div class="tab-content" id="aiMemoryTabsContent">
@@ -3076,6 +3094,285 @@
                                     <div id="workflowRulesList" class="memory-list" style="max-height: 300px; overflow-y: auto;">
                                         <div class="text-center text-muted py-4">
                                             <i class="fas fa-spinner fa-spin me-2"></i>加载中...
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 模型配置 -->
+                                <div class="tab-pane fade" id="ai-model-config" role="tabpanel">
+                                    <div class="mb-3">
+                                        <small class="text-muted">选择 AI 模型或添加自定义模型</small>
+                                    </div>
+                                    
+                                    <!-- 当前模型选择 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <i class="fas fa-check-circle text-success me-2"></i>当前使用的模型
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row align-items-center">
+                                                <div class="col-md-8">
+                                                    <select class="form-select" id="currentModelSelect">
+                                                        <option value="">加载中...</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <button class="btn btn-primary w-100" onclick="agentConfig.switchModel()">
+                                                        <i class="fas fa-exchange-alt me-1"></i>切换模型
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div id="currentModelInfo" class="mt-3 p-3 bg-light rounded" style="display: none;">
+                                                <div class="row">
+                                                    <div class="col-md-4">
+                                                        <small class="text-muted">上下文窗口</small>
+                                                        <div id="modelContextWindow" class="fw-bold">-</div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <small class="text-muted">输入成本 (每1K tokens)</small>
+                                                        <div id="modelCostInput" class="fw-bold">-</div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <small class="text-muted">输出成本 (每1K tokens)</small>
+                                                        <div id="modelCostOutput" class="fw-bold">-</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 自定义模型管理 -->
+                                    <div class="card">
+                                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                            <span><i class="fas fa-puzzle-piece me-2"></i>自定义模型</span>
+                                            <button class="btn btn-sm btn-outline-primary" onclick="agentConfig.showAddModelModal()">
+                                                <i class="fas fa-plus me-1"></i>添加模型
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="customModelsList">
+                                                <div class="text-center text-muted py-3">
+                                                    <i class="fas fa-spinner fa-spin me-2"></i>加载中...
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 上下文优化 -->
+                                <div class="tab-pane fade" id="ai-optimization" role="tabpanel">
+                                    <div class="mb-3">
+                                        <small class="text-muted">配置 Agent 上下文窗口管理和智能总结</small>
+                                    </div>
+                                    
+                                    <form id="optimizationConfigForm">
+                                        <div class="row g-3">
+                                            <!-- 总开关 -->
+                                            <div class="col-12">
+                                                <div class="card border-primary">
+                                                    <div class="card-body">
+                                                        <div class="form-check form-switch">
+                                                            <input class="form-check-input" type="checkbox" id="enableContextOptimization" checked>
+                                                            <label class="form-check-label" for="enableContextOptimization">
+                                                                <strong><i class="fas fa-magic me-1"></i>启用上下文优化</strong>
+                                                            </label>
+                                                        </div>
+                                                        <small class="text-muted">开启后，系统会智能管理对话历史，避免超出模型上下文窗口限制</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Token 预算配置 -->
+                                            <div class="col-md-6">
+                                                <label for="targetUsageRatio" class="form-label">
+                                                    上下文使用率 <span class="badge bg-info" id="targetUsageRatioValue">60%</span>
+                                                </label>
+                                                <input type="range" class="form-range" id="targetUsageRatio" 
+                                                       min="30" max="90" step="5" value="60"
+                                                       oninput="document.getElementById('targetUsageRatioValue').textContent = this.value + '%'">
+                                                <small class="text-muted">目标使用模型上下文窗口的比例 (30%-90%)</small>
+                                            </div>
+                                            
+                                            <div class="col-md-6">
+                                                <label for="tokenCalculationMethod" class="form-label">Token 计算方式</label>
+                                                <select class="form-select" id="tokenCalculationMethod">
+                                                    <option value="actual">实际值 (从API响应获取)</option>
+                                                    <option value="tiktoken">精确计算 (tiktoken库)</option>
+                                                    <option value="estimate">估算 (2.5字符/token)</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <!-- 智能总结配置 -->
+                                            <div class="col-12">
+                                                <hr>
+                                                <h6 class="text-primary"><i class="fas fa-compress-alt me-2"></i>智能总结</h6>
+                                            </div>
+                                            
+                                            <div class="col-12">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="enableSummarization" checked>
+                                                    <label class="form-check-label" for="enableSummarization">
+                                                        启用智能总结
+                                                    </label>
+                                                </div>
+                                                <small class="text-muted">对话历史过长时，自动生成总结以压缩上下文</small>
+                                            </div>
+                                            
+                                            <div class="col-md-4">
+                                                <label for="summaryTriggerRatio" class="form-label">
+                                                    触发阈值 <span class="badge bg-secondary" id="summaryTriggerRatioValue">50%</span>
+                                                </label>
+                                                <input type="range" class="form-range" id="summaryTriggerRatio" 
+                                                       min="30" max="80" step="5" value="50"
+                                                       oninput="document.getElementById('summaryTriggerRatioValue').textContent = this.value + '%'">
+                                            </div>
+                                            
+                                            <div class="col-md-4">
+                                                <label for="summaryTokenRatio" class="form-label">
+                                                    总结预算 <span class="badge bg-secondary" id="summaryTokenRatioValue">26%</span>
+                                                </label>
+                                                <input type="range" class="form-range" id="summaryTokenRatio" 
+                                                       min="10" max="40" step="2" value="26"
+                                                       oninput="document.getElementById('summaryTokenRatioValue').textContent = this.value + '%'">
+                                            </div>
+                                            
+                                            <div class="col-md-4">
+                                                <label for="minMessagesBeforeSummary" class="form-label">最少消息数</label>
+                                                <input type="number" class="form-control" id="minMessagesBeforeSummary" 
+                                                       min="5" max="50" value="20">
+                                            </div>
+                                            
+                                            <!-- 工具输出压缩 -->
+                                            <div class="col-12">
+                                                <hr>
+                                                <h6 class="text-primary"><i class="fas fa-file-archive me-2"></i>工具输出压缩</h6>
+                                            </div>
+                                            
+                                            <div class="col-md-6">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="compressToolOutput" checked>
+                                                    <label class="form-check-label" for="compressToolOutput">
+                                                        压缩工具输出
+                                                    </label>
+                                                </div>
+                                                <small class="text-muted">自动压缩过长的工具返回结果</small>
+                                            </div>
+                                            
+                                            <div class="col-md-6">
+                                                <label for="toolOutputMaxTokens" class="form-label">工具输出最大 Token</label>
+                                                <input type="number" class="form-control" id="toolOutputMaxTokens" 
+                                                       min="50" max="1000" step="50" value="200">
+                                            </div>
+                                            
+                                            <!-- 保存按钮 -->
+                                            <div class="col-12">
+                                                <hr>
+                                                <div class="d-flex gap-2">
+                                                    <button type="button" class="btn btn-primary" onclick="agentConfig.saveOptimizationConfig()">
+                                                        <i class="fas fa-save me-1"></i>保存配置
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-secondary" onclick="agentConfig.resetOptimizationConfig()">
+                                                        <i class="fas fa-undo me-1"></i>重置默认
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                                
+                                <!-- Token 统计 -->
+                                <div class="tab-pane fade" id="ai-token-stats" role="tabpanel">
+                                    <div class="mb-3">
+                                        <small class="text-muted">查看 Token 使用情况和成本统计</small>
+                                    </div>
+                                    
+                                    <!-- 总体统计卡片 -->
+                                    <div class="row g-3 mb-4">
+                                        <div class="col-md-3">
+                                            <div class="card bg-primary text-white">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-arrow-down fa-2x mb-2"></i>
+                                                    <h4 id="totalInputTokens">0</h4>
+                                                    <small>输入 Tokens</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-success text-white">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-arrow-up fa-2x mb-2"></i>
+                                                    <h4 id="totalOutputTokens">0</h4>
+                                                    <small>输出 Tokens</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-warning text-dark">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-dollar-sign fa-2x mb-2"></i>
+                                                    <h4 id="totalCost">$0.00</h4>
+                                                    <small>总成本</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-info text-white">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-percentage fa-2x mb-2"></i>
+                                                    <h4 id="quotaUsedRatio">0%</h4>
+                                                    <small>配额使用率</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 时间范围选择 -->
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-outline-primary active" onclick="agentConfig.loadTokenStats('day')">今日</button>
+                                            <button type="button" class="btn btn-outline-primary" onclick="agentConfig.loadTokenStats('week')">本周</button>
+                                            <button type="button" class="btn btn-outline-primary" onclick="agentConfig.loadTokenStats('month')">本月</button>
+                                            <button type="button" class="btn btn-outline-primary" onclick="agentConfig.loadTokenStats('all')">全部</button>
+                                        </div>
+                                        <button class="btn btn-outline-danger btn-sm" onclick="agentConfig.resetTokenStats()">
+                                            <i class="fas fa-trash me-1"></i>重置统计
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- 按模型统计 -->
+                                    <div class="card">
+                                        <div class="card-header bg-light">
+                                            <i class="fas fa-chart-pie me-2"></i>按模型统计
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="modelStatsTable">
+                                                <div class="text-center text-muted py-3">
+                                                    <i class="fas fa-spinner fa-spin me-2"></i>加载中...
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 配额设置 -->
+                                    <div class="card mt-3">
+                                        <div class="card-header bg-light">
+                                            <i class="fas fa-tachometer-alt me-2"></i>配额设置
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row align-items-center">
+                                                <div class="col-md-6">
+                                                    <label for="tokenQuota" class="form-label">Token 配额上限</label>
+                                                    <input type="number" class="form-control" id="tokenQuota" 
+                                                           min="0" step="100000" value="9999999">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">&nbsp;</label>
+                                                    <button class="btn btn-primary w-100" onclick="agentConfig.updateQuota()">
+                                                        <i class="fas fa-save me-1"></i>更新配额
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <small class="text-muted">设置为 0 表示无限制</small>
                                         </div>
                                     </div>
                                 </div>
@@ -4352,6 +4649,7 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
     
     <!-- AI Agent 模块 -->
     <script src="{% static 'js/agent-chat.js' %}?v=20251222-001"></script>
+    <script src="{% static 'js/agent-config.js' %}?v=20260102-001"></script>
     <script>
         // 初始化 Agent Chat
         agentChat = new AgentChat({{ user.id }}, window.CSRF_TOKEN);
