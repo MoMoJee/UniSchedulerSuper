@@ -76,6 +76,10 @@ class AgentChat {
         // 消息计数（用于跟踪消息索引）
         this.messageCount = 0;
         
+        // 流式回复状态跟踪
+        this.isStreamingActive = false;  // 是否正在流式回复
+        this.streamingContent = '';      // 已接收的流式内容
+        
         // 工具名称映射
         this.toolNames = {
             'get_reminders': '查询提醒',
@@ -138,6 +142,9 @@ class AgentChat {
         this.loadHistory().then(() => {
             // 加载完成后更新新建按钮状态
             this.updateNewSessionButton();
+            
+            // 【关键】检查并恢复流式回复状态（必须在 loadHistory 之后）
+            this.restoreStreamingState();
         });
         
         // 加载会话列表
@@ -567,6 +574,20 @@ class AgentChat {
                     this.messageCount = data.message_count;
                     console.log('📊 处理完成，同步消息计数:', this.messageCount);
                 }
+                
+                // 【关键】如果有流式消息正在显示，结束它
+                const activeStreamMsg = document.getElementById('streamingMessage');
+                if (activeStreamMsg) {
+                    console.log('🔄 收到 finished 事件，结束流式消息');
+                    this.endStreamMessage(data.metadata || {});
+                }
+                
+                // 清除恢复超时定时器
+                if (this.streamingRestoreTimeout) {
+                    clearTimeout(this.streamingRestoreTimeout);
+                    this.streamingRestoreTimeout = null;
+                }
+                
                 console.log('Agent 处理完成');
                 break;
                 
@@ -586,6 +607,10 @@ class AgentChat {
                 this.isProcessing = false;
                 this.updateSendButton();
                 this.addMessage(data.message || '抱歉，处理您的请求时出现错误。', 'error');
+                // 【关键】错误时清除流式状态
+                this.isStreamingActive = false;
+                this.streamingContent = '';
+                this.clearStreamingState();
                 break;
                 
             case 'pong':
@@ -598,6 +623,10 @@ class AgentChat {
                 this.isProcessing = false;
                 this.updateSendButton();
                 this.showNotification('已停止生成', 'info');
+                // 【关键】停止时清除流式状态
+                this.isStreamingActive = false;
+                this.streamingContent = '';
+                this.clearStreamingState();
                 break;
                 
             case 'recursion_limit':
@@ -606,6 +635,43 @@ class AgentChat {
                 this.isProcessing = false;
                 this.updateSendButton();
                 this.showRecursionLimitMessage(data.message || '工具调用次数达到上限，是否继续执行？');
+                break;
+            
+            case 'status_response':
+                // 后端状态查询响应
+                console.log('📥 收到状态响应:', data);
+                
+                // 如果后端建议立即同步（说明流式输出已在后端完成，前端错过了）
+                if (data.should_sync_immediately) {
+                    console.log('🔄 后端流式输出已完成，立即同步历史消息');
+                    this.forceEndStreamingWithSync();
+                    return;
+                }
+                
+                // 综合判断是否真的完成
+                // 1. is_processing = false 表示当前没有活跃的处理任务
+                // 2. has_pending_messages = true 表示还有待处理的消息（如 tool 或 human）
+                // 3. last_message_role = 'assistant' 且没有 tool_calls 表示真的完成了
+                
+                if (this.isStreamingActive) {
+                    if (data.has_pending_messages) {
+                        // 还有待处理的消息（例如工具调用结果），继续等待
+                        console.log('⏳ 检测到待处理消息，继续等待...', {
+                            last_message_role: data.last_message_role,
+                            has_pending_messages: data.has_pending_messages
+                        });
+                    } else if (!data.is_processing && !data.has_pending_messages) {
+                        // 没有活跃任务，也没有待处理消息，应该是完成了
+                        console.log('✅ 确认后端已完成，准备同步');
+                        // 给一点延迟，让可能的 finished 消息先到达
+                        setTimeout(() => {
+                            if (this.isStreamingActive && document.getElementById('streamingMessage')) {
+                                console.log('🔄 执行强制同步');
+                                this.forceEndStreamingWithSync();
+                            }
+                        }, 1000);
+                    }
+                }
                 break;
                 
             default:
@@ -652,6 +718,12 @@ class AgentChat {
         // 标记为处理中
         this.isProcessing = true;
         this.updateSendButton();
+        
+        // 【关键】立即保存流式状态（即使还没开始接收内容）
+        this.isStreamingActive = true;
+        this.streamingContent = '';
+        this.saveStreamingState();
+        console.log('📤 消息已发送，初始化流式状态');
         
         // 显示打字指示器
         this.showTyping();
@@ -700,6 +772,11 @@ class AgentChat {
                 contentDiv.innerHTML += '<span class="text-muted"> [已停止]</span>';
             }
         }
+        
+        // 【关键】清除流式状态
+        this.isStreamingActive = false;
+        this.streamingContent = '';
+        this.clearStreamingState();
     }
 
     // ==========================================
@@ -793,6 +870,11 @@ class AgentChat {
         
         this.messagesContainer.appendChild(messageDiv);
         this.scrollToBottom();
+        
+        // 【关键】保存流式状态
+        this.isStreamingActive = true;
+        this.streamingContent = '';
+        this.saveStreamingState();
     }
 
     /**
@@ -804,6 +886,10 @@ class AgentChat {
             const contentDiv = streamMsg.querySelector('.message-content');
             contentDiv.innerHTML += this.formatContent(content);
             this.scrollToBottom();
+            
+            // 【关键】累积内容并保存状态
+            this.streamingContent += content;
+            this.saveStreamingState();
         }
     }
 
@@ -831,6 +917,15 @@ class AgentChat {
         // 更新处理状态
         this.isProcessing = false;
         this.updateSendButton();
+        
+        // 【关键】清除流式状态和超时定时器
+        this.isStreamingActive = false;
+        this.streamingContent = '';
+        this.clearStreamingState();
+        if (this.streamingRestoreTimeout) {
+            clearTimeout(this.streamingRestoreTimeout);
+            this.streamingRestoreTimeout = null;
+        }
     }
 
     // ==========================================
@@ -2665,6 +2760,343 @@ class AgentChat {
         } catch (error) {
             console.error('获取附件内容失败:', error);
             return '';
+        }
+    }
+
+    // ==========================================
+    // 流式状态管理（刷新恢复）
+    // ==========================================
+
+    /**
+     * 获取流式状态存储键
+     */
+    getStreamingStateKey() {
+        return `agent_streaming_${this.userId}_${this.sessionId}`;
+    }
+
+    /**
+     * 保存流式状态到 localStorage
+     */
+    saveStreamingState() {
+        try {
+            const state = {
+                isActive: this.isStreamingActive,
+                content: this.streamingContent,
+                timestamp: Date.now(),
+                sessionId: this.sessionId
+            };
+            const key = this.getStreamingStateKey();
+            localStorage.setItem(key, JSON.stringify(state));
+            console.log('💾 保存流式状态:', {
+                key: key,
+                isActive: state.isActive,
+                contentLength: state.content.length,
+                sessionId: state.sessionId
+            });
+        } catch (error) {
+            console.error('保存流式状态失败:', error);
+        }
+    }
+
+    /**
+     * 清除流式状态
+     */
+    clearStreamingState() {
+        try {
+            localStorage.removeItem(this.getStreamingStateKey());
+            console.log('🧹 清除流式状态');
+        } catch (error) {
+            console.error('清除流式状态失败:', error);
+        }
+    }
+
+    /**
+     * 恢复流式状态（页面刷新后调用）
+     */
+    restoreStreamingState() {
+        try {
+            const key = this.getStreamingStateKey();
+            const stateJson = localStorage.getItem(key);
+            
+            // 调试：列出所有相关的 localStorage 键
+            console.log('🔍 检查流式状态:', {
+                key: key,
+                hasState: !!stateJson,
+                userId: this.userId,
+                sessionId: this.sessionId
+            });
+            
+            // 调试：显示所有 agent_streaming_ 开头的键
+            const allKeys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k.startsWith('agent_streaming_')) {
+                    allKeys.push({
+                        key: k,
+                        length: localStorage.getItem(k)?.length || 0
+                    });
+                }
+            }
+            if (allKeys.length > 0) {
+                console.log('📋 localStorage 中的流式状态键:', allKeys);
+            }
+            
+            if (!stateJson) {
+                console.log('ℹ️ 无需恢复流式状态');
+                return;
+            }
+
+            const state = JSON.parse(stateJson);
+            console.log('📦 读取到状态:', {
+                isActive: state.isActive,
+                contentLength: state.content?.length || 0,
+                timestamp: new Date(state.timestamp).toLocaleString(),
+                sessionId: state.sessionId
+            });
+            
+            // 检查状态是否过期（超过 5 分钟则认为无效）
+            const now = Date.now();
+            const age = now - state.timestamp;
+            if (age > 5 * 60 * 1000) {
+                console.log('⏰ 流式状态已过期，清除', { ageMinutes: (age / 60000).toFixed(1) });
+                this.clearStreamingState();
+                return;
+            }
+
+            // 检查会话 ID 是否匹配
+            if (state.sessionId !== this.sessionId) {
+                console.log('🔄 会话 ID 不匹配，清除旧状态', {
+                    expected: this.sessionId,
+                    got: state.sessionId
+                });
+                this.clearStreamingState();
+                return;
+            }
+
+            // 恢复流式状态（移除对 content 非空的要求）
+            if (state.isActive) {
+                console.log('🔄 开始恢复流式状态:', {
+                    contentLength: state.content?.length || 0,
+                    hasContent: !!state.content
+                });
+                
+                // 检查是否已存在流式消息元素
+                let streamMsg = document.getElementById('streamingMessage');
+                if (!streamMsg) {
+                    // 创建流式消息元素
+                    streamMsg = document.createElement('div');
+                    streamMsg.className = 'agent-message agent-message streaming';
+                    streamMsg.id = 'streamingMessage';
+                    
+                    // 如果有内容则显示，否则显示等待提示
+                    const contentHtml = state.content ? 
+                        this.formatContent(state.content) : 
+                        '<span class="text-muted">正在思考...</span>';
+                    
+                    streamMsg.innerHTML = `
+                        <div class="message-avatar">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="message-body">
+                            <div class="message-content">${contentHtml}</div>
+                            <div class="message-meta">
+                                <span class="text-muted" style="font-size: 0.85em;">
+                                    <i class="fas fa-sync fa-spin"></i> 已恢复流式回复${state.content ? '（' + state.content.length + ' 字符）' : ''}，继续接收中...
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                    this.messagesContainer.appendChild(streamMsg);
+                    this.scrollToBottom();
+                    console.log('✅ 流式消息 DOM 元素已创建');
+                }
+
+                // 恢复状态变量
+                this.isStreamingActive = true;
+                this.streamingContent = state.content || '';
+                this.isProcessing = true;
+                this.updateSendButton();
+                
+                // 显示恢复提示
+                const contentInfo = state.content ? 
+                    `，已恢复 ${state.content.length} 字符` : '';
+                this.showNotification(`已恢复流式回复${contentInfo}`, 'info');
+                
+                console.log('✅ 流式状态恢复完成', {
+                    isStreamingActive: this.isStreamingActive,
+                    contentLength: this.streamingContent.length,
+                    isProcessing: this.isProcessing
+                });
+                
+                // 【关键】恢复后立即检查后端状态
+                this.checkStreamingStatusAfterRestore();
+                
+                // 【关键】设置超时保护，避免无限等待
+                // 注意：工具调用可能需要较长时间，所以设置 30 秒
+                // 超时时先检查状态，而不是直接强制结束
+                this.streamingRestoreTimeout = setTimeout(async () => {
+                    if (this.isStreamingActive && document.getElementById('streamingMessage')) {
+                        console.log('⏰ 流式恢复超时（30秒），检查状态...');
+                        
+                        // 超时时先检查一次状态
+                        try {
+                            const response = await fetch(`/api/agent/history/?session_id=${encodeURIComponent(this.sessionId)}`, {
+                                headers: {'X-CSRFToken': this.csrfToken}
+                            });
+                            
+                            if (response.ok) {
+                                const data = await response.json();
+                                const messages = data.messages || [];
+                                
+                                if (messages.length > 0) {
+                                    const lastMsg = messages[messages.length - 1];
+                                    
+                                    // 如果最后一条是完整的 assistant 消息，才强制结束
+                                    if (lastMsg.role === 'assistant' && lastMsg.content && !lastMsg.tool_calls) {
+                                        console.log('✅ 确认后端已完成，执行强制同步');
+                                        this.forceEndStreamingWithSync();
+                                    } else {
+                                        console.log('⏳ 后端仍在处理中，继续等待', {
+                                            lastRole: lastMsg.role,
+                                            hasToolCalls: !!lastMsg.tool_calls
+                                        });
+                                        
+                                        // 延长超时时间，再等待 30 秒
+                                        this.streamingRestoreTimeout = setTimeout(() => {
+                                            if (this.isStreamingActive) {
+                                                console.log('⏰ 二次超时，强制同步');
+                                                this.forceEndStreamingWithSync();
+                                            }
+                                        }, 30000);
+                                    }
+                                }
+                            } else {
+                                // API 失败，保守起见不结束
+                                console.warn('⚠️ 状态检查失败，继续等待');
+                            }
+                        } catch (error) {
+                            console.error('超时检查失败:', error);
+                            // 出错时不结束，让用户手动刷新
+                        }
+                    }
+                }, 30000); // 30 秒超时
+            } else {
+                // 状态无效（isActive 为 false），清除
+                console.log('❌ 状态无效，isActive =', state.isActive);
+                this.clearStreamingState();
+            }
+        } catch (error) {
+            console.error('恢复流式状态失败:', error);
+            this.clearStreamingState();
+        }
+    }
+
+    /**
+     * 恢复后检查后端流式状态
+     * 如果后端已经完成回复，立即同步并结束流式显示
+     */
+    async checkStreamingStatusAfterRestore() {
+        try {
+            console.log('🔍 检查后端流式状态...');
+            
+            // 等待 WebSocket 连接稳定（最多等待 2 秒）
+            let waitCount = 0;
+            while (!this.isConnected && waitCount < 20) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                waitCount++;
+            }
+            
+            if (!this.isConnected) {
+                console.log('⚠️ WebSocket 未连接，无法检查状态');
+                return;
+            }
+            
+            // 方案1: 先通过 API 查询历史消息，判断是否真的完成
+            try {
+                const response = await fetch(`/api/agent/history/?session_id=${encodeURIComponent(this.sessionId)}`, {
+                    headers: {'X-CSRFToken': this.csrfToken}
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const messages = data.messages || [];
+                    
+                    // 检查最后一条消息
+                    if (messages.length > 0) {
+                        const lastMsg = messages[messages.length - 1];
+                        
+                        // 如果最后一条是完整的 assistant 消息（不是 tool），说明真的完成了
+                        if (lastMsg.role === 'assistant' && lastMsg.content && !lastMsg.tool_calls) {
+                            console.log('✅ 确认后端已完成（最后消息是完整的 assistant 回复）');
+                            this.forceEndStreamingWithSync();
+                            return;
+                        } else {
+                            console.log('⏳ 后端可能还在处理（最后消息不是完整回复）', {
+                                role: lastMsg.role,
+                                hasContent: !!lastMsg.content,
+                                hasToolCalls: !!lastMsg.tool_calls
+                            });
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('查询历史消息失败:', error);
+            }
+            
+            // 方案2: 仍然通过 WebSocket 查询（作为辅助）
+            this.socket.send(JSON.stringify({
+                type: 'check_status',
+                session_id: this.sessionId
+            }));
+            
+            console.log('✅ 已发送状态查询请求');
+        } catch (error) {
+            console.error('检查后端状态失败:', error);
+        }
+    }
+
+    /**
+     * 强制结束流式状态并同步最新消息
+     */
+    async forceEndStreamingWithSync() {
+        try {
+            console.log('🔄 强制结束流式状态，同步最新消息...');
+            
+            const streamMsg = document.getElementById('streamingMessage');
+            if (streamMsg) {
+                // 移除"继续接收中"的提示
+                const metaDiv = streamMsg.querySelector('.message-meta');
+                if (metaDiv) {
+                    metaDiv.remove();
+                }
+                
+                // 移除 streaming 类和 ID
+                streamMsg.classList.remove('streaming');
+                streamMsg.id = '';
+                
+                // 添加"已同步"标记
+                const body = streamMsg.querySelector('.message-body');
+                if (body) {
+                    body.insertAdjacentHTML('beforeend', 
+                        '<div class="message-meta"><span class="text-muted" style="font-size: 0.85em;">✓ 已同步</span></div>'
+                    );
+                }
+            }
+            
+            // 清除状态
+            this.isStreamingActive = false;
+            this.streamingContent = '';
+            this.isProcessing = false;
+            this.clearStreamingState();
+            this.updateSendButton();
+            
+            // 重新加载历史消息以获取完整内容
+            console.log('🔄 重新加载历史消息...');
+            await this.loadHistory();
+            
+            console.log('✅ 流式状态已强制结束并同步');
+        } catch (error) {
+            console.error('强制结束流式状态失败:', error);
         }
     }
 }

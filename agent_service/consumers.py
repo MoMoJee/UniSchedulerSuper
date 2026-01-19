@@ -79,7 +79,12 @@ class AgentConsumer(AsyncWebsocketConsumer):
         # 4. 接受连接
         await self.accept()
         
-        # 5. 获取当前消息数量
+        # 5. 加入 session group（用于广播消息）
+        self.group_name = f"agent_session_{self.session_id}"
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        logger.info(f"✅ 已加入 channel group: {self.group_name}")
+        
+        # 6. 获取当前消息数量
         current_message_count = 0
         try:
             from agent_service.agent_graph import app
@@ -101,9 +106,42 @@ class AgentConsumer(AsyncWebsocketConsumer):
             "message": f"欢迎, {self.user.username}!"
         })
     
+    async def send_json(self, content, close=False):
+        """重写 send_json，使用 channel_layer 广播消息到所有连接"""
+        # 如果是流式相关消息，通过 channel_layer 广播
+        msg_type = content.get("type")
+        if msg_type in ["stream_start", "stream_chunk", "tool_call", "tool_result", "stream_end", "finished"]:
+            # 通过 channel_layer 广播到 group 中所有连接
+            if hasattr(self, 'group_name') and self.channel_layer:
+                await self.channel_layer.group_send(
+                    self.group_name,
+                    {
+                        "type": "broadcast_message",
+                        "content": content
+                    }
+                )
+                logger.debug(f"📡 广播流式消息: group={self.group_name}, type={msg_type}")
+            else:
+                # 没有 channel_layer，回退到直接发送
+                await self.send(text_data=json.dumps(content, ensure_ascii=False))
+        else:
+            # 非流式消息，直接发送
+            await self.send(text_data=json.dumps(content, ensure_ascii=False))
+    
+    async def broadcast_message(self, event):
+        """接收 channel_layer 广播的消息并发送给客户端"""
+        content = event["content"]
+        await self.send(text_data=json.dumps(content, ensure_ascii=False))
+        logger.debug(f"📥 转发广播消息到客户端: type={content.get('type')}")
+    
     async def disconnect(self, close_code):
         """处理 WebSocket 断开"""
         logger.info(f"用户 {self.user.username if self.user else 'unknown'} 断开 WebSocket, code={close_code}")
+        
+        # 离开 channel group
+        if hasattr(self, 'group_name'):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+            logger.info(f"🚪 已离开 channel group: {self.group_name}")
     
     async def receive(self, text_data):
         """处理收到的消息"""
@@ -154,6 +192,43 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 # 重置停止标志并继续
                 self.should_stop = False
                 self.current_task = asyncio.create_task(self._continue_processing())
+            
+            elif msg_type == "check_status":
+                # 查询当前会话的处理状态（用于刷新后恢复流式状态）
+                logger.info(f"用户 {self.user.username} 查询会话状态")
+                
+                # 获取 LangGraph 的实际状态
+                has_pending_messages = False
+                last_message_role = None
+                should_sync_immediately = False
+                try:
+                    from agent_service.agent_graph import app
+                    config = {"configurable": {"thread_id": self.session_id}}
+                    state = await sync_to_async(app.get_state)(config)
+                    if state and state.values:
+                        messages = state.values.get("messages", [])
+                        if messages:
+                            last_msg = messages[-1]
+                            last_message_role = getattr(last_msg, 'type', None)
+                            # 如果最后一条消息是工具消息或人类消息，说明还需要继续处理
+                            if last_message_role in ['tool', 'human']:
+                                has_pending_messages = True
+                            # 如果最后一条是 AI 消息且不在处理中，说明流式输出已完成，前端应该立即同步
+                            elif last_message_role == 'ai' and not self.is_processing:
+                                should_sync_immediately = True
+                                logger.info(f"检测到流式输出已完成，建议前端立即同步")
+                except Exception as e:
+                    logger.warning(f"获取 LangGraph 状态失败: {e}")
+                
+                await self.send_json({
+                    "type": "status_response",
+                    "session_id": self.session_id,
+                    "is_processing": self.is_processing,
+                    "should_stop": self.should_stop,
+                    "has_pending_messages": has_pending_messages,
+                    "last_message_role": last_message_role,
+                    "should_sync_immediately": should_sync_immediately
+                })
                 
             else:
                 await self.send_json({"type": "error", "message": f"未知消息类型: {msg_type}"})
@@ -593,10 +668,6 @@ class AgentConsumer(AsyncWebsocketConsumer):
         """初始化 Agent Graph"""
         from agent_service.agent_graph import app
         self.graph = app
-    
-    async def send_json(self, data: dict):
-        """发送 JSON 数据"""
-        await self.send(text_data=json.dumps(data, ensure_ascii=False))
     
     def _parse_query_string(self, query_string: str) -> dict:
         """解析 URL 查询参数"""
