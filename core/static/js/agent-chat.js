@@ -79,6 +79,7 @@ class AgentChat {
         // 流式回复状态跟踪
         this.isStreamingActive = false;  // 是否正在流式回复
         this.streamingContent = '';      // 已接收的流式内容
+        this.isToolCallInProgress = false; // 是否有工具调用正在进行
         
         // 工具名称映射
         this.toolNames = {
@@ -568,6 +569,7 @@ class AgentChat {
             case 'finished':
                 this.hideTyping();
                 this.isProcessing = false;
+                this.isToolCallInProgress = false; // 重置工具调用状态
                 this.updateSendButton();
                 // 同步服务器端的消息数量（确保与后端一致）
                 if (data.message_count !== undefined) {
@@ -881,6 +883,13 @@ class AgentChat {
      * 追加流式消息内容
      */
     appendToStreamMessage(content) {
+        // 如果工具调用正在进行中，不把内容添加到 message-content
+        // 这些内容是 AI 对工具结果的描述，应该只显示在 tool-result-indicator 中
+        if (this.isToolCallInProgress) {
+            console.log('🚫 工具调用进行中，跳过 stream_chunk:', content.substring(0, 50));
+            return;
+        }
+        
         const streamMsg = document.getElementById('streamingMessage');
         if (streamMsg) {
             const contentDiv = streamMsg.querySelector('.message-content');
@@ -936,6 +945,24 @@ class AgentChat {
      * 显示工具调用
      */
     showToolCall(tool, args) {
+        // 标记工具调用开始，后续的 stream_chunk 不应该显示在 message-content 中
+        this.isToolCallInProgress = true;
+        
+        // 如果当前有流式消息正在显示，结束它
+        const streamMsg = document.getElementById('streamingMessage');
+        if (streamMsg) {
+            const contentDiv = streamMsg.querySelector('.message-content');
+            // 如果流式消息有内容，保留它；如果没有内容，删除该消息
+            if (contentDiv && contentDiv.textContent.trim()) {
+                // 有内容，结束流式状态但保留消息
+                streamMsg.classList.remove('streaming');
+                streamMsg.id = '';
+            } else {
+                // 没有内容，删除这个空消息
+                streamMsg.remove();
+            }
+        }
+        
         const friendlyName = this.toolNames[tool] || tool;
         
         const toolDiv = document.createElement('div');
@@ -950,7 +977,7 @@ class AgentChat {
     }
 
     /**
-     * 显示工具执行结果
+     * 显示工具执行结果（流式传输时调用）
      */
     showToolResult(tool, result) {
         const indicators = this.messagesContainer.querySelectorAll('.tool-call-indicator:not(.tool-completed)');
@@ -969,6 +996,62 @@ class AgentChat {
             setTimeout(() => {
                 lastIndicator.style.opacity = '0.6';
             }, 1500);
+        }
+        
+        // 显示小字形式的工具结果内容
+        this.showToolResultContent(tool, result);
+        
+        // 标记工具调用已完成，后续的 stream_chunk 可以正常显示
+        this.isToolCallInProgress = false;
+    }
+    
+    /**
+     * 显示工具结果内容（统一的可展开样式）
+     */
+    showToolResultContent(tool, result) {
+        const friendlyName = this.toolNames[tool] || tool;
+        const resultStr = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+        const isLong = resultStr.length > 100;
+        const displayResult = isLong ? resultStr.substring(0, 100) + '...' : resultStr;
+        
+        const resultDiv = document.createElement('div');
+        resultDiv.className = 'tool-result-indicator';
+        resultDiv.innerHTML = `
+            <i class="fas fa-reply text-info me-2"></i>
+            <div class="tool-result-content">
+                <span class="tool-result-text">${this.formatContent(displayResult)}</span>
+                ${isLong ? `
+                    <span class="tool-result-full" style="display: none;">${this.formatContent(resultStr)}</span>
+                    <button class="tool-result-toggle btn btn-link btn-sm p-0 ms-1" onclick="agentChat.toggleToolResult(this)">
+                        <i class="fas fa-chevron-down"></i> 展开
+                    </button>
+                ` : ''}
+            </div>
+        `;
+        resultDiv.style.opacity = '0.7';
+        this.messagesContainer.appendChild(resultDiv);
+        this.scrollToBottom();
+    }
+    
+    /**
+     * 切换工具结果展开/收起
+     */
+    toggleToolResult(button) {
+        const container = button.closest('.tool-result-content');
+        const shortText = container.querySelector('.tool-result-text');
+        const fullText = container.querySelector('.tool-result-full');
+        const isExpanded = fullText.style.display !== 'none';
+        
+        if (isExpanded) {
+            // 收起
+            shortText.style.display = '';
+            fullText.style.display = 'none';
+            button.innerHTML = '<i class="fas fa-chevron-down"></i> 展开';
+        } else {
+            // 展开
+            shortText.style.display = 'none';
+            fullText.style.display = '';
+            button.innerHTML = '<i class="fas fa-chevron-up"></i> 收起';
         }
     }
 
@@ -1138,7 +1221,7 @@ class AgentChat {
                         } else if (msg.role === 'tool') {
                             // 工具执行结果
                             if (msg.content && msg.content.trim()) {
-                                this.showToolResultFromHistory(msg.content);
+                                this.showToolResultFromHistory(msg.content, msg.name);
                             }
                         }
                     });
@@ -1175,18 +1258,9 @@ class AgentChat {
     /**
      * 从历史记录恢复工具执行结果
      */
-    showToolResultFromHistory(result) {
-        // 截断过长的结果
-        const displayResult = result.length > 200 ? result.substring(0, 200) + '...' : result;
-        
-        const resultDiv = document.createElement('div');
-        resultDiv.className = 'tool-result-indicator';
-        resultDiv.innerHTML = `
-            <i class="fas fa-reply text-info me-2"></i>
-            <span class="tool-result-text">${this.formatContent(displayResult)}</span>
-        `;
-        resultDiv.style.opacity = '0.7';
-        this.messagesContainer.appendChild(resultDiv);
+    showToolResultFromHistory(result, toolName = null) {
+        // 使用统一的工具结果显示方法
+        this.showToolResultContent(toolName || 'tool', result);
     }
 
     /**

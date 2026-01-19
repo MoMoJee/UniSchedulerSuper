@@ -289,6 +289,7 @@ def get_history(request):
                     "role": "tool",
                     "content": msg.content,
                     "tool_call_id": msg.tool_call_id,
+                    "name": getattr(msg, 'name', None),  # 工具名称
                     "index": idx
                 })
         
