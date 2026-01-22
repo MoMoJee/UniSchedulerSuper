@@ -259,6 +259,20 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 }
             }
             
+            # 导入 graph
+            from agent_service.agent_graph import app
+            
+            # ========== 【关键】发送前检查并执行历史总结 ==========
+            # 获取当前历史消息，检查是否需要总结
+            try:
+                current_state = await sync_to_async(app.get_state)(config)
+                if current_state and current_state.values:
+                    current_messages = current_state.values.get("messages", [])
+                    if current_messages:
+                        await self._check_and_summarize(current_messages, config)
+            except Exception as e:
+                logger.warning(f"[总结] 发送前检查失败: {e}")
+            
             # 准备输入
             input_state = {
                 "messages": [HumanMessage(content=content)],
@@ -269,9 +283,6 @@ class AgentConsumer(AsyncWebsocketConsumer):
             logger.debug(f"[消息处理]   - 用户消息: {content[:100]}...")
             logger.debug(f"[消息处理]   - active_tools (input_state): {self.active_tools}")
             logger.debug(f"[消息处理]   - active_tools (config): {config['configurable']['active_tools']}")
-            
-            # 导入 graph
-            from agent_service.agent_graph import app
             
             # 使用 queue 在线程和异步代码之间传递事件
             import queue
@@ -420,6 +431,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
             
             # 获取最终消息数量
             final_message_count = 0
+            final_messages = []
             try:
                 final_state = await sync_to_async(app.get_state)(config)
                 if final_state and final_state.values:
@@ -435,6 +447,8 @@ class AgentConsumer(AsyncWebsocketConsumer):
                     "message": "处理完成",
                     "message_count": final_message_count
                 })
+                
+                # 注意：总结检查已移至发送前执行，回复后不再检查
             
         except asyncio.CancelledError:
             logger.info(f"消息处理任务被取消")
@@ -680,6 +694,140 @@ class AgentConsumer(AsyncWebsocketConsumer):
                     # URL 解码参数值
                     params[key] = unquote(value)
         return params
+
+    async def _check_and_summarize(self, messages, config):
+        """
+        检查是否需要执行历史总结，如果需要则执行
+        
+        Args:
+            messages: 当前所有消息
+            config: Graph 配置
+        """
+        try:
+            from agent_service.models import AgentSession
+            from agent_service.context_summarizer import ConversationSummarizer
+            from agent_service.context_optimizer import TokenCalculator, get_optimization_config
+            from agent_service.agent_graph import get_user_llm, get_current_model_config
+            
+            session_id = config.get("configurable", {}).get("thread_id", "")
+            if not session_id:
+                return
+            
+            # 获取优化配置（添加详细日志）
+            logger.info(f"[总结] 开始获取优化配置, user={self.user}, user_id={self.user.id if self.user else 'None'}")
+            opt_config = await database_sync_to_async(get_optimization_config)(self.user)
+            logger.info(f"[总结] 获取到的配置: {opt_config}")
+            
+            # 获取用户配置的 LLM（用于总结）
+            user_llm = await database_sync_to_async(get_user_llm)(self.user)
+            
+            # 检查是否启用总结
+            if not opt_config.get('enable_summarization', True):
+                logger.debug("[总结] 总结功能已禁用")
+                return
+            
+            min_messages = opt_config.get('min_messages_before_summary', 20)
+            if not messages or len(messages) < min_messages:
+                logger.debug(f"[总结] 消息数不足: {len(messages) if messages else 0} < {min_messages}")
+                return
+            
+            # 获取会话
+            session = await database_sync_to_async(
+                AgentSession.objects.filter(session_id=session_id).first
+            )()
+            if not session:
+                return
+            
+            # 获取现有总结
+            summary_metadata = await database_sync_to_async(session.get_summary_metadata)()
+            
+            # Token 计算器
+            calculator = TokenCalculator(
+                method=opt_config.get('token_calculation_method', 'estimate')
+            )
+            
+            # 获取模型上下文窗口
+            _, model_config = await database_sync_to_async(get_current_model_config)(self.user)
+            context_window = model_config.get('context_window', 128000) if model_config else 128000
+            
+            # 创建总结器（使用用户配置的 LLM）
+            summarizer = ConversationSummarizer(
+                llm=user_llm,
+                token_calculator=calculator,
+                context_window=context_window,
+                target_usage_ratio=opt_config.get('target_usage_ratio', 0.6),
+                summary_trigger_ratio=opt_config.get('summary_trigger_ratio', 0.5),
+                min_messages_before_summary=min_messages,
+                summary_token_ratio=opt_config.get('summary_token_ratio', 0.26),
+                target_summary_tokens=opt_config.get('target_summary_tokens', 2000)
+            )
+            
+            # 检查是否需要总结
+            if not summarizer.should_summarize(messages, summary_metadata):
+                return
+            
+            logger.info(f"[总结] 触发历史总结: session={session_id}, messages={len(messages)}")
+            
+            # 设置正在总结状态
+            await database_sync_to_async(session.set_summarizing)(True)
+            
+            # 通知前端开始总结
+            await self.send_json({
+                "type": "summarizing_start",
+                "message": "正在总结对话历史..."
+            })
+            
+            try:
+                # 计算需要总结的范围
+                start_idx, end_idx = summarizer.calculate_summarize_range(messages, summary_metadata)
+                messages_to_summarize = messages[start_idx:end_idx]
+                
+                # 获取之前的总结（用于增量更新）
+                previous_summary = summary_metadata.get('summary', '') if summary_metadata else None
+                
+                # 执行总结
+                new_summary_metadata = await summarizer.summarize(
+                    messages_to_summarize,
+                    previous_summary=previous_summary
+                )
+                
+                if new_summary_metadata:
+                    # 保存总结
+                    await database_sync_to_async(session.save_summary)(
+                        summary_text=new_summary_metadata['summary'],
+                        summarized_until=end_idx,
+                        summary_tokens=new_summary_metadata['summary_tokens']
+                    )
+                    
+                    logger.info(f"[总结] 完成: 总结了 {end_idx} 条消息, {new_summary_metadata['summary_tokens']} tokens")
+                    
+                    # 通知前端总结完成
+                    await self.send_json({
+                        "type": "summarizing_end",
+                        "success": True,
+                        "summary": new_summary_metadata['summary'],
+                        "summarized_until": end_idx,
+                        "summary_tokens": new_summary_metadata['summary_tokens']
+                    })
+                else:
+                    await database_sync_to_async(session.set_summarizing)(False)
+                    await self.send_json({
+                        "type": "summarizing_end",
+                        "success": False,
+                        "message": "总结生成失败"
+                    })
+                    
+            except Exception as e:
+                logger.error(f"[总结] 执行失败: {e}", exc_info=True)
+                await database_sync_to_async(session.set_summarizing)(False)
+                await self.send_json({
+                    "type": "summarizing_end",
+                    "success": False,
+                    "message": f"总结失败: {str(e)}"
+                })
+                
+        except Exception as e:
+            logger.error(f"[总结] 检查失败: {e}", exc_info=True)
 
 
 class AgentStreamConsumer(AgentConsumer):

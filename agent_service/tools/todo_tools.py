@@ -1,5 +1,5 @@
 """
-会话级 TODO List 工具
+会话级 TO DO List 工具
 支持跨对话、回滚同步、状态对照
 """
 import json

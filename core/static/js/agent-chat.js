@@ -675,6 +675,24 @@ class AgentChat {
                     }
                 }
                 break;
+            
+            // ========== 历史总结相关消息 ==========
+            case 'summarizing_start':
+                // 开始执行历史总结
+                console.log('📝 开始历史总结:', data.message);
+                this.showSummarizingIndicator(data.message || '正在总结对话历史...');
+                break;
+            
+            case 'summarizing_end':
+                // 历史总结完成
+                console.log('📝 历史总结完成:', data);
+                this.hideSummarizingIndicator();
+                if (data.success) {
+                    this.showSummaryDivider(data.summary, data.summarized_until, data.summary_tokens);
+                } else {
+                    console.warn('历史总结失败:', data.message);
+                }
+                break;
                 
             default:
                 console.log('未知消息类型:', data.type);
@@ -1054,6 +1072,128 @@ class AgentChat {
             button.innerHTML = '<i class="fas fa-chevron-up"></i> 收起';
         }
     }
+    
+    // ==========================================
+    // 历史总结 UI
+    // ==========================================
+    
+    /**
+     * 显示正在总结的指示器
+     */
+    showSummarizingIndicator(message) {
+        // 移除已有的指示器
+        this.hideSummarizingIndicator();
+        
+        const indicator = document.createElement('div');
+        indicator.className = 'summarizing-indicator';
+        indicator.id = 'summarizingIndicator';
+        indicator.innerHTML = `
+            <div class="summarizing-content">
+                <div class="summarizing-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+                <span class="summarizing-text">${this.escapeHtml(message)}</span>
+            </div>
+        `;
+        
+        this.messagesContainer.appendChild(indicator);
+        this.scrollToBottom();
+        
+        // 保存状态到 localStorage 以便刷新后恢复
+        localStorage.setItem(`summarizing_${this.sessionId}`, 'true');
+    }
+    
+    /**
+     * 隐藏正在总结的指示器
+     */
+    hideSummarizingIndicator() {
+        const indicator = document.getElementById('summarizingIndicator');
+        if (indicator) {
+            indicator.remove();
+        }
+        localStorage.removeItem(`summarizing_${this.sessionId}`);
+    }
+    
+    /**
+     * 显示总结分割线（在已被总结的消息和未总结的消息之间）
+     * @param {string} summary 总结内容
+     * @param {number} summarizedUntil 总结覆盖到的消息索引
+     * @param {number} summaryTokens 总结 token 数
+     */
+    showSummaryDivider(summary, summarizedUntil, summaryTokens) {
+        // 移除已有的分割线
+        const existingDivider = this.messagesContainer.querySelector('.summary-divider');
+        if (existingDivider) {
+            existingDivider.remove();
+        }
+        
+        // 创建总结分割线
+        const divider = document.createElement('div');
+        divider.className = 'summary-divider';
+        divider.dataset.summarizedUntil = summarizedUntil;
+        
+        // 截断总结预览
+        const previewLength = 100;
+        const summaryPreview = summary.length > previewLength 
+            ? summary.substring(0, previewLength) + '...' 
+            : summary;
+        
+        divider.innerHTML = `
+            <div class="summary-divider-line"></div>
+            <div class="summary-divider-content">
+                <div class="summary-badge" onclick="agentChat.toggleSummaryDetail(this)">
+                    <i class="fas fa-compress-alt me-1"></i>
+                    <span>已总结 ${summarizedUntil} 条消息 (${summaryTokens} tokens)</span>
+                    <i class="fas fa-chevron-down ms-1 summary-toggle-icon"></i>
+                </div>
+                <div class="summary-detail" style="display: none;">
+                    <div class="summary-text">${this.escapeHtml(summary)}</div>
+                </div>
+            </div>
+            <div class="summary-divider-line"></div>
+        `;
+        
+        // 将分割线追加到消息容器末尾（因为是在消息渲染过程中按正确顺序调用的）
+        this.messagesContainer.appendChild(divider);
+        
+        // 保存总结信息到 localStorage
+        localStorage.setItem(`summary_${this.sessionId}`, JSON.stringify({
+            summary: summary,
+            summarizedUntil: summarizedUntil,
+            summaryTokens: summaryTokens
+        }));
+    }
+    
+    /**
+     * 切换总结详情的展开/收起
+     */
+    toggleSummaryDetail(badge) {
+        const container = badge.closest('.summary-divider-content');
+        const detail = container.querySelector('.summary-detail');
+        const icon = badge.querySelector('.summary-toggle-icon');
+        const isExpanded = detail.style.display !== 'none';
+        
+        if (isExpanded) {
+            detail.style.display = 'none';
+            icon.className = 'fas fa-chevron-down ms-1 summary-toggle-icon';
+        } else {
+            detail.style.display = 'block';
+            icon.className = 'fas fa-chevron-up ms-1 summary-toggle-icon';
+        }
+    }
+    
+    /**
+     * 从 localStorage 恢复总结状态
+     */
+    restoreSummaryState() {
+        // 检查是否正在总结
+        const isSummarizing = localStorage.getItem(`summarizing_${this.sessionId}`);
+        if (isSummarizing === 'true') {
+            this.showSummarizingIndicator('正在总结对话历史...');
+        }
+        
+        // 检查是否有已保存的总结（不再从这里恢复，由 loadHistory 的 API 返回）
+    }
 
     /**
      * 显示操作预览
@@ -1196,9 +1336,30 @@ class AgentChat {
                         this.saveRollbackBaseIndex(totalMessages);
                     }
                     
+                    // 【新增】检查是否正在总结
+                    if (data.is_summarizing) {
+                        this.showSummarizingIndicator('正在总结对话历史...');
+                    }
+                    
+                    // 保存总结信息，用于在渲染消息时插入分割线
+                    const summaryInfo = data.summary;
+                    let summaryDividerInserted = false;
+                    
                     // 渲染历史消息
                     messages.forEach(msg => {
                         const index = msg.index !== undefined ? msg.index : null;
+                        
+                        // 【关键】在正确的位置插入总结分割线
+                        // 分割线应该出现在 summarized_until 位置的消息之前
+                        // 代表：分割线之前的消息已被总结，分割线之后的消息是原始内容
+                        if (summaryInfo && !summaryDividerInserted && index !== null && index >= summaryInfo.summarized_until) {
+                            this.showSummaryDivider(
+                                summaryInfo.text,
+                                summaryInfo.summarized_until,
+                                summaryInfo.tokens
+                            );
+                            summaryDividerInserted = true;
+                        }
                         
                         if (msg.role === 'user') {
                             // 用户消息

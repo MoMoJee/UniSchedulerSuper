@@ -2,40 +2,50 @@
 智能对话历史总结模块
 
 功能:
-1. 判断是否需要触发总结
+1. 判断是否需要触发总结（基于目标使用率和触发比例）
 2. 调用 LLM 生成对话总结
 3. 管理总结元数据
+4. 总结后保证剩余 token 低于目标阈值
 
 Author: Agent Service
 Created: 2026-01-02
+Updated: 2026-01-20 - 使用用户配置的触发逻辑
 """
 
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage, ToolMessage
 
-logger = logging.getLogger(__name__)
+from logger import logger
 
 
 class ConversationSummarizer:
     """
     对话历史总结器
 
+    触发策略 (基于用户配置):
+    - target_usage_ratio: 目标窗口使用率 (如 0.3 表示上下文窗口的 30%)
+    - summary_trigger_ratio: 当新消息 token / 总结 token > 此值时触发增量总结
+    - min_messages_before_summary: 最少消息数才开始总结
+
     工作流程:
-    1. 检查是否达到总结触发条件
-    2. 提取需要总结的消息
-    3. 调用 LLM 生成总结
-    4. 返回总结元数据
+    1. 首次总结：消息数 >= min_messages_before_summary 且无历史总结
+    2. 增量总结：新消息 tokens / 历史总结 tokens > summary_trigger_ratio
+    3. 提取需要总结的消息
+    4. 调用 LLM 生成总结
     """
 
     def __init__(
         self,
         llm,
         token_calculator,
-        target_summary_tokens: int = 20000,
-        min_messages: int = 20,
-        trigger_ratio: float = 0.5
+        context_window: int = 128000,
+        target_usage_ratio: float = 0.6,
+        summary_trigger_ratio: float = 0.5,
+        min_messages_before_summary: int = 20,
+        summary_token_ratio: float = 0.26,
+        target_summary_tokens: int = 2000
     ):
         """
         初始化总结器
@@ -43,15 +53,31 @@ class ConversationSummarizer:
         Args:
             llm: LangChain LLM 实例
             token_calculator: Token 计算器
+            context_window: 模型上下文窗口大小
+            target_usage_ratio: 目标窗口使用率
+            summary_trigger_ratio: 总结触发阈值 (新消息token/总结token)
+            min_messages_before_summary: 最少消息数才开始总结
+            summary_token_ratio: 总结占用的 token 比例
             target_summary_tokens: 目标总结 token 数
-            min_messages: 最少消息数才开始总结
-            trigger_ratio: 触发阈值 (新消息 tokens / 历史总结 tokens)
         """
         self.llm = llm
         self.token_calculator = token_calculator
+        self.context_window = context_window
+        self.target_usage_ratio = target_usage_ratio
+        self.summary_trigger_ratio = summary_trigger_ratio
+        self.min_messages_before_summary = min_messages_before_summary
+        self.summary_token_ratio = summary_token_ratio
         self.target_summary_tokens = target_summary_tokens
-        self.min_messages = min_messages
-        self.trigger_ratio = trigger_ratio
+        
+        # 计算 token 阈值
+        self.max_tokens = int(context_window * target_usage_ratio)
+        self.summary_budget = int(self.max_tokens * summary_token_ratio)
+        
+        logger.info(
+            f"[总结器初始化] context_window={context_window}, "
+            f"target_usage_ratio={target_usage_ratio}, summary_token_ratio={summary_token_ratio}, "
+            f"max_tokens={self.max_tokens}, summary_budget={self.summary_budget}"
+        )
 
     def should_summarize(
         self,
@@ -69,39 +95,125 @@ class ConversationSummarizer:
             是否应该触发总结
         """
         # 消息数量不足
-        if len(messages) < self.min_messages:
-            logger.debug(f"[总结] 消息数不足: {len(messages)} < {self.min_messages}")
+        if len(messages) < self.min_messages_before_summary:
+            logger.debug(f"[总结] 消息数不足: {len(messages)} < {self.min_messages_before_summary}")
             return False
 
-        # 首次总结
+        # 计算总 token 数，如果还没超过目标上限，不触发
+        total_tokens = sum(self.token_calculator.calculate_message(m) for m in messages)
+        if total_tokens <= self.max_tokens:
+            logger.debug(
+                f"[总结] Token 数未超过目标: {total_tokens} <= {self.max_tokens}, 不触发总结"
+            )
+            return False
+
+        # 首次总结：无历史总结时触发
         if summary_metadata is None:
-            logger.info(f"[总结] 首次总结触发: {len(messages)} 条消息")
+            logger.info(f"[总结] 首次总结触发: {len(messages)} 条消息, {total_tokens} tokens > {self.max_tokens}")
             return True
 
-        # 计算新增消息的 token 数
+        # 增量总结：计算新消息 token 与历史总结 token 的比例
         summarized_until = summary_metadata.get('summarized_until', 0)
         new_messages = messages[summarized_until:]
 
-        if len(new_messages) < 10:  # 新消息太少
+        if len(new_messages) < 5:  # 新消息太少，不触发
             return False
 
-        new_tokens = 0
-        for msg in new_messages:
-            new_tokens += self.token_calculator.calculate_message(msg)
-
+        new_tokens = sum(self.token_calculator.calculate_message(m) for m in new_messages)
         summary_tokens = summary_metadata.get('summary_tokens', 1)  # 避免除零
 
         ratio = new_tokens / summary_tokens
 
-        should = ratio > self.trigger_ratio
+        should = ratio > self.summary_trigger_ratio
 
         logger.info(
             f"[总结] 检查触发: 新消息={len(new_messages)}条({new_tokens}t), "
-            f"历史总结={summary_tokens}t, 比例={ratio:.1%}, 阈值={self.trigger_ratio:.1%}, "
+            f"历史总结={summary_tokens}t, 比例={ratio:.1%}, 阈值={self.summary_trigger_ratio:.1%}, "
             f"触发={'是' if should else '否'}"
         )
 
         return should
+
+    def calculate_summarize_range(
+        self,
+        messages: List[BaseMessage],
+        summary_metadata: Optional[Dict]
+    ) -> Tuple[int, int]:
+        """
+        计算需要总结的消息范围
+
+        总结后:
+        - 剩余消息 token + 新总结 token < summary_budget
+        - 至少保留 min_messages_before_summary 条最近消息
+
+        Args:
+            messages: 当前所有消息
+            summary_metadata: 现有的总结元数据
+
+        Returns:
+            (start_index, end_index): 需要总结的消息范围 [start, end)
+        """
+        # 计算总 token 数
+        total_tokens = sum(self.token_calculator.calculate_message(m) for m in messages)
+        
+        # 如果总 token 数还没超过目标，不需要总结
+        if total_tokens <= self.max_tokens:
+            logger.info(
+                f"[总结] 范围计算: 总消息={len(messages)}, 总tokens={total_tokens}, "
+                f"目标上限={self.max_tokens}, 无需总结"
+            )
+            return 0, 0
+        
+        # 从后往前计算需要保留的消息
+        messages_to_keep = []
+        keep_tokens = 0
+        # 保留的消息 token 不超过 (max_tokens - summary_budget)
+        target_keep = self.max_tokens - self.summary_budget
+
+        for i in range(len(messages) - 1, -1, -1):
+            msg = messages[i]
+            msg_tokens = self.token_calculator.calculate_message(msg)
+
+            # 检查是否还需要继续保留
+            if keep_tokens + msg_tokens > target_keep and len(messages_to_keep) >= self.min_messages_before_summary:
+                break
+
+            messages_to_keep.insert(0, i)
+            keep_tokens += msg_tokens
+
+        # 计算需要总结的范围
+        if messages_to_keep:
+            end_index = messages_to_keep[0]  # 保留消息的第一条之前都需要总结
+        else:
+            end_index = len(messages)
+
+        # 【关键】确保截断点不会破坏工具调用的完整性
+        # 如果 end_index 位置的消息是 ToolMessage，说明它前面有 AIMessage 带 tool_calls
+        # 需要向后调整 end_index，将整个工具调用序列包含在保留部分中
+        # 这样可以避免 "Messages with role 'tool' must be a response to a preceding message with 'tool_calls'" 错误
+        while end_index < len(messages) and isinstance(messages[end_index], ToolMessage):
+            end_index += 1
+            logger.debug(f"[总结] 调整截断点以保持工具调用完整性: end_index -> {end_index}")
+        
+        # 如果调整后 end_index 指向的是 AIMessage 且有 tool_calls，也需要包含后续的 ToolMessage
+        # 反向检查：如果 end_index-1 是带 tool_calls 的 AIMessage，需要把 ToolMessage 也包含进保留部分
+        if end_index > 0 and end_index < len(messages):
+            prev_msg = messages[end_index - 1]
+            if isinstance(prev_msg, AIMessage) and hasattr(prev_msg, 'tool_calls') and prev_msg.tool_calls:
+                # 前一条是带 tool_calls 的 AI 消息，需要把这条和后续的 ToolMessage 都包含在保留部分
+                end_index -= 1
+                logger.debug(f"[总结] 调整截断点以包含完整工具调用: end_index -> {end_index}")
+
+        # 开始位置：从头开始（如果有之前的总结，将其内容融入新总结）
+        start_index = 0
+
+        logger.info(
+            f"[总结] 范围计算: 总消息={len(messages)}, 总tokens={total_tokens}, "
+            f"需要总结=[0, {end_index}), 保留=[{end_index}, {len(messages)}), "
+            f"保留消息={len(messages) - end_index}条, 目标保留={target_keep}t"
+        )
+
+        return start_index, end_index
 
     async def summarize(
         self,
@@ -275,13 +387,16 @@ def build_optimized_context(
     summary_metadata: Optional[Dict],
     token_calculator,
     tool_compressor,
-    summary_token_budget: int,
-    recent_token_budget: int
+    summary_token_budget: Optional[int] = None,  # 已弃用，保留参数兼容性
+    recent_token_budget: Optional[int] = None    # 已弃用，保留参数兼容性
 ) -> List[BaseMessage]:
     """
     构建优化的上下文
 
-    结构: [System] + [Summary] + [Recent Messages]
+    新逻辑:
+    - 如果有总结，使用 [System] + [Summary] + [总结截止点之后的所有消息]
+    - 如果没有总结，使用 [System] + [所有消息]（压缩工具输出）
+    - 不再做消息截断，依赖总结功能来控制 token 数
 
     Args:
         user: Django User 对象
@@ -290,8 +405,8 @@ def build_optimized_context(
         summary_metadata: 总结元数据
         token_calculator: Token 计算器
         tool_compressor: 工具压缩器
-        summary_token_budget: 历史总结 token 预算
-        recent_token_budget: 最近对话 token 预算
+        summary_token_budget: (已弃用)
+        recent_token_budget: (已弃用)
 
     Returns:
         优化后的消息列表
@@ -314,12 +429,12 @@ def build_optimized_context(
         summary_tokens = summary_metadata.get('summary_tokens', 0)
         recent_start_index = summary_metadata.get('summarized_until', 0)
 
-        logger.debug(f"[上下文] 添加历史总结: {summary_tokens}t, 截止第 {recent_start_index} 条")
+        logger.info(f"[上下文] 添加历史总结: {summary_tokens}t, 截止第 {recent_start_index} 条")
 
-    # 3. 最近对话
-    recent_messages = messages[recent_start_index:]
+    # 3. 最近对话（从总结截止点之后开始，包含所有消息）
+    recent_messages = list(messages[recent_start_index:])
 
-    # 压缩工具消息
+    # 压缩工具消息（减少 token 但保留所有消息）
     if tool_compressor:
         compressed_messages = []
         for msg in recent_messages:
@@ -329,173 +444,18 @@ def build_optimized_context(
                 compressed_messages.append(msg)
         recent_messages = compressed_messages
 
-    # 4. 从后往前选择最近对话（直到达到 Token 预算）
-    # 关键：保持工具调用链的完整性
-    # - ToolMessage 必须有对应的 AIMessage (with tool_calls)
-    # - AIMessage (with tool_calls) 必须有对应的 ToolMessage
-    
-    # 建立工具调用关系映射
-    tool_call_to_ai_index = {}  # tool_call_id -> AIMessage index
-    tool_call_to_tool_index = {}  # tool_call_id -> ToolMessage index
-    ai_to_tool_calls = {}  # AIMessage index -> [tool_call_ids]
-    
-    for i, msg in enumerate(recent_messages):
-        if isinstance(msg, AIMessage) and hasattr(msg, 'tool_calls') and msg.tool_calls:
-            tool_call_ids = []
-            for tc in msg.tool_calls:
-                tc_id = tc.get('id') if isinstance(tc, dict) else getattr(tc, 'id', None)
-                if tc_id:
-                    tool_call_to_ai_index[tc_id] = i
-                    tool_call_ids.append(tc_id)
-            ai_to_tool_calls[i] = tool_call_ids
-        elif isinstance(msg, ToolMessage):
-            tc_id = getattr(msg, 'tool_call_id', None)
-            if tc_id:
-                tool_call_to_tool_index[tc_id] = i
-
-    # 从后往前选择消息，但保持工具调用链完整
-    selected_indices = set()
-    cumulative_tokens = 0
-    available_tokens = recent_token_budget
-
-    for i in range(len(recent_messages) - 1, -1, -1):
-        if i in selected_indices:
-            continue
-
-        msg = recent_messages[i]
-        msg_tokens = token_calculator.calculate_message(msg)
-
-        # 如果是 ToolMessage
-        if isinstance(msg, ToolMessage):
-            tool_call_id = getattr(msg, 'tool_call_id', None)
-            ai_index = tool_call_to_ai_index.get(tool_call_id)
-
-            if ai_index is None:
-                # 没有对应的 AIMessage，跳过
-                logger.debug(f"[上下文] 跳过孤立 ToolMessage (无 AIMessage): {tool_call_id}")
-                continue
-
-            # 需要同时包含 AIMessage 和该 AIMessage 的所有 ToolMessage
-            ai_msg = recent_messages[ai_index]
-            all_tool_call_ids = ai_to_tool_calls.get(ai_index, [])
-            
-            # 计算需要的总 token
-            total_needed = token_calculator.calculate_message(ai_msg)
-            tool_indices = []
-            for tc_id in all_tool_call_ids:
-                t_idx = tool_call_to_tool_index.get(tc_id)
-                if t_idx is not None and t_idx not in selected_indices:
-                    tool_indices.append(t_idx)
-                    total_needed += token_calculator.calculate_message(recent_messages[t_idx])
-
-            if ai_index in selected_indices:
-                # AIMessage 已选，只需要添加 ToolMessage
-                total_needed = msg_tokens
-
-            if cumulative_tokens + total_needed > available_tokens:
-                # 预算不够，跳过整个工具调用链
-                continue
-
-            # 添加 AIMessage 和所有关联的 ToolMessage
-            if ai_index not in selected_indices:
-                selected_indices.add(ai_index)
-                cumulative_tokens += token_calculator.calculate_message(ai_msg)
-            
-            for t_idx in tool_indices:
-                selected_indices.add(t_idx)
-                cumulative_tokens += token_calculator.calculate_message(recent_messages[t_idx])
-
-        # 如果是带 tool_calls 的 AIMessage
-        elif isinstance(msg, AIMessage) and i in ai_to_tool_calls:
-            all_tool_call_ids = ai_to_tool_calls[i]
-            
-            # 计算需要的总 token（AIMessage + 所有 ToolMessage）
-            total_needed = msg_tokens
-            tool_indices = []
-            for tc_id in all_tool_call_ids:
-                t_idx = tool_call_to_tool_index.get(tc_id)
-                if t_idx is not None:
-                    tool_indices.append(t_idx)
-                    total_needed += token_calculator.calculate_message(recent_messages[t_idx])
-                else:
-                    # 缺少 ToolMessage，跳过整个链
-                    logger.debug(f"[上下文] 跳过不完整的工具调用 (缺 ToolMessage): {tc_id}")
-                    total_needed = float('inf')
-                    break
-
-            if cumulative_tokens + total_needed > available_tokens:
-                # 预算不够或链不完整，跳过
-                continue
-
-            # 添加 AIMessage 和所有 ToolMessage
-            selected_indices.add(i)
-            cumulative_tokens += msg_tokens
-            for t_idx in tool_indices:
-                if t_idx not in selected_indices:
-                    selected_indices.add(t_idx)
-                    cumulative_tokens += token_calculator.calculate_message(recent_messages[t_idx])
-
-        else:
-            # 普通消息
-            if cumulative_tokens + msg_tokens > available_tokens:
-                # 超出预算，停止添加
-                break
-
-            selected_indices.add(i)
-            cumulative_tokens += msg_tokens
-
-    # 按原始顺序排列选中的消息
-    selected_messages = [recent_messages[i] for i in sorted(selected_indices)]
-
-    # 最终验证：确保工具调用链完整
-    final_messages = []
-    pending_tool_calls = {}  # tool_call_id -> AIMessage index in final_messages
-
-    for msg in selected_messages:
-        if isinstance(msg, AIMessage) and hasattr(msg, 'tool_calls') and msg.tool_calls:
-            # 检查是否所有 tool_calls 都有对应的 ToolMessage
-            all_have_responses = True
-            tool_call_ids = []
-            for tc in msg.tool_calls:
-                tc_id = tc.get('id') if isinstance(tc, dict) else getattr(tc, 'id', None)
-                if tc_id:
-                    tool_call_ids.append(tc_id)
-                    if tc_id not in tool_call_to_tool_index:
-                        all_have_responses = False
-                    else:
-                        t_idx = tool_call_to_tool_index[tc_id]
-                        if t_idx not in selected_indices:
-                            all_have_responses = False
-
-            if all_have_responses:
-                final_messages.append(msg)
-                for tc_id in tool_call_ids:
-                    pending_tool_calls[tc_id] = len(final_messages) - 1
-            else:
-                # 跳过不完整的工具调用
-                logger.debug(f"[上下文] 验证时跳过不完整工具调用 AIMessage")
-        elif isinstance(msg, ToolMessage):
-            tool_call_id = getattr(msg, 'tool_call_id', None)
-            if tool_call_id in pending_tool_calls:
-                final_messages.append(msg)
-                del pending_tool_calls[tool_call_id]
-            else:
-                logger.debug(f"[上下文] 验证时跳过孤立 ToolMessage: {tool_call_id}")
-        else:
-            final_messages.append(msg)
-
-    optimized.extend(final_messages)
+    optimized.extend(recent_messages)
 
     # 重新计算实际 token
-    actual_tokens = sum(token_calculator.calculate_message(m) for m in final_messages)
+    recent_tokens = sum(token_calculator.calculate_message(m) for m in recent_messages)
 
     # 日志
-    total_tokens = system_tokens + summary_tokens + actual_tokens
+    total_tokens = system_tokens + summary_tokens + recent_tokens
     logger.info(
         f"[上下文] 构建完成: "
         f"System={system_tokens}t, "
         f"Summary={summary_tokens}t, "
-        f"Recent={actual_tokens}t ({len(final_messages)}条/{len(recent_messages)}条), "
+        f"Recent={recent_tokens}t ({len(recent_messages)}条), "
         f"Total={total_tokens}t"
     )
 

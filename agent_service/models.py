@@ -16,6 +16,16 @@ class AgentSession(models.Model):
     message_count = models.IntegerField(default=0, help_text="消息数量")
     last_message_preview = models.CharField(max_length=200, blank=True, default="", help_text="最后一条消息预览")
     
+    # ========== 历史总结相关字段 ==========
+    summary_text = models.TextField(blank=True, default="", help_text="对话历史总结文本")
+    summary_until_index = models.IntegerField(default=0, help_text="总结覆盖到的消息索引（不包含）")
+    summary_tokens = models.IntegerField(default=0, help_text="总结文本的 token 数")
+    summary_created_at = models.DateTimeField(null=True, blank=True, help_text="总结创建时间")
+    is_summarizing = models.BooleanField(default=False, help_text="是否正在进行总结")
+    # 总结历史版本，用于回滚时恢复之前的总结
+    # 格式: [{"summary": "...", "until_index": 80, "tokens": 500, "created_at": "..."}, ...]
+    summary_history = models.JSONField(default=list, blank=True, help_text="总结历史版本")
+    
     class Meta:
         ordering = ['-updated_at']
         verbose_name = "Agent 会话"
@@ -57,6 +67,118 @@ class AgentSession(models.Model):
             name=name or f"对话 {cls.objects.filter(user=user).count() + 1}"
         )
         return session, True
+    
+    def get_summary_metadata(self):
+        """
+        获取总结元数据（如果有）
+        Returns:
+            dict 或 None
+        """
+        if not self.summary_text:
+            return None
+        return {
+            "summary": self.summary_text,
+            "summarized_until": self.summary_until_index,
+            "summary_tokens": self.summary_tokens,
+            "created_at": self.summary_created_at.isoformat() if self.summary_created_at else None,
+        }
+    
+    def save_summary(self, summary_text: str, summarized_until: int, summary_tokens: int):
+        """
+        保存总结，并将旧总结存入历史版本
+        Args:
+            summary_text: 总结文本
+            summarized_until: 总结覆盖到的消息索引
+            summary_tokens: 总结 token 数
+        """
+        from django.utils import timezone
+        
+        # 如果有旧总结，先存入历史
+        if self.summary_text and self.summary_until_index > 0:
+            history = self.summary_history or []
+            history.append({
+                "summary": self.summary_text,
+                "until_index": self.summary_until_index,
+                "tokens": self.summary_tokens,
+                "created_at": self.summary_created_at.isoformat() if self.summary_created_at else None,
+            })
+            # 只保留最近 10 个历史版本，避免数据过大
+            if len(history) > 10:
+                history = history[-10:]
+            self.summary_history = history
+        
+        # 保存新总结
+        self.summary_text = summary_text
+        self.summary_until_index = summarized_until
+        self.summary_tokens = summary_tokens
+        self.summary_created_at = timezone.now()
+        self.is_summarizing = False
+        self.save(update_fields=['summary_text', 'summary_until_index', 'summary_tokens', 'summary_created_at', 'is_summarizing', 'summary_history'])
+    
+    def set_summarizing(self, is_summarizing: bool):
+        """设置正在总结状态"""
+        self.is_summarizing = is_summarizing
+        self.save(update_fields=['is_summarizing'])
+    
+    def rollback_summary(self, target_message_index: int) -> bool:
+        """
+        回滚总结到适合目标消息索引的版本
+        
+        Args:
+            target_message_index: 回滚后的消息数量
+            
+        Returns:
+            是否执行了回滚
+        """
+        from django.utils import timezone
+        from datetime import datetime
+        
+        # 如果当前没有总结，不需要回滚
+        if not self.summary_text and self.summary_until_index == 0:
+            return False
+        
+        # 如果目标位置 >= 当前总结覆盖位置，不需要回滚
+        if target_message_index >= self.summary_until_index:
+            return False
+        
+        # 从历史中找到适合的版本
+        # 找 until_index <= target_message_index 的最新版本
+        history = self.summary_history or []
+        suitable_version = None
+        
+        for version in reversed(history):
+            if version.get('until_index', 0) <= target_message_index:
+                suitable_version = version
+                break
+        
+        if suitable_version:
+            # 恢复到历史版本
+            self.summary_text = suitable_version.get('summary', '')
+            self.summary_until_index = suitable_version.get('until_index', 0)
+            self.summary_tokens = suitable_version.get('tokens', 0)
+            created_at_str = suitable_version.get('created_at')
+            if created_at_str:
+                try:
+                    self.summary_created_at = datetime.fromisoformat(created_at_str)
+                except:
+                    self.summary_created_at = None
+            else:
+                self.summary_created_at = None
+            
+            # 从历史中移除被恢复版本之后的所有版本（包括被恢复的版本）
+            version_index = history.index(suitable_version)
+            self.summary_history = history[:version_index]
+        else:
+            # 没有合适的历史版本，清除总结
+            self.summary_text = ""
+            self.summary_until_index = 0
+            self.summary_tokens = 0
+            self.summary_created_at = None
+            self.summary_history = []
+        
+        self.is_summarizing = False
+        self.save(update_fields=['summary_text', 'summary_until_index', 'summary_tokens', 'summary_created_at', 'is_summarizing', 'summary_history'])
+        return True
 
 
 class UserMemory(models.Model):

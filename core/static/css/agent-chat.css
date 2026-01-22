@@ -1921,3 +1921,122 @@
 [data-theme="dark"] .selected-attachment-tag {
     background: rgba(25, 135, 84, 0.25);
 }
+
+/* ========================================
+   历史总结相关样式
+   ======================================== */
+
+/* 正在总结指示器 */
+.summarizing-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 16px;
+    margin: 8px 0;
+    background: linear-gradient(135deg, rgba(108, 117, 125, 0.1), rgba(108, 117, 125, 0.05));
+    border: 1px dashed var(--border-color, #dee2e6);
+    border-radius: 8px;
+}
+
+.summarizing-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-secondary, #6c757d);
+    font-size: 0.9rem;
+}
+
+.summarizing-spinner {
+    font-size: 1rem;
+    color: var(--primary, #0d6efd);
+}
+
+.summarizing-text {
+    font-style: italic;
+}
+
+/* 总结分割线 */
+.summary-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+    padding: 0 8px;
+}
+
+.summary-divider-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-color, #dee2e6), transparent);
+}
+
+.summary-divider-content {
+    flex-shrink: 0;
+}
+
+.summary-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, rgba(108, 117, 125, 0.1), rgba(108, 117, 125, 0.05));
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 16px;
+    font-size: 0.8rem;
+    color: var(--text-secondary, #6c757d);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.summary-badge:hover {
+    background: rgba(108, 117, 125, 0.15);
+    border-color: var(--text-secondary, #6c757d);
+}
+
+.summary-badge i {
+    font-size: 0.75rem;
+}
+
+.summary-toggle-icon {
+    transition: transform 0.2s ease;
+}
+
+.summary-detail {
+    margin-top: 8px;
+    padding: 12px 16px;
+    background: var(--bg-secondary, #f8f9fa);
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.summary-text {
+    font-size: 0.85rem;
+    color: var(--text-primary, #212529);
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+/* 深色模式适配 */
+[data-theme="dark"] .summarizing-indicator {
+    background: linear-gradient(135deg, rgba(108, 117, 125, 0.15), rgba(108, 117, 125, 0.08));
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .summary-badge {
+    background: linear-gradient(135deg, rgba(108, 117, 125, 0.2), rgba(108, 117, 125, 0.1));
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .summary-badge:hover {
+    background: rgba(108, 117, 125, 0.25);
+}
+
+[data-theme="dark"] .summary-detail {
+    background: var(--bg-tertiary, #2d2d2d);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .summary-text {
+    color: var(--text-primary, #e9ecef);
+}

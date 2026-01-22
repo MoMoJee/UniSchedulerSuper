@@ -210,6 +210,60 @@ llm = ChatOpenAI(
     base_url=os.environ.get("OPENAI_API_BASE")
 )
 
+
+def get_user_llm(user):
+    """
+    获取用户配置的 LLM 实例
+    
+    Args:
+        user: Django User 对象
+    
+    Returns:
+        ChatOpenAI 实例
+    """
+    if not user or not user.is_authenticated:
+        return llm
+    
+    try:
+        current_model_id, model_config = get_current_model_config(user)
+        
+        if not model_config or current_model_id == 'system_deepseek':
+            return llm
+        
+        # 获取 API URL
+        api_url = model_config.get('api_url', '')
+        if api_url:
+            if api_url.endswith('/chat/completions'):
+                api_url = api_url.rsplit('/chat/completions', 1)[0]
+            api_url = api_url.rstrip('/')
+        
+        # 获取 API Key
+        api_key = model_config.get('api_key', '')
+        if not api_key and model_config.get('api_key_env'):
+            api_key = os.environ.get(model_config['api_key_env'], '')
+        if not api_key and model_config.get('provider') == 'system':
+            api_key = os.environ.get('OPENAI_API_KEY', '')
+        
+        # 获取模型名称
+        model_name = model_config.get('model_name', model_config.get('model', ''))
+        
+        if api_url and model_name:
+            user_llm = ChatOpenAI(
+                model=model_name,
+                base_url=api_url,
+                api_key=api_key if api_key else 'sk-placeholder',  # type: ignore
+                temperature=0.7,
+                streaming=True,
+            )
+            logger.info(f"[LLM] 创建用户模型: {model_name} @ {api_url}")
+            return user_llm
+        
+    except Exception as e:
+        logger.warning(f"[LLM] 创建用户 LLM 失败，使用默认: {e}")
+    
+    return llm
+
+
 # ==========================================
 # System Prompt 构建
 # ==========================================
@@ -423,88 +477,68 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     
     # ========== 上下文优化逻辑 ==========
     optimized_messages = messages
-    optimization_applied = False
+    summary_metadata = None
     
     if user and user.is_authenticated:
         try:
-            from agent_service.models import DialogStyle
+            from agent_service.models import DialogStyle, AgentSession
             dialog_style = DialogStyle.get_or_create_default(user)
             enable_optimization = getattr(dialog_style, 'enable_context_optimization', True)
             
             logger.debug(f"[Agent] 上下文优化检查: enable={enable_optimization}, msg_count={len(messages)}")
             
-            if enable_optimization and len(messages) > 10:
-                # 获取优化配置
-                opt_config = get_optimization_config(user)
-                
-                # 计算 token 预算
-                context_window = model_config.get('context_window', 128000) if model_config else 128000
-                target_ratio = opt_config.get('target_usage_ratio', 0.6)
-                max_tokens = int(context_window * target_ratio)
-                
-                # 计算 system prompt 占用
-                calculator = TokenCalculator(
-                    method=opt_config.get('token_calculation_method', 'estimate')
-                )
-                system_tokens = calculator.calculate_text(system_prompt)
-                available_tokens = max_tokens - system_tokens
+            # 获取优化配置
+            opt_config = get_optimization_config(user)
+            
+            # Token 计算器
+            calculator = TokenCalculator(
+                method=opt_config.get('token_calculation_method', 'estimate')
+            )
+            
+            # 获取会话和已有的总结
+            session_id = config.get("configurable", {}).get("thread_id", "")
+            session = None
+            if session_id:
+                session = AgentSession.objects.filter(session_id=session_id).first()
+                if session:
+                    summary_metadata = session.get_summary_metadata()
+                    if summary_metadata:
+                        logger.info(f"[Agent] 加载历史总结: {summary_metadata.get('summary_tokens', 0)}t, 截止第 {summary_metadata.get('summarized_until', 0)} 条")
+            
+            if enable_optimization:
+                # 创建工具压缩器
+                tool_compressor = ToolMessageCompressor(
+                    max_tokens=opt_config.get('tool_output_max_tokens', 200)
+                ) if opt_config.get('compress_tool_output', True) else None
                 
                 # 计算原始消息的 token 总数
                 original_tokens = sum(calculator.calculate_message(m) for m in messages)
                 
-                logger.info(f"[Agent] 上下文优化触发:")
-                logger.info(f"[Agent]   - 上下文窗口: {context_window}, 目标使用率: {target_ratio*100}%")
-                logger.info(f"[Agent]   - 最大可用: {max_tokens}, System占用: {system_tokens}, 剩余可用: {available_tokens}")
+                logger.info(f"[Agent] 上下文优化:")
                 logger.info(f"[Agent]   - 原始消息: {len(messages)} 条, {original_tokens} tokens")
                 
-                if available_tokens > 0:
-                    # 计算总结和最近对话的 token 预算
-                    summary_ratio = opt_config.get('summary_token_ratio', 0.26)
-                    recent_ratio = opt_config.get('recent_token_ratio', 0.65)
-                    summary_budget = int(available_tokens * summary_ratio)
-                    recent_budget = int(available_tokens * recent_ratio)
-                    
-                    logger.info(f"[Agent]   - 总结预算: {summary_budget}, 最近对话预算: {recent_budget}")
-                    
-                    # 创建工具压缩器
-                    tool_compressor = ToolMessageCompressor(
-                        max_tokens=opt_config.get('tool_output_max_tokens', 200)
-                    ) if opt_config.get('compress_tool_output', True) else None
-                    
-                    # 使用优化上下文（同步调用）
-                    optimized_messages = build_optimized_context(
-                        user=user,
-                        system_prompt=system_prompt,
-                        messages=messages,
-                        summary_metadata=None,  # 暂不使用持久化总结
-                        token_calculator=calculator,
-                        tool_compressor=tool_compressor,
-                        summary_token_budget=summary_budget,
-                        recent_token_budget=recent_budget
-                    )
-                    
-                    # 移除第一个 SystemMessage（因为 build_optimized_context 已经添加了）
-                    if optimized_messages and isinstance(optimized_messages[0], SystemMessage):
-                        optimized_messages = optimized_messages[1:]
-                    
-                    # 计算优化后的 token 总数
-                    optimized_tokens = sum(calculator.calculate_message(m) for m in optimized_messages)
-                    optimization_applied = True
-                    
-                    logger.info(f"[Agent] 上下文优化完成:")
-                    logger.info(f"[Agent]   - 优化后消息: {len(optimized_messages)} 条, {optimized_tokens} tokens")
+                # 使用优化上下文（使用已有总结，不再截断）
+                optimized_messages = build_optimized_context(
+                    user=user,
+                    system_prompt=system_prompt,
+                    messages=messages,
+                    summary_metadata=summary_metadata,
+                    token_calculator=calculator,
+                    tool_compressor=tool_compressor,
+                )
+                
+                # 移除第一个 SystemMessage（因为 build_optimized_context 已经添加了）
+                if optimized_messages and isinstance(optimized_messages[0], SystemMessage):
+                    optimized_messages = optimized_messages[1:]
+                
+                # 计算优化后的 token 总数
+                optimized_tokens = sum(calculator.calculate_message(m) for m in optimized_messages)
+                
+                logger.info(f"[Agent] 上下文优化完成:")
+                logger.info(f"[Agent]   - 优化后消息: {len(optimized_messages)} 条, {optimized_tokens} tokens")
+                if original_tokens > 0:
                     logger.info(f"[Agent]   - 削减率: {(1 - optimized_tokens/original_tokens)*100:.1f}%")
-                    
-                    # 打印优化后的消息摘要
-                    logger.debug(f"[Agent] 优化后消息列表:")
-                    for i, msg in enumerate(optimized_messages[:10]):  # 只打印前10条
-                        msg_type = type(msg).__name__
-                        content_preview = msg.content[:50].replace('\n', ' ') if msg.content else ''
-                        logger.debug(f"[Agent]   [{i+1}] {msg_type}: {content_preview}...")
-                    if len(optimized_messages) > 10:
-                        logger.debug(f"[Agent]   ... 还有 {len(optimized_messages) - 10} 条消息")
-                else:
-                    logger.warning(f"[Agent] 可用 token 不足，跳过优化")
+                
         except Exception as e:
             logger.error(f"[Agent] 上下文优化失败: {e}", exc_info=True)
             optimized_messages = messages
@@ -513,9 +547,6 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     
     # 打印最终发送给 LLM 的消息
     logger.info(f"[Agent] 发送给 LLM 的消息: {len(full_messages)} 条")
-    if optimization_applied:
-        final_tokens = sum(TokenCalculator(method='estimate').calculate_message(m) for m in full_messages)
-        logger.info(f"[Agent] 最终上下文大小: 约 {final_tokens} tokens")
     
     response = llm_with_tools.invoke(full_messages, config)
     

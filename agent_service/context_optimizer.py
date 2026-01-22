@@ -15,7 +15,7 @@ import logging
 from typing import List, Optional, Dict, Any, Tuple
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage, ToolMessage
 
-logger = logging.getLogger(__name__)
+from logger import logger
 
 
 class TokenCalculator:
@@ -481,14 +481,19 @@ def get_optimization_config(user) -> Dict:
         'min_messages_before_summary': 20,
         'compress_tool_output': True,
         'tool_output_max_tokens': 200,
+        'target_summary_tokens': 2000,      # 目标总结 token 数
     }
 
     try:
         opt_config_data = UserData.objects.filter(user=user, key='agent_optimization_config').first()
         if opt_config_data:
             config = opt_config_data.get_value()
-            # 合并用户配置和默认配置
-            return {**default_config, **config}
+            merged = {**default_config, **config}
+            logger.info(f"[优化配置] 用户配置: {config}")
+            logger.info(f"[优化配置] 合并后: target_usage_ratio={merged.get('target_usage_ratio')}, summary_token_ratio={merged.get('summary_token_ratio')}")
+            return merged
+        else:
+            logger.info(f"[优化配置] 用户无自定义配置，使用默认值")
     except Exception as e:
         logger.warning(f"Failed to get optimization config: {e}")
 

@@ -226,15 +226,23 @@ def get_history(request):
             {"role": "user", "content": "...", "index": 0, "can_rollback": true},
             {"role": "assistant", "content": "...", "index": 1},
             ...
-        ]
+        ],
+        "summary": {  // 如果有总结
+            "text": "总结内容...",
+            "summarized_until": 20,
+            "tokens": 500
+        },
+        "is_summarizing": false  // 是否正在总结
     }
     """
     from agent_service.agent_graph import app
+    from agent_service.models import AgentSession
     from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
     
     user = request.user
     session_id = request.query_params.get("session_id", f"user_{user.id}_default")
-    limit = int(request.query_params.get("limit", 50))
+    # 默认返回所有消息（0 表示不限制），如果需要分页可以传 limit 参数
+    limit = int(request.query_params.get("limit", 0))
     
     # 验证 session_id 归属
     if not session_id.startswith(f"user_{user.id}_"):
@@ -247,10 +255,26 @@ def get_history(request):
         config = {"configurable": {"thread_id": session_id}}
         state = app.get_state(config)
         
+        # 获取会话的总结信息
+        session = AgentSession.objects.filter(session_id=session_id).first()
+        summary_info = None
+        is_summarizing = False
+        
+        if session:
+            is_summarizing = session.is_summarizing
+            if session.summary_text:
+                summary_info = {
+                    "text": session.summary_text,
+                    "summarized_until": session.summary_until_index,
+                    "tokens": session.summary_tokens
+                }
+        
         if not state or not state.values:
             return Response({
                 "session_id": session_id,
-                "messages": []
+                "messages": [],
+                "summary": summary_info,
+                "is_summarizing": is_summarizing
             })
         
         messages = state.values.get("messages", [])
@@ -261,9 +285,16 @@ def get_history(request):
         
         # 计算起始索引（用于正确返回消息的实际索引）
         total_messages = len(messages)
-        start_idx = max(0, total_messages - limit)
         
-        for idx, msg in enumerate(messages[-limit:], start=start_idx):
+        # limit=0 表示返回所有消息
+        if limit > 0:
+            start_idx = max(0, total_messages - limit)
+            messages_to_format = messages[-limit:]
+        else:
+            start_idx = 0
+            messages_to_format = messages
+        
+        for idx, msg in enumerate(messages_to_format, start=start_idx):
             if isinstance(msg, HumanMessage):
                 user_message_indices.append(idx)
                 formatted_messages.append({
@@ -296,7 +327,9 @@ def get_history(request):
         return Response({
             "session_id": session_id,
             "messages": formatted_messages,
-            "total_messages": len(messages)
+            "total_messages": len(messages),
+            "summary": summary_info,
+            "is_summarizing": is_summarizing
         })
         
     except Exception as e:
@@ -776,12 +809,26 @@ def rollback_to_message(request):
         except Exception as e:
             logger.warning(f"TODO 回滚失败: {e}")
         
+        # ====== 同步回滚总结信息 ======
+        summary_rolled_back = False
+        try:
+            from agent_service.models import AgentSession
+            session = AgentSession.objects.filter(session_id=session_id).first()
+            if session:
+                # 使用新的 rollback_summary 方法，会尝试恢复到历史版本
+                summary_rolled_back = session.rollback_summary(message_index)
+                if summary_rolled_back:
+                    logger.info(f"[回滚] 总结已回滚: 目标位置={message_index}, 当前总结覆盖到={session.summary_until_index}")
+        except Exception as e:
+            logger.warning(f"总结回滚失败: {e}")
+        
         return Response({
             "success": True,
             "rolled_back_messages": rolled_back_messages,
             "rolled_back_transactions": rolled_back_transactions,
             "rolled_back_details": rolled_back_details,
             "todo_rolled_back": todo_rolled_back,
+            "summary_rolled_back": summary_rolled_back,
             "remaining_messages": len(new_messages),
             "message": f"成功回滚，删除了 {rolled_back_messages} 条消息，撤销了 {rolled_back_transactions} 个操作"
         })
