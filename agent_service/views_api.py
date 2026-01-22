@@ -1397,3 +1397,136 @@ def format_attachment_content(request):
         "formatted_content": "\n".join(formatted_parts),
         "count": count
     })
+
+
+# ==========================================
+# 上下文使用情况 API
+# ==========================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_context_usage(request):
+    """
+    获取当前会话的上下文使用情况
+    GET /api/agent/context-usage/?session_id=xxx
+    
+    返回:
+    {
+        "session_id": "xxx",
+        "context_window": 128000,      // 模型上下文窗口
+        "target_max_tokens": 76800,    // 目标上限 (context_window * target_usage_ratio)
+        "trigger_tokens": 38400,       // 触发阈值 (target_max_tokens * summary_trigger_ratio)
+        "summary_tokens": 1500,        // 历史总结 token 数
+        "recent_tokens": 5000,         // 新聊天历史 token 数
+        "remaining_tokens": 70300,     // 上下文余量
+        "total_tokens": 6500,          // 当前总使用量
+        "target_usage_ratio": 0.6,
+        "summary_trigger_ratio": 0.5,
+        "has_summary": true
+    }
+    """
+    from agent_service.agent_graph import app
+    from agent_service.models import AgentSession
+    from agent_service.context_optimizer import get_current_model_config, get_optimization_config
+    from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+    
+    user = request.user
+    session_id = request.query_params.get("session_id", f"user_{user.id}_default")
+    
+    # 验证 session_id 归属
+    if not session_id.startswith(f"user_{user.id}_"):
+        return Response(
+            {"error": "无权访问此会话"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    try:
+        # 获取模型配置
+        model_id, model_config = get_current_model_config(user)
+        context_window = model_config.get('context_window', 128000)
+        
+        # 获取优化配置
+        opt_config = get_optimization_config(user)
+        target_usage_ratio = opt_config.get('target_usage_ratio', 0.6)
+        summary_trigger_ratio = opt_config.get('summary_trigger_ratio', 0.5)
+        
+        # 计算阈值
+        target_max_tokens = int(context_window * target_usage_ratio)
+        trigger_tokens = int(target_max_tokens * summary_trigger_ratio)
+        
+        # 获取会话的总结信息
+        session = AgentSession.objects.filter(session_id=session_id).first()
+        summary_tokens = 0
+        has_summary = False
+        summary_until_index = 0
+        
+        if session and session.summary_text:
+            has_summary = True
+            summary_tokens = session.summary_tokens or 0
+            summary_until_index = session.summary_until_index or 0
+        
+        # 获取当前消息并计算 token
+        config = {"configurable": {"thread_id": session_id}}
+        state = app.get_state(config)
+        
+        recent_tokens = 0
+        total_message_tokens = 0
+        
+        if state and state.values:
+            messages = state.values.get("messages", [])
+            
+            # 使用简单的 token 估算（每个字符约 0.5 token 中文，英文约 0.25）
+            def estimate_tokens(text):
+                if not text:
+                    return 0
+                # 简单估算：中文字符多的情况
+                chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+                other_chars = len(text) - chinese_chars
+                return int(chinese_chars * 0.7 + other_chars * 0.3) + 4  # +4 是消息开销
+            
+            for idx, msg in enumerate(messages):
+                content = getattr(msg, 'content', '') or ''
+                msg_tokens = estimate_tokens(content)
+                
+                # 如果有工具调用，也计算
+                if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                    for tc in msg.tool_calls:
+                        msg_tokens += estimate_tokens(str(tc.get('args', {})))
+                
+                total_message_tokens += msg_tokens
+                
+                # 只计算总结之后的消息作为"新聊天历史"
+                if idx >= summary_until_index:
+                    recent_tokens += msg_tokens
+        
+        # 如果有总结，总使用量 = 总结 + 新消息
+        # 如果没有总结，总使用量 = 全部消息
+        if has_summary:
+            total_tokens = summary_tokens + recent_tokens
+        else:
+            total_tokens = total_message_tokens
+            recent_tokens = total_message_tokens
+        
+        # 计算余量
+        remaining_tokens = max(0, target_max_tokens - total_tokens)
+        
+        return Response({
+            "session_id": session_id,
+            "context_window": context_window,
+            "target_max_tokens": target_max_tokens,
+            "trigger_tokens": trigger_tokens,
+            "summary_tokens": summary_tokens,
+            "recent_tokens": recent_tokens,
+            "remaining_tokens": remaining_tokens,
+            "total_tokens": total_tokens,
+            "target_usage_ratio": target_usage_ratio,
+            "summary_trigger_ratio": summary_trigger_ratio,
+            "has_summary": has_summary
+        })
+        
+    except Exception as e:
+        logger.exception(f"获取上下文使用情况失败: {e}")
+        return Response(
+            {"error": f"获取上下文使用情况失败: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

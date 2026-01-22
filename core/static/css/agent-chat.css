@@ -3,6 +3,146 @@
  * AI Agent 聊天界面样式
  */
 
+/* === 上下文使用量条形图 === */
+.context-usage-bar-container {
+    position: relative;
+    flex: 0 1 auto;
+    width: 100px;
+    min-width: 60px;
+    max-width: 140px;
+    margin: 0 12px;
+    cursor: help;
+}
+
+.context-usage-bar {
+    position: relative;
+    height: 8px;
+    background: var(--bg-tertiary, #e9ecef);
+    border-radius: 4px;
+    overflow: visible;
+    display: flex;
+}
+
+.context-bar-segment {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.context-bar-segment.summary-segment {
+    background: linear-gradient(90deg, #6f42c1, #9b59b6);
+    border-radius: 4px 0 0 4px;
+}
+
+.context-bar-segment.recent-segment {
+    background: linear-gradient(90deg, #0d6efd, #3d8bfd);
+}
+
+.context-bar-segment.remaining-segment {
+    background: var(--bg-tertiary, #e9ecef);
+    border-radius: 0 4px 4px 0;
+}
+
+/* 当只有 remaining 时，圆角完整 */
+.context-bar-segment.remaining-segment:first-child {
+    border-radius: 4px;
+}
+
+/* 当 recent 是最后一个有值的段时 */
+.context-bar-segment.recent-segment:last-of-type,
+.context-bar-segment.remaining-segment.no-remaining {
+    border-radius: 0 4px 4px 0;
+}
+
+.context-trigger-line {
+    position: absolute;
+    top: -2px;
+    width: 2px;
+    height: 12px;
+    background: #6c757d;
+    border-radius: 1px;
+    transition: left 0.3s ease;
+    z-index: 1;
+}
+
+/* Tooltip 样式（使用 HTML 元素） */
+.context-usage-tooltip {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.92);
+    color: white;
+    font-size: 11px;
+    line-height: 1.6;
+    border-radius: 6px;
+    z-index: 1000;
+    pointer-events: none;
+    min-width: 180px;
+    max-width: 250px;
+    text-align: left;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+}
+
+.context-usage-bar-container:hover .context-usage-tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Tooltip 箭头 */
+.context-usage-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-bottom-color: rgba(0, 0, 0, 0.92);
+}
+
+/* Tooltip 内容 */
+.context-usage-tooltip-content > div {
+    margin: 3px 0;
+    display: flex;
+    align-items: center;
+}
+
+/* 彩色圆点 */
+.tooltip-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+
+.tooltip-dot.dot-summary {
+    background: linear-gradient(135deg, #6f42c1, #9b59b6);
+}
+
+.tooltip-dot.dot-recent {
+    background: linear-gradient(135deg, #0d6efd, #3d8bfd);
+}
+
+.tooltip-dot.dot-remaining {
+    background: #9ca3af;
+}
+
+/* 分割线 */
+.tooltip-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.2);
+    margin: 6px 0 !important;
+}
+
+/* 触发线标记 */
+.tooltip-trigger {
+    margin-right: 4px;
+}
+
 /* === 状态徽章 === */
 .agent-status-badge {
     display: inline-flex;
@@ -499,6 +639,30 @@
 }
 
 /* === 深色主题支持 === */
+[data-theme="dark"] .context-usage-bar {
+    background: var(--bg-secondary, #2d3748);
+}
+
+[data-theme="dark"] .context-bar-segment.remaining-segment {
+    background: var(--bg-secondary, #2d3748);
+}
+
+[data-theme="dark"] .context-trigger-line {
+    background: #9ca3af;
+}
+
+[data-theme="dark"] .context-usage-tooltip {
+    background: rgba(30, 30, 30, 0.95);
+}
+
+[data-theme="dark"] .context-usage-tooltip::before {
+    border-bottom-color: rgba(30, 30, 30, 0.95);
+}
+
+[data-theme="dark"] .tooltip-dot.dot-remaining {
+    background: #6b7280;
+}
+
 [data-theme="dark"] .agent-status-badge {
     background: var(--bg-tertiary);
     border-color: var(--border-color);

@@ -782,6 +782,15 @@
         <div class="right-panel resizable-panel" data-min-width="20" data-max-width="50">
             <div class="panel-header">
                 <h5><i class="fas fa-robot me-2"></i>AI Agent</h5>
+                <!-- 上下文使用量条形图 -->
+                <div class="context-usage-bar-container" id="contextUsageBarContainer" title="上下文使用情况">
+                    <div class="context-usage-bar">
+                        <div class="context-bar-segment summary-segment" id="contextSummaryBar" style="width: 0%;"></div>
+                        <div class="context-bar-segment recent-segment" id="contextRecentBar" style="width: 0%;"></div>
+                        <div class="context-bar-segment remaining-segment" id="contextRemainingBar" style="width: 100%;"></div>
+                        <div class="context-trigger-line" id="contextTriggerLine" style="left: 50%;"></div>
+                    </div>
+                </div>
                 <div class="d-flex align-items-center gap-2">
                     <span class="agent-status-badge" id="agentStatusBadge">
                         <span class="status-dot disconnected"></span>
@@ -5183,6 +5192,12 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                 } catch (error) {
                     console.error('更新周末显示失败:', error);
                 }
+            }
+            
+            // 刷新上下文使用量条形图（因为 AI 设置可能已更改）
+            if (typeof agentChat !== 'undefined' && agentChat && typeof agentChat.updateContextUsageBar === 'function') {
+                console.log('📊 刷新上下文条形图 (保存设置)');
+                agentChat.updateContextUsageBar();
             }
         }
         

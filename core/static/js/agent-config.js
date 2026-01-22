@@ -138,6 +138,11 @@ const agentConfig = {
             if (data.success) {
                 this.showSuccess('模型已切换');
                 await this.loadAllConfig();
+                // 刷新上下文使用量条形图
+                if (typeof agentChat !== 'undefined' && agentChat && typeof agentChat.updateContextUsageBar === 'function') {
+                    console.log('📊 刷新上下文条形图 (模型切换)');
+                    agentChat.updateContextUsageBar();
+                }
             } else {
                 this.showError(data.error || '切换失败');
             }
@@ -299,6 +304,11 @@ const agentConfig = {
                 this.showSuccess('模型已添加');
                 bootstrap.Modal.getInstance(document.getElementById('addModelModal')).hide();
                 await this.loadAllConfig();
+                // 刷新上下文使用量条形图
+                if (typeof agentChat !== 'undefined' && agentChat && typeof agentChat.updateContextUsageBar === 'function') {
+                    console.log('📊 刷新上下文条形图 (添加模型)');
+                    agentChat.updateContextUsageBar();
+                }
             } else {
                 this.showError(data.error || '添加失败');
             }
@@ -327,6 +337,11 @@ const agentConfig = {
             if (data.success) {
                 this.showSuccess('模型已删除');
                 await this.loadAllConfig();
+                // 刷新上下文使用量条形图
+                if (typeof agentChat !== 'undefined' && agentChat && typeof agentChat.updateContextUsageBar === 'function') {
+                    console.log('📊 刷新上下文条形图 (删除模型)');
+                    agentChat.updateContextUsageBar();
+                }
             } else {
                 this.showError(data.error || '删除失败');
             }
@@ -455,6 +470,11 @@ const agentConfig = {
                 this.showSuccess('模型已更新');
                 bootstrap.Modal.getInstance(document.getElementById('editModelModal')).hide();
                 await this.loadAllConfig();
+                // 刷新上下文使用量条形图
+                if (typeof agentChat !== 'undefined' && agentChat && typeof agentChat.updateContextUsageBar === 'function') {
+                    console.log('📊 刷新上下文条形图 (更新模型)');
+                    agentChat.updateContextUsageBar();
+                }
             } else {
                 this.showError(data.error || '更新失败');
             }
@@ -551,6 +571,11 @@ const agentConfig = {
             const data = await response.json();
             if (data.success) {
                 this.showSuccess('优化配置已保存');
+                // 刷新上下文使用量条形图
+                if (typeof agentChat !== 'undefined' && agentChat && typeof agentChat.updateContextUsageBar === 'function') {
+                    console.log('📊 刷新上下文条形图 (保存优化配置)');
+                    agentChat.updateContextUsageBar();
+                }
             } else {
                 this.showError(data.error || '保存失败');
             }

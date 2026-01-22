@@ -83,4 +83,7 @@ urlpatterns = [
     # 附件系统
     path('attachments/', views_api.get_attachable_items, name='get_attachable_items'),
     path('attachments/format/', views_api.format_attachment_content, name='format_attachment_content'),
+    
+    # 上下文使用情况
+    path('context-usage/', views_api.get_context_usage, name='get_context_usage'),
 ]

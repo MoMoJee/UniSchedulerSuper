@@ -146,6 +146,9 @@ class AgentChat {
             
             // 【关键】检查并恢复流式回复状态（必须在 loadHistory 之后）
             this.restoreStreamingState();
+            
+            // 加载上下文使用情况
+            this.updateContextUsageBar();
         });
         
         // 加载会话列表
@@ -590,6 +593,9 @@ class AgentChat {
                     this.streamingRestoreTimeout = null;
                 }
                 
+                // 更新上下文使用量条形图
+                this.updateContextUsageBar();
+                
                 console.log('Agent 处理完成');
                 break;
                 
@@ -689,6 +695,8 @@ class AgentChat {
                 this.hideSummarizingIndicator();
                 if (data.success) {
                     this.showSummaryDivider(data.summary, data.summarized_until, data.summary_tokens);
+                    // 总结完成后更新上下文使用量条形图
+                    this.updateContextUsageBar();
                 } else {
                     console.warn('历史总结失败:', data.message);
                 }
@@ -1603,6 +1611,9 @@ class AgentChat {
         // 刷新会话列表
         this.loadSessionList();
         
+        // 更新上下文使用量条形图
+        this.updateContextUsageBar();
+        
         this.showNotification('已切换到历史会话', 'info');
     }
 
@@ -1672,6 +1683,9 @@ class AgentChat {
                 
                 // 更新新建按钮状态
                 this.updateNewSessionButton();
+                
+                // 更新上下文使用量条形图（新会话为空）
+                this.updateContextUsageBar();
                 
                 this.showNotification('已创建新会话', 'success');
             } else {
@@ -3332,6 +3346,165 @@ class AgentChat {
             console.log('✅ 流式状态已强制结束并同步');
         } catch (error) {
             console.error('强制结束流式状态失败:', error);
+        }
+    }
+
+    // ==========================================
+    // 上下文使用量条形图
+    // ==========================================
+
+    /**
+     * 更新上下文使用量条形图
+     * 在以下时机调用：
+     * - 初始化/刷新页面
+     * - 用户发送消息后
+     * - Agent 回复完成后
+     * - 历史总结完成后
+     * - 切换会话后
+     */
+    async updateContextUsageBar() {
+        try {
+            const response = await fetch(`/api/agent/context-usage/?session_id=${encodeURIComponent(this.sessionId)}`, {
+                headers: {
+                    'X-CSRFToken': this.csrfToken
+                }
+            });
+            
+            if (!response.ok) {
+                console.warn('获取上下文使用情况失败:', response.status);
+                return;
+            }
+            
+            const data = await response.json();
+            this.renderContextUsageBar(data);
+            
+            // 保存到 localStorage 以便会话恢复
+            this.saveContextUsageData(data);
+            
+        } catch (error) {
+            console.error('更新上下文使用量条形图失败:', error);
+            // 尝试从缓存恢复
+            this.restoreContextUsageBar();
+        }
+    }
+
+    /**
+     * 渲染上下文使用量条形图
+     */
+    renderContextUsageBar(data) {
+        const container = document.getElementById('contextUsageBarContainer');
+        const summaryBar = document.getElementById('contextSummaryBar');
+        const recentBar = document.getElementById('contextRecentBar');
+        const remainingBar = document.getElementById('contextRemainingBar');
+        const triggerLine = document.getElementById('contextTriggerLine');
+        
+        if (!container || !summaryBar || !recentBar || !remainingBar || !triggerLine) {
+            console.warn('上下文使用量条形图元素未找到');
+            return;
+        }
+        
+        const {
+            target_max_tokens,
+            trigger_tokens,
+            summary_tokens,
+            recent_tokens,
+            remaining_tokens,
+            total_tokens,
+            has_summary
+        } = data;
+        
+        // 计算百分比
+        const total = target_max_tokens || 1;  // 避免除零
+        const summaryPercent = (summary_tokens / total) * 100;
+        const recentPercent = (recent_tokens / total) * 100;
+        const remainingPercent = Math.max(0, (remaining_tokens / total) * 100);
+        const triggerPercent = (trigger_tokens / total) * 100;
+        
+        // 设置条形图宽度
+        summaryBar.style.width = `${summaryPercent}%`;
+        recentBar.style.width = `${recentPercent}%`;
+        remainingBar.style.width = `${remainingPercent}%`;
+        
+        // 设置触发线位置
+        triggerLine.style.left = `${triggerPercent}%`;
+        
+        // 处理圆角
+        if (summaryPercent === 0) {
+            recentBar.style.borderRadius = '4px 0 0 4px';
+        } else {
+            recentBar.style.borderRadius = '0';
+        }
+        
+        if (remainingPercent === 0) {
+            if (recentPercent > 0) {
+                recentBar.style.borderRadius = summaryPercent === 0 ? '4px' : '0 4px 4px 0';
+            } else if (summaryPercent > 0) {
+                summaryBar.style.borderRadius = '4px';
+            }
+        }
+        
+        // 构建 tooltip 内容（HTML）
+        let tooltipHTML = '<div class="context-usage-tooltip-content">';
+        if (has_summary) {
+            tooltipHTML += `<div><span class="tooltip-dot dot-summary"></span> 历史总结: ${this.formatTokens(summary_tokens)}</div>`;
+        }
+        tooltipHTML += `<div><span class="tooltip-dot dot-recent"></span> 新消息: ${this.formatTokens(recent_tokens)}</div>`;
+        tooltipHTML += `<div><span class="tooltip-dot dot-remaining"></span> 余量: ${this.formatTokens(remaining_tokens)}</div>`;
+        tooltipHTML += `<div class="tooltip-divider"></div>`;
+        tooltipHTML += `<div>总计: ${this.formatTokens(total_tokens)} / ${this.formatTokens(target_max_tokens)}</div>`;
+        tooltipHTML += `<div><span class="tooltip-trigger">⚡</span> ${triggerPercent.toFixed(0)}% 时触发总结</div>`;
+        tooltipHTML += '</div>';
+        
+        // 移除旧 tooltip
+        let tooltip = container.querySelector('.context-usage-tooltip');
+        if (tooltip) {
+            tooltip.remove();
+        }
+        
+        // 创建新 tooltip
+        tooltip = document.createElement('div');
+        tooltip.className = 'context-usage-tooltip';
+        tooltip.innerHTML = tooltipHTML;
+        container.appendChild(tooltip);
+    }
+
+    /**
+     * 格式化 token 数量显示
+     */
+    formatTokens(tokens) {
+        if (tokens >= 10000) {
+            return `${(tokens / 1000).toFixed(1)}k`;
+        } else if (tokens >= 1000) {
+            return `${(tokens / 1000).toFixed(2)}k`;
+        }
+        return `${tokens}`;
+    }
+
+    /**
+     * 保存上下文使用数据到 localStorage
+     */
+    saveContextUsageData(data) {
+        try {
+            const key = `context_usage_${this.sessionId}`;
+            localStorage.setItem(key, JSON.stringify(data));
+        } catch (e) {
+            console.warn('保存上下文使用数据失败:', e);
+        }
+    }
+
+    /**
+     * 从 localStorage 恢复上下文使用条形图
+     */
+    restoreContextUsageBar() {
+        try {
+            const key = `context_usage_${this.sessionId}`;
+            const cached = localStorage.getItem(key);
+            if (cached) {
+                const data = JSON.parse(cached);
+                this.renderContextUsageBar(data);
+            }
+        } catch (e) {
+            console.warn('恢复上下文使用数据失败:', e);
         }
     }
 }
