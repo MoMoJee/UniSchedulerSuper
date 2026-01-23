@@ -37,6 +37,7 @@ def list_sessions(request):
     }
     """
     from agent_service.models import AgentSession
+    from langchain_core.messages import HumanMessage
     
     user = request.user
     
@@ -56,26 +57,41 @@ def list_sessions(request):
             config = {"configurable": {"thread_id": session.session_id}}
             state = app.get_state(config)
             actual_message_count = 0
+            last_user_message = ""
+            
             if state and state.values:
                 messages = state.values.get("messages", [])
                 # 只计算用户消息数量（更准确地反映对话轮数）
-                actual_message_count = len([m for m in messages if hasattr(m, 'type') and m.type == 'human'])
+                human_messages = [m for m in messages if hasattr(m, 'type') and m.type == 'human']
+                actual_message_count = len(human_messages)
+                
+                # 获取用户发的最后一条消息作为预览
+                if human_messages:
+                    last_human = human_messages[-1]
+                    last_user_message = last_human.content[:100] if hasattr(last_human, 'content') else ""
+                
                 if actual_message_count == 0:
                     # 备选：计算所有消息
                     actual_message_count = len(messages)
         except Exception as e:
             logger.warning(f"获取会话 {session.session_id} 消息数量失败: {e}")
             actual_message_count = session.message_count
+            last_user_message = session.last_message_preview
         
         # 跳过空会话
         if actual_message_count == 0:
             continue
+        
+        # 预览使用用户发的最后一条消息
+        preview = last_user_message or session.last_message_preview or "新对话"
             
         session_list.append({
             "session_id": session.session_id,
             "name": session.name,
             "message_count": actual_message_count,
-            "last_message_preview": session.last_message_preview,
+            "last_message_preview": preview,
+            "is_naming": session.is_naming,
+            "is_auto_named": session.is_auto_named,
             "created_at": session.created_at.isoformat(),
             "updated_at": session.updated_at.isoformat()
         })

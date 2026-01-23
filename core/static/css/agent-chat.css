@@ -1024,6 +1024,46 @@
     text-overflow: ellipsis;
 }
 
+/* 会话命名中指示器 */
+.session-item .session-name .naming-indicator {
+    color: var(--text-secondary, #6c757d);
+    font-weight: 400;
+    font-style: italic;
+}
+
+.session-item .session-name .naming-indicator i {
+    color: #0d6efd;
+    margin-right: 4px;
+}
+
+/* 聊天区域的命名中消息 */
+.agent-message.naming-message {
+    opacity: 0.8;
+}
+
+.agent-message.naming-message .message-content {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 1px dashed #dee2e6;
+}
+
+.agent-message.naming-message .message-content .text-muted {
+    color: #6c757d !important;
+}
+
+.agent-message.naming-message .message-content i {
+    color: #0d6efd;
+}
+
+/* 深色主题 - 命名消息 */
+[data-theme="dark"] .agent-message.naming-message .message-content {
+    background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+    border-color: #4a5568;
+}
+
+[data-theme="dark"] .agent-message.naming-message .message-content .text-muted {
+    color: #a0aec0 !important;
+}
+
 .session-item .session-preview {
     font-size: 0.75rem;
     color: var(--text-secondary, #6c757d);

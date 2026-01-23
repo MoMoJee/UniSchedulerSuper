@@ -144,8 +144,19 @@ class AgentChat {
             // 加载完成后更新新建按钮状态
             this.updateNewSessionButton();
             
-            // 【关键】检查并恢复流式回复状态（必须在 loadHistory 之后）
-            this.restoreStreamingState();
+            // 检查是否正在命名中
+            const isNaming = localStorage.getItem(`naming_${this.sessionId}`) === 'true';
+            
+            if (isNaming) {
+                // 如果正在命名，先恢复命名状态
+                // 流式状态也要保留（但不显示UI），等命名结束后继续
+                this.restoreNamingState();
+                // 恢复流式状态的内部变量（不显示UI）
+                this.restoreStreamingStateVariables();
+            } else {
+                // 【关键】检查并恢复流式回复状态（必须在 loadHistory 之后）
+                this.restoreStreamingState();
+            }
             
             // 加载上下文使用情况
             this.updateContextUsageBar();
@@ -524,6 +535,8 @@ class AgentChat {
                     this.messageCount = data.message_count;
                     console.log('📊 同步消息计数:', this.messageCount);
                 }
+                // 【关键】同步命名状态（根据后端实际状态决定是否显示/清除命名提示）
+                this.syncNamingState(data.is_naming, data.session_name);
                 break;
             
             case 'processing':
@@ -700,6 +713,23 @@ class AgentChat {
                 } else {
                     console.warn('历史总结失败:', data.message);
                 }
+                break;
+            
+            // ========== 会话命名相关消息 ==========
+            case 'naming_start':
+                // 开始自动命名
+                console.log('✏️ 开始自动命名:', data.session_id);
+                // 隐藏打字指示器，显示命名提示
+                this.hideTyping();
+                this.showNamingIndicator(data.session_id);
+                break;
+            
+            case 'naming_end':
+                // 命名完成
+                console.log('✏️ 命名完成:', data);
+                this.hideNamingIndicator(data.session_id, data.name);
+                // 命名完成后，恢复打字指示器（等待流式回复）
+                this.showTyping();
                 break;
                 
             default:
@@ -1123,6 +1153,93 @@ class AgentChat {
     }
     
     /**
+     * 显示会话命名中指示器
+     * 同时在会话列表和聊天区域显示
+     */
+    showNamingIndicator(sessionId) {
+        // 1. 更新会话列表中的名称显示
+        const nameEl = document.getElementById(`session-name-${sessionId}`);
+        if (nameEl) {
+            nameEl.innerHTML = '<span class="naming-indicator"><i class="fas fa-spinner fa-spin"></i> 正在命名...</span>';
+        }
+        
+        // 2. 在聊天区域显示命名中的提示（类似流式恢复的样式）
+        // 只有当前会话才显示
+        if (sessionId === this.sessionId) {
+            this.showNamingMessage();
+        }
+        
+        // 3. 保存状态到 localStorage 以便刷新后恢复
+        localStorage.setItem(`naming_${sessionId}`, 'true');
+    }
+    
+    /**
+     * 在聊天区域显示命名中的消息提示
+     */
+    showNamingMessage() {
+        // 检查是否已存在命名消息
+        let namingMsg = document.getElementById('namingMessage');
+        if (namingMsg) return;
+        
+        namingMsg = document.createElement('div');
+        namingMsg.className = 'agent-message agent-message naming-message';
+        namingMsg.id = 'namingMessage';
+        namingMsg.innerHTML = `
+            <div class="message-avatar">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="message-body">
+                <div class="message-content">
+                    <span class="text-muted"><i class="fas fa-spinner fa-spin me-2"></i>正在为会话命名...</span>
+                </div>
+            </div>
+        `;
+        this.messagesContainer.appendChild(namingMsg);
+        this.scrollToBottom();
+        console.log('✏️ 显示命名中消息');
+    }
+    
+    /**
+     * 隐藏聊天区域的命名消息
+     */
+    hideNamingMessage() {
+        const namingMsg = document.getElementById('namingMessage');
+        if (namingMsg) {
+            namingMsg.remove();
+            console.log('✏️ 移除命名中消息');
+        }
+    }
+    
+    /**
+     * 隐藏会话命名指示器，显示新名称
+     */
+    hideNamingIndicator(sessionId, newName) {
+        // 1. 更新会话列表中的名称
+        const nameEl = document.getElementById(`session-name-${sessionId}`);
+        if (nameEl && newName) {
+            nameEl.textContent = newName;
+        }
+        
+        // 2. 移除聊天区域的命名消息
+        if (sessionId === this.sessionId) {
+            this.hideNamingMessage();
+        }
+        
+        // 3. 清除 localStorage 状态
+        localStorage.removeItem(`naming_${sessionId}`);
+    }
+    
+    /**
+     * 更新会话预览文本
+     */
+    updateSessionPreview(sessionId, preview) {
+        const previewEl = document.getElementById(`session-preview-${sessionId}`);
+        if (previewEl) {
+            previewEl.textContent = preview;
+        }
+    }
+    
+    /**
      * 显示总结分割线（在已被总结的消息和未总结的消息之间）
      * @param {string} summary 总结内容
      * @param {number} summarizedUntil 总结覆盖到的消息索引
@@ -1201,6 +1318,45 @@ class AgentChat {
         }
         
         // 检查是否有已保存的总结（不再从这里恢复，由 loadHistory 的 API 返回）
+    }
+    
+    /**
+     * 从 localStorage 恢复命名状态
+     * 刷新页面后如果会话正在命名，需要恢复显示
+     * 注意：实际状态以 WebSocket connected 消息中的 is_naming 为准
+     */
+    restoreNamingState() {
+        const isNaming = localStorage.getItem(`naming_${this.sessionId}`);
+        if (isNaming === 'true') {
+            console.log('🔄 临时恢复命名状态（等待后端确认）');
+            this.showNamingIndicator(this.sessionId);
+        }
+    }
+    
+    /**
+     * 根据后端实际状态同步命名显示
+     * 在 WebSocket connected 消息中调用
+     */
+    syncNamingState(isNaming, sessionName) {
+        const localNamingState = localStorage.getItem(`naming_${this.sessionId}`) === 'true';
+        
+        console.log('🔄 同步命名状态:', { isNaming, sessionName, localNamingState });
+        
+        if (isNaming) {
+            // 后端确认正在命名中
+            if (!localNamingState) {
+                // localStorage 没有记录，需要显示
+                this.showNamingIndicator(this.sessionId);
+            }
+            // 如果 localStorage 已有记录，restoreNamingState 已经显示了
+        } else {
+            // 后端确认没有在命名
+            if (localNamingState) {
+                // localStorage 有旧记录，需要清除并隐藏
+                console.log('🔄 后端确认命名已完成，清除旧状态');
+                this.hideNamingIndicator(this.sessionId, sessionName);
+            }
+        }
     }
 
     /**
@@ -1472,12 +1628,18 @@ class AgentChat {
             const date = new Date(session.updated_at).toLocaleDateString('zh-CN');
             const escapedName = this.escapeHtml(session.name);
             
+            // 检查是否正在命名中
+            const isNaming = session.is_naming || false;
+            const displayName = isNaming ? 
+                '<span class="naming-indicator"><i class="fas fa-spinner fa-spin"></i> 正在命名...</span>' : 
+                escapedName;
+            
             return `
                 <div class="session-item ${isActive ? 'active' : ''}" 
                      data-session-id="${session.session_id}">
                     <div class="session-info" onclick="agentChat.switchSession('${session.session_id}')">
-                        <div class="session-name" id="session-name-${session.session_id}">${escapedName}</div>
-                        <div class="session-preview">${this.escapeHtml(preview)}</div>
+                        <div class="session-name" id="session-name-${session.session_id}">${displayName}</div>
+                        <div class="session-preview" id="session-preview-${session.session_id}">${this.escapeHtml(preview)}</div>
                     </div>
                     <div class="session-meta">
                         <span class="session-date">${date}</span>
@@ -1717,11 +1879,17 @@ class AgentChat {
     }
 
     /**
-     * 更新会话预览
+     * 更新会话预览（发送消息后立即更新UI）
      */
     updateSessionPreview(message) {
-        // 更新本地存储或发送到后端
-        // 这里简化处理，实际应该在后端更新
+        // 截取预览文本
+        const preview = message.length > 50 ? message.substring(0, 50) + '...' : message;
+        
+        // 更新当前会话在列表中的预览
+        const previewEl = document.getElementById(`session-preview-${this.sessionId}`);
+        if (previewEl) {
+            previewEl.textContent = preview;
+        }
     }
 
     /**
@@ -3237,6 +3405,54 @@ class AgentChat {
         } catch (error) {
             console.error('恢复流式状态失败:', error);
             this.clearStreamingState();
+        }
+    }
+
+    /**
+     * 只恢复流式状态的内部变量（不创建UI）
+     * 用于命名期间刷新的情况，等命名结束后再显示流式UI
+     */
+    restoreStreamingStateVariables() {
+        try {
+            const key = this.getStreamingStateKey();
+            const stateJson = localStorage.getItem(key);
+            
+            if (!stateJson) {
+                console.log('ℹ️ 无需恢复流式状态变量');
+                return;
+            }
+            
+            const state = JSON.parse(stateJson);
+            
+            // 检查状态是否过期
+            const now = Date.now();
+            const age = now - state.timestamp;
+            if (age > 5 * 60 * 1000) {
+                console.log('⏰ 流式状态已过期，清除');
+                this.clearStreamingState();
+                return;
+            }
+            
+            // 检查会话 ID 是否匹配
+            if (state.sessionId !== this.sessionId) {
+                console.log('🔄 会话 ID 不匹配，清除旧状态');
+                this.clearStreamingState();
+                return;
+            }
+            
+            // 只恢复内部变量，不创建UI
+            if (state.isActive) {
+                console.log('🔄 恢复流式状态变量（命名中，暂不显示UI）:', {
+                    contentLength: state.content?.length || 0
+                });
+                
+                this.isStreamingActive = true;
+                this.streamingContent = state.content || '';
+                this.isProcessing = true;
+                this.updateSendButton();
+            }
+        } catch (error) {
+            console.error('恢复流式状态变量失败:', error);
         }
     }
 

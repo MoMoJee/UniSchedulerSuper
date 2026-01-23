@@ -14,7 +14,11 @@ class AgentSession(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True, help_text="是否为活跃会话")
     message_count = models.IntegerField(default=0, help_text="消息数量")
-    last_message_preview = models.CharField(max_length=200, blank=True, default="", help_text="最后一条消息预览")
+    last_message_preview = models.CharField(max_length=200, blank=True, default="", help_text="最后一条消息预览（用户消息）")
+    
+    # ========== 会话命名相关字段 ==========
+    is_naming = models.BooleanField(default=False, help_text="是否正在自动命名")
+    is_auto_named = models.BooleanField(default=False, help_text="是否已自动命名过")
     
     # ========== 历史总结相关字段 ==========
     summary_text = models.TextField(blank=True, default="", help_text="对话历史总结文本")

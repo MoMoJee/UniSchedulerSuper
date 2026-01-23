@@ -97,12 +97,28 @@ class AgentConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.warning(f"[WebSocket] 获取消息数量失败: {e}")
         
-        # 6. 发送欢迎消息（包含消息数量）
+        # 6. 检查会话命名状态
+        is_naming = False
+        session_name = ""
+        try:
+            from agent_service.models import AgentSession
+            session = await database_sync_to_async(
+                AgentSession.objects.filter(session_id=self.session_id).first
+            )()
+            if session:
+                is_naming = session.is_naming
+                session_name = session.name
+        except Exception as e:
+            logger.warning(f"[WebSocket] 检查命名状态失败: {e}")
+        
+        # 7. 发送欢迎消息（包含消息数量和命名状态）
         await self.send_json({
             "type": "connected",
             "session_id": self.session_id,
             "active_tools": self.active_tools,
             "message_count": current_message_count,
+            "is_naming": is_naming,
+            "session_name": session_name,
             "message": f"欢迎, {self.user.username}!"
         })
     
@@ -262,6 +278,20 @@ class AgentConsumer(AsyncWebsocketConsumer):
             # 导入 graph
             from agent_service.agent_graph import app
             
+            # ========== 【关键】检查是否是第一条消息，决定是否自动命名 ==========
+            is_first_message = False
+            try:
+                current_state = await sync_to_async(app.get_state)(config)
+                if not current_state or not current_state.values or not current_state.values.get("messages"):
+                    is_first_message = True
+                    logger.info(f"[自动命名] 检测到第一条消息: {content[:50]}...")
+            except Exception as e:
+                logger.warning(f"[自动命名] 检查第一条消息失败: {e}")
+            
+            # 如果是第一条消息，执行自动命名（在回复之前）
+            if is_first_message:
+                await self._auto_name_session(content)
+            
             # ========== 【关键】发送前检查并执行历史总结 ==========
             # 获取当前历史消息，检查是否需要总结
             try:
@@ -272,6 +302,9 @@ class AgentConsumer(AsyncWebsocketConsumer):
                         await self._check_and_summarize(current_messages, config)
             except Exception as e:
                 logger.warning(f"[总结] 发送前检查失败: {e}")
+            
+            # ========== 更新 last_message_preview ==========
+            await self._update_last_message_preview(content)
             
             # 准备输入
             input_state = {
@@ -694,6 +727,143 @@ class AgentConsumer(AsyncWebsocketConsumer):
                     # URL 解码参数值
                     params[key] = unquote(value)
         return params
+
+    async def _auto_name_session(self, first_message: str):
+        """
+        自动为会话生成名称
+        
+        Args:
+            first_message: 用户发的第一条消息
+        """
+        try:
+            from agent_service.models import AgentSession
+            from agent_service.agent_graph import get_user_llm
+            
+            # 获取会话
+            session = await database_sync_to_async(
+                AgentSession.objects.filter(session_id=self.session_id).first
+            )()
+            
+            if not session:
+                logger.warning(f"[自动命名] 找不到会话: {self.session_id}")
+                return
+            
+            # 检查是否已经自动命名过
+            if session.is_auto_named:
+                logger.debug(f"[自动命名] 会话已命名，跳过")
+                return
+            
+            logger.info(f"[自动命名] 开始为会话命名: {self.session_id}")
+            
+            # 设置正在命名状态
+            session.is_naming = True
+            await database_sync_to_async(session.save)()
+            
+            # 通知前端开始命名
+            await self.send_json({
+                "type": "naming_start",
+                "session_id": self.session_id,
+                "message": "正在生成会话名称..."
+            })
+            
+            try:
+                # 获取用户的 LLM
+                user_llm = await database_sync_to_async(get_user_llm)(self.user)
+                
+                # 构建命名提示词
+                naming_prompt = f"""请根据以下用户消息，为这次对话起一个简短的名称（5-15个字符），直接返回名称，不要有任何额外的解释或标点符号。
+
+用户消息: {first_message[:200]}
+
+名称:"""
+                
+                # 调用 LLM 生成名称
+                response = await asyncio.to_thread(
+                    lambda: user_llm.invoke(naming_prompt)
+                )
+                
+                # 提取生成的名称
+                generated_name = response.content.strip() if hasattr(response, 'content') else str(response).strip()
+                
+                # 限制长度并清理
+                generated_name = generated_name.replace('"', '').replace("'", '').strip()
+                if len(generated_name) > 30:
+                    generated_name = generated_name[:30] + "..."
+                
+                # 如果生成失败，使用默认名称
+                if not generated_name or len(generated_name) < 2:
+                    generated_name = first_message[:20] + ("..." if len(first_message) > 20 else "")
+                
+                logger.info(f"[自动命名] 生成名称: {generated_name}")
+                
+                # 更新会话名称
+                session.name = generated_name
+                session.is_naming = False
+                session.is_auto_named = True
+                await database_sync_to_async(session.save)()
+                
+                # 通知前端命名完成
+                await self.send_json({
+                    "type": "naming_end",
+                    "session_id": self.session_id,
+                    "success": True,
+                    "name": generated_name
+                })
+                
+            except Exception as e:
+                logger.error(f"[自动命名] 生成名称失败: {e}", exc_info=True)
+                
+                # 使用消息前缀作为备用名称
+                fallback_name = first_message[:20] + ("..." if len(first_message) > 20 else "")
+                session.name = fallback_name
+                session.is_naming = False
+                session.is_auto_named = True
+                await database_sync_to_async(session.save)()
+                
+                await self.send_json({
+                    "type": "naming_end",
+                    "session_id": self.session_id,
+                    "success": True,
+                    "name": fallback_name,
+                    "fallback": True
+                })
+                
+        except Exception as e:
+            logger.error(f"[自动命名] 失败: {e}", exc_info=True)
+            # 出错时也要清除命名状态
+            try:
+                session = await database_sync_to_async(
+                    AgentSession.objects.filter(session_id=self.session_id).first
+                )()
+                if session:
+                    session.is_naming = False
+                    await database_sync_to_async(session.save)()
+            except:
+                pass
+
+    async def _update_last_message_preview(self, user_message: str):
+        """
+        更新会话的最后一条用户消息预览
+        
+        Args:
+            user_message: 用户发送的消息内容
+        """
+        try:
+            from agent_service.models import AgentSession
+            
+            session = await database_sync_to_async(
+                AgentSession.objects.filter(session_id=self.session_id).first
+            )()
+            
+            if session:
+                # 截取预览（50个字符）
+                preview = user_message[:50] + ("..." if len(user_message) > 50 else "")
+                session.last_message_preview = preview
+                await database_sync_to_async(session.save)()
+                logger.debug(f"[预览] 更新会话预览: {preview}")
+                
+        except Exception as e:
+            logger.warning(f"[预览] 更新失败: {e}")
 
     async def _check_and_summarize(self, messages, config):
         """
