@@ -1,5 +1,11 @@
+import sys
+import os
+# 添加项目根目录到路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 from openai import OpenAI
 import json
+from config.api_keys_manager import APIKeyManager
 
 # 主程序
 def send_to_ai(dialogues, ai_choice):
@@ -11,10 +17,11 @@ def send_to_ai(dialogues, ai_choice):
     :return: True 或 False
     """
     try:
-        api_key = "sk-TtMuIWAp8PlEyylkOfC9rUag8wadaC7QgDIpNhzmXqa1QS6r"
+        _moonshot_config = APIKeyManager.get_llm_config('moonshot')
+        api_key = _moonshot_config.get('api_key', '') if _moonshot_config else ''
         client = OpenAI(
             api_key=api_key,
-            base_url="https://api.moonshot.cn/v1",
+            base_url=_moonshot_config.get('base_url', 'https://api.moonshot.cn/v1') if _moonshot_config else 'https://api.moonshot.cn/v1',
         )
 
         # 调用Kimi API进行聊天

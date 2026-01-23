@@ -52,10 +52,17 @@ from agent_service.context_summarizer import (
 
 from logger import logger
 # ==========================================
-# 配置区域
+# 配置区域 - 从统一配置读取 API 密钥
 # ==========================================
-os.environ.setdefault("OPENAI_API_KEY", "sk-d90196210d2a40ffb87cab0bfd08a192")
-os.environ.setdefault("OPENAI_API_BASE", "https://api.deepseek.com")
+from config.api_keys_manager import APIKeyManager
+
+# 设置环境变量（兼容其他库的使用方式）
+_deepseek_key = APIKeyManager.get_llm_key('deepseek')
+_deepseek_url = APIKeyManager.get_llm_base_url('deepseek')
+if _deepseek_key:
+    os.environ.setdefault("OPENAI_API_KEY", _deepseek_key)
+if _deepseek_url:
+    os.environ.setdefault("OPENAI_API_BASE", _deepseek_url)
 
 # ==========================================
 # 工具注册表

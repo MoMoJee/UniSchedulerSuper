@@ -27,6 +27,9 @@ from agent_service.context_optimizer import (
     SYSTEM_MODELS
 )
 
+# 导入加密模块
+from config.encryption import SecureKeyStorage
+
 
 # ==========================================
 # UserData 辅助函数
@@ -52,6 +55,25 @@ def set_user_data_value(user, key: str, value):
     return user_data
 
 
+def get_agent_config_decrypted(user) -> dict:
+    """
+    获取用户的 agent_config，并解密其中的 API 密钥
+    """
+    config = get_user_data_value(user, 'agent_config', {
+        'current_model_id': 'system_deepseek',
+        'custom_models': {}
+    })
+    return SecureKeyStorage.decrypt_model_config(config, user.id)
+
+
+def set_agent_config_encrypted(user, config: dict):
+    """
+    保存用户的 agent_config，并加密其中的 API 密钥
+    """
+    encrypted_config = SecureKeyStorage.encrypt_model_config(config, user.id)
+    return set_user_data_value(user, 'agent_config', encrypted_config)
+
+
 # ==========================================
 # 模型配置 API
 # ==========================================
@@ -68,7 +90,7 @@ def get_model_config(request):
         "current_model_id": "system_deepseek",
         "current_model": {...},
         "system_models": {...},
-        "custom_models": {...},
+        "custom_models": {...},  # API 密钥已掩码
         "all_models": {...}
     }
     """
@@ -81,17 +103,25 @@ def get_model_config(request):
         # 获取所有可用模型
         all_models = get_all_models(user)
         
-        # 获取用户自定义模型
-        agent_config = get_user_data_value(user, 'agent_config', {})
+        # 获取用户自定义模型（解密后）
+        agent_config = get_agent_config_decrypted(user)
         custom_models = agent_config.get('custom_models', {})
         current_model_id = agent_config.get('current_model_id', 'system_deepseek')
+        
+        # 对返回给前端的 custom_models 进行掩码处理（安全考虑）
+        masked_custom_models = {}
+        for model_id, model_config in custom_models.items():
+            masked_config = model_config.copy()
+            if 'api_key' in masked_config:
+                masked_config['api_key'] = SecureKeyStorage.mask_api_key(masked_config['api_key'])
+            masked_custom_models[model_id] = masked_config
         
         return Response({
             "success": True,
             "current_model_id": current_model_id,
             "current_model": current_model,
             "system_models": get_system_models(),
-            "custom_models": custom_models,
+            "custom_models": masked_custom_models,
             "all_models": all_models
         })
         
@@ -133,11 +163,8 @@ def update_model_config(request):
         user = request.user
         data = request.data
         
-        # 获取当前配置
-        agent_config = get_user_data_value(user, 'agent_config', {
-            'current_model_id': 'system_deepseek',
-            'custom_models': {}
-        })
+        # 获取当前配置（解密后）
+        agent_config = get_agent_config_decrypted(user)
         
         # 切换当前模型
         if 'current_model_id' in data:
@@ -215,13 +242,24 @@ def update_model_config(request):
                     "error": f"模型 {model_id} 不存在"
                 }, status=status.HTTP_400_BAD_REQUEST)
         
-        # 保存配置
-        set_user_data_value(user, 'agent_config', agent_config)
+        # 保存配置（自动加密 API 密钥）
+        set_agent_config_encrypted(user, agent_config)
+        
+        # 对返回的配置进行掩码处理
+        masked_config = agent_config.copy()
+        if 'custom_models' in masked_config:
+            masked_models = {}
+            for mid, mconfig in masked_config['custom_models'].items():
+                mc = mconfig.copy()
+                if 'api_key' in mc:
+                    mc['api_key'] = SecureKeyStorage.mask_api_key(mc['api_key'])
+                masked_models[mid] = mc
+            masked_config['custom_models'] = masked_models
         
         return Response({
             "success": True,
             "message": "配置已更新",
-            "agent_config": agent_config
+            "agent_config": masked_config
         })
         
     except Exception as e:

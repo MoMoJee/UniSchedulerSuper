@@ -10,19 +10,29 @@ from langchain_core.runnables import RunnableConfig
 # 配置日志
 logger = logging.getLogger(__name__)
 
-# 配置 MCP 客户端
-# 注意: 这里的配置应该根据实际环境进行调整，或者从 settings 中读取
-MCP_SERVERS_CONFIG = {
-    "amap-amap-sse": {
-            "url": "https://mcp.amap.com/sse?key=0473448f0b67ef98d9a6da61c4b220f0",
+# 从统一配置读取 API 密钥
+from config.api_keys_manager import APIKeyManager
+
+# 动态构建 MCP 服务器配置
+def _build_mcp_servers_config():
+    """动态构建 MCP 服务器配置"""
+    config = {}
+    
+    # 高德地图 MCP 服务
+    amap_url = APIKeyManager.get_amap_mcp_url()
+    if amap_url:
+        config["amap-amap-sse"] = {
+            "url": amap_url,
             "transport": "sse"
-        },
-    # "unischedulersuper": {
-    #     "command": "python",
-    #     "args": ["d:/PROJECTS/UniSchedulerSuper/agent_service/mcp_server.py"],
-    #     "transport": "stdio"
-    # }
-}
+        }
+    
+    # 可以在此添加更多 MCP 服务
+    # if APIKeyManager.get_search_service_key('tavily'):
+    #     config["tavily-search"] = {...}
+    
+    return config
+
+MCP_SERVERS_CONFIG = _build_mcp_servers_config()
 
 client = MultiServerMCPClient(MCP_SERVERS_CONFIG)
 

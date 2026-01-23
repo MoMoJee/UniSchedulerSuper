@@ -1,14 +1,19 @@
 from openai import OpenAI
 
+# 从统一配置读取 API 密钥
+from config.api_keys_manager import APIKeyManager
+
 
 def chat_with_ai(conversation_history):
     #AI接口接入部分
-    # 请将这里的字符串替换为你从Kimi开放平台申请的API Key
     try:
-        api_key = "sk-TtMuIWAp8PlEyylkOfC9rUag8wadaC7QgDIpNhzmXqa1QS6r"
+        _moonshot_config = APIKeyManager.get_llm_config('moonshot')
+        api_key = _moonshot_config.get('api_key', '') if _moonshot_config else ''
+        base_url = _moonshot_config.get('base_url', 'https://api.moonshot.cn/v1') if _moonshot_config else 'https://api.moonshot.cn/v1'
+        
         client = OpenAI(
             api_key=api_key,
-            base_url="https://api.moonshot.cn/v1",
+            base_url=base_url,
         )
 
         # 调用Kimi API进行聊天

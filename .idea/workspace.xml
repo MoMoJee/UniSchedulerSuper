@@ -4,16 +4,24 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260122_2101 development&#10;&#10;新增上文总结功能，实现持久会话">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260123_2041 development&#10;&#10;升级会话历史界面中的预览内容为最后一条消息&#10;升级自动标题命名（依据用户首条消息）">
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/urls.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/views_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_api.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/static/css/agent-chat.css" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/css/agent-chat.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/static/js/agent-chat.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/agent-chat.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/static/js/agent-config.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/agent-config.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/templates/home.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/home.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/agent_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/context_optimizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/context_optimizer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/graph.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/mcp_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/mcp_tools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/memory_store.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/migrate_memory_data.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/views_config_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_config_api.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai_chatting/ai_responder.py" beforeDir="false" afterPath="$PROJECT_DIR$/ai_chatting/ai_responder.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/AI_search.py" beforeDir="false" afterPath="$PROJECT_DIR$/planner/AI_search.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/searcher.py" beforeDir="false" afterPath="$PROJECT_DIR$/planner/searcher.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/testing-AI/testing-AI.py" beforeDir="false" afterPath="$PROJECT_DIR$/planner/testing-AI/testing-AI.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/planner/views.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -24,7 +32,7 @@
     <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="505" />
+    <option name="cachedIndexableFilesCount" value="508" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -134,10 +142,10 @@
 }]]></component>
   <component name="RecapSpentCounter">
     <option name="endsOfQuotaMs" value="1770444026584" />
-    <option name="spentUsd" value="0.0071850503" />
+    <option name="spentUsd" value="0.0408948" />
   </component>
   <component name="RecapUselessUpdatesCounter">
-    <option name="suspendCountdown" value="6" />
+    <option name="suspendCountdown" value="3" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
@@ -360,23 +368,7 @@
       <workItem from="1768052963860" duration="19137000" />
       <workItem from="1768758714722" duration="26998000" />
       <workItem from="1768997538704" duration="4055000" />
-      <workItem from="1769014121780" duration="9292000" />
-    </task>
-    <task id="LOCAL-00006" summary="UniSchedulerSuper 1.5.3.20250924_0150&#10;正在升级 events 相关的功能">
-      <option name="closed" value="true" />
-      <created>1758649863025</created>
-      <option name="number" value="00006" />
-      <option name="presentableId" value="LOCAL-00006" />
-      <option name="project" value="LOCAL" />
-      <updated>1758649863025</updated>
-    </task>
-    <task id="LOCAL-00007" summary="UniSchedulerSuper 1.5.3.20250925_0145&#10;正在升级 events 相关的功能。现在删除功能、基础编辑功能貌似已经完成，接下来是 RRUle 编辑功能">
-      <option name="closed" value="true" />
-      <created>1758735972112</created>
-      <option name="number" value="00007" />
-      <option name="presentableId" value="LOCAL-00007" />
-      <option name="project" value="LOCAL" />
-      <updated>1758735972112</updated>
+      <workItem from="1769014121780" duration="21892000" />
     </task>
     <task id="LOCAL-00008" summary="UniSchedulerSuper 1.5.3.20250930_1345&#10;正在升级 events 相关的功能。&#10;现在 RRule 编辑功能已经基本全部可用，待测试完毕和删除多余日志项后即可更新">
       <option name="closed" value="true" />
@@ -754,7 +746,23 @@
       <option name="project" value="LOCAL" />
       <updated>1769086923828</updated>
     </task>
-    <option name="localTasksCounter" value="55" />
+    <task id="LOCAL-00055" summary="UniSchedulerSuper 1.5.4.20260122_2310 development&#10;&#10;新增上下文使用量百分比堆积条形图，做了一些同步更新按钮绑定">
+      <option name="closed" value="true" />
+      <created>1769094649861</created>
+      <option name="number" value="00055" />
+      <option name="presentableId" value="LOCAL-00055" />
+      <option name="project" value="LOCAL" />
+      <updated>1769094649861</updated>
+    </task>
+    <task id="LOCAL-00056" summary="UniSchedulerSuper 1.5.4.20260123_2041 development&#10;&#10;升级会话历史界面中的预览内容为最后一条消息&#10;升级自动标题命名（依据用户首条消息）">
+      <option name="closed" value="true" />
+      <created>1769172085502</created>
+      <option name="number" value="00056" />
+      <option name="presentableId" value="LOCAL-00056" />
+      <option name="project" value="LOCAL" />
+      <updated>1769172085502</updated>
+    </task>
+    <option name="localTasksCounter" value="57" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -771,7 +779,7 @@
             <State>
               <option name="COLUMN_ID_WIDTH">
                 <map>
-                  <entry key="Table.Default.Date.ColumnIdWidth" value="112" />
+                  <entry key="Table.Default.Date.ColumnIdWidth" value="111" />
                   <entry key="Table.GitHub.CommitStatus.ColumnIdWidth" value="46" />
                 </map>
               </option>
@@ -793,8 +801,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="UniSchedulerSuper 1.5.4.2025129_1907 development&#10;暂时搁置Planner工具的优化，因为还得先优化屎山一样的日程存储结构" />
-    <MESSAGE value="新增课程计划数据的测试 JSON 文件，包含课程信息及时间安排数据，用于后续功能开发和测试。" />
     <MESSAGE value="新增课程计划测试 JSON 文件以支持后续日程相关功能开发。" />
     <MESSAGE value="新增课程数据测试文件 `jwxs_response.json`，支持更复杂的课程与选课信息结构" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;增加（升级）课表导入功能，包括后端API设计与实现、RRule规则推断、课程数据解析逻辑及完整的前端交互界面 (支持Cookie输入、课程预览、日程组选择与批量导入)。" />
@@ -818,7 +824,9 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260119_2650 development&#10;&#10;修复了前端 Agent 对话时刷新界面导致流式传输状态丢失的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260119_1937 development&#10;&#10;修复了前端 Agent 对话时实时输出的样式和刷新后的样式不一致的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260122_2101 development&#10;&#10;新增上文总结功能，实现持久会话" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260122_2101 development&#10;&#10;新增上文总结功能，实现持久会话" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260122_2310 development&#10;&#10;新增上下文使用量百分比堆积条形图，做了一些同步更新按钮绑定" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260123_2041 development&#10;&#10;升级会话历史界面中的预览内容为最后一条消息&#10;升级自动标题命名（依据用户首条消息）" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260123_2041 development&#10;&#10;升级会话历史界面中的预览内容为最后一条消息&#10;升级自动标题命名（依据用户首条消息）" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

@@ -6,9 +6,13 @@ import json
 from openai import OpenAI
 from openai.types.chat.chat_completion import Choice
 
+# 从统一配置读取 API 密钥
+from config.api_keys_manager import APIKeyManager
+
+_moonshot_config = APIKeyManager.get_llm_config('moonshot')
 client = OpenAI(
-    base_url="https://api.moonshot.cn/v1",
-    api_key="sk-uRE0Q10kqRt1PwxLPFYV4JV0bCDaL9r588URpIP2sCEcaVuX"
+    base_url=_moonshot_config.get('base_url', 'https://api.moonshot.cn/v1') if _moonshot_config else 'https://api.moonshot.cn/v1',
+    api_key=_moonshot_config.get('api_key', '') if _moonshot_config else ''
 )
 
 

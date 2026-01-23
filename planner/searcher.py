@@ -21,11 +21,15 @@ import json
 
 from openai import OpenAI
 
+# 从统一配置读取 API 密钥
+from config.api_keys_manager import APIKeyManager
+
 # TODO 这里是手搓一个联网搜索函数，但是我打算放弃
 
+_moonshot_config = APIKeyManager.get_llm_config('moonshot')
 client = OpenAI(
-    api_key="sk-TtMuIWAp8PlEyylkOfC9rUag8wadaC7QgDIpNhzmXqa1QS6r", # 在这里将 MOONSHOT_API_KEY 替换为你从 Kimi 开放平台申请的 API Key
-    base_url="https://api.moonshot.cn/v1",
+    api_key=_moonshot_config.get('api_key', '') if _moonshot_config else '',
+    base_url=_moonshot_config.get('base_url', 'https://api.moonshot.cn/v1') if _moonshot_config else 'https://api.moonshot.cn/v1',
 )
 
 tools = [

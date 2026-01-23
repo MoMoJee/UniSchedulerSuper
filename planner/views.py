@@ -92,11 +92,13 @@ def ai_suggestions(request):
 
         user_setting_data, created = UserData.objects.get_or_create(user=request.user, key="setting", defaults={"value": json.dumps({"AI_setting_code": 4})})
 
-        # TODO 这个莫名其妙的 AI 调用，真是
+        # 从统一配置获取默认 AI 设置
+        from config.api_keys_manager import APIKeyManager
+        _moonshot_config = APIKeyManager.get_llm_config('moonshot')
         ai_setting = {
-            "url": "https://api.moonshot.cn/v1",
+            "url": _moonshot_config.get('base_url', 'https://api.moonshot.cn/v1') if _moonshot_config else 'https://api.moonshot.cn/v1',
             "model": "kimi-latest",
-            "api": "sk-uRE0Q10kqRt1PwxLPFYV4JV0bCDaL9r588URpIP2sCEcaVuX",
+            "api": _moonshot_config.get('api_key', '') if _moonshot_config else '',
             "name": "kimi-latest",
             "temperature": 0.3,
             "code": 3

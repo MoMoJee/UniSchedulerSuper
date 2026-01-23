@@ -400,6 +400,7 @@ def get_all_models(user) -> Dict[str, Dict]:
         模型字典 {model_id: model_config}
     """
     from core.models import UserData
+    from config.encryption import SecureKeyStorage
 
     # 系统模型
     all_models = get_system_models()
@@ -409,6 +410,8 @@ def get_all_models(user) -> Dict[str, Dict]:
         agent_config_data = UserData.objects.filter(user=user, key='agent_config').first()
         if agent_config_data:
             config = agent_config_data.get_value()
+            # 解密配置中的 API 密钥
+            config = SecureKeyStorage.decrypt_model_config(config, user.id)
             custom_models = config.get('custom_models', {})
             for model_id, model_config in custom_models.items():
                 all_models[model_id] = {
