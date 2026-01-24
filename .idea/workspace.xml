@@ -4,16 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260123_2348 development&#10;&#10;去除了硬编码的api-key(我不想强制推送和覆盖了，求求不要偷用我的API，上回kimi的被偷用完了byd）&#10;更新了用户自定义LLM 的 key 的保存方式，不再明文存储">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260124_2012 development&#10;&#10;添加了基于 Tavily 的两个 Agent 搜索工具&#10;&#10;通过添加前端重复性校验，修复了当 Agent 使用了工具后，前端会出现两个重复的 tool-call-indicator tool-completed ，两个 agent-message ，两个 tool-result-indicator 的问题（源于后端广播机制）&#10;&#10;修复了由于 压缩工具调用结果 导致的 最新工具结果丢失问题&#10;&#10;修复了由于流式传输时限定工具调用输出长度200字符导致的流式传输结束前后工具调用结果显示不一致的问题">
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/tavily_test.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/agent_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/consumers.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/consumers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/views_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_api.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/static/js/agent-chat.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/agent-chat.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -362,15 +357,7 @@
       <workItem from="1768052963860" duration="19137000" />
       <workItem from="1768758714722" duration="26998000" />
       <workItem from="1768997538704" duration="4055000" />
-      <workItem from="1769014121780" duration="32529000" />
-    </task>
-    <task id="LOCAL-00009" summary="UniSchedulerSuper 1.5.3.20251012_1748&#10;正在升级 events 相关的功能。&#10;修复了编辑单个日程为重复日程的时候只保存规则不生成实例的错误&#10;修复了前端“此及以后”模式复选框中日程货不对板的问题">
-      <option name="closed" value="true" />
-      <created>1760262544970</created>
-      <option name="number" value="00009" />
-      <option name="presentableId" value="LOCAL-00009" />
-      <option name="project" value="LOCAL" />
-      <updated>1760262544970</updated>
+      <workItem from="1769014121780" duration="34510000" />
     </task>
     <task id="LOCAL-00010" summary="UniSchedulerSuper 1.5.3.20251013_0131&#10;升级（实际上是修复之前已经有了的）日程组管理功能：新增group-manager.js，支持日程组操作逻辑；更新模板及交互，整合创建、编辑、删除功能；">
       <option name="closed" value="true" />
@@ -756,7 +743,15 @@
       <option name="project" value="LOCAL" />
       <updated>1769183426253</updated>
     </task>
-    <option name="localTasksCounter" value="58" />
+    <task id="LOCAL-00058" summary="UniSchedulerSuper 1.5.4.20260124_2012 development&#10;&#10;添加了基于 Tavily 的两个 Agent 搜索工具&#10;&#10;通过添加前端重复性校验，修复了当 Agent 使用了工具后，前端会出现两个重复的 tool-call-indicator tool-completed ，两个 agent-message ，两个 tool-result-indicator 的问题（源于后端广播机制）&#10;&#10;修复了由于 压缩工具调用结果 导致的 最新工具结果丢失问题&#10;&#10;修复了由于流式传输时限定工具调用输出长度200字符导致的流式传输结束前后工具调用结果显示不一致的问题">
+      <option name="closed" value="true" />
+      <created>1769256742940</created>
+      <option name="number" value="00058" />
+      <option name="presentableId" value="LOCAL-00058" />
+      <option name="project" value="LOCAL" />
+      <updated>1769256742940</updated>
+    </task>
+    <option name="localTasksCounter" value="59" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -795,7 +790,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="新增课程数据测试文件 `jwxs_response.json`，支持更复杂的课程与选课信息结构" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;增加（升级）课表导入功能，包括后端API设计与实现、RRule规则推断、课程数据解析逻辑及完整的前端交互界面 (支持Cookie输入、课程预览、日程组选择与批量导入)。" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;对 Agent 的 planner 工具集做了较大的升级" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;对 Agent 的 planner 工具集做了较大的升级&#10;增加搜索结果缓存与事件组缓存的数据库模型及相关缓存管理逻辑模块，包括 `EventGroupCache` 和 `SearchResultCache` 模型、新的缓存管理器与事件组服务类，支持高效的缓存操作与数据同步功能。" />
@@ -820,7 +814,8 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260122_2310 development&#10;&#10;新增上下文使用量百分比堆积条形图，做了一些同步更新按钮绑定" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260123_2041 development&#10;&#10;升级会话历史界面中的预览内容为最后一条消息&#10;升级自动标题命名（依据用户首条消息）" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260123_2348 development&#10;&#10;去除了硬编码的api-key(我不想强制推送和覆盖了，求求不要偷用我的API，上回kimi的被偷用完了byd）&#10;更新了用户自定义LLM 的 key 的保存方式，不再明文存储" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260123_2348 development&#10;&#10;去除了硬编码的api-key(我不想强制推送和覆盖了，求求不要偷用我的API，上回kimi的被偷用完了byd）&#10;更新了用户自定义LLM 的 key 的保存方式，不再明文存储" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260124_2012 development&#10;&#10;添加了基于 Tavily 的两个 Agent 搜索工具&#10;&#10;通过添加前端重复性校验，修复了当 Agent 使用了工具后，前端会出现两个重复的 tool-call-indicator tool-completed ，两个 agent-message ，两个 tool-result-indicator 的问题（源于后端广播机制）&#10;&#10;修复了由于 压缩工具调用结果 导致的 最新工具结果丢失问题&#10;&#10;修复了由于流式传输时限定工具调用输出长度200字符导致的流式传输结束前后工具调用结果显示不一致的问题" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260124_2012 development&#10;&#10;添加了基于 Tavily 的两个 Agent 搜索工具&#10;&#10;通过添加前端重复性校验，修复了当 Agent 使用了工具后，前端会出现两个重复的 tool-call-indicator tool-completed ，两个 agent-message ，两个 tool-result-indicator 的问题（源于后端广播机制）&#10;&#10;修复了由于 压缩工具调用结果 导致的 最新工具结果丢失问题&#10;&#10;修复了由于流式传输时限定工具调用输出长度200字符导致的流式传输结束前后工具调用结果显示不一致的问题" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
