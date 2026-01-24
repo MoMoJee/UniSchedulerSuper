@@ -2417,34 +2417,49 @@ class AgentChat {
             console.log('回滚响应:', data);
             
             if (data.success) {
-                // 删除界面上该消息及之后的所有消息
+                // 【修复】收集该消息及之后的所有元素（包括消息、工具指示器、工具结果）
+                const allChildren = Array.from(this.messagesContainer.children);
+                const elementsToRemove = [];
+                
+                // 找到目标消息的位置
+                let targetMessageElement = null;
                 const allMessages = this.messagesContainer.querySelectorAll('.agent-message');
-                const messagesToRemove = [];
                 
                 allMessages.forEach((msgDiv) => {
                     const msgIndex = parseInt(msgDiv.dataset.messageIndex);
-                    if (!isNaN(msgIndex) && msgIndex >= messageIndex) {
-                        messagesToRemove.push(msgDiv);
+                    if (msgIndex === messageIndex) {
+                        targetMessageElement = msgDiv;
                     }
                 });
                 
-                // 也删除没有索引的 agent 消息（在目标消息之后的）
-                let foundTarget = false;
-                allMessages.forEach((msgDiv) => {
-                    const msgIndex = parseInt(msgDiv.dataset.messageIndex);
-                    if (!isNaN(msgIndex) && msgIndex === messageIndex) {
-                        foundTarget = true;
-                    }
-                    if (foundTarget && !messagesToRemove.includes(msgDiv)) {
-                        messagesToRemove.push(msgDiv);
-                    }
-                });
+                // 如果找到目标消息，删除它及其之后的所有元素
+                if (targetMessageElement) {
+                    let shouldDelete = false;
+                    
+                    allChildren.forEach((element) => {
+                        // 当遇到目标消息时，开始标记删除
+                        if (element === targetMessageElement) {
+                            shouldDelete = true;
+                        }
+                        
+                        // 删除目标消息及其之后的所有元素
+                        if (shouldDelete) {
+                            elementsToRemove.push(element);
+                        }
+                    });
+                } else {
+                    // 如果没找到目标消息（不应该发生），回退到旧逻辑
+                    console.warn('未找到目标消息元素，使用备用删除逻辑');
+                    allMessages.forEach((msgDiv) => {
+                        const msgIndex = parseInt(msgDiv.dataset.messageIndex);
+                        if (!isNaN(msgIndex) && msgIndex >= messageIndex) {
+                            elementsToRemove.push(msgDiv);
+                        }
+                    });
+                }
                 
-                console.log(`准备删除 ${messagesToRemove.length} 条消息元素`);
-                messagesToRemove.forEach(msg => msg.remove());
-                
-                // 删除工具调用指示器
-                this.messagesContainer.querySelectorAll('.tool-call-indicator').forEach(el => el.remove());
+                console.log(`准备删除 ${elementsToRemove.length} 个元素（消息+工具指示器+工具结果）`);
+                elementsToRemove.forEach(el => el.remove());
                 
                 // 更新消息计数
                 this.messageCount = messageIndex;
