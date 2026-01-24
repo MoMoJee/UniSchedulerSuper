@@ -39,6 +39,11 @@ from agent_service.tools.todo_tools import (
     add_task, update_task_status, get_task_list, clear_completed_tasks,
     TODO_TOOLS
 )
+# 导入联网搜索工具
+from agent_service.tools.search_tools import (
+    web_search, web_search_advanced,
+    SEARCH_TOOLS_MAP, is_search_available
+)
 from agent_service.mcp_tools import get_mcp_tools_sync
 
 # 导入上下文优化模块
@@ -177,11 +182,20 @@ TOOL_CATEGORIES = {
         "display_name": "地图服务",
         "description": "查询地点、规划路线、周边搜索",
         "tools": list(MCP_TOOLS.keys())
+    },
+    "search": {
+        "display_name": "联网搜索",
+        "description": "实时网络搜索，获取最新新闻、资讯和信息",
+        "tools": list(SEARCH_TOOLS_MAP.keys()) if is_search_available() else [],
+        "tool_descriptions": {
+            "web_search": "简单搜索，快速获取网络信息",
+            "web_search_advanced": "高级搜索，支持时间、来源、主题等精细控制",
+        }
     }
 }
 
 # 所有工具合集（包含新旧版本）
-ALL_TOOLS = {**PLANNER_TOOLS, **PLANNER_TOOLS_LEGACY, **MEMORY_TOOLS, **TODO_TOOLS_MAP, **MCP_TOOLS}
+ALL_TOOLS = {**PLANNER_TOOLS, **PLANNER_TOOLS_LEGACY, **MEMORY_TOOLS, **TODO_TOOLS_MAP, **MCP_TOOLS, **SEARCH_TOOLS_MAP}
 
 def get_tools_by_names(tool_names: List[str]) -> list:
     """根据工具名称列表获取工具对象"""
@@ -514,8 +528,10 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
             
             if enable_optimization:
                 # 创建工具压缩器
+                # 【重要】search_items 的结果不应被压缩，因为搜索结果是 LLM 后续操作的关键信息
                 tool_compressor = ToolMessageCompressor(
-                    max_tokens=opt_config.get('tool_output_max_tokens', 200)
+                    max_tokens=opt_config.get('tool_output_max_tokens', 200),
+                    exclude_tools=['search_items', 'web_search', 'web_search_advanced']
                 ) if opt_config.get('compress_tool_output', True) else None
                 
                 # 计算原始消息的 token 总数

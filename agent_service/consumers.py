@@ -136,7 +136,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
                         "content": content
                     }
                 )
-                logger.debug(f"📡 广播流式消息: group={self.group_name}, type={msg_type}")
+                logger.debug(f"� 广播流式消息: group={self.group_name}, type={msg_type}")
             else:
                 # 没有 channel_layer，回退到直接发送
                 await self.send(text_data=json.dumps(content, ensure_ascii=False))
@@ -446,10 +446,12 @@ class AgentConsumer(AsyncWebsocketConsumer):
                         # 处理 ToolMessage
                         if hasattr(msg, 'type') and getattr(msg, 'type', None) == 'tool':
                             result_str = str(msg.content) if hasattr(msg, 'content') else str(msg)
+                            # 【修复】发送完整的工具结果，前端负责截断显示
+                            # 这样确保流式传输和历史加载显示一致
                             await self.send_json({
                                 "type": "tool_result",
                                 "name": msg.name if hasattr(msg, 'name') else "tool",
-                                "result": result_str[:200] + "..." if len(result_str) > 200 else result_str
+                                "result": result_str
                             })
                         
                 except queue.Empty:
@@ -620,10 +622,11 @@ class AgentConsumer(AsyncWebsocketConsumer):
                         
                         if hasattr(msg, 'type') and getattr(msg, 'type', None) == 'tool':
                             result_str = str(msg.content) if hasattr(msg, 'content') else str(msg)
+                            # 【修复】发送完整的工具结果，前端负责截断显示
                             await self.send_json({
                                 "type": "tool_result",
                                 "name": msg.name if hasattr(msg, 'name') else "tool",
-                                "result": result_str[:200] + "..." if len(result_str) > 200 else result_str
+                                "result": result_str
                             })
                         
                 except queue.Empty:

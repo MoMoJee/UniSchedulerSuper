@@ -935,6 +935,9 @@ def get_available_tools(request):
         "maps_distance": "距离测量",
         "maps_weather": "天气查询",
         "maps_ip": "IP定位",
+        # Search (联网搜索)
+        "web_search": "简单搜索",
+        "web_search_advanced": "高级搜索",
     }
     
     default_tools = get_default_tools()

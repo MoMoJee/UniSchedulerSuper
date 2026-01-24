@@ -114,10 +114,13 @@ class AgentChat {
             'update_task_status': '更新任务状态',
             'get_task_list': '获取任务列表',
             'clear_completed_tasks': '清除已完成任务',
-            // MCP
+            // MCP - 地图服务
             'amap_search': '搜索地点',
             'amap_weather': '查询天气',
-            'amap_route': '规划路线'
+            'amap_route': '规划路线',
+            // 联网搜索
+            'web_search': '简单搜索',
+            'web_search_advanced': '高级搜索'
         };
         
         this.init();
@@ -522,10 +525,83 @@ class AgentChat {
     // ==========================================
 
     /**
+     * 生成消息指纹用于去重
+     * @param {Object} data - 消息数据
+     * @returns {string} 消息指纹
+     */
+    generateMessageFingerprint(data) {
+        // 根据消息类型生成不同的指纹
+        const type = data.type;
+        let content = '';
+        
+        switch (type) {
+            case 'tool_call':
+                content = `${data.name}|${JSON.stringify(data.args)}`;
+                break;
+            case 'tool_result':
+                content = `${data.name}|${data.result?.substring(0, 100) || ''}`;
+                break;
+            case 'stream_chunk':
+                content = data.content?.substring(0, 50) || '';
+                break;
+            case 'message':
+            case 'response':
+                content = data.content?.substring(0, 100) || data.message?.substring(0, 100) || '';
+                break;
+            case 'finished':
+                content = `${data.message_count || ''}`;
+                break;
+            default:
+                content = JSON.stringify(data).substring(0, 100);
+        }
+        
+        return `${type}:${content}`;
+    }
+
+    /**
+     * 检查消息是否重复（用于处理channel_layer广播导致的重复消息）
+     * @param {Object} data - 消息数据
+     * @returns {boolean} 是否重复
+     */
+    isMessageDuplicate(data) {
+        // 初始化去重缓存
+        if (!this.recentMessages) {
+            this.recentMessages = new Map();
+        }
+        
+        const fingerprint = this.generateMessageFingerprint(data);
+        const now = Date.now();
+        
+        // 清理过期的指纹（超过500ms的）
+        for (const [key, timestamp] of this.recentMessages.entries()) {
+            if (now - timestamp > 500) {
+                this.recentMessages.delete(key);
+            }
+        }
+        
+        // 检查是否存在相同指纹
+        if (this.recentMessages.has(fingerprint)) {
+            console.log(`🔄 跳过重复消息: ${data.type}`);
+            return true;
+        }
+        
+        // 记录新指纹
+        this.recentMessages.set(fingerprint, now);
+        return false;
+    }
+
+    /**
      * 处理收到的 WebSocket 消息
      */
     handleMessage(data) {
         console.log('收到消息:', data);
+        
+        // 【关键】消息去重：channel_layer广播可能导致消息被接收两次
+        // 对于某些消息类型进行去重处理
+        const deduplicateTypes = ['tool_call', 'tool_result', 'stream_start', 'stream_chunk', 'stream_end', 'finished'];
+        if (deduplicateTypes.includes(data.type) && this.isMessageDuplicate(data)) {
+            return; // 跳过重复消息
+        }
         
         switch (data.type) {
             case 'connected':
@@ -548,6 +624,16 @@ class AgentChat {
             case 'message':
             case 'response':
                 this.hideTyping();
+                // 【修复】只有在没有进行流式传输时才添加消息
+                // 如果isStreamingActive或刚结束流式(finished后短时间内)，说明内容已通过stream_chunk显示
+                const existingStreamMsg = document.getElementById('streamingMessage');
+                
+                // 如果正在流式传输，跳过
+                if (this.isStreamingActive || existingStreamMsg) {
+                    console.log('⏭️ 跳过重复的 message/response 事件（正在流式传输）');
+                    break;
+                }
+                
                 if (data.content) {
                     this.addMessage(data.content, 'agent', data.metadata || {});
                 }
@@ -1001,6 +1087,13 @@ class AgentChat {
      * 显示工具调用
      */
     showToolCall(tool, args) {
+        // 【修复】检查是否已经存在相同工具的未完成调用指示器
+        const existingIndicators = this.messagesContainer.querySelectorAll(`.tool-call-indicator:not(.tool-completed)[data-tool="${tool}"]`);
+        if (existingIndicators.length > 0) {
+            console.log(`⚠️ 工具 ${tool} 的调用指示器已存在，跳过重复创建`);
+            return;
+        }
+        
         // 标记工具调用开始，后续的 stream_chunk 不应该显示在 message-content 中
         this.isToolCallInProgress = true;
         
@@ -1039,19 +1132,25 @@ class AgentChat {
         const indicators = this.messagesContainer.querySelectorAll('.tool-call-indicator:not(.tool-completed)');
         if (indicators.length > 0) {
             const lastIndicator = indicators[indicators.length - 1];
-            const actionText = lastIndicator.querySelector('.tool-action').textContent
-                .replace('正在', '').replace('...', '');
             
-            lastIndicator.innerHTML = `
-                <i class="fas fa-check-circle text-success me-2"></i>
-                <span class="tool-action">${actionText}完成</span>
-            `;
-            lastIndicator.classList.add('tool-completed');
-            
-            // 2秒后淡出
-            setTimeout(() => {
-                lastIndicator.style.opacity = '0.6';
-            }, 1500);
+            // 【修复】检查该指示器是否已经被标记为完成，避免重复标记
+            if (lastIndicator.classList.contains('tool-completed')) {
+                console.log(`⚠️ 工具调用指示器已完成，跳过重复标记`);
+            } else {
+                const actionText = lastIndicator.querySelector('.tool-action').textContent
+                    .replace('正在', '').replace('...', '');
+                
+                lastIndicator.innerHTML = `
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    <span class="tool-action">${actionText}完成</span>
+                `;
+                lastIndicator.classList.add('tool-completed');
+                
+                // 2秒后淡出
+                setTimeout(() => {
+                    lastIndicator.style.opacity = '0.6';
+                }, 1500);
+            }
         }
         
         // 显示小字形式的工具结果内容

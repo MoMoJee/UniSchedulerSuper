@@ -4,23 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260123_2041 development&#10;&#10;升级会话历史界面中的预览内容为最后一条消息&#10;升级自动标题命名（依据用户首条消息）">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260123_2348 development&#10;&#10;去除了硬编码的api-key(我不想强制推送和覆盖了，求求不要偷用我的API，上回kimi的被偷用完了byd）&#10;更新了用户自定义LLM 的 key 的保存方式，不再明文存储">
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/tavily_test.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/agent_service/agent_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/context_optimizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/context_optimizer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/graph.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/mcp_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/mcp_tools.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/memory_store.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/migrate_memory_data.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/views_config_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_config_api.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai_chatting/ai_responder.py" beforeDir="false" afterPath="$PROJECT_DIR$/ai_chatting/ai_responder.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/consumers.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/consumers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/views_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_api.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/js/agent-chat.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/agent-chat.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/planner/AI_search.py" beforeDir="false" afterPath="$PROJECT_DIR$/planner/AI_search.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/planner/searcher.py" beforeDir="false" afterPath="$PROJECT_DIR$/planner/searcher.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/planner/testing-AI/testing-AI.py" beforeDir="false" afterPath="$PROJECT_DIR$/planner/testing-AI/testing-AI.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/planner/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/planner/views.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -38,8 +30,8 @@
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
-        <option value="Python Script" />
         <option value="HTML File" />
+        <option value="Python Script" />
       </list>
     </option>
   </component>
@@ -102,6 +94,7 @@
     "Python.mcp_server.executor": "Run",
     "Python.mcp_tools.executor": "Run",
     "Python.raw_http_dump_middleware.executor": "Run",
+    "Python.tavily_test.executor": "Run",
     "Python.test_browser_session.executor": "Run",
     "Python.test_event_operations.executor": "Run",
     "Python.test_exception_debug.executor": "Run",
@@ -120,6 +113,7 @@
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "ai.playground.ignore.import.keys.banner.in.settings": "true",
+    "aidebugger.tracer.lastRunConfigName": "tavily_test",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
     "git-widget-placeholder": "development__new",
     "ignore.virus.scanning.warn.message": "true",
@@ -163,7 +157,7 @@
       <recent name="D:\PROJECTS\UniSchedulerSuper\docs\开发文档" />
     </key>
   </component>
-  <component name="RunManager" selected="Django 服务器.UniSchedulerSuper">
+  <component name="RunManager">
     <configuration name="graph" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="UniSchedulerSuper" />
       <option name="ENV_FILES" value="" />
@@ -368,15 +362,7 @@
       <workItem from="1768052963860" duration="19137000" />
       <workItem from="1768758714722" duration="26998000" />
       <workItem from="1768997538704" duration="4055000" />
-      <workItem from="1769014121780" duration="21892000" />
-    </task>
-    <task id="LOCAL-00008" summary="UniSchedulerSuper 1.5.3.20250930_1345&#10;正在升级 events 相关的功能。&#10;现在 RRule 编辑功能已经基本全部可用，待测试完毕和删除多余日志项后即可更新">
-      <option name="closed" value="true" />
-      <created>1759211170108</created>
-      <option name="number" value="00008" />
-      <option name="presentableId" value="LOCAL-00008" />
-      <option name="project" value="LOCAL" />
-      <updated>1759211170108</updated>
+      <workItem from="1769014121780" duration="32529000" />
     </task>
     <task id="LOCAL-00009" summary="UniSchedulerSuper 1.5.3.20251012_1748&#10;正在升级 events 相关的功能。&#10;修复了编辑单个日程为重复日程的时候只保存规则不生成实例的错误&#10;修复了前端“此及以后”模式复选框中日程货不对板的问题">
       <option name="closed" value="true" />
@@ -762,7 +748,15 @@
       <option name="project" value="LOCAL" />
       <updated>1769172085502</updated>
     </task>
-    <option name="localTasksCounter" value="57" />
+    <task id="LOCAL-00057" summary="UniSchedulerSuper 1.5.4.20260123_2348 development&#10;&#10;去除了硬编码的api-key(我不想强制推送和覆盖了，求求不要偷用我的API，上回kimi的被偷用完了byd）&#10;更新了用户自定义LLM 的 key 的保存方式，不再明文存储">
+      <option name="closed" value="true" />
+      <created>1769183426253</created>
+      <option name="number" value="00057" />
+      <option name="presentableId" value="LOCAL-00057" />
+      <option name="project" value="LOCAL" />
+      <updated>1769183426253</updated>
+    </task>
+    <option name="localTasksCounter" value="58" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -801,7 +795,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="新增课程计划测试 JSON 文件以支持后续日程相关功能开发。" />
     <MESSAGE value="新增课程数据测试文件 `jwxs_response.json`，支持更复杂的课程与选课信息结构" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;增加（升级）课表导入功能，包括后端API设计与实现、RRule规则推断、课程数据解析逻辑及完整的前端交互界面 (支持Cookie输入、课程预览、日程组选择与批量导入)。" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;对 Agent 的 planner 工具集做了较大的升级" />
@@ -826,12 +819,14 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260122_2101 development&#10;&#10;新增上文总结功能，实现持久会话" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260122_2310 development&#10;&#10;新增上下文使用量百分比堆积条形图，做了一些同步更新按钮绑定" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260123_2041 development&#10;&#10;升级会话历史界面中的预览内容为最后一条消息&#10;升级自动标题命名（依据用户首条消息）" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260123_2041 development&#10;&#10;升级会话历史界面中的预览内容为最后一条消息&#10;升级自动标题命名（依据用户首条消息）" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260123_2348 development&#10;&#10;去除了硬编码的api-key(我不想强制推送和覆盖了，求求不要偷用我的API，上回kimi的被偷用完了byd）&#10;更新了用户自定义LLM 的 key 的保存方式，不再明文存储" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260123_2348 development&#10;&#10;去除了硬编码的api-key(我不想强制推送和覆盖了，求求不要偷用我的API，上回kimi的被偷用完了byd）&#10;更新了用户自定义LLM 的 key 的保存方式，不再明文存储" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$111__1_.coverage" NAME="111 (1) 覆盖结果" MODIFIED="1762698704329" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/api_examples" />
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$raw_http_dump_middleware.coverage" NAME="raw_http_dump_middleware 覆盖结果" MODIFIED="1766136938370" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$tavily_test.coverage" NAME="tavily_test 覆盖结果" MODIFIED="1769186378591" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$111.coverage" NAME="111 覆盖结果" MODIFIED="1766138421179" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/api_examples" />
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_exception_debug.coverage" NAME="test_exception_debug 覆盖结果" MODIFIED="1756045494260" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$tools.coverage" NAME="tools 覆盖结果" MODIFIED="1764698201022" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/agent_service" />

@@ -14,6 +14,9 @@ langchain-anthropic>=0.2.0
 langgraph-checkpoint-sqlite
 langchain-mcp-adapters
 
+# 联网搜索服务
+tavily-python
+
 pytz>=2024.1
 markdown
 icalendar
