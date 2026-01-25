@@ -81,7 +81,7 @@ class ProjectLogger:
         # 文件处理器 - 带日志截断功能
         file_handler = ConcurrentRotatingFileHandler(
             filename=str(self.log_file),
-            maxBytes=16 * 1024 * 1024,  # 16MB
+            maxBytes=5 * 512 * 1024,  #2.5MB
             backupCount=10,  # 保留10个备份文件
             encoding='utf-8'
         )

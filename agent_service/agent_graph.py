@@ -228,7 +228,8 @@ llm = ChatOpenAI(
     model="deepseek-chat",
     temperature=0,
     streaming=True,
-    base_url=os.environ.get("OPENAI_API_BASE")
+    base_url=os.environ.get("OPENAI_API_BASE"),
+    stream_usage=True,  # 确保流式响应中也返回 token 用量
 )
 
 
@@ -275,6 +276,7 @@ def get_user_llm(user):
                 api_key=api_key if api_key else 'sk-placeholder',  # type: ignore
                 temperature=0.7,
                 streaming=True,
+                stream_usage=True,  # 确保流式响应中也返回 token 用量
             )
             logger.info(f"[LLM] 创建用户模型: {model_name} @ {api_url}")
             return user_llm
@@ -483,6 +485,7 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
                     api_key=api_key if api_key else 'sk-placeholder',  # type: ignore
                     temperature=0.7,
                     streaming=True,
+                    stream_usage=True,  # 确保流式响应中也返回 token 用量
                 )
                 logger.info(f"[Agent] 使用自定义模型: {model_name} @ {api_url}")
             else:
@@ -580,20 +583,47 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
             input_tokens = 0
             output_tokens = 0
             
-            if hasattr(response, 'response_metadata'):
-                usage = response.response_metadata.get('token_usage', {})
-                input_tokens = usage.get('prompt_tokens', 0)
-                output_tokens = usage.get('completion_tokens', 0)
+            # 优先检查 usage_metadata（LangChain 新版本标准）
+            if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                usage_metadata = response.usage_metadata
+                if isinstance(usage_metadata, dict):
+                    input_tokens = usage_metadata.get('input_tokens', 0) or usage_metadata.get('prompt_tokens', 0)
+                    output_tokens = usage_metadata.get('output_tokens', 0) or usage_metadata.get('completion_tokens', 0)
+                else:
+                    input_tokens = getattr(usage_metadata, 'input_tokens', 0) or getattr(usage_metadata, 'prompt_tokens', 0)
+                    output_tokens = getattr(usage_metadata, 'output_tokens', 0) or getattr(usage_metadata, 'completion_tokens', 0)
+            
+            # 回退：检查 response_metadata
+            if not input_tokens and hasattr(response, 'response_metadata'):
+                metadata = response.response_metadata
+                usage = metadata.get('token_usage') or metadata.get('usage') or {}
+                input_tokens = usage.get('prompt_tokens', 0) or usage.get('input_tokens', 0)
+                output_tokens = usage.get('completion_tokens', 0) or usage.get('output_tokens', 0)
+            
+            # 如果无法从 API 获取，使用估算值
+            if input_tokens == 0 or output_tokens == 0:
+                logger.warning(f"[Agent] 无法从 API 获取 Token 用量，降级为估算值。详情 {response.response_metadata}, {response.usage_metadata=}")
+
+                
+                if input_tokens == 0:
+                    # 估算输入 token：所有消息内容的长度 / 2.5
+                    total_input_chars = sum(
+                        len(msg.content) if hasattr(msg, 'content') and isinstance(msg.content, str) else 0
+                        for msg in full_messages
+                    )
+                    input_tokens = int(total_input_chars / 2.5)
+                
+                if output_tokens == 0:
+                    # 估算输出 token：响应内容长度 / 2.5
+                    response_content = response.content if hasattr(response, 'content') and isinstance(response.content, str) else ""
+                    output_tokens = int(len(response_content) / 2.5) or 10  # 至少 10 tokens
             
             if input_tokens > 0 or output_tokens > 0:
-                cost_input = model_config.get('cost_per_1k_input', 0) if model_config else 0
-                cost_output = model_config.get('cost_per_1k_output', 0) if model_config else 0
-                cost = (input_tokens * cost_input + output_tokens * cost_output) / 1000
-                
-                update_token_usage(user, input_tokens, output_tokens, current_model_id, cost)
-                logger.debug(f"[Agent] Token 统计: in={input_tokens}, out={output_tokens}, cost={cost:.6f}")
+                # 成本由 update_token_usage 自动计算（基于 CNY）
+                update_token_usage(user, input_tokens, output_tokens, current_model_id)
+                logger.info(f"[Agent] Token 统计已更新: in={input_tokens}, out={output_tokens}, model={current_model_id}")
         except Exception as e:
-            logger.debug(f"[Agent] Token 统计失败: {e}")
+            logger.error(f"[Agent] Token 统计失败: {e}", exc_info=True)
     
     return {"messages": [response]}
 

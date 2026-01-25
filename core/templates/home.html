@@ -3292,103 +3292,93 @@
                                 <!-- Token 统计 -->
                                 <div class="tab-pane fade" id="ai-token-stats" role="tabpanel">
                                     <div class="mb-3">
-                                        <small class="text-muted">查看 Token 使用情况和成本统计</small>
+                                        <small class="text-muted">查看本月 Token 使用情况和成本统计（每月1日自动重置配额）</small>
                                     </div>
                                     
-                                    <!-- 总体统计卡片 -->
-                                    <div class="row g-3 mb-4">
-                                        <div class="col-md-3">
-                                            <div class="card bg-primary text-white">
-                                                <div class="card-body text-center">
-                                                    <i class="fas fa-arrow-down fa-2x mb-2"></i>
-                                                    <h4 id="totalInputTokens">0</h4>
-                                                    <small>输入 Tokens</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="card bg-success text-white">
-                                                <div class="card-body text-center">
-                                                    <i class="fas fa-arrow-up fa-2x mb-2"></i>
-                                                    <h4 id="totalOutputTokens">0</h4>
-                                                    <small>输出 Tokens</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="card bg-warning text-dark">
-                                                <div class="card-body text-center">
-                                                    <i class="fas fa-dollar-sign fa-2x mb-2"></i>
-                                                    <h4 id="totalCost">$0.00</h4>
-                                                    <small>总成本</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="card bg-info text-white">
-                                                <div class="card-body text-center">
-                                                    <i class="fas fa-percentage fa-2x mb-2"></i>
-                                                    <h4 id="quotaUsedRatio">0%</h4>
-                                                    <small>配额使用率</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- 时间范围选择 -->
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <div class="btn-group" role="group">
-                                            <button type="button" class="btn btn-outline-primary active" onclick="agentConfig.loadTokenStats('day')">今日</button>
-                                            <button type="button" class="btn btn-outline-primary" onclick="agentConfig.loadTokenStats('week')">本周</button>
-                                            <button type="button" class="btn btn-outline-primary" onclick="agentConfig.loadTokenStats('month')">本月</button>
-                                            <button type="button" class="btn btn-outline-primary" onclick="agentConfig.loadTokenStats('all')">全部</button>
-                                        </div>
-                                        <button class="btn btn-outline-danger btn-sm" onclick="agentConfig.resetTokenStats()">
-                                            <i class="fas fa-trash me-1"></i>重置统计
-                                        </button>
-                                    </div>
-                                    
-                                    <!-- 按模型统计 -->
-                                    <div class="card">
-                                        <div class="card-header bg-light">
-                                            <i class="fas fa-chart-pie me-2"></i>按模型统计
-                                        </div>
-                                        <div class="card-body">
-                                            <div id="modelStatsTable">
-                                                <div class="text-center text-muted py-3">
-                                                    <i class="fas fa-spinner fa-spin me-2"></i>加载中...
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- 配额设置 -->
-                                    <div class="card mt-3">
-                                        <div class="card-header bg-light">
-                                            <i class="fas fa-tachometer-alt me-2"></i>配额设置
+                                    <!-- 系统模型配额卡片 -->
+                                    <div class="card mb-4 border-primary">
+                                        <div class="card-header bg-primary text-white">
+                                            <i class="fas fa-server me-2"></i>系统模型 - 本月配额
                                         </div>
                                         <div class="card-body">
                                             <div class="row align-items-center">
-                                                <div class="col-md-6">
-                                                    <label for="tokenQuota" class="form-label">Token 配额上限</label>
-                                                    <input type="number" class="form-control" id="tokenQuota" 
-                                                           min="0" step="100000" value="9999999">
+                                                <div class="col-md-8">
+                                                    <div class="d-flex justify-content-between mb-2">
+                                                        <span>抵用金使用</span>
+                                                        <span>
+                                                            <strong id="tokenMonthlyUsed">¥0.00</strong> / 
+                                                            <span id="tokenMonthlyCredit">¥5.00</span>
+                                                        </span>
+                                                    </div>
+                                                    <div class="progress" style="height: 20px;">
+                                                        <div class="progress-bar" role="progressbar" 
+                                                             id="tokenQuotaProgressBar"
+                                                             style="width: 0%;" 
+                                                             aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                                            <span id="tokenQuotaPercent">0%</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mt-2 small text-muted">
+                                                        <i class="fas fa-info-circle me-1"></i>
+                                                        剩余: <strong id="tokenRemaining">¥5.00</strong>，
+                                                        当前月份: <span id="tokenCurrentMonth">-</span>
+                                                    </div>
                                                 </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label">&nbsp;</label>
-                                                    <button class="btn btn-primary w-100" onclick="agentConfig.updateQuota()">
-                                                        <i class="fas fa-save me-1"></i>更新配额
-                                                    </button>
+                                                <div class="col-md-4 text-center">
+                                                    <div class="alert alert-info mb-0 py-2" id="quotaStatusAlert">
+                                                        <i class="fas fa-check-circle me-1"></i>
+                                                        <span id="quotaStatusText">配额充足</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <small class="text-muted">设置为 0 表示无限制</small>
                                         </div>
+                                    </div>
+                                    
+                                    <!-- 按模型统计表格 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                            <span><i class="fas fa-chart-bar me-2"></i>本月模型使用明细</span>
+                                            <button class="btn btn-outline-danger btn-sm" onclick="agentConfig.resetTokenStats()">
+                                                <i class="fas fa-redo me-1"></i>重置当月
+                                            </button>
+                                        </div>
+                                        <div class="card-body p-0">
+                                            <div class="table-responsive">
+                                                <table class="table table-hover mb-0">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th>模型</th>
+                                                            <th class="text-end">输入 Tokens</th>
+                                                            <th class="text-end">输出 Tokens</th>
+                                                            <th class="text-end">成本 (CNY)</th>
+                                                            <th>类型</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="modelStatsTableBody">
+                                                        <tr>
+                                                            <td colspan="5" class="text-center text-muted py-3">
+                                                                <i class="fas fa-spinner fa-spin me-2"></i>加载中...
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 提示信息 -->
+                                    <div class="alert alert-secondary">
+                                        <h6 class="alert-heading"><i class="fas fa-lightbulb me-2"></i>关于配额</h6>
+                                        <ul class="mb-0 small">
+                                            <li>系统模型每月提供 ¥5.00 抵用金，每月1日 UTC 时间自动重置</li>
+                                            <li>抵用金用尽后，您需要使用自己配置的模型或等待下月</li>
+                                            <li>自定义模型无限额限制，仅做统计</li>
+                                            <li>建议在"模型配置"中添加您自己的 API Key 以获得无限使用</li>
+                                        </ul>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- 我的 -->
                         <div class="tab-pane fade" id="profile-settings" role="tabpanel">
                             <h6 class="mb-4 text-primary"><i class="fas fa-user-circle me-2"></i>账户管理</h6>
                             

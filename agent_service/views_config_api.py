@@ -35,22 +35,26 @@ from config.encryption import SecureKeyStorage
 # UserData 辅助函数
 # ==========================================
 
+class MockRequest:
+    """模拟 request 对象，用于调用 UserData.get_or_initialize"""
+    def __init__(self, user):
+        self.user = user
+
+
 def get_user_data_value(user, key: str, default=None):
     """获取用户数据值的辅助函数"""
-    user_data = UserData.objects.filter(user=user, key=key).first()
+    mock_request = MockRequest(user)
+    user_data, created, _ = UserData.get_or_initialize(mock_request, new_key=key)
     if user_data:
-        return user_data.get_value()
+        return user_data.get_value() if not created else (default if default is not None else {})
     return default if default is not None else {}
 
 
 def set_user_data_value(user, key: str, value):
     """设置用户数据值的辅助函数"""
-    user_data, created = UserData.objects.get_or_create(
-        user=user,
-        key=key,
-        defaults={"value": json.dumps(value)}
-    )
-    if not created:
+    mock_request = MockRequest(user)
+    user_data, created, _ = UserData.get_or_initialize(mock_request, new_key=key)
+    if user_data:
         user_data.set_value(value)
     return user_data
 
@@ -412,30 +416,31 @@ def update_opt_config(request):
 @permission_classes([IsAuthenticated])
 def get_token_stats(request):
     """
-    获取用户的 Token 使用统计
+    获取用户的 Token 使用统计（新版）
     GET /api/agent/token-usage/
-    GET /api/agent/token-usage/?period=week
-    GET /api/agent/token-usage/?period=month
     
     返回:
     {
-        "total_input_tokens": 10000,
-        "total_output_tokens": 5000,
-        "total_cost": 0.5,
-        "quota": 9999999,
-        "quota_used_ratio": 0.0015,
-        "period_stats": [...],
-        "model_stats": {...}
+        "success": true,
+        "current_month": "2026-01",
+        "monthly_credit": 5.0,      // 本月抵用金 (CNY)
+        "monthly_used": 2.35,       // 本月已使用 (CNY，仅系统模型)
+        "remaining": 2.65,          // 剩余 (CNY)
+        "models": {
+            "system_deepseek": {
+                "name": "DeepSeek Chat（系统提供）",
+                "input_tokens": 12000,
+                "output_tokens": 8000,
+                "cost": 2.35,
+                "is_system": true
+            }
+        },
+        "history": {...}
     }
     """
     try:
         user = request.user
-        period = request.query_params.get('period', 'week')
-        
-        if period not in ['day', 'week', 'month', 'all']:
-            period = 'week'
-        
-        stats = get_token_usage_stats(user, period)
+        stats = get_token_usage_stats(user)
         
         return Response({
             "success": True,
@@ -454,35 +459,41 @@ def get_token_stats(request):
 @permission_classes([IsAuthenticated])
 def reset_token_stats(request):
     """
-    重置用户的 Token 使用统计
+    重置用户的 Token 使用统计（仅重置当月统计，不影响历史记录）
     POST /api/agent/token-usage/reset/
     
     Body:
     {
-        "reset_type": "all"  # all, daily, model
+        "reset_type": "current"  // current: 仅重置当月, all: 清空所有包括历史
     }
     """
+    from datetime import datetime, timezone
+    from config.api_keys_manager import DEFAULT_MONTHLY_CREDIT
+    
     try:
         user = request.user
         data = request.data
-        reset_type = data.get('reset_type', 'all')
+        reset_type = data.get('reset_type', 'current')
         
         # 获取当前统计
         token_usage = get_user_data_value(user, 'agent_token_usage', {})
+        current_month = datetime.now(timezone.utc).strftime('%Y-%m')
         
         if reset_type == 'all':
+            # 完全重置，包括历史
             token_usage = {
-                'total_input_tokens': 0,
-                'total_output_tokens': 0,
-                'total_cost': 0.0,
-                'quota': token_usage.get('quota', 9999999),
-                'daily_stats': [],
-                'model_stats': {}
+                'current_month': current_month,
+                'monthly_credit': DEFAULT_MONTHLY_CREDIT,
+                'monthly_used': 0.0,
+                'models': {},
+                'history': {},
+                'last_reset': datetime.now(timezone.utc).isoformat()
             }
-        elif reset_type == 'daily':
-            token_usage['daily_stats'] = []
-        elif reset_type == 'model':
-            token_usage['model_stats'] = {}
+        elif reset_type == 'current':
+            # 仅重置当月数据
+            token_usage['monthly_used'] = 0.0
+            token_usage['models'] = {}
+            token_usage['last_reset'] = datetime.now(timezone.utc).isoformat()
         else:
             return Response({
                 "success": False,
@@ -494,7 +505,7 @@ def reset_token_stats(request):
         
         return Response({
             "success": True,
-            "message": f"已重置 {reset_type} 统计"
+            "message": f"已重置{('当月' if reset_type == 'current' else '所有')}统计"
         })
         
     except Exception as e:
@@ -576,7 +587,7 @@ def get_all_agent_config(request):
         optimization_config = get_optimization_config(user)
         
         # Token 统计
-        token_stats = get_token_usage_stats(user, 'week')
+        token_stats = get_token_usage_stats(user)
         
         return Response({
             "success": True,

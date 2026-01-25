@@ -278,6 +278,24 @@ class AgentConsumer(AsyncWebsocketConsumer):
             # 导入 graph
             from agent_service.agent_graph import app
             
+            # ========== 【关键】配额检查 ==========
+            from agent_service.context_optimizer import check_quota_available, get_current_model_config
+            
+            current_model_id, _ = await database_sync_to_async(get_current_model_config)(self.user)
+            quota_info = await database_sync_to_async(check_quota_available)(self.user, current_model_id)
+            
+            if not quota_info.get('available', True):
+                # 配额不足，拒绝处理
+                await self.send_json({
+                    "type": "quota_exceeded",
+                    "message": quota_info.get('message', "您本月的抵用金已用尽，请使用自己的模型或等待下个月"),
+                    "monthly_credit": quota_info.get('monthly_credit', 0),
+                    "monthly_used": quota_info.get('monthly_used', 0),
+                    "remaining": quota_info.get('remaining', 0)
+                })
+                self.is_processing = False
+                return
+            
             # ========== 【关键】检查是否是第一条消息，决定是否自动命名 ==========
             is_first_message = False
             try:
@@ -741,6 +759,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
         try:
             from agent_service.models import AgentSession
             from agent_service.agent_graph import get_user_llm
+            from agent_service.context_optimizer import get_current_model_config, update_token_usage
             
             # 获取会话
             session = await database_sync_to_async(
@@ -761,6 +780,9 @@ class AgentConsumer(AsyncWebsocketConsumer):
             # 设置正在命名状态
             session.is_naming = True
             await database_sync_to_async(session.save)()
+            
+            # 获取当前模型 ID（用于 token 统计）
+            current_model_id, _ = await database_sync_to_async(get_current_model_config)(self.user)
             
             # 通知前端开始命名
             await self.send_json({
@@ -784,6 +806,44 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 response = await asyncio.to_thread(
                     lambda: user_llm.invoke(naming_prompt)
                 )
+                
+                # ===== Token 统计 =====
+                if self.user and self.user.is_authenticated:
+                    try:
+                        input_tokens = 0
+                        output_tokens = 0
+                        
+                        # 优先检查 usage_metadata
+                        if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                            usage_metadata = response.usage_metadata
+                            if isinstance(usage_metadata, dict):
+                                input_tokens = usage_metadata.get('input_tokens', 0) or usage_metadata.get('prompt_tokens', 0)
+                                output_tokens = usage_metadata.get('output_tokens', 0) or usage_metadata.get('completion_tokens', 0)
+                            else:
+                                input_tokens = getattr(usage_metadata, 'input_tokens', 0) or getattr(usage_metadata, 'prompt_tokens', 0)
+                                output_tokens = getattr(usage_metadata, 'output_tokens', 0) or getattr(usage_metadata, 'completion_tokens', 0)
+                        
+                        # 回退：检查 response_metadata
+                        if not input_tokens and hasattr(response, 'response_metadata'):
+                            metadata = response.response_metadata
+                            usage = metadata.get('token_usage') or metadata.get('usage') or {}
+                            input_tokens = usage.get('prompt_tokens', 0) or usage.get('input_tokens', 0)
+                            output_tokens = usage.get('completion_tokens', 0) or usage.get('output_tokens', 0)
+                        
+                        # 如果无法获取实际值，使用估算值
+                        if input_tokens == 0 or output_tokens == 0:
+                            logger.warning(f"[自动命名] 无法从 API 获取 Token 用量，降级为估算值")
+                            if input_tokens == 0:
+                                input_tokens = int(len(naming_prompt) / 2.5)  # 粗略估算
+                            if output_tokens == 0:
+                                output_tokens = 20  # 会话名称通常很短
+                        
+                        await database_sync_to_async(update_token_usage)(
+                            self.user, input_tokens, output_tokens, current_model_id
+                        )
+                        logger.info(f"[自动命名] Token 统计已更新: in={input_tokens}, out={output_tokens}")
+                    except Exception as e:
+                        logger.warning(f"[自动命名] Token 统计失败: {e}")
                 
                 # 提取生成的名称
                 generated_name = response.content.strip() if hasattr(response, 'content') else str(response).strip()
@@ -919,8 +979,8 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 method=opt_config.get('token_calculation_method', 'estimate')
             )
             
-            # 获取模型上下文窗口
-            _, model_config = await database_sync_to_async(get_current_model_config)(self.user)
+            # 获取模型上下文窗口和模型 ID
+            current_model_id, model_config = await database_sync_to_async(get_current_model_config)(self.user)
             context_window = model_config.get('context_window', 128000) if model_config else 128000
             
             # 创建总结器（使用用户配置的 LLM）
@@ -958,10 +1018,12 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 # 获取之前的总结（用于增量更新）
                 previous_summary = summary_metadata.get('summary', '') if summary_metadata else None
                 
-                # 执行总结
+                # 执行总结（传递 user 用于 token 统计）
                 new_summary_metadata = await summarizer.summarize(
                     messages_to_summarize,
-                    previous_summary=previous_summary
+                    previous_summary=previous_summary,
+                    user=self.user,
+                    model_id=current_model_id
                 )
                 
                 if new_summary_metadata:

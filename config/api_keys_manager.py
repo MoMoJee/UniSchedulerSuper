@@ -280,6 +280,61 @@ class APIKeyManager:
         return result
 
 
+# ==================== 系统模型成本配置 ====================
+
+# 系统提供的模型成本配置 (CNY)
+SYSTEM_MODEL_COSTS = {
+    "system_deepseek": {
+        "name": "DeepSeek Chat（系统提供）",
+        "cost_per_1k_input": 0.001,    # CNY per 1k tokens
+        "cost_per_1k_output": 0.002,   # CNY per 1k tokens
+    }
+}
+
+# 每月默认抵用金 (CNY)
+DEFAULT_MONTHLY_CREDIT = 5.0
+
+
+def get_model_cost_config(model_id: str) -> Optional[Dict[str, Any]]:
+    """
+    获取模型的成本配置
+    
+    Args:
+        model_id: 模型 ID，如 'system_deepseek' 或用户自定义模型 ID
+    
+    Returns:
+        包含 cost_per_1k_input, cost_per_1k_output 的配置字典
+        如果是系统模型，返回预定义配置
+        如果是自定义模型，需要从用户配置中获取（由调用方处理）
+        未找到返回 None
+    """
+    if model_id in SYSTEM_MODEL_COSTS:
+        return SYSTEM_MODEL_COSTS[model_id].copy()
+    return None
+
+
+def is_system_model(model_id: str) -> bool:
+    """判断是否为系统提供的模型"""
+    return model_id.startswith('system_') or model_id in SYSTEM_MODEL_COSTS
+
+
+def calculate_cost(input_tokens: int, output_tokens: int, cost_config: Dict) -> float:
+    """
+    计算成本 (CNY)
+    
+    Args:
+        input_tokens: 输入 token 数
+        output_tokens: 输出 token 数
+        cost_config: 包含 cost_per_1k_input, cost_per_1k_output 的配置
+    
+    Returns:
+        成本 (CNY)
+    """
+    cost_input = cost_config.get('cost_per_1k_input', 0)
+    cost_output = cost_config.get('cost_per_1k_output', 0)
+    return (input_tokens * cost_input + output_tokens * cost_output) / 1000
+
+
 # 便捷函数
 def get_deepseek_key() -> str:
     """获取 DeepSeek API 密钥"""

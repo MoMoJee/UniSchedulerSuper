@@ -218,7 +218,9 @@ class ConversationSummarizer:
     async def summarize(
         self,
         messages: List[BaseMessage],
-        previous_summary: Optional[str] = None
+        previous_summary: Optional[str] = None,
+        user=None,
+        model_id: str = "system_deepseek"
     ) -> Optional[Dict]:
         """
         生成对话历史总结
@@ -226,6 +228,8 @@ class ConversationSummarizer:
         Args:
             messages: 要总结的消息列表
             previous_summary: 之前的总结（用于增量更新）
+            user: Django User 对象（用于 token 统计）
+            model_id: 使用的模型 ID
 
         Returns:
             总结元数据 {
@@ -269,6 +273,45 @@ class ConversationSummarizer:
 
             # 计算总结的 token 数
             summary_tokens = self.token_calculator.calculate_text(summary_text)
+
+            # ===== Token 统计 =====
+            if user and user.is_authenticated:
+                try:
+                    from agent_service.context_optimizer import update_token_usage
+                    
+                    # 尝试从 response 获取实际 token 使用
+                    input_tokens = 0
+                    output_tokens = 0
+                    
+                    # 优先检查 usage_metadata
+                    if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                        usage_metadata = response.usage_metadata
+                        if isinstance(usage_metadata, dict):
+                            input_tokens = usage_metadata.get('input_tokens', 0) or usage_metadata.get('prompt_tokens', 0)
+                            output_tokens = usage_metadata.get('output_tokens', 0) or usage_metadata.get('completion_tokens', 0)
+                        else:
+                            input_tokens = getattr(usage_metadata, 'input_tokens', 0) or getattr(usage_metadata, 'prompt_tokens', 0)
+                            output_tokens = getattr(usage_metadata, 'output_tokens', 0) or getattr(usage_metadata, 'completion_tokens', 0)
+                    
+                    # 回退：检查 response_metadata
+                    if not input_tokens and hasattr(response, 'response_metadata'):
+                        metadata = response.response_metadata
+                        usage = metadata.get('token_usage') or metadata.get('usage') or {}
+                        input_tokens = usage.get('prompt_tokens', 0) or usage.get('input_tokens', 0)
+                        output_tokens = usage.get('completion_tokens', 0) or usage.get('output_tokens', 0)
+                    
+                    # 如果无法获取实际值，使用估算值
+                    if input_tokens == 0 or output_tokens == 0:
+                        logger.warning(f"[总结] 无法从 API 获取 Token 用量，降级为估算值")
+                        if input_tokens == 0:
+                            input_tokens = self.token_calculator.calculate_text(prompt)
+                        if output_tokens == 0:
+                            output_tokens = summary_tokens
+                    
+                    update_token_usage(user, input_tokens, output_tokens, model_id)
+                    logger.info(f"[总结] Token 统计已更新: in={input_tokens}, out={output_tokens}")
+                except Exception as e:
+                    logger.warning(f"[总结] Token 统计失败: {e}")
 
             # 记录压缩率
             compression_rate = 1 - (summary_tokens / original_tokens) if original_tokens > 0 else 0

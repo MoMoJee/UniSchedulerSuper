@@ -720,6 +720,14 @@ class AgentChat {
                 this.clearStreamingState();
                 break;
                 
+            case 'quota_exceeded':
+                // 配额超额，不允许发送新消息
+                this.hideTyping();
+                this.isProcessing = false;
+                this.updateSendButton();
+                this.showQuotaExceededMessage(data);
+                break;
+                
             case 'pong':
                 // 心跳响应，忽略
                 break;
@@ -2702,6 +2710,54 @@ class AgentChat {
             container.remove();
             this.showNotification('已停止继续执行', 'info');
         });
+        
+        this.messagesContainer.appendChild(container);
+        this.scrollToBottom();
+    }
+
+    /**
+     * 显示配额超额提示
+     */
+    showQuotaExceededMessage(data) {
+        const monthlyUsed = data.monthly_used?.toFixed(2) || '0.00';
+        const monthlyCredit = data.monthly_credit?.toFixed(2) || '5.00';
+        const message = data.message || '您本月的抵用金已用尽';
+        
+        const container = document.createElement('div');
+        container.className = 'message-wrapper agent-message quota-exceeded-wrapper';
+        
+        container.innerHTML = `
+            <div class="message-avatar">
+                <i class="fas fa-exclamation-circle text-warning"></i>
+            </div>
+            <div class="message-content">
+                <div class="quota-exceeded-content">
+                    <div class="quota-exceeded-icon mb-2">
+                        <i class="fas fa-wallet fa-2x text-warning"></i>
+                    </div>
+                    <div class="quota-exceeded-title fw-bold mb-2">
+                        ${message}
+                    </div>
+                    <div class="quota-exceeded-details small text-muted mb-3">
+                        本月已使用: ¥${monthlyUsed} / ¥${monthlyCredit}
+                    </div>
+                    <div class="quota-exceeded-tips">
+                        <div class="alert alert-light small mb-0">
+                            <strong><i class="fas fa-lightbulb me-1"></i>建议：</strong>
+                            <ul class="mb-0 ps-3">
+                                <li>在设置中配置您自己的 API Key（无限制使用）</li>
+                                <li>或等待下月1日配额自动重置</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="quota-exceeded-actions mt-3">
+                        <button class="btn btn-primary btn-sm" onclick="document.getElementById('settings-tab').click(); setTimeout(() => document.getElementById('ai-model-config-tab').click(), 100);">
+                            <i class="fas fa-cog me-1"></i>配置自定义模型
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
         
         this.messagesContainer.appendChild(container);
         this.scrollToBottom();

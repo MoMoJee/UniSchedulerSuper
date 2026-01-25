@@ -41,7 +41,9 @@ const agentConfig = {
                 // 更新各个 UI 组件
                 this.updateModelUI(data.model);
                 this.updateOptimizationUI(data.optimization);
-                this.updateTokenStatsUI(data.token_usage);
+                
+                // 加载 Token 统计（使用新 API）
+                await this.loadTokenStats();
             }
         } catch (error) {
             console.error('[AgentConfig] 加载配置失败:', error);
@@ -677,24 +679,107 @@ const agentConfig = {
     },
     
     /**
-     * 加载 Token 统计（按时间范围）
+     * 加载 Token 统计（新版）
      */
-    async loadTokenStats(period = 'week') {
+    async loadTokenStats() {
         try {
-            const response = await fetch(`/api/agent/token-usage/?period=${period}`);
+            const response = await fetch('/api/agent/token-usage/');
             const data = await response.json();
             
             if (data.success) {
                 this.updateTokenStatsUI(data);
             }
-            
-            // 更新按钮状态
-            document.querySelectorAll('#ai-token-stats .btn-group .btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
         } catch (error) {
             console.error('[AgentConfig] 加载统计失败:', error);
+        }
+    },
+    
+    /**
+     * 更新 Token 统计 UI（新版）
+     */
+    updateTokenStatsUI(data) {
+        // 更新配额信息
+        const monthlyCredit = data.monthly_credit || 5.0;
+        const monthlyUsed = data.monthly_used || 0;
+        const remaining = data.remaining || monthlyCredit;
+        const currentMonth = data.current_month || '-';
+        
+        // 格式化货币
+        const formatCNY = (val) => `¥${val.toFixed(2)}`;
+        
+        document.getElementById('tokenMonthlyUsed').textContent = formatCNY(monthlyUsed);
+        document.getElementById('tokenMonthlyCredit').textContent = formatCNY(monthlyCredit);
+        document.getElementById('tokenRemaining').textContent = formatCNY(remaining);
+        document.getElementById('tokenCurrentMonth').textContent = currentMonth;
+        
+        // 更新进度条
+        const usedPercent = monthlyCredit > 0 ? Math.min(100, (monthlyUsed / monthlyCredit) * 100) : 0;
+        const progressBar = document.getElementById('tokenQuotaProgressBar');
+        progressBar.style.width = `${usedPercent}%`;
+        progressBar.setAttribute('aria-valuenow', usedPercent);
+        document.getElementById('tokenQuotaPercent').textContent = `${usedPercent.toFixed(1)}%`;
+        
+        // 根据使用率改变进度条颜色
+        progressBar.classList.remove('bg-success', 'bg-warning', 'bg-danger');
+        if (usedPercent >= 90) {
+            progressBar.classList.add('bg-danger');
+        } else if (usedPercent >= 70) {
+            progressBar.classList.add('bg-warning');
+        } else {
+            progressBar.classList.add('bg-success');
+        }
+        
+        // 更新状态提示
+        const statusAlert = document.getElementById('quotaStatusAlert');
+        const statusText = document.getElementById('quotaStatusText');
+        statusAlert.classList.remove('alert-info', 'alert-warning', 'alert-danger');
+        
+        if (remaining <= 0) {
+            statusAlert.classList.add('alert-danger');
+            statusText.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>配额已用尽';
+        } else if (usedPercent >= 80) {
+            statusAlert.classList.add('alert-warning');
+            statusText.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>配额即将用尽';
+        } else {
+            statusAlert.classList.add('alert-info');
+            statusText.innerHTML = '<i class="fas fa-check-circle me-1"></i>配额充足';
+        }
+        
+        // 更新模型统计表格
+        const tbody = document.getElementById('modelStatsTableBody');
+        const models = data.models || {};
+        
+        if (Object.keys(models).length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-3">
+                        <i class="fas fa-info-circle me-2"></i>本月暂无使用记录
+                    </td>
+                </tr>
+            `;
+        } else {
+            let rows = '';
+            for (const [modelId, stats] of Object.entries(models)) {
+                const isSystem = stats.is_system || modelId.startsWith('system_');
+                const modelName = stats.name || modelId;
+                rows += `
+                    <tr>
+                        <td>
+                            <i class="fas fa-${isSystem ? 'server' : 'user-cog'} me-2 text-${isSystem ? 'primary' : 'secondary'}"></i>
+                            ${this.escapeHtml(modelName)}
+                        </td>
+                        <td class="text-end">${this.formatNumber(stats.input_tokens || 0)}</td>
+                        <td class="text-end">${this.formatNumber(stats.output_tokens || 0)}</td>
+                        <td class="text-end">¥${(stats.cost || 0).toFixed(4)}</td>
+                        <td>
+                            <span class="badge bg-${isSystem ? 'primary' : 'secondary'}">
+                                ${isSystem ? '系统' : '自定义'}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }
+            tbody.innerHTML = rows;
         }
     },
     
@@ -702,7 +787,7 @@ const agentConfig = {
      * 重置 Token 统计
      */
     async resetTokenStats() {
-        if (!confirm('确定要重置所有 Token 统计数据吗？此操作不可撤销。')) return;
+        if (!confirm('确定要重置当月 Token 统计数据吗？历史记录将保留。')) return;
         
         try {
             const response = await fetch('/api/agent/token-usage/reset/', {
@@ -711,13 +796,13 @@ const agentConfig = {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': this.getCSRFToken()
                 },
-                body: JSON.stringify({ reset_type: 'all' })
+                body: JSON.stringify({ reset_type: 'current' })
             });
             
             const data = await response.json();
             if (data.success) {
-                this.showSuccess('统计数据已重置');
-                await this.loadAllConfig();
+                this.showSuccess('当月统计数据已重置');
+                await this.loadTokenStats();
             } else {
                 this.showError(data.error || '重置失败');
             }
@@ -727,30 +812,12 @@ const agentConfig = {
     },
     
     /**
-     * 更新配额
+     * HTML 转义
      */
-    async updateQuota() {
-        const quota = parseInt(document.getElementById('tokenQuota').value);
-        
-        try {
-            const response = await fetch('/api/agent/token-usage/quota/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.getCSRFToken()
-                },
-                body: JSON.stringify({ quota })
-            });
-            
-            const data = await response.json();
-            if (data.success) {
-                this.showSuccess('配额已更新');
-            } else {
-                this.showError(data.error || '更新失败');
-            }
-        } catch (error) {
-            this.showError('更新配额失败: ' + error.message);
-        }
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     },
     
     // ==========================================

@@ -503,129 +503,296 @@ def get_optimization_config(user) -> Dict:
     return default_config
 
 
+def _ensure_current_month(stats: Dict) -> Dict:
+    """
+    确保统计数据是当前月份的，如果不是则自动重置
+    
+    Args:
+        stats: 当前统计数据
+        
+    Returns:
+        更新后的统计数据
+    """
+    from datetime import datetime, timezone
+    from config.api_keys_manager import DEFAULT_MONTHLY_CREDIT
+    
+    current_month = datetime.now(timezone.utc).strftime('%Y-%m')
+    stored_month = stats.get('current_month', '')
+    
+    if stored_month != current_month:
+        # 需要重置：归档旧数据，重置当月数据
+        if stored_month and stats.get('models'):
+            # 归档上月数据
+            history = stats.get('history', {})
+            history[stored_month] = stats.get('models', {})
+            stats['history'] = history
+        
+        # 重置当月数据
+        stats['current_month'] = current_month
+        stats['monthly_credit'] = DEFAULT_MONTHLY_CREDIT
+        stats['monthly_used'] = 0.0
+        stats['models'] = {}
+        stats['last_reset'] = datetime.now(timezone.utc).isoformat()
+        
+        logger.info(f"Token 统计已重置为新月份: {current_month}")
+    
+    return stats
+
+
+class MockRequest:
+    """模拟 request 对象，用于调用 UserData.get_or_initialize"""
+    def __init__(self, user):
+        self.user = user
+
+
 def update_token_usage(user, input_tokens: int, output_tokens: int, model_id: str, cost: float = 0) -> bool:
     """
     更新用户的 Token 使用统计
-
+    
     Args:
         user: Django User 对象
         input_tokens: 输入 token 数
         output_tokens: 输出 token 数
         model_id: 使用的模型 ID
-        cost: 费用（美元）
-
+        cost: 费用 (CNY)，如果为 0 会自动计算
+    
     Returns:
         是否更新成功
     """
     from core.models import UserData
-    from datetime import datetime
-
+    from datetime import datetime, timezone
+    from config.api_keys_manager import (
+        get_model_cost_config, is_system_model, calculate_cost
+    )
+    
+    logger.info(f"[Token统计] 开始更新: user={user.username}, model={model_id}, in={input_tokens}, out={output_tokens}")
+    
     try:
-        # 获取或创建统计记录
-        usage_data, created = UserData.objects.get_or_create(
-            user=user,
-            key='agent_token_usage',
-            defaults={'value': '{}'}
-        )
-
+        # 使用 get_or_initialize 获取或创建统计记录
+        mock_request = MockRequest(user)
+        usage_data, created, result = UserData.get_or_initialize(mock_request, new_key='agent_token_usage')
+        
+        logger.info(f"[Token统计] get_or_initialize 结果: usage_data={usage_data is not None}, created={created}, result={result}")
+        
+        if not usage_data:
+            logger.error(f"[Token统计] 无法获取 agent_token_usage: {result}")
+            return False
+        
         stats = usage_data.get_value() if not created else {}
-
-        # 更新累计统计
-        stats['total_input_tokens'] = stats.get('total_input_tokens', 0) + input_tokens
-        stats['total_output_tokens'] = stats.get('total_output_tokens', 0) + output_tokens
-        stats['total_cost'] = stats.get('total_cost', 0) + cost
-        stats['quota'] = stats.get('quota', 9999999)
-        stats['last_updated'] = datetime.now().isoformat()
-
-        # 更新每日统计
-        today = datetime.now().strftime('%Y-%m-%d')
-        daily_stats = stats.get('daily_stats', {})
-        if today not in daily_stats:
-            daily_stats[today] = {'input': 0, 'output': 0, 'cost': 0}
-        daily_stats[today]['input'] += input_tokens
-        daily_stats[today]['output'] += output_tokens
-        daily_stats[today]['cost'] += cost
-        stats['daily_stats'] = daily_stats
-
+        logger.info(f"[Token统计] 当前数据: {stats}")
+        
+        # 确保是当前月份（自动重置）
+        stats = _ensure_current_month(stats)
+        
+        # 计算成本（如果未提供）
+        if cost == 0:
+            cost_config = get_model_cost_config(model_id)
+            if cost_config:
+                cost = calculate_cost(input_tokens, output_tokens, cost_config)
+                logger.info(f"[Token统计] 计算成本: ¥{cost:.6f}")
+        
         # 更新模型统计
-        model_stats = stats.get('model_stats', {})
-        if model_id not in model_stats:
-            model_stats[model_id] = {'input': 0, 'output': 0, 'cost': 0}
-        model_stats[model_id]['input'] += input_tokens
-        model_stats[model_id]['output'] += output_tokens
-        model_stats[model_id]['cost'] += cost
-        stats['model_stats'] = model_stats
-
+        models = stats.get('models', {})
+        if model_id not in models:
+            models[model_id] = {'input_tokens': 0, 'output_tokens': 0, 'cost': 0.0}
+        
+        models[model_id]['input_tokens'] += input_tokens
+        models[model_id]['output_tokens'] += output_tokens
+        models[model_id]['cost'] += cost
+        stats['models'] = models
+        
+        # 如果是系统模型，更新已用配额
+        if is_system_model(model_id):
+            stats['monthly_used'] = stats.get('monthly_used', 0.0) + cost
+        
+        stats['last_updated'] = datetime.now(timezone.utc).isoformat()
+        
+        logger.info(f"[Token统计] 更新后数据: {stats}")
+        
         # 保存
         usage_data.set_value(stats)
-
-        logger.debug(
-            f"Token usage updated: user={user.username}, "
-            f"input={input_tokens}, output={output_tokens}, cost=${cost:.4f}"
+        
+        logger.info(
+            f"[Token统计] 已保存: user={user.username}, model={model_id}, "
+            f"input={input_tokens}, output={output_tokens}, cost=¥{cost:.4f}"
         )
         return True
-
+        
     except Exception as e:
-        logger.error(f"Failed to update token usage: {e}")
+        logger.error(f"[Token统计] 更新失败: {e}", exc_info=True)
         return False
 
 
-def get_token_usage_stats(user, period: str = 'all') -> Dict:
+def check_quota_available(user, model_id: str) -> Dict:
     """
-    获取用户的 Token 使用统计
-
+    检查用户是否有足够配额使用指定模型
+    
     Args:
         user: Django User 对象
-        period: 时间段 ('all', 'today', 'week', 'month')
-
+        model_id: 模型 ID
+        
     Returns:
-        统计数据字典
+        {
+            "available": bool,
+            "is_system_model": bool,
+            "monthly_credit": float,
+            "monthly_used": float,
+            "remaining": float,
+            "message": str (如果不可用)
+        }
     """
     from core.models import UserData
-    from datetime import datetime, timedelta
-
+    from config.api_keys_manager import is_system_model, DEFAULT_MONTHLY_CREDIT
+    
+    # 自定义模型不限制
+    if not is_system_model(model_id):
+        return {
+            "available": True,
+            "is_system_model": False,
+            "monthly_credit": 0,
+            "monthly_used": 0,
+            "remaining": float('inf'),
+        }
+    
     try:
-        usage_data = UserData.objects.filter(user=user, key='agent_token_usage').first()
+        # 使用 get_or_initialize 获取统计记录
+        mock_request = MockRequest(user)
+        usage_data, created, _ = UserData.get_or_initialize(mock_request, new_key='agent_token_usage')
+        
         if not usage_data:
+            # 获取失败，允许使用默认配额
             return {
-                'total_input_tokens': 0,
-                'total_output_tokens': 0,
-                'total_cost': 0,
-                'quota': 9999999,
-                'daily_stats': {},
-                'model_stats': {},
+                "available": True,
+                "is_system_model": True,
+                "monthly_credit": DEFAULT_MONTHLY_CREDIT,
+                "monthly_used": 0,
+                "remaining": DEFAULT_MONTHLY_CREDIT,
             }
-
-        stats = usage_data.get_value()
-
-        if period == 'all':
-            return stats
-
-        # 计算时间范围
-        today = datetime.now().date()
-        daily_stats = stats.get('daily_stats', {})
-
-        if period == 'today':
-            date_key = today.strftime('%Y-%m-%d')
-            day_data = daily_stats.get(date_key, {'input': 0, 'output': 0, 'cost': 0})
+        
+        stats = usage_data.get_value() if not created else {}
+        stats = _ensure_current_month(stats)
+        
+        # 保存可能的月份重置
+        usage_data.set_value(stats)
+        
+        monthly_credit = stats.get('monthly_credit', DEFAULT_MONTHLY_CREDIT)
+        monthly_used = stats.get('monthly_used', 0.0)
+        remaining = monthly_credit - monthly_used
+        
+        if remaining <= 0:
             return {
-                'input_tokens': day_data.get('input', 0),
-                'output_tokens': day_data.get('output', 0),
-                'cost': day_data.get('cost', 0),
+                "available": False,
+                "is_system_model": True,
+                "monthly_credit": monthly_credit,
+                "monthly_used": monthly_used,
+                "remaining": 0,
+                "message": "您本月的抵用金已用尽，请使用自己的模型或等待下个月"
             }
+        
+        return {
+            "available": True,
+            "is_system_model": True,
+            "monthly_credit": monthly_credit,
+            "monthly_used": monthly_used,
+            "remaining": remaining,
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to check quota: {e}")
+        # 出错时允许使用，避免影响用户体验
+        return {
+            "available": True,
+            "is_system_model": True,
+            "monthly_credit": DEFAULT_MONTHLY_CREDIT,
+            "monthly_used": 0,
+            "remaining": DEFAULT_MONTHLY_CREDIT,
+        }
 
-        if period == 'week':
-            result = {'input_tokens': 0, 'output_tokens': 0, 'cost': 0}
-            for i in range(7):
-                date = (today - timedelta(days=i)).strftime('%Y-%m-%d')
-                day_data = daily_stats.get(date, {})
-                result['input_tokens'] += day_data.get('input', 0)
-                result['output_tokens'] += day_data.get('output', 0)
-                result['cost'] += day_data.get('cost', 0)
-            return result
 
-        return stats
-
+def get_token_usage_stats(user) -> Dict:
+    """
+    获取用户的 Token 使用统计（新版）
+    
+    Args:
+        user: Django User 对象
+        
+    Returns:
+        {
+            "current_month": "2026-01",
+            "monthly_credit": 5.0,
+            "monthly_used": 2.35,
+            "remaining": 2.65,
+            "models": {
+                "system_deepseek": {
+                    "name": "DeepSeek Chat（系统提供）",
+                    "input_tokens": 12000,
+                    "output_tokens": 8000,
+                    "cost": 2.35,
+                    "is_system": true
+                },
+                ...
+            },
+            "history": {...}
+        }
+    """
+    from core.models import UserData
+    from datetime import datetime, timezone
+    from config.api_keys_manager import (
+        SYSTEM_MODEL_COSTS, DEFAULT_MONTHLY_CREDIT, is_system_model
+    )
+    
+    try:
+        # 使用 get_or_initialize 获取统计记录
+        mock_request = MockRequest(user)
+        usage_data, created, _ = UserData.get_or_initialize(mock_request, new_key='agent_token_usage')
+        
+        if not usage_data:
+            current_month = datetime.now(timezone.utc).strftime('%Y-%m')
+            return {
+                "current_month": current_month,
+                "monthly_credit": DEFAULT_MONTHLY_CREDIT,
+                "monthly_used": 0.0,
+                "remaining": DEFAULT_MONTHLY_CREDIT,
+                "models": {},
+                "history": {}
+            }
+        
+        stats = usage_data.get_value() if not created else {}
+        stats = _ensure_current_month(stats)
+        
+        # 保存可能的月份重置
+        usage_data.set_value(stats)
+        
+        monthly_credit = stats.get('monthly_credit', DEFAULT_MONTHLY_CREDIT)
+        monthly_used = stats.get('monthly_used', 0.0)
+        
+        # 为模型添加额外信息
+        models = stats.get('models', {})
+        enriched_models = {}
+        
+        for model_id, model_stats in models.items():
+            enriched_models[model_id] = {
+                **model_stats,
+                "is_system": is_system_model(model_id),
+                "name": SYSTEM_MODEL_COSTS.get(model_id, {}).get('name', model_id)
+            }
+        
+        return {
+            "current_month": stats.get('current_month', ''),
+            "monthly_credit": monthly_credit,
+            "monthly_used": monthly_used,
+            "remaining": max(0, monthly_credit - monthly_used),
+            "models": enriched_models,
+            "history": stats.get('history', {})
+        }
+        
     except Exception as e:
         logger.error(f"Failed to get token usage stats: {e}")
-        return {}
+        return {
+            "current_month": "",
+            "monthly_credit": DEFAULT_MONTHLY_CREDIT,
+            "monthly_used": 0.0,
+            "remaining": DEFAULT_MONTHLY_CREDIT,
+            "models": {},
+            "history": {}
+        }
