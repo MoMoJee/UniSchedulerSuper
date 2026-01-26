@@ -2751,7 +2751,7 @@ class AgentChat {
                         </div>
                     </div>
                     <div class="quota-exceeded-actions mt-3">
-                        <button class="btn btn-primary btn-sm" onclick="document.getElementById('settings-tab').click(); setTimeout(() => document.getElementById('ai-model-config-tab').click(), 100);">
+                        <button class="btn btn-primary btn-sm" onclick="agentChat.openModelConfig();">
                             <i class="fas fa-cog me-1"></i>配置自定义模型
                         </button>
                     </div>
@@ -2761,6 +2761,31 @@ class AgentChat {
         
         this.messagesContainer.appendChild(container);
         this.scrollToBottom();
+    }
+
+    /**
+     * 打开模型配置页面
+     */
+    openModelConfig() {
+        // 1. 打开设置模态框
+        const settingsModal = new bootstrap.Modal(document.getElementById('settingsModal'));
+        settingsModal.show();
+        
+        // 2. 等待模态框显示后，切换到 AI 设置 tab
+        setTimeout(() => {
+            const aiTab = document.getElementById('ai-tab');
+            if (aiTab) {
+                aiTab.click();
+                
+                // 3. 再等待一下，切换到模型配置子 tab
+                setTimeout(() => {
+                    const modelConfigTab = document.getElementById('ai-model-config-tab');
+                    if (modelConfigTab) {
+                        modelConfigTab.click();
+                    }
+                }, 100);
+            }
+        }, 150);
     }
 
     /**
