@@ -157,16 +157,37 @@ class ToolMessageCompressor:
     3. 保留关键信息（成功/失败、数量、首尾项）
     """
 
-    def __init__(self, max_tokens: int = 200, exclude_tools: Optional[List[str]] = None):
+    def __init__(self, max_tokens: int = 200, exclude_tools: Optional[List[str]] = None, exclude_prefixes: Optional[List[str]] = None):
         """
         初始化压缩器
 
         Args:
             max_tokens: 工具输出的最大 token 数
-            exclude_tools: 不压缩的工具名称列表
+            exclude_tools: 不压缩的工具名称列表（精确匹配）
+            exclude_prefixes: 不压缩的工具名称前缀列表（前缀匹配，用于 MCP 工具）
         """
         self.max_tokens = max_tokens
         self.exclude_tools = exclude_tools or []
+        self.exclude_prefixes = exclude_prefixes or []
+
+    def _should_exclude(self, tool_name: str) -> bool:
+        """
+        检查工具是否应该被排除（不压缩）
+        
+        支持：
+        1. 精确匹配：工具名在 exclude_tools 列表中
+        2. 前缀匹配：工具名以 exclude_prefixes 中任一前缀开头
+        """
+        # 精确匹配
+        if tool_name in self.exclude_tools:
+            return True
+        
+        # 前缀匹配
+        for prefix in self.exclude_prefixes:
+            if tool_name.startswith(prefix):
+                return True
+        
+        return False
 
     def compress(self, message: ToolMessage, calculator: TokenCalculator) -> ToolMessage:
         """
@@ -181,8 +202,8 @@ class ToolMessageCompressor:
         """
         tool_name = message.name if hasattr(message, 'name') else ""
 
-        # 检查是否在排除列表中
-        if tool_name in self.exclude_tools:
+        # 检查是否应该被排除
+        if self._should_exclude(tool_name):
             return message
 
         content = message.content

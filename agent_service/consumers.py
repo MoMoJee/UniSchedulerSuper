@@ -2,6 +2,15 @@
 Agent WebSocket Consumer
 处理与 Agent 的实时通信
 """
+
+# ========== Agent 配置常量 ==========
+# Agent 单次对话中允许的最大图执行步数 (recursion_limit)
+# 注意：这不是工具调用次数，而是图的执行步数（包括 LLM 调用、工具执行、结果处理等）
+# 一轮完整的"工具调用"通常需要 2-3 个步数：LLM生成工具调用 → 执行工具 → LLM处理结果
+# 建议值：50 (约可支持 15-20 轮工具调用)，25 (约可支持 8-10 轮工具调用)
+# 达到此限制后会提示用户是否继续
+RECURSION_LIMIT = 25
+
 import json
 import asyncio
 import logging
@@ -272,7 +281,8 @@ class AgentConsumer(AsyncWebsocketConsumer):
                     "thread_id": self.session_id,
                     "user": self.user,
                     "active_tools": self.active_tools  # 传递 active_tools 到 config
-                }
+                },
+                "recursion_limit": RECURSION_LIMIT  # 单次对话最大工具调用步数
             }
             
             # 导入 graph
@@ -418,12 +428,17 @@ class AgentConsumer(AsyncWebsocketConsumer):
                         # 达到递归限制，通知前端
                         logger.warning(f"达到递归限制: {item}")
                         if stream_started:
+                            logger.debug("结束流式输出")
                             await self.send_json({"type": "stream_end"})
                             stream_started = False
-                        await self.send_json({
+                        
+                        recursion_msg = {
                             "type": "recursion_limit",
                             "message": "工具调用次数达到上限，是否继续执行？"
-                        })
+                        }
+                        logger.info(f"📤 发送递归限制消息到前端: {recursion_msg}")
+                        await self.send_json(recursion_msg)
+                        logger.info("✅ 递归限制消息已发送")
                         break
                     elif item_type == "error":
                         raise Exception(item)
@@ -534,7 +549,8 @@ class AgentConsumer(AsyncWebsocketConsumer):
                     "thread_id": self.session_id,
                     "user": self.user,
                     "active_tools": self.active_tools
-                }
+                },
+                "recursion_limit": RECURSION_LIMIT  # 单次对话最大工具调用步数
             }
             
             # 先检查并清理不完整的工具调用
@@ -604,12 +620,17 @@ class AgentConsumer(AsyncWebsocketConsumer):
                     elif item_type == "recursion_limit":
                         logger.warning(f"继续执行时再次达到递归限制: {item}")
                         if stream_started:
+                            logger.debug("结束流式输出")
                             await self.send_json({"type": "stream_end"})
                             stream_started = False
-                        await self.send_json({
+                        
+                        recursion_msg = {
                             "type": "recursion_limit",
                             "message": "工具调用次数再次达到上限，是否继续执行？"
-                        })
+                        }
+                        logger.info(f"📤 [Continue] 发送递归限制消息到前端: {recursion_msg}")
+                        await self.send_json(recursion_msg)
+                        logger.info("✅ [Continue] 递归限制消息已发送")
                         break
                     elif item_type == "error":
                         raise Exception(item)

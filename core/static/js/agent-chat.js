@@ -746,10 +746,12 @@ class AgentChat {
                 
             case 'recursion_limit':
                 // 达到递归限制，询问用户是否继续
+                console.log('🚨 收到递归限制消息:', data);
                 this.hideTyping();
                 this.isProcessing = false;
                 this.updateSendButton();
                 this.showRecursionLimitMessage(data.message || '工具调用次数达到上限，是否继续执行？');
+                console.log('✅ 递归限制按钮已显示');
                 break;
             
             case 'status_response':

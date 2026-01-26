@@ -38,6 +38,16 @@
         }
     },
     
+    "mcp_services": {
+        "_description": "MCP 服务配置",
+        "12306": {
+            "enabled": true,
+            "mcp_url": "http://localhost:8001/mcp",
+            "transport": "streamable_http",
+            "description": "12306 火车票查询服务"
+        }
+    },
+    
     "other_services": {
         "_description": "其他服务 API 密钥"
     }

@@ -423,6 +423,45 @@ class ConversationSummarizer:
 输出完整的更新后总结，简洁的段落式，保持时间顺序，重点突出。"""
 
 
+# ========== 工具压缩配置 ==========
+# 保留最近 X 条用户消息对应的工具调用结果不压缩
+# 只有 X 条用户消息之前的工具调用结果会被压缩
+TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES = 5
+
+
+def _find_compression_boundary(messages: List[BaseMessage], preserve_count: int) -> int:
+    """
+    找到工具压缩的边界索引
+    
+    从后往前数 preserve_count 条用户消息，返回第一条被保留的用户消息的索引。
+    该索引之前的 ToolMessage 可以被压缩，该索引及之后的 ToolMessage 不压缩。
+    
+    Args:
+        messages: 消息列表
+        preserve_count: 保留最近多少条用户消息对应的工具不压缩
+        
+    Returns:
+        边界索引。该索引之前的 ToolMessage 可以压缩。
+        如果用户消息数 <= preserve_count，返回 0（不压缩任何工具消息）
+    """
+    # 从后往前找所有 HumanMessage 的位置
+    human_indices = []
+    for i, msg in enumerate(messages):
+        if isinstance(msg, HumanMessage):
+            human_indices.append(i)
+    
+    # 如果用户消息数量 <= preserve_count，不压缩任何工具消息
+    if len(human_indices) <= preserve_count:
+        return 0
+    
+    # 找到倒数第 preserve_count 条用户消息的索引
+    # 例如：preserve_count=2，有5条用户消息在索引 [3, 10, 15, 22, 30]
+    # 倒数第2条是索引 22，所以边界是 22
+    boundary_index = human_indices[-preserve_count]
+    
+    return boundary_index
+
+
 def build_optimized_context(
     user,
     system_prompt: str,
@@ -438,7 +477,8 @@ def build_optimized_context(
 
     新逻辑:
     - 如果有总结，使用 [System] + [Summary] + [总结截止点之后的所有消息]
-    - 如果没有总结，使用 [System] + [所有消息]（压缩工具输出）
+    - 如果没有总结，使用 [System] + [所有消息]（智能压缩工具输出）
+    - 工具压缩策略：只压缩最近 N 条用户消息之前的工具调用结果
     - 不再做消息截断，依赖总结功能来控制 token 数
 
     Args:
@@ -477,15 +517,37 @@ def build_optimized_context(
     # 3. 最近对话（从总结截止点之后开始，包含所有消息）
     recent_messages = list(messages[recent_start_index:])
 
-    # 压缩工具消息（减少 token 但保留所有消息）
+    # 智能压缩工具消息：只压缩最近 N 条用户消息之前的工具调用结果
     if tool_compressor:
+        # 找到压缩边界（基于 recent_messages 的相对索引）
+        compress_boundary = _find_compression_boundary(
+            recent_messages, 
+            TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES
+        )
+        
+        compressed_count = 0
+        preserved_count = 0
+        
         compressed_messages = []
-        for msg in recent_messages:
+        for i, msg in enumerate(recent_messages):
             if isinstance(msg, ToolMessage):
-                compressed_messages.append(tool_compressor.compress(msg, token_calculator))
+                if i < compress_boundary:
+                    # 边界之前的工具消息可以压缩
+                    compressed_msg = tool_compressor.compress(msg, token_calculator)
+                    compressed_messages.append(compressed_msg)
+                    if compressed_msg is not msg:  # 实际被压缩了
+                        compressed_count += 1
+                else:
+                    # 边界及之后的工具消息保持原样
+                    compressed_messages.append(msg)
+                    preserved_count += 1
             else:
                 compressed_messages.append(msg)
+        
         recent_messages = compressed_messages
+        
+        if compressed_count > 0 or preserved_count > 0:
+            logger.info(f"[上下文] 工具压缩: 压缩 {compressed_count} 条, 保留 {preserved_count} 条 (边界索引={compress_boundary})")
 
     optimized.extend(recent_messages)
 

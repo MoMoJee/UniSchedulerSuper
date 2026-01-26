@@ -218,6 +218,49 @@ class APIKeyManager:
         config = cls.get_search_service_config(provider)
         return config.get('api_key', '') if config else ''
     
+    # ==================== MCP 服务相关 ====================
+    
+    @classmethod
+    def get_mcp_service_config(cls, service_name: str) -> Optional[Dict[str, Any]]:
+        """
+        获取 MCP 服务配置
+        
+        Args:
+            service_name: 服务名称，如 '12306', 'amap'
+        """
+        config = cls._load_config()
+        mcp_services = config.get('mcp_services', {})
+        service_config = mcp_services.get(service_name, {})
+        
+        if not service_config or not service_config.get('enabled', False):
+            return None
+        
+        return service_config
+    
+    @classmethod
+    def get_12306_mcp_url(cls) -> str:
+        """获取 12306 MCP 服务 URL"""
+        config = cls.get_mcp_service_config('12306')
+        if not config:
+            return ''
+        
+        return config.get('mcp_url', 'http://localhost:8001/mcp')
+    
+    @classmethod
+    def get_all_mcp_services(cls) -> Dict[str, Dict[str, Any]]:
+        """获取所有启用的 MCP 服务配置"""
+        config = cls._load_config()
+        mcp_services = config.get('mcp_services', {})
+        
+        # 过滤出启用的服务（排除以 _ 开头的注释字段）
+        enabled_services = {
+            name: service_config
+            for name, service_config in mcp_services.items()
+            if not name.startswith('_') and service_config.get('enabled', False)
+        }
+        
+        return enabled_services
+    
     # ==================== 其他服务 ====================
     
     @classmethod

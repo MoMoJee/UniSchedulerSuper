@@ -4,9 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260126_0346 development&#10;&#10;升级了 Tokes 用量统计功能&#10;添加了限制逻辑，每月可用5CNY的配额">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260126_2036 development&#10;&#10;修复了抵用金用尽时弹出的 quota-exceeded-content 中 onclick=&quot;agentChat.openModelConfig();&quot; 按钮无法点击的问题">
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/agent_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/consumers.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/consumers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/context_optimizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/context_optimizer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/context_summarizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/context_summarizer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/mcp_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/mcp_tools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/views_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_api.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/api_keys.example.json" beforeDir="false" afterPath="$PROJECT_DIR$/config/api_keys.example.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/api_keys_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/config/api_keys_manager.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/static/js/agent-chat.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/agent-chat.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
     </list>
@@ -19,7 +27,7 @@
     <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="513" />
+    <option name="cachedIndexableFilesCount" value="516" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -357,15 +365,7 @@
       <workItem from="1768052963860" duration="19137000" />
       <workItem from="1768758714722" duration="26998000" />
       <workItem from="1768997538704" duration="4055000" />
-      <workItem from="1769014121780" duration="45945000" />
-    </task>
-    <task id="LOCAL-00013" summary="UniSchedulerSuper 1.5.3.20251017_2038&#10;修复了日程的重要紧急性维度选项失效的问题">
-      <option name="closed" value="true" />
-      <created>1760704727643</created>
-      <option name="number" value="00013" />
-      <option name="presentableId" value="LOCAL-00013" />
-      <option name="project" value="LOCAL" />
-      <updated>1760704727643</updated>
+      <workItem from="1769014121780" duration="55067000" />
     </task>
     <task id="LOCAL-00014" summary="UniSchedulerSuper 1.5.3.20251101_1501&#10;修复了月视图无法正常显示的问题&#10;优化日视图为两天制&#10;将提醒同步到了日历界面中">
       <option name="closed" value="true" />
@@ -751,7 +751,15 @@
       <option name="project" value="LOCAL" />
       <updated>1769370379964</updated>
     </task>
-    <option name="localTasksCounter" value="62" />
+    <task id="LOCAL-00062" summary="UniSchedulerSuper 1.5.4.20260126_2036 development&#10;&#10;修复了抵用金用尽时弹出的 quota-exceeded-content 中 onclick=&quot;agentChat.openModelConfig();&quot; 按钮无法点击的问题">
+      <option name="closed" value="true" />
+      <created>1769430985787</created>
+      <option name="number" value="00062" />
+      <option name="presentableId" value="LOCAL-00062" />
+      <option name="project" value="LOCAL" />
+      <updated>1769430985787</updated>
+    </task>
+    <option name="localTasksCounter" value="63" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -790,7 +798,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;对 Agent 的 planner 工具集做了较大的升级&#10;增加搜索结果缓存与事件组缓存的数据库模型及相关缓存管理逻辑模块，包括 `EventGroupCache` 和 `SearchResultCache` 模型、新的缓存管理器与事件组服务类，支持高效的缓存操作与数据同步功能。" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20251231_1358 development&#10;对 Agent 的 Planner 工具集做了较大优化&#10;新增缓存与标识符解析模块，支持搜索结果与事件组缓存的管理和名称解析，包括：&#10;- 定义 `EventGroupCache` 和 `SearchResultCache` 模型&#10;- 引入缓存管理器处理搜索缓存的创建、更新与失效逻辑；&#10;- 实现事件组管理模块以提供缓存更新、解析与默认分组查询功能；&#10;- 添加通用标识符解析工具，支持通过编号、UUID、或标题解析项目。" />
     <MESSAGE value="新增 RRule 编辑操作指南，详细描述日程与提醒的重复规则编辑范围及操作，实现相关API逻辑优化，增强事务回滚功能及事件实例生成能力，同时完善 RepeatParser 对中文间隔规则的处理" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260101_1658 development&#10;&#10;改进重复规则解析器，支持中文数字解析及动态间隔处理。提供 Rrule 编辑详情指南&#10;优化回滚逻辑，支持基于 `tool_call_id` 精确匹配回滚点。增强 `AgentTransaction` 模块，支持 `tool_call_id` 元数据匹配。修复工具执行流程，将 `tool_call_id` 作为配置传递，修复回滚问题。&#10;把日志器的文件大小改成了16MB" />
@@ -815,7 +822,8 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260124_2012 development&#10;&#10;添加了基于 Tavily 的两个 Agent 搜索工具&#10;&#10;通过添加前端重复性校验，修复了当 Agent 使用了工具后，前端会出现两个重复的 tool-call-indicator tool-completed ，两个 agent-message ，两个 tool-result-indicator 的问题（源于后端广播机制）&#10;&#10;修复了由于 压缩工具调用结果 导致的 最新工具结果丢失问题&#10;&#10;修复了由于流式传输时限定工具调用输出长度200字符导致的流式传输结束前后工具调用结果显示不一致的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260124_2051 development&#10;&#10;修复了前端回滚后工具调用结果不同步清除的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260126_0346 development&#10;&#10;升级了 Tokes 用量统计功能&#10;添加了限制逻辑，每月可用5CNY的配额" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260126_0346 development&#10;&#10;升级了 Tokes 用量统计功能&#10;添加了限制逻辑，每月可用5CNY的配额" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260126_2036 development&#10;&#10;修复了抵用金用尽时弹出的 quota-exceeded-content 中 onclick=&quot;agentChat.openModelConfig();&quot; 按钮无法点击的问题" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260126_2036 development&#10;&#10;修复了抵用金用尽时弹出的 quota-exceeded-content 中 onclick=&quot;agentChat.openModelConfig();&quot; 按钮无法点击的问题" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

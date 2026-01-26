@@ -2,48 +2,83 @@ import asyncio
 import logging
 import threading
 import concurrent.futures
-from typing import List, Any
+from typing import List, Any, Dict
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_core.tools import StructuredTool, Tool
 from langchain_core.runnables import RunnableConfig
 
 # 配置日志
-logger = logging.getLogger(__name__)
+from logger import logger
 
 # 从统一配置读取 API 密钥
 from config.api_keys_manager import APIKeyManager
 
 # 动态构建 MCP 服务器配置
-def _build_mcp_servers_config():
-    """动态构建 MCP 服务器配置"""
+def _build_mcp_servers_config() -> Dict[str, Dict[str, Any]]:
+    """
+    动态构建所有 MCP 服务器配置
+    
+    支持的 MCP 服务:
+    - 高德地图 (amap): 地点搜索、路线规划、周边搜索 (SSE 传输)
+    - 12306: 火车票查询、车站搜索、余票查询、换乘方案 (Streamable HTTP 传输)
+    """
     config = {}
     
-    # 高德地图 MCP 服务
+    # ========== 高德地图 MCP 服务 (SSE 传输) ==========
     amap_url = APIKeyManager.get_amap_mcp_url()
     if amap_url:
-        config["amap-amap-sse"] = {
+        config["amap-mcp"] = {
             "url": amap_url,
             "transport": "sse"
         }
+        logger.info(f"已加载 MCP 服务: 高德地图 @ {amap_url[:50]}... (SSE)")
     
-    # 可以在此添加更多 MCP 服务
-    # if APIKeyManager.get_search_service_key('tavily'):
-    #     config["tavily-search"] = {...}
+    # ========== 12306 MCP 服务 (Streamable HTTP 传输) ==========
+    mcp_12306_url = APIKeyManager.get_12306_mcp_url()
+    if mcp_12306_url:
+        config["12306-mcp"] = {
+            "url": mcp_12306_url,
+            "transport": "streamable_http"  # 12306 使用 Streamable HTTP 协议
+        }
+        logger.info(f"已加载 MCP 服务: 12306 火车票 @ {mcp_12306_url} (streamable_http)")
     
     return config
 
 MCP_SERVERS_CONFIG = _build_mcp_servers_config()
 
-client = MultiServerMCPClient(MCP_SERVERS_CONFIG)
+# 延迟初始化 client，避免启动时阻塞
+_client = None
+
+def _get_client():
+    """获取或创建 MCP 客户端"""
+    global _client
+    if _client is None:
+        _client = MultiServerMCPClient(MCP_SERVERS_CONFIG)
+    return _client
 
 async def get_mcp_tools_async() -> List[StructuredTool]:
     """异步获取 MCP 工具"""
+    if not MCP_SERVERS_CONFIG:
+        logger.warning("没有配置任何 MCP 服务")
+        return []
+    
     try:
+        client = _get_client()
+        logger.info(f"正在连接 MCP 服务器: {list(MCP_SERVERS_CONFIG.keys())}")
+        
         # client.get_tools() 返回的是 LangChain Tools 列表
         tools = await client.get_tools()
+        
+        if tools:
+            logger.info(f"成功获取 {len(tools)} 个 MCP 工具")
+            for t in tools:
+                logger.debug(f"  - {t.name}: {t.description[:50] if t.description else 'N/A'}...")
+        else:
+            logger.warning("MCP 服务连接成功但未返回任何工具")
+            
         return tools
     except Exception as e:
-        logger.error(f"无法连接到 MCP 服务器: {e}")
+        logger.error(f"无法连接到 MCP 服务器: {e}", exc_info=True)
         return []
 
 def _run_async_in_thread(coro):

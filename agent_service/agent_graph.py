@@ -180,8 +180,22 @@ TOOL_CATEGORIES = {
     },
     "map": {
         "display_name": "地图服务",
-        "description": "查询地点、规划路线、周边搜索",
-        "tools": list(MCP_TOOLS.keys())
+        "description": "查询地点、规划路线、周边搜索（高德地图）",
+        "tools": [t for t in MCP_TOOLS.keys() if 'amap' in t.lower() or 'maps' in t.lower() or 'poi' in t.lower() or 'route' in t.lower() or 'geocode' in t.lower() or 'regeo' in t.lower() or 'weather' in t.lower() or 'district' in t.lower() or 'traffic' in t.lower()]
+    },
+    "train": {
+        "display_name": "火车票查询",
+        "description": "12306 火车票查询、车站搜索、余票查询、换乘方案",
+        "tools": [t for t in MCP_TOOLS.keys() if 'ticket' in t.lower() or 'train' in t.lower() or 'station' in t.lower() or 'transfer' in t.lower() or '12306' in t.lower() or 'query-ticket' in t.lower()],
+        "tool_descriptions": {
+            "query-tickets": "余票/车次/座席/时刻一站式查询",
+            "query-ticket-price": "实时查询各车次票价信息",
+            "search-stations": "车站智能搜索（支持中文/拼音/简拼）",
+            "query-transfer": "一次中转换乘方案",
+            "get-train-route-stations": "查询列车经停站及时刻表",
+            "get-current-time": "获取当前时间与相对日期",
+            "get-train-no-by-train-code": "车次号转官方编号"
+        }
     },
     "search": {
         "display_name": "联网搜索",
@@ -329,8 +343,21 @@ def build_system_prompt(user, active_tool_names: List[str], current_time: str) -
         capabilities.append("- 记忆管理: 保存用户个人信息、偏好、工作流规则")
     if any(t in active_tool_names for t in TODO_TOOLS_MAP.keys()):
         capabilities.append("- 任务追踪: 创建和管理会话级任务列表")
-    if any(t in active_tool_names for t in MCP_TOOLS.keys()):
-        capabilities.append("- 地图服务: 查询地点、规划路线、周边搜索")
+    
+    # 检查 MCP 工具 - 分类处理
+    map_tools = [t for t in active_tool_names if t in MCP_TOOLS and ('amap' in t.lower() or 'maps' in t.lower() or 'poi' in t.lower() or 'route' in t.lower() or 'geocode' in t.lower())]
+    train_tools = [t for t in active_tool_names if t in MCP_TOOLS and ('ticket' in t.lower() or 'train' in t.lower() or 'station' in t.lower() or 'transfer' in t.lower())]
+    
+    if map_tools:
+        capabilities.append("- 地图服务: 查询地点、规划路线、周边搜索（高德地图）")
+    if train_tools:
+        capabilities.append("- 火车票查询（12306）:")
+        capabilities.append("  - query-tickets: 余票/车次/座席/时刻一站式查询")
+        capabilities.append("  - query-ticket-price: 实时查询各车次票价信息")
+        capabilities.append("  - search-stations: 车站智能搜索（支持中文/拼音/简拼）")
+        capabilities.append("  - query-transfer: 一次中转换乘方案")
+        capabilities.append("  - get-train-route-stations: 查询列车经停站及时刻表")
+        capabilities.append("  - get-current-time: 获取当前时间与相对日期")
     
     capabilities_str = "\n".join(capabilities) if capabilities else "- 基础对话功能"
     
@@ -531,10 +558,14 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
             
             if enable_optimization:
                 # 创建工具压缩器
-                # 【重要】search_items 的结果不应被压缩，因为搜索结果是 LLM 后续操作的关键信息
+                # 【重要】以下工具的结果不应被压缩，因为它们的输出是 LLM 后续操作的关键信息：
+                # - search_items: 搜索结果用于后续引用
+                # - web_search*: 网络搜索结果需要完整呈现
+                # - 12306 相关工具（mcp_12306-mcp_*）: 火车票查询结果需要完整解析
                 tool_compressor = ToolMessageCompressor(
                     max_tokens=opt_config.get('tool_output_max_tokens', 200),
-                    exclude_tools=['search_items', 'web_search', 'web_search_advanced']
+                    exclude_tools=['search_items', 'web_search', 'web_search_advanced'],
+                    exclude_prefixes=['mcp_12306']  # 排除所有 12306 MCP 工具（前缀匹配）
                 ) if opt_config.get('compress_tool_output', True) else None
                 
                 # 计算原始消息的 token 总数
