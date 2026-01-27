@@ -1,9 +1,7 @@
-import logging
+from logger import logger
 import json
 from utils.utils import user_prefer_ai_setting, events_to_natural_language_helper
 from datetime import datetime
-
-logger = logging.getLogger("logger")
 
 """
 1. 查询已有偏好库中有无相适的

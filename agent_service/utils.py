@@ -1,10 +1,8 @@
 import functools
-import logging
+from logger import logger
 import reversion
 from agent_service.models import AgentTransaction
 from core.models import UserData
-
-logger = logging.getLogger(__name__)
 
 def agent_transaction(action_type):
     """

@@ -21,12 +21,10 @@ API 密钥管理模块
 
 import os
 import json
-import logging
+from logger import logger
 from typing import Optional, Dict, Any
 from pathlib import Path
 from functools import lru_cache
-
-logger = logging.getLogger(__name__)
 
 # 配置文件路径
 CONFIG_DIR = Path(__file__).parent
@@ -321,21 +319,88 @@ class APIKeyManager:
             result[f'search_{provider}'] = bool(cls.get_search_service_key(provider))
         
         return result
+    
+    # ==================== 系统模型配置（从统一配置读取） ====================
+    
+    @classmethod
+    def get_system_models(cls) -> Dict[str, Dict[str, Any]]:
+        """
+        获取所有系统提供的模型配置
+        
+        Returns:
+            模型字典 {model_id: model_config}
+        """
+        config = cls._load_config()
+        system_models = config.get('system_models', {})
+        
+        # 过滤掉以 _ 开头的描述字段，只保留已启用的模型
+        result = {}
+        for model_id, model_config in system_models.items():
+            if model_id.startswith('_'):
+                continue
+            if model_config.get('enabled', True):
+                result[model_id] = model_config.copy()
+        
+        return result
+    
+    @classmethod
+    def get_system_model_config(cls, model_id: str) -> Optional[Dict[str, Any]]:
+        """
+        获取指定系统模型的完整配置
+        
+        Args:
+            model_id: 模型 ID，如 'system_deepseek'
+        
+        Returns:
+            模型配置字典，未找到返回 None
+        """
+        system_models = cls.get_system_models()
+        return system_models.get(model_id)
+    
+    @classmethod
+    def get_monthly_credit(cls) -> float:
+        """获取每月抵用金额度 (CNY)"""
+        config = cls._load_config()
+        billing = config.get('billing', {})
+        return billing.get('monthly_credit', 5.0)
 
 
-# ==================== 系统模型成本配置 ====================
+# ==================== 系统模型成本配置（兼容旧代码，从新配置读取） ====================
 
-# 系统提供的模型成本配置 (CNY)
-SYSTEM_MODEL_COSTS = {
-    "system_deepseek": {
-        "name": "DeepSeek Chat（系统提供）",
-        "cost_per_1k_input": 0.001,    # CNY per 1k tokens
-        "cost_per_1k_output": 0.002,   # CNY per 1k tokens
-    }
-}
+def _get_system_model_costs() -> Dict[str, Dict[str, Any]]:
+    """
+    动态获取系统模型成本配置
+    
+    Returns:
+        包含所有系统模型成本配置的字典
+    """
+    system_models = APIKeyManager.get_system_models()
+    costs = {}
+    for model_id, config in system_models.items():
+        costs[model_id] = {
+            "name": config.get('name', model_id),
+            "cost_per_1k_input": config.get('cost_per_1k_input', 0),
+            "cost_per_1k_output": config.get('cost_per_1k_output', 0),
+        }
+    return costs
 
-# 每月默认抵用金 (CNY)
-DEFAULT_MONTHLY_CREDIT = 5.0
+
+# 兼容旧代码：SYSTEM_MODEL_COSTS 现在从配置文件动态加载
+# 注意：这是一个运行时计算的值，不是静态常量
+def get_system_model_costs() -> Dict[str, Dict[str, Any]]:
+    """获取系统模型成本配置（动态从 api_keys.json 加载）"""
+    return _get_system_model_costs()
+
+
+# 每月默认抵用金 (CNY) - 从配置文件读取
+def get_default_monthly_credit() -> float:
+    """获取每月默认抵用金额度"""
+    return APIKeyManager.get_monthly_credit()
+
+
+# 兼容旧代码的常量（已弃用，请使用函数版本）
+SYSTEM_MODEL_COSTS = property(lambda self: _get_system_model_costs())
+DEFAULT_MONTHLY_CREDIT = 5.0  # 保留作为默认值，实际使用 get_default_monthly_credit()
 
 
 def get_model_cost_config(model_id: str) -> Optional[Dict[str, Any]]:
@@ -351,14 +416,23 @@ def get_model_cost_config(model_id: str) -> Optional[Dict[str, Any]]:
         如果是自定义模型，需要从用户配置中获取（由调用方处理）
         未找到返回 None
     """
-    if model_id in SYSTEM_MODEL_COSTS:
-        return SYSTEM_MODEL_COSTS[model_id].copy()
+    # 优先从新配置读取
+    model_config = APIKeyManager.get_system_model_config(model_id)
+    if model_config:
+        return {
+            "name": model_config.get('name', model_id),
+            "cost_per_1k_input": model_config.get('cost_per_1k_input', 0),
+            "cost_per_1k_output": model_config.get('cost_per_1k_output', 0),
+        }
     return None
 
 
 def is_system_model(model_id: str) -> bool:
     """判断是否为系统提供的模型"""
-    return model_id.startswith('system_') or model_id in SYSTEM_MODEL_COSTS
+    if model_id.startswith('system_'):
+        # 检查是否确实存在于配置中
+        return APIKeyManager.get_system_model_config(model_id) is not None
+    return False
 
 
 def calculate_cost(input_tokens: int, output_tokens: int, cost_config: Dict) -> float:

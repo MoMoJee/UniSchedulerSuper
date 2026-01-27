@@ -241,15 +241,17 @@ class AgentState(TypedDict):
 llm = ChatOpenAI(
     model="deepseek-chat",
     temperature=0,
-    streaming=True,
+    streaming=False,  # 关闭流式传输（项目只需节点级别流式，不需要 LLM 级别流式）
     base_url=os.environ.get("OPENAI_API_BASE"),
-    stream_usage=True,  # 确保流式响应中也返回 token 用量
 )
 
 
 def get_user_llm(user):
     """
     获取用户配置的 LLM 实例
+    
+    根据用户选择的模型（系统模型或自定义模型）创建对应的 LLM 实例。
+    系统模型的配置从 api_keys.json 统一读取。
     
     Args:
         user: Django User 对象
@@ -263,36 +265,64 @@ def get_user_llm(user):
     try:
         current_model_id, model_config = get_current_model_config(user)
         
-        if not model_config or current_model_id == 'system_deepseek':
+        # 判断是否为系统模型
+        is_system = model_config.get('provider') == 'system' or current_model_id.startswith('system_')
+        
+        if is_system:
+            # 系统模型：从统一配置读取
+            system_model_config = APIKeyManager.get_system_model_config(current_model_id)
+            if system_model_config:
+                api_key = system_model_config.get('api_key', '')
+                base_url = system_model_config.get('base_url', '')
+                model_name = system_model_config.get('model_name', 'deepseek-chat')
+                
+                # 调试日志
+                logger.debug(f"[LLM] 系统模型配置: id={current_model_id}, model={model_name}")
+                logger.debug(f"[LLM] base_url(原始): {base_url}")
+                logger.debug(f"[LLM] api_key(前8位): {api_key[:8] if api_key else 'None'}...")
+                
+                # 统一处理 base_url（与自定义模型保持一致）
+                if base_url:
+                    if base_url.endswith('/chat/completions'):
+                        base_url = base_url.rsplit('/chat/completions', 1)[0]
+                    base_url = base_url.rstrip('/')
+                
+                logger.debug(f"[LLM] base_url(处理后): {base_url}")
+                
+                if api_key and base_url:
+                    user_llm = ChatOpenAI(
+                        model=model_name,
+                        base_url=base_url,
+                        api_key=api_key,  # type: ignore
+                        temperature=0.7,
+                        streaming=False,  # 关闭流式传输（项目只需节点级别流式）
+                    )
+                    logger.info(f"[LLM] 使用系统模型: {model_name} ({current_model_id}) @ {base_url}")
+                    return user_llm
+            
+            # 系统模型配置不存在，使用默认
+            logger.warning(f"[LLM] 系统模型 {current_model_id} 配置不存在，使用默认")
             return llm
         
-        # 获取 API URL
-        api_url = model_config.get('api_url', '')
+        # 自定义模型：使用用户配置
+        api_url = model_config.get('api_url', '') or model_config.get('base_url', '')
         if api_url:
             if api_url.endswith('/chat/completions'):
                 api_url = api_url.rsplit('/chat/completions', 1)[0]
             api_url = api_url.rstrip('/')
         
-        # 获取 API Key
         api_key = model_config.get('api_key', '')
-        if not api_key and model_config.get('api_key_env'):
-            api_key = os.environ.get(model_config['api_key_env'], '')
-        if not api_key and model_config.get('provider') == 'system':
-            api_key = os.environ.get('OPENAI_API_KEY', '')
-        
-        # 获取模型名称
         model_name = model_config.get('model_name', model_config.get('model', ''))
         
-        if api_url and model_name:
+        if api_url and model_name and api_key:
             user_llm = ChatOpenAI(
                 model=model_name,
                 base_url=api_url,
-                api_key=api_key if api_key else 'sk-placeholder',  # type: ignore
+                api_key=api_key,  # type: ignore
                 temperature=0.7,
-                streaming=True,
-                stream_usage=True,  # 确保流式响应中也返回 token 用量
+                streaming=False,  # 关闭流式传输（项目只需节点级别流式）
             )
-            logger.info(f"[LLM] 创建用户模型: {model_name} @ {api_url}")
+            logger.info(f"[LLM] 使用自定义模型: {model_name} @ {api_url}")
             return user_llm
         
     except Exception as e:
@@ -471,55 +501,8 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
             logger.warning(f"[Agent] 获取模型配置失败: {e}")
     
     # ========== 动态创建 LLM 实例 ==========
-    active_llm = llm  # 默认使用全局 llm
-    
-    if model_config:
-        try:
-            from langchain_openai import ChatOpenAI
-            import os as _os
-            
-            # 根据模型配置创建 LLM
-            # 系统模型使用 api_url，自定义模型也使用 api_url
-            api_url = model_config.get('api_url', '')
-            
-            # 处理 API URL - LangChain 需要的是 base_url（不含 /chat/completions）
-            if api_url:
-                # 移除末尾的 /chat/completions 或 /v1/chat/completions
-                if api_url.endswith('/chat/completions'):
-                    api_url = api_url.rsplit('/chat/completions', 1)[0]
-                # 确保末尾没有斜杠
-                api_url = api_url.rstrip('/')
-            
-            # 获取 API Key
-            # 系统模型使用环境变量，自定义模型直接存储
-            api_key = model_config.get('api_key', '')
-            if not api_key and model_config.get('api_key_env'):
-                api_key = _os.environ.get(model_config['api_key_env'], '')
-            
-            # 系统模型如果没有配置环境变量，使用默认的 OPENAI_API_KEY
-            if not api_key and model_config.get('provider') == 'system':
-                api_key = _os.environ.get('OPENAI_API_KEY', '')
-            
-            # 获取模型名称 - 自定义模型用 model_name，系统模型可能用 model
-            model_name = model_config.get('model_name', model_config.get('model', ''))
-            
-            # 只有当我们有足够的配置信息时才创建自定义 LLM
-            # 系统默认模型 system_deepseek 不需要重新创建（使用全局 llm）
-            if current_model_id != 'system_deepseek' and api_url and model_name:
-                active_llm = ChatOpenAI(
-                    model=model_name,
-                    base_url=api_url,
-                    api_key=api_key if api_key else 'sk-placeholder',  # type: ignore
-                    temperature=0.7,
-                    streaming=True,
-                    stream_usage=True,  # 确保流式响应中也返回 token 用量
-                )
-                logger.info(f"[Agent] 使用自定义模型: {model_name} @ {api_url}")
-            else:
-                logger.debug(f"[Agent] 使用默认模型 (model_id={current_model_id})")
-        except Exception as e:
-            logger.warning(f"[Agent] 创建自定义 LLM 失败，使用默认: {e}")
-            active_llm = llm
+    # 使用统一的 get_user_llm() 函数，正确处理系统模型和自定义模型
+    active_llm = get_user_llm(user)
     
     if tools:
         llm_with_tools = active_llm.bind_tools(tools)

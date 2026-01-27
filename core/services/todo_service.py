@@ -1,10 +1,8 @@
 import uuid
 import datetime
-import logging
+from logger import logger
 import reversion
 from core.models import UserData
-
-logger = logging.getLogger(__name__)
 
 class MockRequest:
     def __init__(self, user):

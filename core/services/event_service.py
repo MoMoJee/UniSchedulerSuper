@@ -1,13 +1,11 @@
 import uuid
 import datetime
-import logging
+from logger import logger
 import reversion
 from datetime import timedelta
 from core.models import UserData, AgentTransaction
 from core.views_events import EventsRRuleManager 
 from core.views_share_groups import sync_group_calendar_data
-
-logger = logging.getLogger(__name__)
 
 class MockRequest:
     def __init__(self, user):

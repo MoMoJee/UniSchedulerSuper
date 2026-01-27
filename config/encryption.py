@@ -26,14 +26,12 @@ API 密钥加密存储模块
 import os
 import base64
 import hashlib
-import logging
+from logger import logger
 from typing import Optional, Tuple
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from django.conf import settings
-
-logger = logging.getLogger(__name__)
 
 # 加密版本标记，用于将来的密钥轮换
 ENCRYPTION_VERSION = "v1"

@@ -24,7 +24,6 @@ from agent_service.context_optimizer import (
     get_optimization_config,
     update_token_usage,
     get_token_usage_stats,
-    SYSTEM_MODELS
 )
 
 # 导入加密模块
@@ -102,7 +101,7 @@ def get_model_config(request):
         user = request.user
         
         # 获取当前模型配置
-        current_model = get_current_model_config(user)
+        current_model_id, current_model = get_current_model_config(user)
         
         # 获取所有可用模型
         all_models = get_all_models(user)
@@ -468,7 +467,7 @@ def reset_token_stats(request):
     }
     """
     from datetime import datetime, timezone
-    from config.api_keys_manager import DEFAULT_MONTHLY_CREDIT
+    from config.api_keys_manager import get_default_monthly_credit
     
     try:
         user = request.user
@@ -478,12 +477,13 @@ def reset_token_stats(request):
         # 获取当前统计
         token_usage = get_user_data_value(user, 'agent_token_usage', {})
         current_month = datetime.now(timezone.utc).strftime('%Y-%m')
+        default_credit = get_default_monthly_credit()
         
         if reset_type == 'all':
             # 完全重置，包括历史
             token_usage = {
                 'current_month': current_month,
-                'monthly_credit': DEFAULT_MONTHLY_CREDIT,
+                'monthly_credit': default_credit,
                 'monthly_used': 0.0,
                 'models': {},
                 'history': {},
@@ -577,7 +577,7 @@ def get_all_agent_config(request):
         user = request.user
         
         # 模型配置
-        current_model = get_current_model_config(user)
+        current_model_id, current_model = get_current_model_config(user)
         all_models = get_all_models(user)
         agent_config = get_user_data_value(user, 'agent_config', {})
         

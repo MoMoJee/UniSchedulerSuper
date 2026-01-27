@@ -3,8 +3,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 from openai import OpenAI
-import logging
-logger = logging.getLogger("logger")
+from logger import logger
 
 
 def user_prefer_ai_setting(user_ai_settings: dict, messages: list, tools: list[dict]=None, ai_settings_file_path: str = r"default_files/AI_setting.json", scene: str = "default") -> 'OpenAI.completions':

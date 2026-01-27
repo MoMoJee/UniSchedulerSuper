@@ -3885,10 +3885,10 @@ class AgentChat {
      * 格式化 token 数量显示
      */
     formatTokens(tokens) {
-        if (tokens >= 10000) {
-            return `${(tokens / 1000).toFixed(1)}k`;
-        } else if (tokens >= 1000) {
-            return `${(tokens / 1000).toFixed(2)}k`;
+        if (tokens >= 10240) {  // 10*1024
+            return `${(tokens / 1024).toFixed(1)}k`;
+        } else if (tokens >= 1024) {
+            return `${(tokens / 1024).toFixed(2)}k`;
         }
         return `${tokens}`;
     }

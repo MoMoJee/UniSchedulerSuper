@@ -63,7 +63,7 @@ CHANNEL_LAYERS = {
 }
 
 MIDDLEWARE = [
-    # 'core.middleware.request_logger.RequestLogMiddleware', # Custom Request Logger
+    'core.middleware.request_logger.RequestLogMiddleware', # Custom Request Logger - 记录所有HTTP请求到统一日志
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -167,47 +167,71 @@ REST_FRAMEWORK = {
     ],
 }
 
-
-# BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# # 获取当前时间戳
-# current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-# # 确保日志文件夹存在
-# os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
-# LOGGING = {
-#     'version': 1,
-#     'disable_existing_loggers': False,
-#     'formatters': {
-#         'verbose': {
-#             'format': '{asctime}-{levelname}-【{module}-{funcName}: line {lineno}】{message}',
-#             'style': '{',
-#         },
-#         'simple': {
-#             'format': '{levelname}-【{module}-{funcName}】{message}',
-#             'style': '{',
-#         },
-#     },
-#     'handlers': {
-#         'file': {
-#             'level': 'DEBUG',
-#             'class': 'logging.handlers.RotatingFileHandler',
-#             'filename': os.path.join(BASE_DIR, f'logs/log_{current_time}.log'),
-#             'maxBytes': 1024*1024*5,  # 5 MB
-#             'backupCount': 5,
-#             'formatter': 'verbose',
-#             'encoding': 'utf-8' # 设置日志文件的编码为 UTF-8
-#         },
-#         'console': {
-#             'level': 'INFO',
-#             'class': 'logging.StreamHandler',
-#             'formatter': 'simple',
-#         },
-#     },
-#     'loggers': {
-#         'logger': {  # 自定义日志器名称
-#             'handlers': ['file', 'console'],
-#             'level': 'DEBUG',
-#             'propagate': False,
-#         },
-#     },
-# }
-
+# ==========================================
+# 日志配置 - 使用项目统一的 logger.py
+# ==========================================
+# Django 会自动使用标准的 logging 配置
+# 我们的项目通过 logger.py 提供统一的日志器
+# 在其他模块中使用: from logger import logger
+# 
+# 注意：Django 内部日志（如 django.request, django.db）会自动使用这里的配置
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S'
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'concurrent_log_handler.ConcurrentRotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/application.log'),
+            'maxBytes': 5 * 512 * 1024,  # 2.5MB
+            'backupCount': 10,
+            'formatter': 'standard',
+            'encoding': 'utf-8'
+        },
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'standard',
+        },
+    },
+    # Django 内部日志器配置
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',  # 记录所有请求
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'django.server': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # Daphne/ASGI 服务器日志
+        'daphne': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'daphne.server': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}

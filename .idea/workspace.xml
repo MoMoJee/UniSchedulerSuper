@@ -4,11 +4,27 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260127_0242 development&#10;&#10;1. MCP及工具调用优化&#10;新增 12306-mcp-server 工具集&#10;优化了前端 tools 的友好名称&#10;&#10;2. Agent 流优化&#10;修复了压缩工具调用结果时，本次对话、上轮调用结果会被优化的问题，使用 TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES 控制压缩第 X 条用户消息以前的工具调用结果被压缩 &#10;修复了第二次达到递归上限时不弹继续提示的错误，通过 RECURSION_LIMIT 限制递归上限">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260127_1733 development&#10;&#10;修复了当某个 MCP 服务不可用时其余服务受影响无法加载的问题">
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/mcp_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/mcp_tools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/UniSchedulerSuper/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/UniSchedulerSuper/settings.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/agent_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/context_optimizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/context_optimizer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/views_config_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_config_api.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/api_keys.example.json" beforeDir="false" afterPath="$PROJECT_DIR$/config/api_keys.example.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/api_keys_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/config/api_keys_manager.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/encryption.py" beforeDir="false" afterPath="$PROJECT_DIR$/config/encryption.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/middleware/request_logger.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/middleware/request_logger.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/services/event_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/services/event_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/services/reminder_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/services/reminder_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/services/todo_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/services/todo_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/js/agent-chat.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/agent-chat.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/js/agent-config.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/agent-config.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/utils/validators.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/utils/validators.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/LLMFunctions.py" beforeDir="false" afterPath="$PROJECT_DIR$/planner/LLMFunctions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -19,7 +35,7 @@
     <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="515" />
+    <option name="cachedIndexableFilesCount" value="513" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -119,7 +135,7 @@
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
     "to.speed.mode.migration.done": "true",
     "vue.rearranger.settings.migration": "true"
   },
@@ -358,15 +374,7 @@
       <workItem from="1768758714722" duration="26998000" />
       <workItem from="1768997538704" duration="4055000" />
       <workItem from="1769014121780" duration="55614000" />
-      <workItem from="1769503142225" duration="3085000" />
-    </task>
-    <task id="LOCAL-00015" summary="UniSchedulerSuper 1.5.3.20251101&#10;启用并升级了设置界面&#10;增加了退出登录、帮助功能">
-      <option name="closed" value="true" />
-      <created>1762105490253</created>
-      <option name="number" value="00015" />
-      <option name="presentableId" value="LOCAL-00015" />
-      <option name="project" value="LOCAL" />
-      <updated>1762105490253</updated>
+      <workItem from="1769503142225" duration="13796000" />
     </task>
     <task id="LOCAL-00016" summary="UniSchedulerSuper 1.5.3.20251103_0146&#10;启用并升级了设置界面&#10;增加了退出登录、帮助功能">
       <option name="closed" value="true" />
@@ -752,7 +760,15 @@
       <option name="project" value="LOCAL" />
       <updated>1769452930617</updated>
     </task>
-    <option name="localTasksCounter" value="64" />
+    <task id="LOCAL-00064" summary="UniSchedulerSuper 1.5.4.20260127_1733 development&#10;&#10;修复了当某个 MCP 服务不可用时其余服务受影响无法加载的问题">
+      <option name="closed" value="true" />
+      <created>1769506446860</created>
+      <option name="number" value="00064" />
+      <option name="presentableId" value="LOCAL-00064" />
+      <option name="project" value="LOCAL" />
+      <updated>1769506446860</updated>
+    </task>
+    <option name="localTasksCounter" value="65" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -791,7 +807,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="新增 RRule 编辑操作指南，详细描述日程与提醒的重复规则编辑范围及操作，实现相关API逻辑优化，增强事务回滚功能及事件实例生成能力，同时完善 RepeatParser 对中文间隔规则的处理" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260101_1658 development&#10;&#10;改进重复规则解析器，支持中文数字解析及动态间隔处理。提供 Rrule 编辑详情指南&#10;优化回滚逻辑，支持基于 `tool_call_id` 精确匹配回滚点。增强 `AgentTransaction` 模块，支持 `tool_call_id` 元数据匹配。修复工具执行流程，将 `tool_call_id` 作为配置传递，修复回滚问题。&#10;把日志器的文件大小改成了16MB" />
     <MESSAGE value="改进事件与提醒实例生成逻辑  &#10;&#10;- 添加实例生成计数器，避免无效数据库写入  &#10;- 优化实例生成规则，基于重复频率动态调整生成参数（天数和实例数量）  &#10;- 替换 `info` 日志为 `debug` 级别以减少不必要的日志输出  &#10;- 优化群组共享逻辑，减少数据库查询，提升事件共享信息处理效率  " />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260101_1834 development&#10;&#10;改进事件和提醒实例的生成逻辑，动态调整生成范围以确保覆盖未来时间，同时优化性能并减少不必要的更新与日志输出。&#10;增强群组共享模块，预加载版本信息用于优化轮询逻辑。&#10;调整日志记录级别，使调试信息更清晰。" />
@@ -816,7 +831,8 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260126_0346 development&#10;&#10;升级了 Tokes 用量统计功能&#10;添加了限制逻辑，每月可用5CNY的配额" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260126_2036 development&#10;&#10;修复了抵用金用尽时弹出的 quota-exceeded-content 中 onclick=&quot;agentChat.openModelConfig();&quot; 按钮无法点击的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260127_0242 development&#10;&#10;1. MCP及工具调用优化&#10;新增 12306-mcp-server 工具集&#10;优化了前端 tools 的友好名称&#10;&#10;2. Agent 流优化&#10;修复了压缩工具调用结果时，本次对话、上轮调用结果会被优化的问题，使用 TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES 控制压缩第 X 条用户消息以前的工具调用结果被压缩 &#10;修复了第二次达到递归上限时不弹继续提示的错误，通过 RECURSION_LIMIT 限制递归上限" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260127_0242 development&#10;&#10;1. MCP及工具调用优化&#10;新增 12306-mcp-server 工具集&#10;优化了前端 tools 的友好名称&#10;&#10;2. Agent 流优化&#10;修复了压缩工具调用结果时，本次对话、上轮调用结果会被优化的问题，使用 TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES 控制压缩第 X 条用户消息以前的工具调用结果被压缩 &#10;修复了第二次达到递归上限时不弹继续提示的错误，通过 RECURSION_LIMIT 限制递归上限" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260127_1733 development&#10;&#10;修复了当某个 MCP 服务不可用时其余服务受影响无法加载的问题" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260127_1733 development&#10;&#10;修复了当某个 MCP 服务不可用时其余服务受影响无法加载的问题" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

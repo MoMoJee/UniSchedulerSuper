@@ -92,7 +92,8 @@ const agentConfig = {
         }
         
         // 显示当前模型信息
-        this.showModelInfo(modelData.current_model);
+        const currentModel = modelData.current_model || this.allModels[modelData.current_model_id];
+        this.showModelInfo(currentModel);
         
         // 更新自定义模型列表
         this.updateCustomModelsList(customModels);
@@ -110,11 +111,11 @@ const agentConfig = {
         
         infoDiv.style.display = 'block';
         document.getElementById('modelContextWindow').textContent = 
-            model.context_window ? `${(model.context_window / 1000).toFixed(0)}K` : '-';
+            model.context_window ? `${(model.context_window / 1024).toFixed(0)}K` : '-';
         document.getElementById('modelCostInput').textContent = 
-            model.cost_per_1k_input ? `$${model.cost_per_1k_input.toFixed(5)}` : '-';
+            model.cost_per_1k_input !== undefined ? `￥${model.cost_per_1k_input.toFixed(5)}` : '-';
         document.getElementById('modelCostOutput').textContent = 
-            model.cost_per_1k_output ? `$${model.cost_per_1k_output.toFixed(5)}` : '-';
+            model.cost_per_1k_output !== undefined ? `￥${model.cost_per_1k_output.toFixed(5)}` : '-';
     },
     
     /**
@@ -178,7 +179,7 @@ const agentConfig = {
                         <br>
                         <small class="text-muted">
                             ${model.provider || 'custom'} | 
-                            上下文: ${model.context_window ? (model.context_window/1000).toFixed(0) + 'K' : '-'}
+                            上下文: ${model.context_window ? (model.context_window/1024).toFixed(0) + 'K' : '-'}
                         </small>
                     </div>
                     <div>
@@ -621,7 +622,7 @@ const agentConfig = {
         document.getElementById('totalOutputTokens').textContent = 
             this.formatNumber(stats.total_output_tokens || 0);
         document.getElementById('totalCost').textContent = 
-            '$' + (stats.total_cost || 0).toFixed(4);
+            '￥' + (stats.total_cost || 0).toFixed(4);
         document.getElementById('quotaUsedRatio').textContent = 
             ((stats.quota_used_ratio || 0) * 100).toFixed(2) + '%';
         
@@ -669,7 +670,7 @@ const agentConfig = {
                     <td>${modelName}</td>
                     <td class="text-end">${this.formatNumber(stat.input_tokens || 0)}</td>
                     <td class="text-end">${this.formatNumber(stat.output_tokens || 0)}</td>
-                    <td class="text-end">$${(stat.cost || 0).toFixed(4)}</td>
+                    <td class="text-end">￥${(stat.cost || 0).toFixed(4)}</td>
                 </tr>
             `;
         }
@@ -825,8 +826,8 @@ const agentConfig = {
     // ==========================================
     
     formatNumber(num) {
-        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-        if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+        if (num >= 1048576) return (num / 1048576).toFixed(1) + 'M';  // 1024*1024
+        if (num >= 1024) return (num / 1024).toFixed(1) + 'K';
         return num.toString();
     },
     

@@ -382,32 +382,44 @@ class ToolMessageCompressor:
         return data
 
 
-# ===== 系统预置模型配置 =====
-
-SYSTEM_MODELS = {
-    'system_deepseek': {
-        'name': 'DeepSeek Chat（系统提供）',
-        'provider': 'system',
-        'api_url': 'https://api.deepseek.com/v1/chat/completions',
-        'api_key_env': 'DEEPSEEK_API_KEY',  # 从环境变量读取
-        'context_window': 128000,
-        'supports_tools': True,
-        'cost_per_1k_input': 0.00014,  # 美元
-        'cost_per_1k_output': 0.00028,
-        'readonly': True,
-    },
-    # 可以添加更多系统预置模型
-    # 'system_gpt4': {
-    #     'name': 'GPT-4 Turbo（系统提供）',
-    #     'provider': 'system',
-    #     ...
-    # },
-}
-
+# ===== 系统预置模型配置（从统一配置文件读取） =====
 
 def get_system_models() -> Dict[str, Dict]:
-    """获取系统预置模型列表"""
-    return SYSTEM_MODELS.copy()
+    """
+    获取系统预置模型列表（从 api_keys.json 统一读取）
+    
+    Returns:
+        模型字典 {model_id: model_config}
+    """
+    from config.api_keys_manager import APIKeyManager
+    
+    system_models = APIKeyManager.get_system_models()
+    
+    # 转换为前端/内部使用的格式
+    result = {}
+    for model_id, config in system_models.items():
+        result[model_id] = {
+            'name': config.get('name', model_id),
+            'provider': 'system',  # 标记为系统模型
+            'api_url': f"{config.get('base_url', '')}/chat/completions",
+            'base_url': config.get('base_url', ''),
+            'model_name': config.get('model_name', ''),
+            'context_window': config.get('context_window', 128000),
+            'supports_tools': config.get('supports_tools', True),
+            'cost_per_1k_input': config.get('cost_per_1k_input', 0),
+            'cost_per_1k_output': config.get('cost_per_1k_output', 0),
+            'cost_currency': config.get('cost_currency', 'CNY'),
+            'readonly': config.get('readonly', True),
+        }
+    
+    return result
+
+
+# 兼容旧代码：保留 SYSTEM_MODELS 作为属性访问（已弃用，请使用 get_system_models()）
+# 注意：这是动态计算的，不是静态常量
+def _get_system_models_compat():
+    """兼容旧代码的 SYSTEM_MODELS 访问"""
+    return get_system_models()
 
 
 def get_all_models(user) -> Dict[str, Dict]:
@@ -476,7 +488,12 @@ def get_current_model_config(user) -> Tuple[str, Dict]:
     # 如果模型不存在，回退到默认
     if not model_config:
         current_model_id = 'system_deepseek'
-        model_config = SYSTEM_MODELS['system_deepseek']
+        system_models = get_system_models()
+        model_config = system_models.get('system_deepseek', {
+            'name': 'DeepSeek（系统默认）',
+            'provider': 'system',
+            'context_window': 65536,
+        })
 
     return current_model_id, model_config
 
@@ -535,10 +552,11 @@ def _ensure_current_month(stats: Dict) -> Dict:
         更新后的统计数据
     """
     from datetime import datetime, timezone
-    from config.api_keys_manager import DEFAULT_MONTHLY_CREDIT
+    from config.api_keys_manager import get_default_monthly_credit
     
     current_month = datetime.now(timezone.utc).strftime('%Y-%m')
     stored_month = stats.get('current_month', '')
+    default_credit = get_default_monthly_credit()
     
     if stored_month != current_month:
         # 需要重置：归档旧数据，重置当月数据
@@ -550,7 +568,7 @@ def _ensure_current_month(stats: Dict) -> Dict:
         
         # 重置当月数据
         stats['current_month'] = current_month
-        stats['monthly_credit'] = DEFAULT_MONTHLY_CREDIT
+        stats['monthly_credit'] = default_credit
         stats['monthly_used'] = 0.0
         stats['models'] = {}
         stats['last_reset'] = datetime.now(timezone.utc).isoformat()
@@ -663,7 +681,10 @@ def check_quota_available(user, model_id: str) -> Dict:
         }
     """
     from core.models import UserData
-    from config.api_keys_manager import is_system_model, DEFAULT_MONTHLY_CREDIT
+    from config.api_keys_manager import is_system_model, get_default_monthly_credit
+    
+    # 获取默认配额
+    default_credit = get_default_monthly_credit()
     
     # 自定义模型不限制
     if not is_system_model(model_id):
@@ -685,9 +706,9 @@ def check_quota_available(user, model_id: str) -> Dict:
             return {
                 "available": True,
                 "is_system_model": True,
-                "monthly_credit": DEFAULT_MONTHLY_CREDIT,
+                "monthly_credit": default_credit,
                 "monthly_used": 0,
-                "remaining": DEFAULT_MONTHLY_CREDIT,
+                "remaining": default_credit,
             }
         
         stats = usage_data.get_value() if not created else {}
@@ -696,7 +717,7 @@ def check_quota_available(user, model_id: str) -> Dict:
         # 保存可能的月份重置
         usage_data.set_value(stats)
         
-        monthly_credit = stats.get('monthly_credit', DEFAULT_MONTHLY_CREDIT)
+        monthly_credit = stats.get('monthly_credit', default_credit)
         monthly_used = stats.get('monthly_used', 0.0)
         remaining = monthly_credit - monthly_used
         
@@ -724,9 +745,9 @@ def check_quota_available(user, model_id: str) -> Dict:
         return {
             "available": True,
             "is_system_model": True,
-            "monthly_credit": DEFAULT_MONTHLY_CREDIT,
+            "monthly_credit": default_credit,
             "monthly_used": 0,
-            "remaining": DEFAULT_MONTHLY_CREDIT,
+            "remaining": default_credit,
         }
 
 
@@ -759,8 +780,12 @@ def get_token_usage_stats(user) -> Dict:
     from core.models import UserData
     from datetime import datetime, timezone
     from config.api_keys_manager import (
-        SYSTEM_MODEL_COSTS, DEFAULT_MONTHLY_CREDIT, is_system_model
+        get_system_model_costs, get_default_monthly_credit, is_system_model
     )
+    
+    # 获取动态配置
+    default_credit = get_default_monthly_credit()
+    system_model_costs = get_system_model_costs()
     
     try:
         # 使用 get_or_initialize 获取统计记录
@@ -771,9 +796,9 @@ def get_token_usage_stats(user) -> Dict:
             current_month = datetime.now(timezone.utc).strftime('%Y-%m')
             return {
                 "current_month": current_month,
-                "monthly_credit": DEFAULT_MONTHLY_CREDIT,
+                "monthly_credit": default_credit,
                 "monthly_used": 0.0,
-                "remaining": DEFAULT_MONTHLY_CREDIT,
+                "remaining": default_credit,
                 "models": {},
                 "history": {}
             }
@@ -784,7 +809,7 @@ def get_token_usage_stats(user) -> Dict:
         # 保存可能的月份重置
         usage_data.set_value(stats)
         
-        monthly_credit = stats.get('monthly_credit', DEFAULT_MONTHLY_CREDIT)
+        monthly_credit = stats.get('monthly_credit', default_credit)
         monthly_used = stats.get('monthly_used', 0.0)
         
         # 为模型添加额外信息
@@ -795,7 +820,7 @@ def get_token_usage_stats(user) -> Dict:
             enriched_models[model_id] = {
                 **model_stats,
                 "is_system": is_system_model(model_id),
-                "name": SYSTEM_MODEL_COSTS.get(model_id, {}).get('name', model_id)
+                "name": system_model_costs.get(model_id, {}).get('name', model_id)
             }
         
         return {
@@ -811,9 +836,9 @@ def get_token_usage_stats(user) -> Dict:
         logger.error(f"Failed to get token usage stats: {e}")
         return {
             "current_month": "",
-            "monthly_credit": DEFAULT_MONTHLY_CREDIT,
+            "monthly_credit": default_credit,
             "monthly_used": 0.0,
-            "remaining": DEFAULT_MONTHLY_CREDIT,
+            "remaining": default_credit,
             "models": {},
             "history": {}
         }

@@ -1,5 +1,4 @@
 import json
-import logging
 import difflib
 from functools import wraps
 from django.http import JsonResponse
