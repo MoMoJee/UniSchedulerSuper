@@ -2,7 +2,7 @@ import asyncio
 import logging
 import threading
 import concurrent.futures
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Tuple
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_core.tools import StructuredTool, Tool
 from langchain_core.runnables import RunnableConfig
@@ -31,7 +31,7 @@ def _build_mcp_servers_config() -> Dict[str, Dict[str, Any]]:
             "url": amap_url,
             "transport": "sse"
         }
-        logger.info(f"已加载 MCP 服务: 高德地图 @ {amap_url[:50]}... (SSE)")
+        logger.info(f"已配置 MCP 服务: 高德地图 @ {amap_url[:50]}... (SSE)")
     
     # ========== 12306 MCP 服务 (Streamable HTTP 传输) ==========
     mcp_12306_url = APIKeyManager.get_12306_mcp_url()
@@ -40,46 +40,100 @@ def _build_mcp_servers_config() -> Dict[str, Dict[str, Any]]:
             "url": mcp_12306_url,
             "transport": "streamable_http"  # 12306 使用 Streamable HTTP 协议
         }
-        logger.info(f"已加载 MCP 服务: 12306 火车票 @ {mcp_12306_url} (streamable_http)")
+        logger.info(f"已配置 MCP 服务: 12306 火车票 @ {mcp_12306_url} (streamable_http)")
     
     return config
 
 MCP_SERVERS_CONFIG = _build_mcp_servers_config()
 
-# 延迟初始化 client，避免启动时阻塞
-_client = None
+# 每个 MCP 服务独立的客户端实例（懒加载）
+_clients: Dict[str, MultiServerMCPClient] = {}
 
-def _get_client():
-    """获取或创建 MCP 客户端"""
-    global _client
-    if _client is None:
-        _client = MultiServerMCPClient(MCP_SERVERS_CONFIG)
-    return _client
+
+async def get_single_mcp_service_tools(service_name: str, service_config: Dict[str, Any]) -> Tuple[str, List[StructuredTool]]:
+    """
+    获取单个 MCP 服务的工具
+    
+    Args:
+        service_name: 服务名称（如 'amap-mcp', '12306-mcp'）
+        service_config: 服务配置（包含 url 和 transport）
+    
+    Returns:
+        (service_name, tools) 元组，如果失败则返回空列表
+    """
+    try:
+        # 为每个服务创建独立的客户端
+        client = MultiServerMCPClient({service_name: service_config})
+        logger.debug(f"正在连接 MCP 服务: {service_name}")
+        
+        # 获取工具
+        tools = await client.get_tools()
+        
+        if tools:
+            logger.info(f"✅ {service_name} 成功加载 {len(tools)} 个工具")
+            return (service_name, tools)
+        else:
+            logger.warning(f"⚠️ {service_name} 连接成功但未返回工具")
+            return (service_name, [])
+            
+    except Exception as e:
+        logger.error(f"❌ {service_name} 连接失败: {e}")
+        logger.debug(f"详细错误信息:", exc_info=True)
+        return (service_name, [])
+
 
 async def get_mcp_tools_async() -> List[StructuredTool]:
-    """异步获取 MCP 工具"""
+    """
+    异步获取所有 MCP 工具（各服务独立连接）
+    
+    策略：
+    - 每个 MCP 服务独立连接
+    - 单个服务失败不影响其他服务
+    - 只要有任何一个服务成功，就返回成功的工具
+    """
     if not MCP_SERVERS_CONFIG:
         logger.warning("没有配置任何 MCP 服务")
         return []
     
-    try:
-        client = _get_client()
-        logger.info(f"正在连接 MCP 服务器: {list(MCP_SERVERS_CONFIG.keys())}")
+    logger.info(f"开始连接 {len(MCP_SERVERS_CONFIG)} 个 MCP 服务: {list(MCP_SERVERS_CONFIG.keys())}")
+    
+    # 并发连接所有服务（使用 gather 而不是 TaskGroup 以避免一个失败导致全部失败）
+    tasks = [
+        get_single_mcp_service_tools(name, config)
+        for name, config in MCP_SERVERS_CONFIG.items()
+    ]
+    
+    # return_exceptions=True 确保单个服务失败不影响其他服务
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    # 收集所有成功的工具
+    all_tools = []
+    success_count = 0
+    failed_count = 0
+    
+    for result in results:
+        if isinstance(result, Exception):
+            # gather 捕获的异常
+            logger.error(f"服务连接异常: {result}")
+            failed_count += 1
+            continue
         
-        # client.get_tools() 返回的是 LangChain Tools 列表
-        tools = await client.get_tools()
-        
+        service_name, tools = result
         if tools:
-            logger.info(f"成功获取 {len(tools)} 个 MCP 工具")
-            for t in tools:
-                logger.debug(f"  - {t.name}: {t.description[:50] if t.description else 'N/A'}...")
+            all_tools.extend(tools)
+            success_count += 1
         else:
-            logger.warning("MCP 服务连接成功但未返回任何工具")
-            
-        return tools
-    except Exception as e:
-        logger.error(f"无法连接到 MCP 服务器: {e}", exc_info=True)
-        return []
+            failed_count += 1
+    
+    # 汇总日志
+    if success_count > 0:
+        logger.info(f"✅ MCP 工具加载完成: 成功 {success_count} 个服务, 失败 {failed_count} 个服务, 共 {len(all_tools)} 个工具")
+    elif failed_count > 0:
+        logger.warning(f"⚠️ 所有 MCP 服务均连接失败 ({failed_count} 个)")
+    else:
+        logger.warning("⚠️ 没有可用的 MCP 服务")
+    
+    return all_tools
 
 def _run_async_in_thread(coro):
     """

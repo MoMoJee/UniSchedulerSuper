@@ -4,18 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260126_2036 development&#10;&#10;修复了抵用金用尽时弹出的 quota-exceeded-content 中 onclick=&quot;agentChat.openModelConfig();&quot; 按钮无法点击的问题">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260127_0242 development&#10;&#10;1. MCP及工具调用优化&#10;新增 12306-mcp-server 工具集&#10;优化了前端 tools 的友好名称&#10;&#10;2. Agent 流优化&#10;修复了压缩工具调用结果时，本次对话、上轮调用结果会被优化的问题，使用 TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES 控制压缩第 X 条用户消息以前的工具调用结果被压缩 &#10;修复了第二次达到递归上限时不弹继续提示的错误，通过 RECURSION_LIMIT 限制递归上限">
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/agent_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/consumers.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/consumers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/context_optimizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/context_optimizer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/context_summarizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/context_summarizer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/agent_service/mcp_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/mcp_tools.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/views_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_api.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/api_keys.example.json" beforeDir="false" afterPath="$PROJECT_DIR$/config/api_keys.example.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/api_keys_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/config/api_keys_manager.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/static/js/agent-chat.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/agent-chat.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -27,7 +19,7 @@
     <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="516" />
+    <option name="cachedIndexableFilesCount" value="515" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -79,64 +71,64 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ASKED_MARK_IGNORED_FILES_AS_EXCLUDED&quot;: &quot;true&quot;,
-    &quot;DefaultHtmlFileTemplate&quot;: &quot;HTML File&quot;,
-    &quot;Django 服务器.UniSchedulerSuper.executor&quot;: &quot;Run&quot;,
-    &quot;Django 服务器.局域网.executor&quot;: &quot;Run&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;找到数据库连接形参&quot;,
-    &quot;Notification.DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;true&quot;,
-    &quot;Python.111 (1).executor&quot;: &quot;Run&quot;,
-    &quot;Python.111.executor&quot;: &quot;Run&quot;,
-    &quot;Python.UniSchedulerSuper.executor&quot;: &quot;Run&quot;,
-    &quot;Python.code_line_counter.executor&quot;: &quot;Run&quot;,
-    &quot;Python.example_reminders_api.executor&quot;: &quot;Run&quot;,
-    &quot;Python.graph.executor&quot;: &quot;Run&quot;,
-    &quot;Python.mcp_server.executor&quot;: &quot;Run&quot;,
-    &quot;Python.mcp_tools.executor&quot;: &quot;Run&quot;,
-    &quot;Python.raw_http_dump_middleware.executor&quot;: &quot;Run&quot;,
-    &quot;Python.tavily_test.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_browser_session.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_event_operations.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_exception_debug.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_reminder_operations.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_rrule_system.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_token_auth.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_validator_schema_standalone.executor&quot;: &quot;Run&quot;,
-    &quot;Python.tools.executor&quot;: &quot;Run&quot;,
-    &quot;Python.views.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.OpenDjangoStructureViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.pycharm.django.structure.promotion.once.per.project&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;ai.playground.ignore.import.keys.banner.in.settings&quot;: &quot;true&quot;,
-    &quot;aidebugger.tracer.lastRunConfigName&quot;: &quot;tavily_test&quot;,
-    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;development__new&quot;,
-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/PROJECTS/UniSchedulerSuper/staticfiles/css&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;File.Encoding&quot;,
-    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
+    "DefaultHtmlFileTemplate": "HTML File",
+    "Django 服务器.UniSchedulerSuper.executor": "Run",
+    "Django 服务器.局域网.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found": "找到数据库连接形参",
+    "Notification.DoNotAsk-DatabaseConfigFileWatcher.found": "true",
+    "Python.111 (1).executor": "Run",
+    "Python.111.executor": "Run",
+    "Python.UniSchedulerSuper.executor": "Run",
+    "Python.code_line_counter.executor": "Run",
+    "Python.example_reminders_api.executor": "Run",
+    "Python.graph.executor": "Run",
+    "Python.mcp_server.executor": "Run",
+    "Python.mcp_tools.executor": "Run",
+    "Python.raw_http_dump_middleware.executor": "Run",
+    "Python.tavily_test.executor": "Run",
+    "Python.test_browser_session.executor": "Run",
+    "Python.test_event_operations.executor": "Run",
+    "Python.test_exception_debug.executor": "Run",
+    "Python.test_reminder_operations.executor": "Run",
+    "Python.test_rrule_system.executor": "Run",
+    "Python.test_token_auth.executor": "Run",
+    "Python.test_validator_schema_standalone.executor": "Run",
+    "Python.tools.executor": "Run",
+    "Python.views.executor": "Run",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.OpenDjangoStructureViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.pycharm.django.structure.promotion.once.per.project": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "ai.playground.ignore.import.keys.banner.in.settings": "true",
+    "aidebugger.tracer.lastRunConfigName": "tavily_test",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "development__new",
+    "ignore.virus.scanning.warn.message": "true",
+    "junie.onboarding.icon.badge.shown": "true",
+    "last_opened_file_path": "D:/PROJECTS/UniSchedulerSuper/staticfiles/css",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "to.speed.mode.migration.done": "true",
+    "vue.rearranger.settings.migration": "true"
   },
-  &quot;keyToStringList&quot;: {
-    &quot;com.intellij.ide.scratch.ScratchImplUtil$2/新建临时文件&quot;: [
-      &quot;JSON&quot;
+  "keyToStringList": {
+    "com.intellij.ide.scratch.ScratchImplUtil$2/新建临时文件": [
+      "JSON"
     ]
   }
-}</component>
+}]]></component>
   <component name="RecapSpentCounter">
     <option name="endsOfQuotaMs" value="1770444026584" />
     <option name="spentUsd" value="0.07884385" />
@@ -365,15 +357,8 @@
       <workItem from="1768052963860" duration="19137000" />
       <workItem from="1768758714722" duration="26998000" />
       <workItem from="1768997538704" duration="4055000" />
-      <workItem from="1769014121780" duration="55067000" />
-    </task>
-    <task id="LOCAL-00014" summary="UniSchedulerSuper 1.5.3.20251101_1501&#10;修复了月视图无法正常显示的问题&#10;优化日视图为两天制&#10;将提醒同步到了日历界面中">
-      <option name="closed" value="true" />
-      <created>1761980499086</created>
-      <option name="number" value="00014" />
-      <option name="presentableId" value="LOCAL-00014" />
-      <option name="project" value="LOCAL" />
-      <updated>1761980499086</updated>
+      <workItem from="1769014121780" duration="55614000" />
+      <workItem from="1769503142225" duration="3085000" />
     </task>
     <task id="LOCAL-00015" summary="UniSchedulerSuper 1.5.3.20251101&#10;启用并升级了设置界面&#10;增加了退出登录、帮助功能">
       <option name="closed" value="true" />
@@ -759,7 +744,15 @@
       <option name="project" value="LOCAL" />
       <updated>1769430985787</updated>
     </task>
-    <option name="localTasksCounter" value="63" />
+    <task id="LOCAL-00063" summary="UniSchedulerSuper 1.5.4.20260127_0242 development&#10;&#10;1. MCP及工具调用优化&#10;新增 12306-mcp-server 工具集&#10;优化了前端 tools 的友好名称&#10;&#10;2. Agent 流优化&#10;修复了压缩工具调用结果时，本次对话、上轮调用结果会被优化的问题，使用 TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES 控制压缩第 X 条用户消息以前的工具调用结果被压缩 &#10;修复了第二次达到递归上限时不弹继续提示的错误，通过 RECURSION_LIMIT 限制递归上限">
+      <option name="closed" value="true" />
+      <created>1769452930617</created>
+      <option name="number" value="00063" />
+      <option name="presentableId" value="LOCAL-00063" />
+      <option name="project" value="LOCAL" />
+      <updated>1769452930617</updated>
+    </task>
+    <option name="localTasksCounter" value="64" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -798,7 +791,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20251231_1358 development&#10;对 Agent 的 Planner 工具集做了较大优化&#10;新增缓存与标识符解析模块，支持搜索结果与事件组缓存的管理和名称解析，包括：&#10;- 定义 `EventGroupCache` 和 `SearchResultCache` 模型&#10;- 引入缓存管理器处理搜索缓存的创建、更新与失效逻辑；&#10;- 实现事件组管理模块以提供缓存更新、解析与默认分组查询功能；&#10;- 添加通用标识符解析工具，支持通过编号、UUID、或标题解析项目。" />
     <MESSAGE value="新增 RRule 编辑操作指南，详细描述日程与提醒的重复规则编辑范围及操作，实现相关API逻辑优化，增强事务回滚功能及事件实例生成能力，同时完善 RepeatParser 对中文间隔规则的处理" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260101_1658 development&#10;&#10;改进重复规则解析器，支持中文数字解析及动态间隔处理。提供 Rrule 编辑详情指南&#10;优化回滚逻辑，支持基于 `tool_call_id` 精确匹配回滚点。增强 `AgentTransaction` 模块，支持 `tool_call_id` 元数据匹配。修复工具执行流程，将 `tool_call_id` 作为配置传递，修复回滚问题。&#10;把日志器的文件大小改成了16MB" />
     <MESSAGE value="改进事件与提醒实例生成逻辑  &#10;&#10;- 添加实例生成计数器，避免无效数据库写入  &#10;- 优化实例生成规则，基于重复频率动态调整生成参数（天数和实例数量）  &#10;- 替换 `info` 日志为 `debug` 级别以减少不必要的日志输出  &#10;- 优化群组共享逻辑，减少数据库查询，提升事件共享信息处理效率  " />
@@ -823,7 +815,8 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260124_2051 development&#10;&#10;修复了前端回滚后工具调用结果不同步清除的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260126_0346 development&#10;&#10;升级了 Tokes 用量统计功能&#10;添加了限制逻辑，每月可用5CNY的配额" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260126_2036 development&#10;&#10;修复了抵用金用尽时弹出的 quota-exceeded-content 中 onclick=&quot;agentChat.openModelConfig();&quot; 按钮无法点击的问题" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260126_2036 development&#10;&#10;修复了抵用金用尽时弹出的 quota-exceeded-content 中 onclick=&quot;agentChat.openModelConfig();&quot; 按钮无法点击的问题" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260127_0242 development&#10;&#10;1. MCP及工具调用优化&#10;新增 12306-mcp-server 工具集&#10;优化了前端 tools 的友好名称&#10;&#10;2. Agent 流优化&#10;修复了压缩工具调用结果时，本次对话、上轮调用结果会被优化的问题，使用 TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES 控制压缩第 X 条用户消息以前的工具调用结果被压缩 &#10;修复了第二次达到递归上限时不弹继续提示的错误，通过 RECURSION_LIMIT 限制递归上限" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260127_0242 development&#10;&#10;1. MCP及工具调用优化&#10;新增 12306-mcp-server 工具集&#10;优化了前端 tools 的友好名称&#10;&#10;2. Agent 流优化&#10;修复了压缩工具调用结果时，本次对话、上轮调用结果会被优化的问题，使用 TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES 控制压缩第 X 条用户消息以前的工具调用结果被压缩 &#10;修复了第二次达到递归上限时不弹继续提示的错误，通过 RECURSION_LIMIT 限制递归上限" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
