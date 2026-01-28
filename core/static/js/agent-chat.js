@@ -1056,6 +1056,9 @@ class AgentChat {
 
     /**
      * 结束流式消息
+     * 【重要】stream_end 只表示一段流式输出结束，不代表整个处理完成
+     * Agent 可能在工具调用后继续回复，所以不能在这里重置 isProcessing
+     * isProcessing 只在 finished、stopped、error 时才重置
      */
     endStreamMessage(metadata = {}) {
         const streamMsg = document.getElementById('streamingMessage');
@@ -1075,11 +1078,13 @@ class AgentChat {
         
         // 注意: 消息计数会在 'finished' 事件中从服务器同步，这里不增加
         
-        // 更新处理状态
-        this.isProcessing = false;
-        this.updateSendButton();
+        // 【修复】stream_end 不再重置 isProcessing
+        // isProcessing 只在 finished、stopped、error 时才重置
+        // 但发送按钮状态不需要更新，因为仍在处理中
+        // this.isProcessing = false;  // 删除：不要在这里重置
+        // this.updateSendButton();    // 删除：不要在这里更新按钮
         
-        // 【关键】清除流式状态和超时定时器
+        // 【关键】清除流式状态（但保留 isProcessing）
         this.isStreamingActive = false;
         this.streamingContent = '';
         this.clearStreamingState();

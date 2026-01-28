@@ -9,7 +9,6 @@ import json
 from typing import Annotated, TypedDict, List, Literal, Optional
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
-from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
@@ -794,13 +793,11 @@ CHECKPOINTS_DIR = os.path.join(os.path.dirname(__file__), 'checkpoints')
 os.makedirs(CHECKPOINTS_DIR, exist_ok=True)
 CHECKPOINT_DB_PATH = os.path.join(CHECKPOINTS_DIR, 'agent_checkpoints.sqlite')
 
-def get_checkpointer():
-    """获取一个新的 SqliteSaver 实例"""
-    conn = sqlite3.connect(CHECKPOINT_DB_PATH, check_same_thread=False)
-    return SqliteSaver(conn)
-
-# 创建全局 checkpointer
-checkpointer = get_checkpointer()
+# 【方案】使用 MemorySaver 支持同步和异步操作
+# MemorySaver 是线程安全的，但重启后会话会丢失
+# 如需持久化，可以考虑使用 PostgreSQL checkpoint (langgraph-checkpoint-postgres)
+from langgraph.checkpoint.memory import MemorySaver
+checkpointer = MemorySaver()
 
 # 编译带 checkpointer 的 app
 app = workflow.compile(checkpointer=checkpointer)
