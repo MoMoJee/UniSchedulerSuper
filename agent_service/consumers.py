@@ -23,6 +23,22 @@ from django.contrib.auth.models import User
 
 from logger import logger
 
+# ========== 异步 App 获取 ==========
+# 缓存编译后的 app 实例
+_cached_async_app = None
+
+async def get_async_app():
+    """
+    获取带有异步 checkpointer 的 app（单例模式）
+    必须在异步上下文中调用
+    """
+    global _cached_async_app
+    if _cached_async_app is None:
+        from agent_service.agent_graph import get_app_with_checkpointer
+        _cached_async_app = await get_app_with_checkpointer()
+        logger.info("[Consumers] 异步 App 已初始化")
+    return _cached_async_app
+
 class AgentConsumer(AsyncWebsocketConsumer):
     """
     Agent WebSocket Consumer
@@ -96,7 +112,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
         # 6. 获取当前消息数量
         current_message_count = 0
         try:
-            from agent_service.agent_graph import app
+            app = await get_async_app()
             config = {"configurable": {"thread_id": self.session_id}}
             state = await app.aget_state(config)
             if state and state.values:
@@ -228,7 +244,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 last_message_role = None
                 should_sync_immediately = False
                 try:
-                    from agent_service.agent_graph import app
+                    app = await get_async_app()
                     config = {"configurable": {"thread_id": self.session_id}}
                     state = await app.aget_state(config)
                     if state and state.values:
@@ -286,8 +302,8 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 "recursion_limit": RECURSION_LIMIT  # 单次对话最大工具调用步数
             }
             
-            # 导入 graph
-            from agent_service.agent_graph import app
+            # 获取异步 app
+            app = await get_async_app()
             
             # ========== 【关键】配额检查 ==========
             from agent_service.context_optimizer import check_quota_available, get_current_model_config
@@ -502,7 +518,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
         try:
             await self.send_json({"type": "processing", "message": "继续执行..."})
             
-            from agent_service.agent_graph import app
+            app = await get_async_app()
             from langchain_core.messages import HumanMessage
             
             config = {
@@ -658,7 +674,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
         1. 如果最后一条是 AIMessage 带有 tool_calls 但没有对应的 ToolMessage，添加占位响应
         2. 如果最后一条是 HumanMessage，添加一条 AI 中断提示
         """
-        from agent_service.agent_graph import app
+        app = await get_async_app()
         from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
         
         try:
@@ -726,7 +742,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
         清理不完整的工具调用消息
         当递归限制中断时，可能存在 AIMessage 有 tool_calls 但没有对应的 ToolMessage
         """
-        from agent_service.agent_graph import app
+        app = await get_async_app()
         from langchain_core.messages import AIMessage, ToolMessage
         
         try:
@@ -770,8 +786,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
 
     async def _init_graph(self):
         """初始化 Agent Graph"""
-        from agent_service.agent_graph import app
-        self.graph = app
+        self.graph = await get_async_app()
     
     def _parse_query_string(self, query_string: str) -> dict:
         """解析 URL 查询参数"""

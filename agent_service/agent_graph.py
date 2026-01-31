@@ -9,6 +9,8 @@ import json
 from typing import Annotated, TypedDict, List, Literal, Optional
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
+from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
@@ -793,16 +795,50 @@ CHECKPOINTS_DIR = os.path.join(os.path.dirname(__file__), 'checkpoints')
 os.makedirs(CHECKPOINTS_DIR, exist_ok=True)
 CHECKPOINT_DB_PATH = os.path.join(CHECKPOINTS_DIR, 'agent_checkpoints.sqlite')
 
-# 【方案】使用 MemorySaver 支持同步和异步操作
-# MemorySaver 是线程安全的，但重启后会话会丢失
-# 如需持久化，可以考虑使用 PostgreSQL checkpoint (langgraph-checkpoint-postgres)
-from langgraph.checkpoint.memory import MemorySaver
-checkpointer = MemorySaver()
+# ========== 同步 Checkpointer（用于同步 API 视图）==========
 
-# 编译带 checkpointer 的 app
-app = workflow.compile(checkpointer=checkpointer)
+def get_sync_checkpointer():
+    """获取同步 checkpointer（用于同步 API）"""
+    conn = sqlite3.connect(CHECKPOINT_DB_PATH, check_same_thread=False)
+    return SqliteSaver(conn)
 
-# 也提供无 checkpointer 的版本
+# 创建同步 checkpointer 和 app
+sync_checkpointer = get_sync_checkpointer()
+app = workflow.compile(checkpointer=sync_checkpointer)
+
+# 为了向后兼容，创建别名（views_api.py 中使用 checkpointer）
+checkpointer = sync_checkpointer
+
+# ========== 异步 Checkpointer（用于 WebSocket 流式处理）==========
+import aiosqlite
+
+# 全局异步 checkpointer 实例（懒加载）
+_async_checkpointer = None
+_async_checkpointer_conn = None
+
+async def get_async_checkpointer():
+    """
+    获取异步 checkpointer（懒加载单例）
+    必须在异步上下文中调用
+    """
+    global _async_checkpointer, _async_checkpointer_conn
+    if _async_checkpointer is None:
+        _async_checkpointer_conn = await aiosqlite.connect(CHECKPOINT_DB_PATH)
+        _async_checkpointer = AsyncSqliteSaver(_async_checkpointer_conn)
+        # 初始化数据库表
+        await _async_checkpointer.setup()
+        logger.info(f"[Checkpointer] 异步 checkpointer 已初始化: {CHECKPOINT_DB_PATH}")
+    return _async_checkpointer
+
+async def get_app_with_checkpointer():
+    """
+    获取带有异步 checkpointer 的 app（懒加载）
+    必须在异步上下文中调用
+    """
+    checkpointer = await get_async_checkpointer()
+    return workflow.compile(checkpointer=checkpointer)
+
+# 预编译无 checkpointer 的版本（用于测试）
 app_no_checkpointer = workflow.compile()
 
 # ==========================================

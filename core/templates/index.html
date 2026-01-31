@@ -1,42 +1,486 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN" data-bs-theme="light">
 <head>
+    <meta charset="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>首页</title>
-    <!-- 引入 Bootstrap CSS -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>首页 - 时间管理大师</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+
     <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --info-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        [data-bs-theme="dark"] {
+            --bs-body-bg: #0f1115;
+            --bs-body-color: #ffffff;
+            --card-bg: #1a1d24;
+            --text-secondary: #a0a3bd;
+        }
+
+        [data-bs-theme="light"] {
+            --bs-body-bg: #f0f2f5;
+            --bs-body-color: #1a1a2e;
+            --card-bg: #ffffff;
+            --text-secondary: #6b7280;
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
         body {
-            background-color: #f8f9fa;
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
         }
 
-        .container {
-            margin-top: 60px;
+        /* 动态背景 */
+        .bg-animate {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: var(--bs-body-bg);
         }
 
-        .btn-custom {
-            font-size: 1.2rem;
-            margin-bottom: 15px;
+        .bg-animate::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.15) 0%, transparent 60%);
+            top: -50%;
+            left: -50%;
+            animation: rotate 30s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* 主容器 - 移动端全屏优化 */
+        .main-wrapper {
+            min-height: 100vh;
+            min-height: 100dvh; /* 适配动态视口 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        /* 卡片样式 - 移动端更大更舒适 */
+        .main-card {
+            background: var(--card-bg);
+            border-radius: 32px;
+            padding: 2.5rem 1.5rem;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.12);
+            width: 100%;
+            max-width: 480px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        [data-bs-theme="dark"] .main-card {
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .main-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: var(--primary-gradient);
+        }
+
+        /* Logo 区域 - 移动端放大 */
+        .brand-section {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .brand-icon {
+            width: 100px;
+            height: 100px;
+            background: var(--primary-gradient);
+            border-radius: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.35);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .brand-icon i {
+            font-size: 3rem; /* 移动端更大的图标 */
+            color: white;
+        }
+
+        .brand-title {
+            font-size: 2.25rem; /* 移动端更大的标题 */
+            font-weight: 800;
+            margin-bottom: 0.75rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+        }
+
+        .brand-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem; /* 增大副标题 */
+            font-weight: 400;
+            line-height: 1.5;
+        }
+
+        /* 特性标签 - 移动端放大 */
+        .features {
+            display: flex;
+            justify-content: center;
+            gap: 1.25rem;
+            margin-bottom: 2.5rem;
+            flex-wrap: wrap;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1rem; /* 增大标签文字 */
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: rgba(102, 126, 234, 0.08);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+        }
+
+        .feature-item i {
+            color: #10b981;
+            font-size: 1.1rem;
+        }
+
+        /* 按钮组 - 移动端触控优化 */
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .btn-modern {
+            position: relative;
+            padding: 1.25rem 1.5rem; /* 更高的按钮，更易点击 */
+            border-radius: 16px;
+            border: none;
+            font-weight: 600;
+            font-size: 1.15rem; /* 更大的按钮文字 */
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            text-decoration: none;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            min-height: 60px; /* 确保触控区域 */
             width: 100%;
         }
 
+        .btn-modern i {
+            font-size: 1.4rem; /* 更大的按钮图标 */
+        }
+
+        .btn-modern:active {
+            transform: scale(0.98);
+        }
+
+        .btn-register {
+            background: var(--secondary-gradient);
+            box-shadow: 0 6px 20px rgba(245, 87, 108, 0.3);
+        }
+        .btn-login {
+            background: var(--success-gradient);
+            box-shadow: 0 6px 20px rgba(0, 242, 254, 0.3);
+        }
+        .btn-about {
+            background: rgba(160, 163, 189, 0.15);
+            color: var(--bs-body-color);
+            border: 2px solid rgba(160, 163, 189, 0.3);
+        }
+        [data-bs-theme="dark"] .btn-about {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+        }
+
+        /* 主题切换按钮 - 移动端放大 */
+        .theme-toggle {
+            position: fixed;
+            top: 1.25rem;
+            right: 1.25rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            background: var(--card-bg);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: var(--bs-body-color);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .theme-toggle:active {
+            transform: scale(0.95);
+        }
+
+        /* 底部信息 - 移动端放大 */
+        .footer-text {
+            text-align: center;
+            font-size: 0.95rem; /* 增大底部文字 */
+            color: var(--text-secondary);
+            margin-top: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .footer-text a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* 平板和桌面端微调（保持美观但不过大） */
         @media (min-width: 768px) {
-            .btn-custom {
-                width: auto;
+            .main-card {
+                padding: 3rem 2.5rem;
+                border-radius: 36px;
+            }
+
+            .brand-icon {
+                width: 90px;
+                height: 90px;
+            }
+
+            .brand-icon i {
+                font-size: 2.5rem;
+            }
+
+            .brand-title {
+                font-size: 2.5rem;
+            }
+
+            .brand-subtitle {
+                font-size: 1.2rem;
+            }
+
+            .btn-modern {
+                font-size: 1.2rem;
+                min-height: 64px;
+            }
+
+            .features {
+                gap: 1.5rem;
+            }
+
+            .feature-item {
+                font-size: 1.05rem;
+                padding: 0.6rem 1.2rem;
+            }
+        }
+
+        /* 小屏幕手机专项优化（iPhone SE等小屏） */
+        @media (max-width: 375px) {
+            .main-card {
+                padding: 2rem 1.25rem;
+                border-radius: 28px;
+            }
+
+            .brand-icon {
+                width: 90px;
+                height: 90px;
+            }
+
+            .brand-title {
+                font-size: 2rem;
+            }
+
+            .btn-modern {
+                font-size: 1.1rem;
+                min-height: 56px;
+            }
+
+            .features {
+                gap: 0.75rem;
+            }
+
+            .feature-item {
+                font-size: 0.9rem;
+                padding: 0.4rem 0.8rem;
+            }
+        }
+
+        /* 加载动画 */
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 安全区域适配（iPhone刘海屏等） */
+        @supports (padding-top: env(safe-area-inset-top)) {
+            .theme-toggle {
+                top: max(1.25rem, env(safe-area-inset-top));
+            }
+
+            .main-wrapper {
+                padding-bottom: env(safe-area-inset-bottom);
             }
         }
     </style>
 </head>
 <body>
-<div class="container text-center">
-    <h1 class="display-4 mb-5">时间管理大师</h1>
-    <a href="/about" class="btn btn-primary btn-custom d-block">关于我们</a>
-    <a href="/user_register" class="btn btn-success btn-custom d-block">注册</a>
-    <a href="/user_login" class="btn btn-info btn-custom d-block">登录</a>
-</div>
+    <div class="bg-animate"></div>
 
-<!-- 引入 Bootstrap JS 和依赖项 -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <button class="theme-toggle" id="themeToggle" aria-label="切换主题">
+        <i class="bi bi-sun-fill" id="themeIcon"></i>
+    </button>
+
+    <div class="main-wrapper">
+        <div class="main-card fade-in">
+            <div class="brand-section">
+                <div class="brand-icon">
+                    <i class="bi bi-clock-history"></i>
+                </div>
+                <h1 class="brand-title">时间管理大师</h1>
+                <p class="brand-subtitle">高效规划<br>成就更好的自己</p>
+            </div>
+
+            <div class="features">
+                <div class="feature-item">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <span>智能提醒</span>
+                </div>
+                <div class="feature-item">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <span>数据同步</span>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <a href="/user_register" class="btn-modern btn-register">
+                    <i class="bi bi-person-plus-fill"></i>
+                    <span>立即注册</span>
+                </a>
+
+                <a href="/user_login" class="btn-modern btn-login">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    <span>账号登录</span>
+                </a>
+
+                <a href="/about" class="btn-modern btn-about">
+                    <i class="bi bi-info-circle"></i>
+                    <span>关于我们</span>
+                </a>
+            </div>
+
+            <div class="footer-text">
+                注册即表示同意<br>
+                <a href="#">服务条款</a> 和 <a href="#">隐私政策</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const ThemeManager = {
+            init() {
+                this.themeToggle = document.getElementById('themeToggle');
+                this.themeIcon = document.getElementById('themeIcon');
+                this.html = document.documentElement;
+
+                const savedTheme = localStorage.getItem('theme');
+                if (savedTheme) {
+                    this.setTheme(savedTheme);
+                } else {
+                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    this.setTheme(prefersDark ? 'dark' : 'light');
+                }
+
+                this.themeToggle.addEventListener('click', () => this.toggleTheme());
+
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+                    if (!localStorage.getItem('theme')) {
+                        this.setTheme(e.matches ? 'dark' : 'light');
+                    }
+                });
+            },
+
+            toggleTheme() {
+                const currentTheme = this.html.getAttribute('data-bs-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                this.setTheme(newTheme);
+                localStorage.setItem('theme', newTheme);
+            },
+
+            setTheme(theme) {
+                this.html.setAttribute('data-bs-theme', theme);
+                this.themeIcon.className = theme === 'dark' ? 'bi bi-moon-fill' : 'bi bi-sun-fill';
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            ThemeManager.init();
+        });
+
+        // 添加触觉反馈（如果设备支持）
+        document.querySelectorAll('.btn-modern, .theme-toggle').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (navigator.vibrate) navigator.vibrate(10);
+            });
+        });
+    </script>
 </body>
 </html>
