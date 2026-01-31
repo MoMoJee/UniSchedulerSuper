@@ -4,13 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260128_0100 development&#10;&#10;1. LLM相关优化&#10;支持了更多系统提供模型，完善了切换系统提供模型时的逻辑&#10;升级了 api_keys.json 的功能，使其成为统一的 LLM 参数来源&#10;将LLM回复方式重设为一次性回（懒得弄流式了）&#10;&#10;2. 前端UI优化&#10;修复了 用户设置-AI设置-模型配置 界面中显示美元符号的问题&#10;修复了 用户设置-AI设置-模型配置 界面中，点击切换模型后，模型的三大参数显示消失的问题&#10;所有上下文 xxx k 的千单位改为1024计算&#10;&#10;3. 日志优化&#10;彻底把所有的有用的没用的文件的日志器改成统一 from logger import logger&#10;由于 Django 的 HTTP 访问日志是由 ASGI/WSGI 服务器直接发出，因此通过中间件 RequestLogMiddleware 实现写入application.log">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260128_1626 development&#10;&#10;完善了前端终止回复按钮的前后端架构，将请求LLM回复的操作改为异步">
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/agent_service/agent_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/agent_service/consumers.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/consumers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/static/js/agent-chat.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/agent-chat.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/index.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -21,7 +22,7 @@
     <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="513" />
+    <option name="cachedIndexableFilesCount" value="515" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -121,7 +122,7 @@
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
     &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
     &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.language.and.region&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;terminal&quot;,
     &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
@@ -361,14 +362,7 @@
       <workItem from="1768997538704" duration="4055000" />
       <workItem from="1769014121780" duration="55614000" />
       <workItem from="1769503142225" duration="20870000" />
-    </task>
-    <task id="LOCAL-00017" summary="UniSchedulerSuper 1.5.3.20251103_0253&#10;升级了深色模式和一堆创意色调模式">
-      <option name="closed" value="true" />
-      <created>1762109611869</created>
-      <option name="number" value="00017" />
-      <option name="presentableId" value="LOCAL-00017" />
-      <option name="project" value="LOCAL" />
-      <updated>1762109611869</updated>
+      <workItem from="1769588629076" duration="9579000" />
     </task>
     <task id="LOCAL-00018" summary="UniSchedulerSuper 1.5.3.20251104_0124&#10;在日历界面添加了筛选功能&#10;修复了列表和月视图界面无法滚动的问题&#10;新增了ISO周数显示&#10;优化UI显示">
       <option name="closed" value="true" />
@@ -754,7 +748,15 @@
       <option name="project" value="LOCAL" />
       <updated>1769533210347</updated>
     </task>
-    <option name="localTasksCounter" value="66" />
+    <task id="LOCAL-00066" summary="UniSchedulerSuper 1.5.4.20260128_1626 development&#10;&#10;完善了前端终止回复按钮的前后端架构，将请求LLM回复的操作改为异步">
+      <option name="closed" value="true" />
+      <created>1769588787791</created>
+      <option name="number" value="00066" />
+      <option name="presentableId" value="LOCAL-00066" />
+      <option name="project" value="LOCAL" />
+      <updated>1769588787791</updated>
+    </task>
+    <option name="localTasksCounter" value="67" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -793,7 +795,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="改进事件与提醒实例生成逻辑  &#10;&#10;- 添加实例生成计数器，避免无效数据库写入  &#10;- 优化实例生成规则，基于重复频率动态调整生成参数（天数和实例数量）  &#10;- 替换 `info` 日志为 `debug` 级别以减少不必要的日志输出  &#10;- 优化群组共享逻辑，减少数据库查询，提升事件共享信息处理效率  " />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260101_1834 development&#10;&#10;改进事件和提醒实例的生成逻辑，动态调整生成范围以确保覆盖未来时间，同时优化性能并减少不必要的更新与日志输出。&#10;增强群组共享模块，预加载版本信息用于优化轮询逻辑。&#10;调整日志记录级别，使调试信息更清晰。" />
     <MESSAGE value="改进事件与提醒实例生成逻辑  &#10;&#10;- 添加实例生成计数器，避免无效的数据库写入  &#10;- 优化实例生成规则，基于重复频率动态调整生成参数（天数及实例数量）  &#10;- 替换部分 `info` 日志为 `debug` 级别，减少不必要的日志输出  &#10;- 增强群组共享逻辑，减少数据库查询，优化事件共享和群组版本处理效率" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260101_2000 development&#10;&#10;1. 优化 get_events 时的分享组筛选、rrule检查导致的巨大性能开销&#10;2. 修复前端获取分享组更新时的版本号问题&#10;3. 修复通过日程组删除处在分享组中的日程时的分享组同步缺失问题" />
@@ -818,7 +819,8 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260127_0242 development&#10;&#10;1. MCP及工具调用优化&#10;新增 12306-mcp-server 工具集&#10;优化了前端 tools 的友好名称&#10;&#10;2. Agent 流优化&#10;修复了压缩工具调用结果时，本次对话、上轮调用结果会被优化的问题，使用 TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES 控制压缩第 X 条用户消息以前的工具调用结果被压缩 &#10;修复了第二次达到递归上限时不弹继续提示的错误，通过 RECURSION_LIMIT 限制递归上限" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260127_1733 development&#10;&#10;修复了当某个 MCP 服务不可用时其余服务受影响无法加载的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260128_0100 development&#10;&#10;1. LLM相关优化&#10;支持了更多系统提供模型，完善了切换系统提供模型时的逻辑&#10;升级了 api_keys.json 的功能，使其成为统一的 LLM 参数来源&#10;将LLM回复方式重设为一次性回（懒得弄流式了）&#10;&#10;2. 前端UI优化&#10;修复了 用户设置-AI设置-模型配置 界面中显示美元符号的问题&#10;修复了 用户设置-AI设置-模型配置 界面中，点击切换模型后，模型的三大参数显示消失的问题&#10;所有上下文 xxx k 的千单位改为1024计算&#10;&#10;3. 日志优化&#10;彻底把所有的有用的没用的文件的日志器改成统一 from logger import logger&#10;由于 Django 的 HTTP 访问日志是由 ASGI/WSGI 服务器直接发出，因此通过中间件 RequestLogMiddleware 实现写入application.log" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260128_0100 development&#10;&#10;1. LLM相关优化&#10;支持了更多系统提供模型，完善了切换系统提供模型时的逻辑&#10;升级了 api_keys.json 的功能，使其成为统一的 LLM 参数来源&#10;将LLM回复方式重设为一次性回（懒得弄流式了）&#10;&#10;2. 前端UI优化&#10;修复了 用户设置-AI设置-模型配置 界面中显示美元符号的问题&#10;修复了 用户设置-AI设置-模型配置 界面中，点击切换模型后，模型的三大参数显示消失的问题&#10;所有上下文 xxx k 的千单位改为1024计算&#10;&#10;3. 日志优化&#10;彻底把所有的有用的没用的文件的日志器改成统一 from logger import logger&#10;由于 Django 的 HTTP 访问日志是由 ASGI/WSGI 服务器直接发出，因此通过中间件 RequestLogMiddleware 实现写入application.log" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260128_1626 development&#10;&#10;完善了前端终止回复按钮的前后端架构，将请求LLM回复的操作改为异步" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260128_1626 development&#10;&#10;完善了前端终止回复按钮的前后端架构，将请求LLM回复的操作改为异步" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
