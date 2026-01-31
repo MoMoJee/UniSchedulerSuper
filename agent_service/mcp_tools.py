@@ -18,29 +18,38 @@ def _build_mcp_servers_config() -> Dict[str, Dict[str, Any]]:
     """
     动态构建所有 MCP 服务器配置
     
+    从 api_keys.json 的 mcp_services 统一读取配置
     支持的 MCP 服务:
-    - 高德地图 (amap): 地点搜索、路线规划、周边搜索 (SSE 传输)
+    - amap: 高德地图 - 地点搜索、路线规划、周边搜索 (SSE 传输)
     - 12306: 火车票查询、车站搜索、余票查询、换乘方案 (Streamable HTTP 传输)
+    - VariFlight: 航班查询（由 variflight_tools.py 独立封装，不在此处加载）
     """
     config = {}
     
-    # ========== 高德地图 MCP 服务 (SSE 传输) ==========
+    # ========== 高德地图 MCP 服务 ==========
     amap_url = APIKeyManager.get_amap_mcp_url()
-    if amap_url:
+    amap_config = APIKeyManager.get_mcp_service_config('amap')
+    if amap_url and amap_config and amap_config.get('enabled', False):
+        transport = amap_config.get('transport', 'sse')
         config["amap-mcp"] = {
             "url": amap_url,
-            "transport": "sse"
+            "transport": transport
         }
-        logger.info(f"已配置 MCP 服务: 高德地图 @ {amap_url[:50]}... (SSE)")
+        logger.info(f"已配置 MCP 服务: 高德地图 @ {amap_url[:50]}... ({transport})")
     
-    # ========== 12306 MCP 服务 (Streamable HTTP 传输) ==========
-    mcp_12306_url = APIKeyManager.get_12306_mcp_url()
-    if mcp_12306_url:
-        config["12306-mcp"] = {
-            "url": mcp_12306_url,
-            "transport": "streamable_http"  # 12306 使用 Streamable HTTP 协议
-        }
-        logger.info(f"已配置 MCP 服务: 12306 火车票 @ {mcp_12306_url} (streamable_http)")
+    # ========== 12306 MCP 服务 ==========
+    mcp_12306_config = APIKeyManager.get_mcp_service_config('12306')
+    if mcp_12306_config and mcp_12306_config.get('enabled', False):
+        mcp_12306_url = mcp_12306_config.get('mcp_url', '')
+        transport = mcp_12306_config.get('transport', 'streamable_http')
+        if mcp_12306_url:
+            config["12306-mcp"] = {
+                "url": mcp_12306_url,
+                "transport": transport
+            }
+            logger.info(f"已配置 MCP 服务: 12306 火车票 @ {mcp_12306_url} ({transport})")
+    
+    # 注意: VariFlight 由 variflight_tools.py 独立封装，不在此处加载
     
     return config
 

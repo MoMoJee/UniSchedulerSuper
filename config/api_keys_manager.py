@@ -171,12 +171,22 @@ class APIKeyManager:
     @classmethod
     def get_amap_mcp_url(cls) -> str:
         """获取高德地图 MCP 服务完整 URL（包含 key）"""
-        config = cls.get_map_service_config('amap')
+        # 优先从 mcp_services 读取
+        config = cls.get_mcp_service_config('amap')
+        if not config:
+            # 向后兼容：从 map_services 读取
+            config = cls.get_map_service_config('amap')
+        
         if not config:
             return ''
         
         base_url = config.get('mcp_url', 'https://mcp.amap.com/sse')
         api_key = config.get('api_key', '')
+        
+        if api_key:
+            # 高德地图使用 key 参数
+            return f"{base_url}?key={api_key}"
+        return base_url
         
         if api_key:
             return f"{base_url}?key={api_key}"

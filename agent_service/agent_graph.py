@@ -45,6 +45,13 @@ from agent_service.tools.search_tools import (
     web_search, web_search_advanced,
     SEARCH_TOOLS_MAP, is_search_available
 )
+# 导入 VariFlight 航班查询工具
+from agent_service.tools.variflight_tools import (
+    query_flight_by_number, query_flights_by_route,
+    query_flight_itineraries, query_flight_transfer,
+    VARIFLIGHT_TOOLS_MAP, VARIFLIGHT_TOOL_DESCRIPTIONS,
+    is_variflight_available
+)
 from agent_service.mcp_tools import get_mcp_tools_sync
 
 # 导入上下文优化模块
@@ -206,11 +213,17 @@ TOOL_CATEGORIES = {
             "web_search": "简单搜索，快速获取网络信息",
             "web_search_advanced": "高级搜索，支持时间、来源、主题等精细控制",
         }
+    },
+    "flight": {
+        "display_name": "航班查询",
+        "description": "飞常准航班查询：航班动态、票价、中转方案",
+        "tools": list(VARIFLIGHT_TOOLS_MAP.keys()) if is_variflight_available() else [],
+        "tool_descriptions": VARIFLIGHT_TOOL_DESCRIPTIONS
     }
 }
 
 # 所有工具合集（包含新旧版本）
-ALL_TOOLS = {**PLANNER_TOOLS, **PLANNER_TOOLS_LEGACY, **MEMORY_TOOLS, **TODO_TOOLS_MAP, **MCP_TOOLS, **SEARCH_TOOLS_MAP}
+ALL_TOOLS = {**PLANNER_TOOLS, **PLANNER_TOOLS_LEGACY, **MEMORY_TOOLS, **TODO_TOOLS_MAP, **MCP_TOOLS, **SEARCH_TOOLS_MAP, **VARIFLIGHT_TOOLS_MAP}
 
 def get_tools_by_names(tool_names: List[str]) -> list:
     """根据工具名称列表获取工具对象"""
