@@ -25,7 +25,7 @@ from agent_service.tools.planner_tools import (
 # 导入统一 Planner 工具（优化版）
 from agent_service.tools.unified_planner_tools import (
     search_items, create_item, update_item, delete_item,
-    get_event_groups, complete_todo, UNIFIED_PLANNER_TOOLS
+    get_event_groups, get_share_groups, complete_todo, UNIFIED_PLANNER_TOOLS
 )
 from agent_service.tools.memory_tools import save_memory, search_memory, get_recent_memories
 # 导入新的记忆工具 V2
@@ -108,6 +108,7 @@ PLANNER_TOOLS = {
     "update_item": update_item,
     "delete_item": delete_item,
     "get_event_groups": get_event_groups,
+    "get_share_groups": get_share_groups,
     "complete_todo": complete_todo,
 }
 
@@ -167,6 +168,7 @@ TOOL_CATEGORIES = {
             "update_item": "更新项目，支持 #序号 引用，增量更新",
             "delete_item": "删除项目，支持系列删除控制",
             "get_event_groups": "获取事件组列表",
+            "get_share_groups": "获取用户所在的分享组列表",
             "complete_todo": "快捷完成待办",
         }
     },

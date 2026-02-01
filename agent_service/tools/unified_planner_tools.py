@@ -27,6 +27,7 @@ from .identifier_resolver import IdentifierResolver
 from .cache_manager import CacheManager
 from .repeat_parser import RepeatParser
 from .event_group_service import EventGroupService
+from .share_group_service import ShareGroupService
 
 from agent_service.utils import agent_transaction
 from logger import logger
@@ -51,17 +52,38 @@ def _get_session_id_from_config(config: RunnableConfig) -> Optional[str]:
     return configurable.get("session_id") or configurable.get("thread_id")
 
 
-def _format_item_for_display(item: dict, index: int, item_type: str) -> str:
-    """将单个项目格式化为显示字符串"""
+def _format_item_for_display(item: dict, index: int, item_type: str, is_shared: bool = False, editable: bool = True) -> str:
+    """将单个项目格式化为显示字符串
+    
+    Args:
+        item: 项目数据
+        index: 序号
+        item_type: 类型 (event/todo/reminder/shared_event)
+        is_shared: 是否为分享组日程
+        editable: 是否可编辑
+    """
     title = item.get('title', '未命名')
     item_id = item.get('id', 'N/A')
     
-    if item_type == 'event':
+    # 构建标签
+    if item_type == 'shared_event' or is_shared:
+        share_group_name = item.get('_share_group_name', '分享组')
+        owner_name = item.get('_owner_username', '未知')
+        tag = f"【分享日程·{share_group_name}·{owner_name}】"
+        edit_hint = " [只读-他人日程]" if not editable else ""
+    elif item_type == 'event':
+        tag = "【日程】"
+        edit_hint = ""
+    else:
+        tag = ""
+        edit_hint = ""
+    
+    if item_type in ('event', 'shared_event') or is_shared:
         start = item.get('start', '')
         end = item.get('end', '')
         rrule = item.get('rrule', '')
         repeat_str = f" [重复: {RepeatParser.to_human_readable(rrule)}]" if rrule else ""
-        return f"#{index} 【日程】{title}\n   时间: {start} ~ {end}{repeat_str}\n   ID: {item_id}"
+        return f"#{index} {tag}{title}{edit_hint}\n   时间: {start} ~ {end}{repeat_str}\n   ID: {item_id}"
     
     elif item_type == 'todo':
         status = item.get('status', 'pending')
@@ -80,14 +102,24 @@ def _format_item_for_display(item: dict, index: int, item_type: str) -> str:
     return f"#{index} {title}\n   ID: {item_id}"
 
 
-def _format_items_list(items: List[dict], item_types: List[str]) -> str:
-    """格式化项目列表"""
+def _format_items_list(items: List[dict], item_types: List[str], editables: Optional[List[bool]] = None) -> str:
+    """格式化项目列表
+    
+    Args:
+        items: 项目列表
+        item_types: 类型列表
+        editables: 可编辑标记列表
+    """
     if not items:
         return "未找到符合条件的项目"
     
+    if editables is None:
+        editables = [True] * len(items)
+    
     lines = []
-    for i, (item, item_type) in enumerate(zip(items, item_types), 1):
-        lines.append(_format_item_for_display(item, i, item_type))
+    for i, (item, item_type, editable) in enumerate(zip(items, item_types, editables), 1):
+        is_shared = item_type == 'shared_event'
+        lines.append(_format_item_for_display(item, i, item_type, is_shared=is_shared, editable=editable))
     
     return "\n\n".join(lines)
 
@@ -99,6 +131,9 @@ def search_items(
     keyword: Optional[str] = None,
     time_range: Optional[str] = None,
     status: Optional[str] = None,
+    event_group: Optional[str] = None,
+    share_groups: Optional[List[str]] = None,
+    share_groups_only: bool = False,
     limit: int = 20
 ) -> str:
     """
@@ -107,7 +142,7 @@ def search_items(
     Args:
         item_type: 类型过滤
             - "event": 只搜索日程
-            - "to do": 只搜索待办
+            - "todo": 只搜索待办
             - "reminder": 只搜索提醒
             - "all": 搜索所有类型
         keyword: 关键词搜索（标题/描述匹配）
@@ -118,21 +153,32 @@ def search_items(
         status: 状态过滤
             - 待办: "pending", "completed", "all"
             - 提醒: "active", "snoozed", "dismissed", "all"
-        limit: 返回数量上限，默认20
+        event_group: 日程组过滤（支持名称或UUID，仅对用户自己的日程生效）
+        share_groups: 分享组列表（支持分享组名称或ID）
+            - None（默认）: 返回用户自己的日程 + 所有分享组中他人的日程
+            - ["工作组"]: 指定分享组
+            - []（空列表）: 仅返回用户自己的日程，不包含分享组内容
+        share_groups_only: 是否仅搜索分享组内容
+            - False（默认）: 搜索用户自己的日程，并额外返回分享组中其他人的日程
+            - True: 仅搜索分享组的日程（包括自己分享的），需配合share_groups参数使用
+        limit: 返回数量上限，默认20，如果结果超出限制可增大此值
     
     Returns:
         格式化的搜索结果，每个结果有 #序号 可用于后续操作
+        注意：分享组中他人的日程为只读，无法编辑
     
     Examples:
-        - search_items(item_type="event", time_range="this_week")
-        - search_items(keyword="会议", item_type="all")
-        - search_items(item_type="todo", status="pending")
+        - search_items(item_type="event", time_range="this_week")  # 搜索本周日程
+        - search_items(keyword="会议", item_type="all")  # 关键词搜索
+        - search_items(item_type="event", share_groups=[])  # 仅用户自己的日程
+        - search_items(item_type="event", share_groups=["工作组"], share_groups_only=True)  # 仅搜索指定分享组
     """
     user = _get_user_from_config(config)
     session_id = _get_session_id_from_config(config)
     
     results = []
     result_types = []
+    result_editables = []  # 记录每个结果是否可编辑
     
     # 解析时间范围
     start_time, end_time = None, None
@@ -141,10 +187,147 @@ def search_items(
         if parsed:
             start_time, end_time = parsed
     
-    # 搜索日程
-    if item_type in ("event", "all"):
-        events = EventService.get_events(user)
-        for event in events:
+    # 解析事件组
+    event_group_id = None
+    if event_group:
+        event_group_id = EventGroupService.resolve_group_name(user, event_group)
+    
+    # 解析分享组
+    # share_group_ids: None 表示获取所有分享组，[] 表示不获取任何分享组
+    share_group_ids = None
+    skip_share_groups = False
+    if share_groups is not None:
+        if len(share_groups) == 0:
+            # 空列表表示不要分享组内容
+            skip_share_groups = True
+        else:
+            share_group_ids = ShareGroupService.resolve_share_group_names(user, share_groups)
+            if not share_group_ids:
+                # 指定了分享组但解析失败
+                skip_share_groups = True
+    
+    # 收集用户自己的事件ID（用于去重）
+    user_event_ids = set()
+    
+    # ===== 搜索用户自己的日程（非 share_groups_only 模式）=====
+    if not share_groups_only:
+        # 搜索日程
+        if item_type in ("event", "all"):
+            events = EventService.get_events(user)
+            for event in events:
+                # 事件组过滤（仅对用户自己的日程生效）
+                if event_group_id:
+                    if event.get('groupID') != event_group_id:
+                        continue
+                
+                # 时间过滤
+                if start_time and end_time:
+                    event_start = event.get('start', '')
+                    if event_start:
+                        try:
+                            event_dt = datetime.fromisoformat(event_start.replace('Z', '+00:00'))
+                            event_dt = event_dt.replace(tzinfo=None)
+                            if not (start_time <= event_dt <= end_time):
+                                continue
+                        except:
+                            pass
+                
+                # 关键词过滤
+                if keyword:
+                    title = event.get('title', '').lower()
+                    desc = event.get('description', '').lower()
+                    if keyword.lower() not in title and keyword.lower() not in desc:
+                        continue
+                
+                user_event_ids.add(event.get('id'))
+                results.append(event)
+                result_types.append('event')
+                result_editables.append(True)
+        
+        # 搜索待办
+        if item_type in ("todo", "all"):
+            todos = TodoService.get_todos(user)
+            for todo in todos:
+                # 状态过滤
+                if status and status != "all":
+                    if todo.get('status') != status:
+                        continue
+                
+                # 时间过滤（使用 due_date）
+                if start_time and end_time:
+                    due_date = todo.get('due_date', '')
+                    if due_date:
+                        try:
+                            due_dt = datetime.fromisoformat(due_date)
+                            if not (start_time.date() <= due_dt.date() <= end_time.date()):
+                                continue
+                        except:
+                            pass
+                
+                # 关键词过滤
+                if keyword:
+                    title = todo.get('title', '').lower()
+                    desc = todo.get('description', '').lower()
+                    if keyword.lower() not in title and keyword.lower() not in desc:
+                        continue
+                
+                results.append(todo)
+                result_types.append('todo')
+                result_editables.append(True)
+        
+        # 搜索提醒
+        if item_type in ("reminder", "all"):
+            reminders = ReminderService.get_reminders(user)
+            for reminder in reminders:
+                # 状态过滤
+                if status and status != "all":
+                    if reminder.get('status') != status:
+                        continue
+                
+                # 时间过滤
+                if start_time and end_time:
+                    trigger_time = reminder.get('trigger_time', '')
+                    if trigger_time:
+                        try:
+                            trigger_dt = datetime.fromisoformat(trigger_time.replace('Z', '+00:00'))
+                            trigger_dt = trigger_dt.replace(tzinfo=None)
+                            if not (start_time <= trigger_dt <= end_time):
+                                continue
+                        except:
+                            pass
+                
+                # 关键词过滤
+                if keyword:
+                    title = reminder.get('title', '').lower()
+                    content = reminder.get('content', '').lower()
+                    if keyword.lower() not in title and keyword.lower() not in content:
+                        continue
+                
+                results.append(reminder)
+                result_types.append('reminder')
+                result_editables.append(True)
+    
+    # ===== 搜索分享组日程 =====
+    shared_events = []
+    total_shared_before_filter = 0  # 记录过滤前的分享组日程总数
+    
+    # 只有在不跳过分享组时才搜索
+    if not skip_share_groups and (item_type in ("event", "all") or share_groups_only):
+        # 获取分享组日程
+        # exclude_own: 非 share_groups_only 模式下排除自己的日程避免重复
+        all_shared_events = ShareGroupService.get_all_share_groups_events(
+            user,
+            share_group_ids=share_group_ids,
+            exclude_own=not share_groups_only
+        )
+        
+        for event in all_shared_events:
+            event_id = event.get('id')
+            
+            # 去重检查（避免与用户自己的日程重复）
+            if event_id in user_event_ids:
+                continue
+            
             # 时间过滤
             if start_time and end_time:
                 event_start = event.get('start', '')
@@ -164,85 +347,104 @@ def search_items(
                 if keyword.lower() not in title and keyword.lower() not in desc:
                     continue
             
-            results.append(event)
-            result_types.append('event')
+            # 注意：不对分享组日程进行 event_group 过滤，因为用户无法获取他人的 groupID
+            
+            shared_events.append(event)
     
-    # 搜索待办
-    if item_type in ("todo", "all"):
-        todos = TodoService.get_todos(user)
-        for todo in todos:
-            # 状态过滤
-            if status and status != "all":
-                if todo.get('status') != status:
-                    continue
-            
-            # 时间过滤（使用 due_date）
-            if start_time and end_time:
-                due_date = todo.get('due_date', '')
-                if due_date:
-                    try:
-                        due_dt = datetime.fromisoformat(due_date)
-                        if not (start_time.date() <= due_dt.date() <= end_time.date()):
-                            continue
-                    except:
-                        pass
-            
-            # 关键词过滤
-            if keyword:
-                title = todo.get('title', '').lower()
-                desc = todo.get('description', '').lower()
-                if keyword.lower() not in title and keyword.lower() not in desc:
-                    continue
-            
-            results.append(todo)
-            result_types.append('todo')
+    # 记录完整搜索结果数量（在截断之前）
+    total_own_count = len(results)
+    total_shared_count = len(shared_events)
     
-    # 搜索提醒
-    if item_type in ("reminder", "all"):
-        reminders = ReminderService.get_reminders(user)
-        for reminder in reminders:
-            # 状态过滤
-            if status and status != "all":
-                if reminder.get('status') != status:
-                    continue
-            
-            # 时间过滤
-            if start_time and end_time:
-                trigger_time = reminder.get('trigger_time', '')
-                if trigger_time:
-                    try:
-                        trigger_dt = datetime.fromisoformat(trigger_time.replace('Z', '+00:00'))
-                        trigger_dt = trigger_dt.replace(tzinfo=None)
-                        if not (start_time <= trigger_dt <= end_time):
-                            continue
-                    except:
-                        pass
-            
-            # 关键词过滤
-            if keyword:
-                title = reminder.get('title', '').lower()
-                content = reminder.get('content', '').lower()
-                if keyword.lower() not in title and keyword.lower() not in content:
-                    continue
-            
-            results.append(reminder)
-            result_types.append('reminder')
+    # 处理 limit 限制
+    displayed_own_count = total_own_count
+    displayed_shared_count = total_shared_count
+    is_truncated = False
     
-    # 限制数量
-    if len(results) > limit:
+    # 优先显示用户自己的日程
+    if total_own_count > limit:
         results = results[:limit]
         result_types = result_types[:limit]
+        result_editables = result_editables[:limit]
+        displayed_own_count = limit
+        is_truncated = True
+        # 用户日程已超限，不显示分享组日程
+        shared_events = []
+        displayed_shared_count = 0
+    else:
+        # 用户日程未超限，计算分享组可用配额
+        shared_limit = limit - displayed_own_count
+        if total_shared_count > shared_limit:
+            shared_events = shared_events[:shared_limit]
+            displayed_shared_count = shared_limit
+            is_truncated = True
     
-    # 保存到缓存
+    # 保存到缓存（仅用户自己的可编辑结果）
     if session_id and results:
         CacheManager.save_mixed_search_cache(session_id, results, result_types)
     
     # 格式化输出
-    if not results:
+    output_parts = []
+    
+    if results:
+        output_parts.append(_format_items_list(results, result_types, result_editables))
+    
+    # 添加分享组日程（单独列出）
+    # 只有在有分享组日程要显示时才添加标题
+    if shared_events:
+        if output_parts:
+            output_parts.append("\n\n" + "=" * 40)
+            output_parts.append("📤 以下是分享组中其他成员的日程（只读，无法编辑）：")
+        
+        # 格式化分享组日程，序号从 displayed_own_count + 1 开始
+        shared_lines = []
+        for i, event in enumerate(shared_events, displayed_own_count + 1):
+            shared_lines.append(_format_item_for_display(
+                event, i, 'shared_event', 
+                is_shared=True, 
+                editable=False
+            ))
+        output_parts.append("\n\n".join(shared_lines))
+        
+        # 注意：分享组日程不加入缓存，因为无法编辑
+    
+    # 计算显示和实际总数
+    displayed_total = displayed_own_count + displayed_shared_count
+    actual_total = total_own_count + total_shared_count
+    
+    if displayed_total == 0:
         return "未找到符合条件的项目"
     
-    output = _format_items_list(results, result_types)
-    output += f"\n\n共找到 {len(results)} 个项目。使用 #序号 引用（如 update_item(identifier='#1', ...)）"
+    output = "\n".join(output_parts)
+    
+    # 根据 item_type 确定类型名称
+    type_name_map = {
+        "event": "日程",
+        "todo": "待办",
+        "reminder": "提醒",
+        "all": "项目"
+    }
+    item_type_name = type_name_map.get(item_type, "项目")
+    
+    # 构建统计信息
+    if total_shared_count > 0:
+        # 有分享组日程
+        if is_truncated:
+            output += f"\n\n共找到 {total_own_count} 个用户{item_type_name}，{total_shared_count} 个共享日程，显示前 {displayed_total} 个"
+            output += "。使用 #序号 引用（如 update_item(identifier='#1', ...)）"
+            output += f"\n💡 提示：增大 limit 参数（当前为 {limit}）以获取完整结果"
+        else:
+            output += f"\n\n共找到 {total_own_count} 个用户{item_type_name}，{total_shared_count} 个共享日程"
+            output += "。使用 #序号 引用（如 update_item(identifier='#1', ...)）"
+        output += "\n⚠️ 注意：分享组中他人的日程无法编辑或删除"
+    else:
+        # 只有用户自己的结果
+        if is_truncated:
+            output += f"\n\n共找到 {total_own_count} 个用户{item_type_name}，显示前 {displayed_own_count} 个"
+            output += "。使用 #序号 引用（如 update_item(identifier='#1', ...)）"
+            output += f"\n💡 提示：增大 limit 参数（当前为 {limit}）以获取完整结果"
+        else:
+            output += f"\n\n共找到 {total_own_count} 个用户{item_type_name}"
+            output += "。使用 #序号 引用（如 update_item(identifier='#1', ...)）"
     
     return output
 
@@ -296,7 +498,7 @@ def create_item(
         event_group: 事件组（支持名称或UUID，如 "工作" 会自动查找对应UUID）
         importance: 重要程度
         urgency: 紧急程度
-        shared_to_groups: 分享到的群组列表
+        shared_to_groups: 分享到的群组列表（支持群组名称或ID，如 ["工作协作组", "家庭日程"]）
         ddl: 截止日期
         
         # 待办专用
@@ -335,6 +537,16 @@ def create_item(
                 else:
                     return f"错误：未找到事件组 '{event_group}'。请先使用 get_event_groups 查看可用的事件组。"
             
+            # 解析分享组（支持名称或ID）
+            resolved_share_groups = None
+            if shared_to_groups:
+                resolved_share_groups = ShareGroupService.resolve_share_group_names(user, shared_to_groups)
+                if not resolved_share_groups and shared_to_groups:
+                    # 尝试列出可用的分享组
+                    available = ShareGroupService.get_user_share_groups(user)
+                    available_names = [g.get('share_group_name', '') for g in available]
+                    return f"错误：未找到指定的分享组 {shared_to_groups}。可用的分享组有: {', '.join(available_names) if available_names else '无'}"
+            
             result = EventService.create_event(
                 user=user,
                 title=title,
@@ -345,13 +557,14 @@ def create_item(
                 urgency=urgency or "",
                 groupID=group_id,
                 rrule=rrule,
-                shared_to_groups=shared_to_groups,
+                shared_to_groups=resolved_share_groups,
                 ddl=ddl or "",
                 session_id=session_id
             )
             
             repeat_info = f"，重复规则: {RepeatParser.to_human_readable(rrule)}" if rrule else ""
-            return f"✅ 日程创建成功！\n标题: {title}\n时间: {start} ~ {end}{repeat_info}\nID: {result.get('id')}"
+            share_info = f"，已分享到: {', '.join(shared_to_groups)}" if shared_to_groups and resolved_share_groups else ""
+            return f"✅ 日程创建成功！\n标题: {title}\n时间: {start} ~ {end}{repeat_info}{share_info}\nID: {result.get('id')}"
         
         elif item_type == "todo":
             # To do 使用 importance/urgency 而不是 priority
@@ -452,10 +665,10 @@ def update_item(
         # 日程专用
         start: 新开始时间
         end: 新结束时间
-        event_group: 新事件组（名称）
+        event_group: 新事件组（名称或UUID）
         importance: 重要程度 ("important", "not-important", "")
         urgency: 紧急程度 ("urgent", "not-urgent", "")
-        shared_to_groups: 分享群组列表
+        shared_to_groups: 分享群组列表（支持群组名称或ID，传空列表[]可清除分享）
         ddl: 截止日期
         
         # 待办专用
@@ -519,6 +732,18 @@ def update_item(
                 else:
                     return f"错误：未找到事件组 '{event_group}'"
             
+            # 解析分享组（支持名称或ID）
+            resolved_share_groups = None
+            if shared_to_groups is not None:
+                if shared_to_groups:  # 非空列表
+                    resolved_share_groups = ShareGroupService.resolve_share_group_names(user, shared_to_groups)
+                    if not resolved_share_groups:
+                        available = ShareGroupService.get_user_share_groups(user)
+                        available_names = [g.get('share_group_name', '') for g in available]
+                        return f"错误：未找到指定的分享组 {shared_to_groups}。可用的分享组有: {', '.join(available_names) if available_names else '无'}"
+                else:  # 空列表，表示清除分享
+                    resolved_share_groups = []
+            
             # 检查是否是重复日程，决定使用哪个方法
             event = EventService.get_event_by_id(user, item_uuid)
             is_recurring = event and (event.get('is_recurring') or event.get('series_id'))
@@ -540,7 +765,7 @@ def update_item(
                     groupID=group_id,
                     rrule=rrule,
                     ddl=ddl,
-                    shared_to_groups=shared_to_groups,
+                    shared_to_groups=resolved_share_groups,
                     session_id=session_id
                 )
                 scope_desc = {"all": "整个系列", "future": "此实例及之后", "from_time": f"从 {from_time} 开始"}.get(edit_scope, edit_scope)
@@ -563,7 +788,7 @@ def update_item(
                         groupID=group_id,
                         rrule=rrule,
                         ddl=ddl,
-                        shared_to_groups=shared_to_groups,
+                        shared_to_groups=resolved_share_groups,
                         session_id=session_id
                     )
                     return f"✅ 日程实例已独立并更新！\n（已从重复系列中分离）\nID: {item_uuid}"
@@ -580,7 +805,7 @@ def update_item(
                         urgency=urgency,
                         groupID=group_id,
                         rrule=rrule,
-                        shared_to_groups=shared_to_groups,
+                        shared_to_groups=resolved_share_groups,
                         ddl=ddl,
                         session_id=session_id,
                         _clear_rrule=clear_repeat
@@ -835,6 +1060,43 @@ def get_event_groups(config: RunnableConfig) -> str:
 
 
 @tool
+def get_share_groups(config: RunnableConfig) -> str:
+    """
+    获取用户所在的所有分享组列表
+    
+    用于查看可用的分享组，以便在创建/更新日程时设置 shared_to_groups 参数，
+    或在搜索时使用 share_groups 参数筛选。
+    
+    Returns:
+        分享组列表，包含名称、角色和成员数
+    
+    Examples:
+        调用后返回:
+        #1 工作协作组 (群主, 5人)
+        #2 家庭日程 (成员, 3人)
+        #3 项目组 (管理员, 8人)
+        
+        使用示例：
+        - 创建日程并分享: create_item(..., shared_to_groups=["工作协作组"])
+        - 搜索分享组日程: search_items(share_groups=["工作协作组"], share_groups_only=True)
+    """
+    user = _get_user_from_config(config)
+    
+    try:
+        # 强制刷新以获取最新数据（用户可能刚加入/退出分享组）
+        groups = ShareGroupService.get_user_share_groups(user, force_refresh=True)
+        
+        if not groups:
+            return "暂无加入的分享组。可以创建或加入分享组后，与他人共享日程。"
+        
+        return ShareGroupService.format_share_groups_for_display(groups)
+        
+    except Exception as e:
+        logger.error(f"获取分享组失败: {e}", exc_info=True)
+        return f"获取分享组失败: {str(e)}"
+
+
+@tool
 @agent_transaction(action_type="complete_todo")
 def complete_todo(config: RunnableConfig, identifier: str) -> str:
     """
@@ -890,5 +1152,6 @@ UNIFIED_PLANNER_TOOLS = [
     update_item,
     delete_item,
     get_event_groups,
+    get_share_groups,
     complete_todo,
 ]

@@ -637,3 +637,52 @@ class EventGroupCache(models.Model):
                 }
         
         self.save()
+
+
+class ShareGroupCache(models.Model):
+    """
+    分享组名称缓存
+    自动建立名称→ID映射，减少用户输入复杂度
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='share_group_cache')
+    
+    # 名称 → ID 映射
+    # 格式: {"工作协作组": "share_group_xxx", "家庭日程": "share_group_yyy", ...}
+    name_to_id = models.JSONField(default=dict, help_text="名称到ID的映射")
+    
+    # ID → 完整信息 反向映射（用于展示）
+    # 格式: {"share_group_xxx": {"share_group_name": "工作协作组", "role": "owner", ...}, ...}
+    id_to_info = models.JSONField(default=dict, help_text="ID到完整信息的映射")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "分享组缓存"
+        verbose_name_plural = "分享组缓存"
+    
+    def __str__(self):
+        return f"ShareGroupCache for {self.user.username}"
+    
+    def get_id_by_name(self, name: str) -> str:
+        """根据名称获取ID"""
+        return self.name_to_id.get(name.lower(), None)
+    
+    def get_info_by_id(self, share_group_id: str) -> dict:
+        """根据ID获取完整信息"""
+        return self.id_to_info.get(share_group_id, None)
+    
+    def get_name_by_id(self, share_group_id: str) -> str:
+        """根据ID获取名称"""
+        info = self.id_to_info.get(share_group_id, {})
+        return info.get('share_group_name', '')
+    
+    def is_stale(self, ttl_seconds: int = 300) -> bool:
+        """检查缓存是否过期（默认5分钟）"""
+        from django.utils import timezone
+        from datetime import timedelta
+        return timezone.now() - self.updated_at > timedelta(seconds=ttl_seconds)
+    
+    def is_valid(self, ttl_seconds: int = 3600) -> bool:
+        """检查缓存是否有效（未过期）"""
+        return not self.is_stale(ttl_seconds)
