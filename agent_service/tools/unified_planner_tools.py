@@ -28,6 +28,14 @@ from .cache_manager import CacheManager
 from .repeat_parser import RepeatParser
 from .event_group_service import EventGroupService
 from .share_group_service import ShareGroupService
+from .conflict_analyzer import (
+    detect_hard_conflicts,
+    analyze_daily_density,
+    get_user_personal_info,
+    analyze_with_llm,
+    format_hard_conflicts_report,
+    format_density_report
+)
 
 from agent_service.utils import agent_transaction
 from logger import logger
@@ -1259,6 +1267,229 @@ def complete_todo(config: RunnableConfig, identifier: str) -> str:
         return f"❌ 完成失败: {str(e)}"
 
 
+@tool
+def check_schedule_conflicts(
+    config: RunnableConfig,
+    time_range: str = "this_week",
+    include_share_groups: bool = True,
+    analysis_focus: Optional[List[Literal["conflicts", "density", "reasonability"]]] = None
+) -> str:
+    """
+    智能日程冲突检查：结合算法检测和LLM分析，给出个性化的日程优化建议
+    
+    工作流程：
+    1. 第一阶段：硬冲突检测（算法）- 找出时间重叠的事件
+    2. 第二阶段：LLM智能分析 - 结合用户偏好，判断真实冲突并给出建议
+    
+    Args:
+        time_range: 时间范围，支持：
+            - 预设: "today", "tomorrow", "this_week", "next_week", "this_month"
+            - 中文: "今天", "明天", "本周", "下周", "本月"
+            - 自定义: "2024-01-15 ~ 2024-01-20"
+        include_share_groups: 是否包含分享组日程（他人日程也会占用时间）
+        analysis_focus: 分析重点，默认全部检查
+            - "conflicts": 冲突真实性判断（有些事情可以同时进行）
+            - "density": 工作密度分析（过载、缺少休息等）
+            - "reasonability": 合理性审查（深夜会议、超长事件等）
+    
+    Returns:
+        包含硬冲突检测结果和LLM智能分析的完整报告
+    
+    示例:
+        check_schedule_conflicts(time_range="this_week")
+        check_schedule_conflicts(time_range="2024-01-15 ~ 2024-01-20", analysis_focus=["conflicts"])
+    """
+    user = _get_user_from_config(config)
+    session_id = _get_session_id_from_config(config)
+    
+    # 默认分析所有方面
+    if analysis_focus is None:
+        analysis_focus = ["conflicts", "density", "reasonability"]
+    
+    # 解析时间范围
+    start_date, end_date = TimeRangeParser.parse(time_range)
+    if not start_date or not end_date:
+        return f"❌ 无法解析时间范围: {time_range}"
+    
+    time_range_display = f"{start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')}"
+    
+    # 辅助函数：检查事件是否在时间范围内
+    def event_in_range(event: dict) -> bool:
+        from agent_service.tools.conflict_analyzer import parse_datetime
+        event_start = parse_datetime(event.get('start', ''))
+        event_end = parse_datetime(event.get('end', ''))
+        if not event_start or not event_end:
+            return False
+        # 事件结束时间在范围开始之后，且事件开始时间在范围结束之前
+        return event_end >= start_date and event_start <= end_date
+    
+    # ==========================================
+    # 收集所有日程
+    # ==========================================
+    all_events = []
+    event_index = 1
+    
+    # 1. 用户自己的日程
+    try:
+        user_events = EventService.get_events(user=user)
+        
+        # 过滤时间范围内的事件
+        for event in user_events:
+            if event_in_range(event):
+                event['_index'] = event_index
+                event['_editable'] = True
+                event['_source'] = 'user'
+                all_events.append(event)
+                event_index += 1
+            
+    except Exception as e:
+        logger.error(f"获取用户日程失败: {e}")
+    
+    # 2. 分享组日程（可选）
+    if include_share_groups:
+        try:
+            share_groups = ShareGroupService.get_user_share_groups(user, force_refresh=True)
+            logger.info(f"[冲突检查] 找到 {len(share_groups)} 个分享组")
+            
+            for group in share_groups:
+                group_id = group.get('share_group_id')  # 修复：正确的键名
+                if not group_id:
+                    logger.warning(f"[冲突检查] 跳过无 ID 的分享组: {group}")
+                    continue
+                    
+                group_name = group.get('share_group_name', '未命名分享组')  # 修复：正确的键名
+                
+                # get_share_group_events 返回 (events, members) 元组
+                shared_events, members = ShareGroupService.get_share_group_events(
+                    user=user,
+                    share_group_id=str(group_id)
+                )
+                
+                logger.info(f"[冲突检查] 分享组 {group_name}: 获取到 {len(shared_events)} 个日程, {len(members)} 个成员")
+                
+                # 创建成员ID到用户名的映射
+                member_map = {m['user_id']: m['username'] for m in members}
+                
+                added_count = 0
+                skipped_own = 0
+                skipped_range = 0
+                
+                for event in shared_events:
+                    # 跳过用户自己的日程（避免重复）
+                    if event.get('is_own', False):
+                        skipped_own += 1
+                        continue
+                    
+                    # 过滤时间范围
+                    if not event_in_range(event):
+                        skipped_range += 1
+                        continue
+                    
+                    # 添加所有者用户名
+                    owner_id = event.get('owner_id') or event.get('user_id')
+                    if owner_id:
+                        event['_owner_username'] = member_map.get(owner_id, '未知用户')
+                    
+                    event['_index'] = event_index
+                    event['_editable'] = False
+                    event['_source'] = 'share_group'
+                    event['_share_group_name'] = group_name
+                    all_events.append(event)
+                    added_count += 1
+                    logger.debug(f"添加分享组日程 #{event_index}: {event.get('title')} (来自 {group_name})")
+                    event_index += 1
+                
+                logger.info(f"[冲突检查] 分享组 {group_name}: 添加 {added_count} 个, 跳过自己的 {skipped_own} 个, 跳过时间范围外 {skipped_range} 个")
+                    
+        except Exception as e:
+            logger.error(f"获取分享组日程失败: {e}")
+    
+    if not all_events:
+        return f"📅 时间范围 {time_range_display} 内没有找到任何日程"
+    
+    # ==========================================
+    # 第一阶段：硬冲突检测（算法）
+    # ==========================================
+    hard_conflicts = detect_hard_conflicts(all_events)
+    daily_density = analyze_daily_density(all_events)
+    
+    # 统计日程数量
+    user_event_count = sum(1 for e in all_events if e.get('_source') == 'user')
+    others_event_count = sum(1 for e in all_events if e.get('_source') == 'share_group')
+    
+    logger.info(f"[冲突检查] 收集到 {len(all_events)} 个日程: {user_event_count} 个用户日程, {others_event_count} 个分享组日程")
+    
+    # 构建报告头部
+    output_parts = []
+    output_parts.append(f"🔍 **智能日程冲突检查报告**")
+    output_parts.append(f"时间范围: {time_range_display}")
+    output_parts.append(f"分析日程: {len(all_events)} 个")
+    output_parts.append(f"  - 用户自己的日程: {user_event_count} 个")
+    if others_event_count > 0:
+        output_parts.append(f"  - 分享组中他人日程: {others_event_count} 个")
+    output_parts.append("")
+    output_parts.append("━" * 40)
+    output_parts.append("📋 **第一阶段：硬冲突检测（算法）**")
+    output_parts.append("━" * 40)
+    output_parts.append("")
+    output_parts.append(format_hard_conflicts_report(hard_conflicts))
+    
+    # 添加工作密度概览
+    output_parts.append("")
+    output_parts.append("📊 **每日工作密度**")
+    output_parts.append(format_density_report(daily_density))
+    
+    # ==========================================
+    # 第二阶段：LLM 智能分析
+    # ==========================================
+    output_parts.append("")
+    output_parts.append("━" * 40)
+    output_parts.append("🤖 **第二阶段：智能分析（结合个人偏好）**")
+    output_parts.append("━" * 40)
+    output_parts.append("")
+    
+    # 获取用户个人偏好
+    personal_info = get_user_personal_info(user)
+    
+    if personal_info:
+        output_parts.append(f"📝 已加载 {len(personal_info)} 条个人偏好数据")
+    else:
+        output_parts.append("📝 暂无个人偏好数据（建议添加以获得更个性化的分析）")
+    output_parts.append("")
+    
+    # 调用 LLM 分析
+    try:
+        # 转换为 List[str] 类型
+        focus_list: List[str] = list(analysis_focus) if analysis_focus else []
+        
+        llm_analysis, token_info = analyze_with_llm(
+            user=user,
+            events=all_events,
+            hard_conflicts=hard_conflicts,
+            personal_info=personal_info,
+            daily_density=daily_density,
+            analysis_focus=focus_list
+        )
+        
+        output_parts.append(llm_analysis)
+        
+        # 添加 Token 使用信息
+        if token_info:
+            output_parts.append("")
+            output_parts.append("━" * 40)
+            in_tokens = token_info.get('input_tokens', 0)
+            out_tokens = token_info.get('output_tokens', 0)
+            model_id = token_info.get('model_id', 'unknown')
+            output_parts.append(f"📈 分析消耗: {in_tokens + out_tokens} tokens (模型: {model_id})")
+            
+    except Exception as e:
+        logger.exception(f"LLM 分析失败: {e}")
+        output_parts.append(f"⚠️ LLM 分析失败: {str(e)}")
+        output_parts.append("请检查模型配置或稍后重试。")
+    
+    return "\n".join(output_parts)
+
+
 # 导出的工具列表
 UNIFIED_PLANNER_TOOLS = [
     search_items,
@@ -1268,4 +1499,5 @@ UNIFIED_PLANNER_TOOLS = [
     get_event_groups,
     get_share_groups,
     complete_todo,
+    check_schedule_conflicts,
 ]

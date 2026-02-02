@@ -894,6 +894,7 @@ def get_available_tools(request):
         "create_item": "创建项目",
         "update_item": "更新项目",
         "delete_item": "删除项目",
+        "check_schedule_conflicts": "冲突检测",
         "get_event_groups": "获取日程组",
         "get_share_groups": "获取分享组",
         "complete_todo": "完成待办",

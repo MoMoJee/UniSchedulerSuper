@@ -25,7 +25,8 @@ from agent_service.tools.planner_tools import (
 # 导入统一 Planner 工具（优化版）
 from agent_service.tools.unified_planner_tools import (
     search_items, create_item, update_item, delete_item,
-    get_event_groups, get_share_groups, complete_todo, UNIFIED_PLANNER_TOOLS
+    get_event_groups, get_share_groups, complete_todo, 
+    check_schedule_conflicts, UNIFIED_PLANNER_TOOLS
 )
 from agent_service.tools.memory_tools import save_memory, search_memory, get_recent_memories
 # 导入新的记忆工具 V2
@@ -110,6 +111,7 @@ PLANNER_TOOLS = {
     "get_event_groups": get_event_groups,
     "get_share_groups": get_share_groups,
     "complete_todo": complete_todo,
+    "check_schedule_conflicts": check_schedule_conflicts,
 }
 
 # Memory 工具 (旧版，保留兼容)
@@ -167,6 +169,7 @@ TOOL_CATEGORIES = {
             "create_item": "创建日程/待办/提醒，支持事件组名称和简化重复规则",
             "update_item": "更新项目，支持 #序号 引用，增量更新",
             "delete_item": "删除项目，支持系列删除控制",
+            "check_schedule_conflicts": "冲突检测",
             "get_event_groups": "获取事件组列表",
             "get_share_groups": "获取用户所在的分享组列表",
             "complete_todo": "快捷完成待办",
@@ -380,6 +383,7 @@ def build_system_prompt(user, active_tool_names: List[str], current_time: str) -
         capabilities.append("  - update_item: 更新项目，identifier 支持 #1/#2、UUID、标题匹配")
         capabilities.append("  - delete_item: 删除项目，支持系列删除")
         capabilities.append("  - complete_todo: 快捷完成待办")
+        capabilities.append("  - check_schedule_conflicts: 智能冲突检查，结合算法检测+LLM分析+个人偏好")
     # 检查旧版 Planner 工具
     elif any(t in active_tool_names for t in PLANNER_TOOLS_LEGACY.keys()):
         capabilities.append("- 管理日程 (Events): 查询、创建、更新、删除")
