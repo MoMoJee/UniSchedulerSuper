@@ -365,13 +365,347 @@
     background: rgba(0, 0, 0, 0.1);
     padding: 2px 6px;
     border-radius: 4px;
-    font-family: 'Fira Code', monospace;
+    font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
     font-size: 0.85em;
 }
 
 .user-message .message-content code {
     background: rgba(255, 255, 255, 0.2);
 }
+
+/* === Markdown 元素样式 === */
+
+/* 标题样式 */
+.message-content h1,
+.message-content h2,
+.message-content h3,
+.message-content h4,
+.message-content h5,
+.message-content h6 {
+    margin: 0.8em 0 0.5em 0;
+    font-weight: 600;
+    line-height: 1.3;
+    color: inherit;
+}
+
+.message-content h1:first-child,
+.message-content h2:first-child,
+.message-content h3:first-child,
+.message-content h4:first-child,
+.message-content h5:first-child,
+.message-content h6:first-child {
+    margin-top: 0;
+}
+
+.message-content h1 { font-size: 1.6em; border-bottom: 2px solid rgba(0,0,0,0.1); padding-bottom: 0.3em; }
+.message-content h2 { font-size: 1.4em; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 0.3em; }
+.message-content h3 { font-size: 1.2em; }
+.message-content h4 { font-size: 1.1em; }
+.message-content h5 { font-size: 1.0em; }
+.message-content h6 { font-size: 0.9em; color: rgba(0,0,0,0.6); }
+
+.user-message .message-content h1,
+.user-message .message-content h2 {
+    border-bottom-color: rgba(255,255,255,0.3);
+}
+
+.user-message .message-content h6 {
+    color: rgba(255,255,255,0.8);
+}
+
+/* 列表样式 */
+.message-content ul,
+.message-content ol {
+    margin: 0.5em 0;
+    padding-left: 1.8em;
+}
+
+.message-content ul {
+    list-style-type: disc;
+}
+
+.message-content ol {
+    list-style-type: decimal;
+}
+
+.message-content li {
+    margin: 0.3em 0;
+    line-height: 1.6;
+}
+
+.message-content li::marker {
+    color: var(--primary-color, #0d6efd);
+}
+
+.user-message .message-content li::marker {
+    color: rgba(255,255,255,0.8);
+}
+
+/* 引用块样式 */
+.message-content blockquote {
+    margin: 0.8em 0;
+    padding: 0.5em 1em;
+    border-left: 4px solid var(--primary-color, #0d6efd);
+    background: rgba(0, 0, 0, 0.03);
+    font-style: italic;
+    color: inherit;
+}
+
+.user-message .message-content blockquote {
+    border-left-color: rgba(255,255,255,0.5);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* 代码块样式 */
+.message-content pre {
+    margin: 0.8em 0;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 6px;
+    overflow-x: auto;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.message-content pre code {
+    background: none;
+    padding: 0;
+    font-size: 0.9em;
+    line-height: 1.5;
+    display: block;
+}
+
+.user-message .message-content pre {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* 分隔线样式 */
+.message-content hr {
+    margin: 1em 0;
+    border: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.user-message .message-content hr {
+    border-top-color: rgba(255, 255, 255, 0.3);
+}
+
+/* 链接样式 */
+.message-content a {
+    color: var(--primary-color, #0d6efd);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-bottom-color 0.2s;
+}
+
+.message-content a:hover {
+    border-bottom-color: var(--primary-color, #0d6efd);
+}
+
+.user-message .message-content a {
+    color: rgba(255, 255, 255, 0.9);
+    border-bottom-color: rgba(255, 255, 255, 0.3);
+}
+
+.user-message .message-content a:hover {
+    color: white;
+    border-bottom-color: white;
+}
+
+/* 删除线样式 */
+.message-content del {
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+/* 图片样式 */
+.message-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 0.5em 0;
+    display: block;
+}
+
+/* 段落样式 */
+.message-content p {
+    margin: 0.5em 0;
+}
+
+.message-content p:first-child {
+    margin-top: 0;
+}
+
+.message-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* 强调样式 */
+.message-content strong {
+    font-weight: 600;
+}
+
+.message-content em {
+    font-style: italic;
+}
+
+/* 表格样式 */
+.message-content table.markdown-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.8em 0;
+    font-size: 0.9em;
+    background: var(--bg-primary, #fff);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.message-content table.markdown-table thead {
+    background: var(--primary-color, #0d6efd);
+    color: white;
+}
+
+.message-content table.markdown-table th,
+.message-content table.markdown-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.message-content table.markdown-table th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85em;
+    letter-spacing: 0.5px;
+}
+
+.message-content table.markdown-table tbody tr:nth-child(even) {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.message-content table.markdown-table tbody tr:hover {
+    background: rgba(13, 110, 253, 0.05);
+}
+
+.user-message .message-content table.markdown-table {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.user-message .message-content table.markdown-table thead {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.user-message .message-content table.markdown-table th,
+.user-message .message-content table.markdown-table td {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.user-message .message-content table.markdown-table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.user-message .message-content table.markdown-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* 脚注样式 */
+.message-content .footnote-ref {
+    font-size: 0.8em;
+    vertical-align: super;
+    margin: 0 2px;
+}
+
+.message-content .footnote-ref a {
+    color: var(--primary-color, #0d6efd);
+    text-decoration: none;
+    padding: 0 3px;
+    border-radius: 3px;
+    transition: background 0.2s;
+}
+
+.message-content .footnote-ref a:hover {
+    background: rgba(13, 110, 253, 0.1);
+    border-bottom: none;
+}
+
+.message-content .footnotes {
+    margin-top: 1.5em;
+    padding-top: 1em;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    font-size: 0.85em;
+    color: rgba(0, 0, 0, 0.7);
+}
+
+.message-content .footnotes hr {
+    display: none;
+}
+
+.message-content .footnotes ol {
+    padding-left: 1.5em;
+}
+
+.message-content .footnotes li {
+    margin: 0.5em 0;
+}
+
+.message-content .footnote-backref {
+    margin-left: 0.3em;
+    text-decoration: none;
+    color: var(--primary-color, #0d6efd);
+}
+
+.message-content .footnote-backref:hover {
+    text-decoration: underline;
+}
+
+.user-message .message-content .footnote-ref a {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.user-message .message-content .footnote-ref a:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.user-message .message-content .footnotes {
+    border-top-color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.user-message .message-content .footnote-backref {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* 数学公式样式 */
+.message-content .math-block {
+    margin: 1em 0;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 6px;
+    overflow-x: auto;
+    text-align: center;
+}
+
+.message-content .math-inline {
+    padding: 0 4px;
+    display: inline-block;
+}
+
+.user-message .message-content .math-block {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* MathJax 渲染容器 */
+.message-content mjx-container {
+    display: inline-block;
+    margin: 0;
+}
+
+.message-content .math-block mjx-container {
+    display: block;
+}
+
+/* === End Markdown 元素样式 === */
 
 /* === 消息元数据 === */
 .message-meta {
@@ -671,6 +1005,89 @@
 [data-theme="dark"] .message-content {
     background: var(--bg-tertiary);
     color: var(--text-primary);
+}
+
+/* 深色主题 Markdown 元素适配 */
+[data-theme="dark"] .message-content h1,
+[data-theme="dark"] .message-content h2 {
+    border-bottom-color: rgba(255,255,255,0.15);
+}
+
+[data-theme="dark"] .message-content h6 {
+    color: rgba(255,255,255,0.6);
+}
+
+[data-theme="dark"] .message-content blockquote {
+    background: rgba(255, 255, 255, 0.05);
+    border-left-color: var(--primary-color, #4a9eff);
+}
+
+[data-theme="dark"] .message-content pre {
+    background: rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .message-content code {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .message-content hr {
+    border-top-color: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .message-content a {
+    color: #4a9eff;
+}
+
+[data-theme="dark"] .message-content a:hover {
+    border-bottom-color: #4a9eff;
+}
+
+/* 深色主题 - 表格样式 */
+[data-theme="dark"] .message-content table.markdown-table {
+    background: var(--bg-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .message-content table.markdown-table thead {
+    background: rgba(74, 158, 255, 0.2);
+    color: #4a9eff;
+}
+
+[data-theme="dark"] .message-content table.markdown-table th,
+[data-theme="dark"] .message-content table.markdown-table td {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .message-content table.markdown-table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="dark"] .message-content table.markdown-table tbody tr:hover {
+    background: rgba(74, 158, 255, 0.1);
+}
+
+/* 深色主题 - 脚注样式 */
+[data-theme="dark"] .message-content .footnote-ref a {
+    color: #4a9eff;
+}
+
+[data-theme="dark"] .message-content .footnote-ref a:hover {
+    background: rgba(74, 158, 255, 0.15);
+}
+
+[data-theme="dark"] .message-content .footnotes {
+    border-top-color: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+[data-theme="dark"] .message-content .footnote-backref {
+    color: #4a9eff;
+}
+
+/* 深色主题 - 数学公式样式 */
+[data-theme="dark"] .message-content .math-block {
+    background: rgba(0, 0, 0, 0.2);
 }
 
 [data-theme="dark"] .quick-prompt-btn {

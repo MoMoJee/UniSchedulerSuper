@@ -994,15 +994,170 @@ class AgentChat {
     }
 
     /**
-     * 格式化消息内容（简单 Markdown）
+     * 格式化消息内容（完整 Markdown 解析）
+     * 支持：标题、列表、表格、代码块、行内代码、粗体、斜体、链接、引用、分隔线、脚注、数学公式等
      */
     formatContent(content) {
         if (!content) return '';
-        return content
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/`(.*?)`/g, '<code>$1</code>')
-            .replace(/\n/g, '<br>');
+        
+        let html = content;
+        const footnotes = {}; // 存储脚注
+        
+        // 1. 转义 HTML 特殊字符（避免 XSS）
+        html = html
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        
+        // 2. 提取并保存脚注定义 [^1]: 注释内容
+        html = html.replace(/^\[\^(\w+)\]:\s*(.+)$/gm, (match, id, text) => {
+            footnotes[id] = text;
+            return ''; // 移除脚注定义
+        });
+        
+        // 3. 处理数学公式块（$$...$$）- 必须在代码块之前
+        html = html.replace(/\$\$([\s\S]*?)\$\$/g, (match, formula) => {
+            return `<div class="math-block" data-formula="${this.escapeHtml(formula.trim())}">\\[${formula.trim()}\\]</div>`;
+        });
+        
+        // 4. 处理行内数学公式（$...$）
+        html = html.replace(/\$([^\$\n]+?)\$/g, (match, formula) => {
+            return `<span class="math-inline" data-formula="${this.escapeHtml(formula.trim())}">\\(${formula.trim()}\\)</span>`;
+        });
+        
+        // 5. 处理代码块（```）- 必须在其他处理之前
+        html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+            const language = lang || 'plaintext';
+            return `<pre><code class="language-${language}">${code.trim()}</code></pre>`;
+        });
+        
+        // 6. 处理表格（| col1 | col2 |）
+        html = html.replace(/^\|(.+)\|\n\|[\s\-:|]+\|\n((?:\|.+\|\n?)+)/gm, (match, header, rows) => {
+            // 解析表头
+            const headers = header.split('|').map(h => h.trim()).filter(h => h);
+            const headerHtml = '<thead><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead>';
+            
+            // 解析行
+            const rowsArray = rows.trim().split('\n');
+            const rowsHtml = '<tbody>' + rowsArray.map(row => {
+                const cells = row.split('|').map(c => c.trim()).filter(c => c);
+                return '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+            }).join('') + '</tbody>';
+            
+            return `<table class="markdown-table">${headerHtml}${rowsHtml}</table>`;
+        });
+        
+        // 7. 处理标题（# ## ### 等）
+        html = html.replace(/^#{6}\s+(.+)$/gm, '<h6>$1</h6>');
+        html = html.replace(/^#{5}\s+(.+)$/gm, '<h5>$1</h5>');
+        html = html.replace(/^#{4}\s+(.+)$/gm, '<h4>$1</h4>');
+        html = html.replace(/^#{3}\s+(.+)$/gm, '<h3>$1</h3>');
+        html = html.replace(/^#{2}\s+(.+)$/gm, '<h2>$1</h2>');
+        html = html.replace(/^#{1}\s+(.+)$/gm, '<h1>$1</h1>');
+        
+        // 8. 处理引用块（> 开头）
+        html = html.replace(/^&gt;\s+(.+)$/gm, '<blockquote>$1</blockquote>');
+        // 合并连续的 blockquote
+        html = html.replace(/<\/blockquote>\n<blockquote>/g, '<br>');
+        
+        // 9. 处理无序列表（- 或 * 开头）
+        html = html.replace(/^[\-\*]\s+(.+)$/gm, '<li>$1</li>');
+        // 包裹在 ul 标签中
+        html = html.replace(/(<li>.*<\/li>)/s, (match) => {
+            return '<ul>' + match + '</ul>';
+        });
+        // 合并连续的 ul
+        html = html.replace(/<\/ul>\n<ul>/g, '');
+        
+        // 10. 处理有序列表（1. 2. 3. 开头）
+        html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+        // 如果有序列表项没有被无序列表包裹，则包裹在 ol 中
+        html = html.replace(/(?<!<ul>)(<li>.*<\/li>)(?!<\/ul>)/gs, (match) => {
+            if (!match.includes('<ul>')) {
+                return '<ol>' + match + '</ol>';
+            }
+            return match;
+        });
+        // 合并连续的 ol
+        html = html.replace(/<\/ol>\n<ol>/g, '');
+        
+        // 11. 处理分隔线（--- 或 ***）
+        html = html.replace(/^[\-\*]{3,}$/gm, '<hr>');
+        
+        // 12. 处理粗斜体（*** 或 ___）
+        html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+        html = html.replace(/___(.+?)___/g, '<strong><em>$1</em></strong>');
+        
+        // 13. 处理粗体（** 或 __）
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+        
+        // 14. 处理斜体（* 或 _）
+        html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+        html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+        
+        // 15. 处理删除线（~~）
+        html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
+        
+        // 16. 处理行内代码（`）
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+        
+        // 17. 处理脚注引用 [^1]
+        html = html.replace(/\[\^(\w+)\]/g, (match, id) => {
+            if (footnotes[id]) {
+                return `<sup class="footnote-ref"><a href="#fn-${id}" id="fnref-${id}">[${id}]</a></sup>`;
+            }
+            return match;
+        });
+        
+        // 18. 处理链接 [text](url)
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+        
+        // 19. 处理图片 ![alt](url)
+        html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; height: auto;">');
+        
+        // 20. 处理换行（两个空格+换行 或 单独的换行）
+        html = html.replace(/  \n/g, '<br>');
+        html = html.replace(/\n/g, '<br>');
+        
+        // 21. 处理段落（连续的非标签行）
+        // 简单处理：多个 <br> 替换为段落分隔
+        html = html.replace(/(<br>){2,}/g, '</p><p>');
+        html = '<p>' + html + '</p>';
+        // 清理不需要 p 标签的地方
+        html = html.replace(/<p><(h[1-6]|ul|ol|pre|blockquote|hr|table|div)/g, '<$1');
+        html = html.replace(/<\/(h[1-6]|ul|ol|pre|blockquote|hr|table|div)><\/p>/g, '</$1>');
+        html = html.replace(/<p><\/p>/g, '');
+        
+        // 22. 添加脚注列表（如果有）
+        if (Object.keys(footnotes).length > 0) {
+            let footnotesHtml = '<div class="footnotes"><hr><ol>';
+            for (const [id, text] of Object.entries(footnotes)) {
+                footnotesHtml += `<li id="fn-${id}">${text} <a href="#fnref-${id}" class="footnote-backref">↩</a></li>`;
+            }
+            footnotesHtml += '</ol></div>';
+            html += footnotesHtml;
+        }
+        
+        // 23. 触发 MathJax 渲染（如果已加载）
+        setTimeout(() => {
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise().catch((err) => {
+                    console.warn('MathJax 渲染失败:', err);
+                });
+            }
+        }, 100);
+        
+        return html;
+    }
+    
+    /**
+     * HTML 转义辅助函数
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     /**
