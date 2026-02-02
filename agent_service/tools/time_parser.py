@@ -20,7 +20,7 @@ class TimeRangeParser:
                 - 预置选项: today, yesterday, tomorrow, this_week, next_week, 
                            last_week, this_month, next_month, last_month
                 - 单个日期: "2025-01-15"
-                - 日期范围: "2025-01-15,2025-01-20"
+                - 日期范围: "2025-01-15,2025-01-20" 或 "2025-01-15 ~ 2025-01-20"
         
         Returns:
             (start_time, end_time) 元组，解析失败返回 (None, None)
@@ -28,7 +28,9 @@ class TimeRangeParser:
         if not time_range:
             return (None, None)
         
-        time_range = time_range.strip().lower()
+        # 保留原始字符串用于日期解析，转小写用于预置选项匹配
+        time_range_original = time_range.strip()
+        time_range_lower = time_range_original.lower()
         
         # 检查预置选项
         preset_handlers = {
@@ -54,27 +56,34 @@ class TimeRangeParser:
             '上个月': lambda: cls._get_month_range(-1),
         }
         
-        if time_range in preset_handlers:
-            return preset_handlers[time_range]()
+        if time_range_lower in preset_handlers:
+            return preset_handlers[time_range_lower]()
         
-        # 检查是否是日期范围 "2025-01-15,2025-01-20"
-        if ',' in time_range:
-            parts = time_range.split(',')
-            if len(parts) == 2:
-                try:
-                    start = cls._parse_date(parts[0].strip())
-                    end = cls._parse_date(parts[1].strip())
-                    if start and end:
-                        return (
-                            start.replace(hour=0, minute=0, second=0),
-                            end.replace(hour=23, minute=59, second=59)
-                        )
-                except:
-                    pass
+        # 检查是否是日期范围，支持多种分隔符: "," "~" " ~ " "到" " - "
+        # 优先检查 ~ 分隔符（支持前后有空格）
+        range_separators = [' ~ ', '~', ' - ', ',', '到']
+        parts = None
+        for sep in range_separators:
+            if sep in time_range_original:
+                parts = time_range_original.split(sep, 1)
+                if len(parts) == 2:
+                    break
+        
+        if parts and len(parts) == 2:
+            try:
+                start = cls._parse_date(parts[0].strip())
+                end = cls._parse_date(parts[1].strip())
+                if start and end:
+                    return (
+                        start.replace(hour=0, minute=0, second=0),
+                        end.replace(hour=23, minute=59, second=59)
+                    )
+            except:
+                pass
         
         # 单个日期
         try:
-            date = cls._parse_date(time_range)
+            date = cls._parse_date(time_range_original)
             if date:
                 return (
                     date.replace(hour=0, minute=0, second=0),
