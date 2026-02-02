@@ -405,12 +405,15 @@ class ShareGroupService:
             logger.error(f"更新分享组缓存失败: {e}")
     
     @classmethod
-    def format_share_groups_for_display(cls, groups: List[Dict[str, Any]]) -> str:
+    def format_share_groups_for_display(cls, groups: List[Dict[str, Any]], include_hint: bool = True) -> str:
         """
         将分享组列表格式化为显示字符串
         
+        使用 #s 前缀区分分享组和日程/待办/提醒的编号
+        
         Args:
             groups: 分享组列表
+            include_hint: 是否包含使用提示
         
         Returns:
             格式化的字符串
@@ -424,6 +427,11 @@ class ShareGroupService:
             role = group.get('role', 'member')
             role_display = {'owner': '群主', 'admin': '管理员', 'member': '成员'}.get(role, role)
             member_count = group.get('member_count', 0)
-            lines.append(f"#{i} {name} ({role_display}, {member_count}人)")
+            lines.append(f"#s{i} {name} ({role_display}, {member_count}人)")
         
-        return "\n".join(lines)
+        result = "\n".join(lines)
+        
+        if include_hint:
+            result += "\n\n💡 使用 #s序号 或组名引用分享组（如 share_groups=['#s1'] 或 share_groups=['工作协作组']）"
+        
+        return result

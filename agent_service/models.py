@@ -520,21 +520,35 @@ class AgentTransaction(models.Model):
 class SearchResultCache(models.Model):
     """
     搜索结果缓存 - 存储编号到UUID的映射
-    支持会话级别存储和回滚同步清除
+    
+    支持智能去重和会话级持久化:
+    - 同一个UUID在不同搜索中复用相同编号
+    - 使用LRU策略限制缓存大小
+    - 会话级别存储，支持回滚同步清除
     """
+    # 最大缓存项目数
+    MAX_CACHE_SIZE = 100
+    
     session = models.ForeignKey(AgentSession, on_delete=models.CASCADE, related_name='search_caches')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='search_result_caches')
     
-    # 缓存的结果类型: event, to do, reminder, mixed (混合搜索)
+    # 缓存的结果类型: event, todo, reminder, mixed (混合搜索)
     result_type = models.CharField(max_length=20, help_text="event/todo/reminder/mixed")
     
     # 编号 → UUID 映射 (JSON)
-    # 格式: {"#1": {"uuid": "xxx", "type": "event"}, "#2": {"uuid": "yyy", "type": "to do"}}
+    # 格式: {"#1": {"uuid": "xxx", "type": "event", "title": "会议", "last_seen": 1738483200}, ...}
     index_mapping = models.JSONField(default=dict, help_text="编号到UUID的映射")
+    
+    # UUID → 编号 反向映射 (JSON) - 用于快速查找和去重
+    # 格式: {"uuid-xxx": "#1", "uuid-yyy": "#2", ...}
+    uuid_to_index = models.JSONField(default=dict, help_text="UUID到编号的反向映射")
     
     # 名称 → UUID 映射 (JSON) - 用于按标题匹配
     # 格式: {"会议": {"uuid": "xxx", "type": "event"}, ...}
     title_mapping = models.JSONField(default=dict, help_text="标题到UUID的映射")
+    
+    # 下一个可用编号（从1开始递增）
+    next_index = models.IntegerField(default=1, help_text="下一个可用编号")
     
     # 最后一次查询的筛选条件（用于调试）
     query_params = models.JSONField(default=dict, help_text="查询参数")
@@ -560,6 +574,10 @@ class SearchResultCache(models.Model):
         """根据编号获取UUID和类型"""
         return self.index_mapping.get(index, None)
     
+    def get_index_by_uuid(self, uuid: str) -> str:
+        """根据UUID获取编号"""
+        return self.uuid_to_index.get(uuid, None)
+    
     def get_uuid_by_title(self, title: str) -> dict:
         """根据标题获取UUID和类型（模糊匹配）"""
         # 精确匹配
@@ -570,6 +588,37 @@ class SearchResultCache(models.Model):
             if title in cached_title or cached_title in title:
                 return info
         return None
+    
+    def cleanup_lru(self):
+        """
+        清理最久未使用的缓存项，保持在 MAX_CACHE_SIZE 以内
+        """
+        if len(self.index_mapping) <= self.MAX_CACHE_SIZE:
+            return
+        
+        # 按 last_seen 排序
+        sorted_items = sorted(
+            self.index_mapping.items(),
+            key=lambda x: x[1].get('last_seen', 0)
+        )
+        
+        # 计算需要删除的数量
+        to_delete = len(self.index_mapping) - self.MAX_CACHE_SIZE
+        
+        # 删除最旧的项目
+        for idx, (index_key, info) in enumerate(sorted_items):
+            if idx >= to_delete:
+                break
+            item_uuid = info.get('uuid')
+            item_title = info.get('title', '')
+            
+            # 从各个映射中删除
+            if index_key in self.index_mapping:
+                del self.index_mapping[index_key]
+            if item_uuid and item_uuid in self.uuid_to_index:
+                del self.uuid_to_index[item_uuid]
+            if item_title and item_title in self.title_mapping:
+                del self.title_mapping[item_title]
 
 
 class EventGroupCache(models.Model):

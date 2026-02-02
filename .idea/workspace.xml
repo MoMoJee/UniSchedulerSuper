@@ -4,13 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260131_2345 development&#10;&#10;新增 飞常准 VariFlight MCP 工具&#10;将 AMAP 的 MCP 配置整合到总 MCP 配置中">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="升级 search_items 的搜索和缓存功能，支持多轮调用&#10;区分 get_event_groups 和 get_share_groups 的返回结果#代号&#10;更新 search_items 的 time_range 解析工具 time_parser 以支持多种日期范围分隔符&#10;优化 search_items 中的搜索结果展示逻辑，区分用户自己的被分享日程和他人的日程">
       <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/agent_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/tools/unified_planner_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/tools/unified_planner_tools.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/views_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_api.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -22,7 +17,7 @@
     <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="524" />
+    <option name="cachedIndexableFilesCount" value="526" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -73,6 +68,9 @@
   </component>
   <component name="PerforceDirect.Settings">
     <option name="CHARSET" value="none" />
+  </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="AISelfReview" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 7
@@ -376,23 +374,7 @@
       <workItem from="1769503142225" duration="20870000" />
       <workItem from="1769588629076" duration="9579000" />
       <workItem from="1769859963031" duration="11300000" />
-      <workItem from="1769873648853" duration="12022000" />
-    </task>
-    <task id="LOCAL-00020" summary="UniSchedulerSuper 1.5.4.20251106  development&#10;&#10;修复了 views 硬编码导致的新用户默认设置中 auto_ddl 参数被改为 true 而非 models 中定义的 false 的问题&#10;UI 优化&#10;升级了待办事项的筛选器">
-      <option name="closed" value="true" />
-      <created>1762436958762</created>
-      <option name="number" value="00020" />
-      <option name="presentableId" value="LOCAL-00020" />
-      <option name="project" value="LOCAL" />
-      <updated>1762436958762</updated>
-    </task>
-    <task id="LOCAL-00021" summary="UniSchedulerSuper 1.5.4.20251107_2144  development&#10;&#10;新增 TODO 的维度视图功能&#10;新增黑金和白金配色，优化浅色主题的配色&#10;UI 优化">
-      <option name="closed" value="true" />
-      <created>1762523201353</created>
-      <option name="number" value="00021" />
-      <option name="presentableId" value="LOCAL-00021" />
-      <option name="project" value="LOCAL" />
-      <updated>1762523201353</updated>
+      <workItem from="1769873648853" duration="20014000" />
     </task>
     <task id="LOCAL-00022" summary="UniSchedulerSuper 1.5.4.20251107_2256  development&#10;&#10;文档优化&#10;创建 url 说明文档">
       <option name="closed" value="true" />
@@ -770,7 +752,23 @@
       <option name="project" value="LOCAL" />
       <updated>1769874311795</updated>
     </task>
-    <option name="localTasksCounter" value="69" />
+    <task id="LOCAL-00069" summary="UniSchedulerSuper 1.5.4.20260202_0332 development&#10;&#10;升级 统一搜索 search_items 工具，支持搜索分享组中的日程&#10;新增 获取分享组 get_share_groups 工具，供 Agent 使用">
+      <option name="closed" value="true" />
+      <created>1769974345743</created>
+      <option name="number" value="00069" />
+      <option name="presentableId" value="LOCAL-00069" />
+      <option name="project" value="LOCAL" />
+      <updated>1769974345743</updated>
+    </task>
+    <task id="LOCAL-00070" summary="升级 search_items 的搜索和缓存功能，支持多轮调用&#10;区分 get_event_groups 和 get_share_groups 的返回结果#代号&#10;更新 search_items 的 time_range 解析工具 time_parser 以支持多种日期范围分隔符&#10;优化 search_items 中的搜索结果展示逻辑，区分用户自己的被分享日程和他人的日程">
+      <option name="closed" value="true" />
+      <created>1770033519346</created>
+      <option name="number" value="00070" />
+      <option name="presentableId" value="LOCAL-00070" />
+      <option name="project" value="LOCAL" />
+      <updated>1770033519346</updated>
+    </task>
+    <option name="localTasksCounter" value="71" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -809,8 +807,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20260101_2000 development&#10;&#10;1. 优化 get_events 时的分享组筛选、rrule检查导致的巨大性能开销&#10;2. 修复前端获取分享组更新时的版本号问题&#10;3. 修复通过日程组删除处在分享组中的日程时的分享组同步缺失问题&#10;4. 优化无限重复日程、提醒的生成" />
-    <MESSAGE value="新增 `enable_context_optimization` 字段到 `DialogStyle` 模型，并实现前端上下文优化配置管理功能，包括模型切换、优化配置保存及交互逻辑。" />
     <MESSAGE value="新增 `enable_context_optimization` 字段到 `DialogStyle` 模型，并实现前端上下文优化配置与 Token 管理者模块" />
     <MESSAGE value="Add `enable_context_optimization` field to DialogStyle model and implement front-end agent configuration management for context optimization settings." />
     <MESSAGE value="Add `enable_context_optimization` field to `DialogStyle` model and implement agent configuration UI enhancements, including context optimization and token management settings improvements." />
@@ -834,7 +830,9 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260131_2003 development&#10;&#10;修复了 1.5.4.20260128_1626 版本中 Agent 聊天数据库错误地使用了内存测试数据库的问题&#10;&#10;优化了登录界面" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260131_2003 development&#10;&#10;修复了 1.5.4.20260128_1626 版本中 Agent 聊天数据库错误地使用了内存测试数据库的问题&#10;&#10;优化了登录界面" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260131_2345 development&#10;&#10;新增 飞常准 VariFlight MCP 工具&#10;将 AMAP 的 MCP 配置整合到总 MCP 配置中" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260131_2345 development&#10;&#10;新增 飞常准 VariFlight MCP 工具&#10;将 AMAP 的 MCP 配置整合到总 MCP 配置中" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260202_0332 development&#10;&#10;升级 统一搜索 search_items 工具，支持搜索分享组中的日程&#10;新增 获取分享组 get_share_groups 工具，供 Agent 使用" />
+    <MESSAGE value="升级 search_items 的搜索和缓存功能，支持多轮调用&#10;区分 get_event_groups 和 get_share_groups 的返回结果#代号&#10;更新 search_items 的 time_range 解析工具 time_parser 以支持多种日期范围分隔符&#10;优化 search_items 中的搜索结果展示逻辑，区分用户自己的被分享日程和他人的日程" />
+    <option name="LAST_COMMIT_MESSAGE" value="升级 search_items 的搜索和缓存功能，支持多轮调用&#10;区分 get_event_groups 和 get_share_groups 的返回结果#代号&#10;更新 search_items 的 time_range 解析工具 time_parser 以支持多种日期范围分隔符&#10;优化 search_items 中的搜索结果展示逻辑，区分用户自己的被分享日程和他人的日程" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

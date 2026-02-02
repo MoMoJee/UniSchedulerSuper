@@ -305,12 +305,15 @@ class EventGroupService:
             return None
     
     @classmethod
-    def format_groups_for_display(cls, groups: List[Dict[str, Any]]) -> str:
+    def format_groups_for_display(cls, groups: List[Dict[str, Any]], include_hint: bool = True) -> str:
         """
         将事件组列表格式化为显示字符串
         
+        使用 #g 前缀区分事件组和日程/待办/提醒的编号
+        
         Args:
             groups: 事件组列表
+            include_hint: 是否包含使用提示
         
         Returns:
             格式化的字符串
@@ -323,6 +326,11 @@ class EventGroupService:
             name = group.get('name', '未命名')
             desc = group.get('description', '')
             desc_str = f" - {desc}" if desc else ""
-            lines.append(f"#{i} {name}{desc_str}")
+            lines.append(f"#g{i} {name}{desc_str}")
         
-        return "\n".join(lines)
+        result = "\n".join(lines)
+        
+        if include_hint:
+            result += "\n\n💡 使用 #g序号 或组名引用事件组（如 event_group='#g1' 或 event_group='工作'）"
+        
+        return result

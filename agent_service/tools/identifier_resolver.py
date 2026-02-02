@@ -1,6 +1,11 @@
 """
 标识符解析器
-支持多种引用方式解析为 UUID: 编号(#1)、UUID、标题
+支持多种引用方式解析为 UUID: 编号(#1, #g1, #s1)、UUID、标题
+
+编号命名空间：
+- #数字 (如 #1, #2): 日程/待办/提醒（search_items 返回）
+- #g数字 (如 #g1, #g2): 事件组（get_event_groups 返回）
+- #s数字 (如 #s1, #s2): 分享组（get_share_groups 返回）
 """
 import re
 import uuid
@@ -9,10 +14,23 @@ from typing import Optional, Dict, Any, Tuple
 from logger import logger
 
 
+# 编号格式正则
+INDEX_PATTERN = re.compile(r'^#(\d+)$')           # #1, #2 - 日程/待办/提醒
+GROUP_INDEX_PATTERN = re.compile(r'^#g(\d+)$', re.IGNORECASE)    # #g1, #g2 - 事件组
+SHARE_INDEX_PATTERN = re.compile(r'^#s(\d+)$', re.IGNORECASE)    # #s1, #s2 - 分享组
+
+
 class IdentifierResolver:
     """
     智能标识符解析器
     支持多种引用方式解析为 UUID
+    
+    支持的格式：
+    - "#1", "#2": 日程/待办/提醒编号
+    - "#g1", "#g2": 事件组编号
+    - "#s1", "#s2": 分享组编号
+    - UUID 格式
+    - 标题模糊匹配
     """
     
     @classmethod
@@ -96,6 +114,82 @@ class IdentifierResolver:
         # 3. 标题匹配
         return cls._resolve_by_title_with_type(identifier, session_id, user, preferred_type)
     
+    @classmethod
+    def resolve_event_group(cls, identifier: str, user) -> Optional[str]:
+        """
+        解析事件组标识符为 UUID
+        
+        支持格式：
+        - "#g1", "#g2": 事件组编号
+        - UUID
+        - 事件组名称
+        
+        Args:
+            identifier: 事件组标识符
+            user: 当前用户
+        
+        Returns:
+            事件组 UUID，未找到返回 None
+        """
+        if not identifier:
+            return None
+        
+        identifier = str(identifier).strip()
+        
+        from agent_service.tools.event_group_service import EventGroupService
+        
+        # 1. 检查 #g 格式
+        match = GROUP_INDEX_PATTERN.match(identifier)
+        if match:
+            index = int(match.group(1))
+            groups = EventGroupService.get_user_groups(user)
+            if groups and 1 <= index <= len(groups):
+                return groups[index - 1].get('id')
+            return None
+        
+        # 2. 检查是否是 UUID
+        if cls._is_uuid(identifier):
+            return identifier
+        
+        # 3. 按名称解析
+        return EventGroupService.resolve_group_name(user, identifier)
+    
+    @classmethod
+    def resolve_share_group(cls, identifier: str, user) -> Optional[str]:
+        """
+        解析分享组标识符为 ID
+        
+        支持格式：
+        - "#s1", "#s2": 分享组编号
+        - ID
+        - 分享组名称
+        
+        Args:
+            identifier: 分享组标识符
+            user: 当前用户
+        
+        Returns:
+            分享组 ID，未找到返回 None
+        """
+        if not identifier:
+            return None
+        
+        identifier = str(identifier).strip()
+        
+        from agent_service.tools.share_group_service import ShareGroupService
+        
+        # 1. 检查 #s 格式
+        match = SHARE_INDEX_PATTERN.match(identifier)
+        if match:
+            index = int(match.group(1))
+            groups = ShareGroupService.get_user_share_groups(user)
+            if groups and 1 <= index <= len(groups):
+                return groups[index - 1].get('share_group_id')
+            return None
+        
+        # 2. 直接作为 ID 或名称解析
+        return ShareGroupService.resolve_share_group_name(user, identifier)
+    
     @staticmethod
     def _is_uuid(s: str) -> bool:
         """检查字符串是否是 UUID 格式"""
@@ -119,8 +213,13 @@ class IdentifierResolver:
     
     @classmethod
     def _resolve_by_index(cls, index_str: str, item_type: Optional[str], session_id: Optional[str]) -> Optional[str]:
-        """从会话缓存中按编号解析"""
+        """从会话缓存中按编号解析（仅处理 #数字 格式）"""
         if not session_id:
+            return None
+        
+        # 检查是否是 #数字 格式（不是 #g 或 #s）
+        match = INDEX_PATTERN.match(index_str)
+        if not match:
             return None
         
         try:
@@ -157,6 +256,11 @@ class IdentifierResolver:
         if not session_id:
             return None
         
+        # 检查是否是 #数字 格式
+        match = INDEX_PATTERN.match(index_str)
+        if not match:
+            return None
+        
         try:
             from agent_service.models import SearchResultCache, AgentSession
             
@@ -176,6 +280,8 @@ class IdentifierResolver:
                     return (info['uuid'], info['type'])
         except Exception as e:
             logger.error(f"按编号解析失败: {e}")
+        
+        return None
         
         return None
     
