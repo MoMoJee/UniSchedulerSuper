@@ -1676,6 +1676,11 @@ body {
     color: #4299e1;
 }
 
+.search-result-type.shareGroupEvent {
+    background-color: rgba(159, 122, 234, 0.1);
+    color: #9f7aea;
+}
+
 .search-result-type.reminder {
     background-color: rgba(237, 137, 54, 0.1);
     color: #ed8936;
@@ -1684,6 +1689,17 @@ body {
 .search-result-type.todo {
     background-color: rgba(72, 187, 120, 0.1);
     color: #48bb78;
+}
+
+.search-result-extra {
+    padding: 0.125rem 0.4rem;
+    border-radius: 10px;
+    font-size: 11px;
+    background-color: rgba(160, 174, 192, 0.15);
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
 }
 
 .search-no-results {

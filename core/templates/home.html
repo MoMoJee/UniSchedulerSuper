@@ -396,6 +396,13 @@
                                 <!-- 动态加载 -->
                             </select>
                             
+                            <!-- 分享组筛选 -->
+                            <select id="searchShareGroupFilter" class="search-filter-select" onchange="globalSearch.applyFilters()">
+                                <option value="all">全部分享组</option>
+                                <option value="my">仅我的日程</option>
+                                <!-- 动态加载分享组选项 -->
+                            </select>
+                            
                             <!-- 时间范围筛选 -->
                             <select id="searchTimeFilter" class="search-filter-select" onchange="globalSearch.applyFilters()">
                                 <option value="all">全部时间</option>
@@ -4183,7 +4190,9 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
             searchData: {
                 events: [],
                 reminders: [],
-                todos: []
+                todos: [],
+                shareGroupEvents: [],  // 分享组中的日程
+                shareGroups: []  // 分享组列表
             },
             
             // 切换搜索栏
@@ -4289,6 +4298,39 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                     const todosResponse = await fetch('/api/todos/');
                     const todosData = await todosResponse.json();
                     this.searchData.todos = todosData.todos || [];
+                    
+                    // 加载分享组列表
+                    const shareGroupsResponse = await fetch('/api/share-groups/my-groups/');
+                    const shareGroupsData = await shareGroupsResponse.json();
+                    this.searchData.shareGroups = shareGroupsData.groups || [];
+                    
+                    // 加载所有分享组的日程
+                    this.searchData.shareGroupEvents = [];
+                    for (const group of this.searchData.shareGroups) {
+                        try {
+                            const groupEventsResponse = await fetch(`/api/share-groups/${group.share_group_id}/events/`);
+                            const groupEventsData = await groupEventsResponse.json();
+                            const groupEvents = (groupEventsData.events || []).map(event => ({
+                                ...event,
+                                shareGroupId: group.share_group_id,
+                                shareGroupName: group.share_group_name,
+                                ownerId: event.owner_id || event.user_id,
+                                ownerName: event.owner_name || event.owner_username,
+                                isMyEvent: event.user_id === groupEventsData.current_user_id || event.owner_id === groupEventsData.current_user_id
+                            }));
+                            this.searchData.shareGroupEvents.push(...groupEvents);
+                        } catch (error) {
+                            console.error(`加载分享组 ${group.share_group_name} 的日程失败:`, error);
+                        }
+                    }
+                    
+                    console.log('[GlobalSearch] 数据加载完成:', {
+                        events: this.searchData.events.length,
+                        shareGroupEvents: this.searchData.shareGroupEvents.length,
+                        reminders: this.searchData.reminders.length,
+                        todos: this.searchData.todos.length,
+                        shareGroups: this.searchData.shareGroups.length
+                    });
                 } catch (error) {
                     console.error('加载搜索数据失败:', error);
                 }
@@ -4296,6 +4338,7 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
             
             // 填充日程组筛选器
             populateGroupFilter() {
+                // 填充日程组筛选器
                 const groupFilter = document.getElementById('searchGroupFilter');
                 groupFilter.innerHTML = '<option value="all">全部日程组</option>';
                 
@@ -4307,31 +4350,69 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                         groupFilter.appendChild(option);
                     });
                 }
+                
+                // 填充分享组筛选器
+                const shareGroupFilter = document.getElementById('searchShareGroupFilter');
+                shareGroupFilter.innerHTML = '<option value="all">全部分享组</option><option value="my">仅我的日程</option>';
+                
+                if (this.searchData.shareGroups && Array.isArray(this.searchData.shareGroups)) {
+                    this.searchData.shareGroups.forEach(group => {
+                        const option = document.createElement('option');
+                        option.value = group.share_group_id;
+                        option.textContent = group.share_group_name;
+                        shareGroupFilter.appendChild(option);
+                    });
+                }
             },
             
             // 执行搜索
             performSearch(query) {
                 const typeFilter = document.getElementById('searchTypeFilter').value;
                 const groupFilter = document.getElementById('searchGroupFilter').value;
+                const shareGroupFilter = document.getElementById('searchShareGroupFilter').value;
                 const timeFilter = document.getElementById('searchTimeFilter').value;
                 
                 let results = [];
                 
                 // 搜索日程
                 if (typeFilter === 'all' || typeFilter === 'event') {
-                    const eventResults = this.searchData.events.filter(event => 
-                        this.matchesQuery(event.title, query) || 
-                        this.matchesQuery(event.description, query)
-                    ).filter(event => 
-                        this.matchesGroupFilter(event.groupID, groupFilter)
-                    ).filter(event =>
-                        this.matchesTimeFilter(event.start, timeFilter)
-                    ).map(event => ({
-                        ...event,
-                        type: 'event',
-                        displayType: '日程'
-                    }));
-                    results.push(...eventResults);
+                    // 搜索我的日程
+                    if (shareGroupFilter === 'all' || shareGroupFilter === 'my') {
+                        const eventResults = this.searchData.events.filter(event => 
+                            this.matchesQuery(event.title, query) || 
+                            this.matchesQuery(event.description, query)
+                        ).filter(event => 
+                            this.matchesGroupFilter(event.groupID, groupFilter)
+                        ).filter(event =>
+                            this.matchesTimeFilter(event.start, timeFilter)
+                        ).map(event => ({
+                            ...event,
+                            type: 'event',
+                            displayType: '日程',
+                            source: 'my'
+                        }));
+                        results.push(...eventResults);
+                    }
+                    
+                    // 搜索分享组日程
+                    if (shareGroupFilter === 'all' || (shareGroupFilter !== 'my' && shareGroupFilter !== 'all')) {
+                        const shareGroupEventResults = this.searchData.shareGroupEvents.filter(event => 
+                            this.matchesQuery(event.title, query) || 
+                            this.matchesQuery(event.description, query)
+                        ).filter(event => 
+                            this.matchesShareGroupFilter(event, shareGroupFilter)
+                        ).filter(event => 
+                            this.matchesGroupFilter(event.groupID, groupFilter)
+                        ).filter(event =>
+                            this.matchesTimeFilter(event.start, timeFilter)
+                        ).map(event => ({
+                            ...event,
+                            type: 'shareGroupEvent',
+                            displayType: event.isMyEvent ? '日程(分享组-我的)' : `日程(分享组-${event.ownerName})`,
+                            source: 'shareGroup'
+                        }));
+                        results.push(...shareGroupEventResults);
+                    }
                 }
                 
                 // 搜索提醒
@@ -4408,6 +4489,14 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                 }
             },
             
+            // 匹配分享组筛选
+            matchesShareGroupFilter(event, filter) {
+                if (filter === 'all') return true;
+                if (filter === 'my') return event.isMyEvent === true;
+                // 筛选特定分享组
+                return event.shareGroupId === filter;
+            },
+            
             // 显示搜索结果
             displayResults(results) {
                 const resultsDropdown = document.getElementById('searchResultsDropdown');
@@ -4427,31 +4516,48 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                 const time = item.start || item.trigger_time || item.due_date || '';
                 const timeDisplay = time ? new Date(time).toLocaleString('zh-CN') : '无时间';
                 
+                // 构建额外信息（分享组、归属者）
+                let extraInfo = '';
+                if (item.source === 'shareGroup' && item.shareGroupName) {
+                    extraInfo = `<span class="search-result-extra">📁 ${this.escapeHtml(item.shareGroupName)}</span>`;
+                    if (!item.isMyEvent && item.ownerName) {
+                        extraInfo += `<span class="search-result-extra">👤 ${this.escapeHtml(item.ownerName)}</span>`;
+                    }
+                }
+                
                 return `
-                    <div class="search-result-item" onclick="globalSearch.openItem('${item.type}', '${item.id}')">
+                    <div class="search-result-item" onclick="globalSearch.openItem('${item.type}', '${item.id}', '${item.shareGroupId || ''}')">
                         <div class="search-result-title">${this.escapeHtml(item.title)}</div>
                         <div class="search-result-meta">
                             <span class="search-result-type ${item.type}">${item.displayType}</span>
                             <span>${timeDisplay}</span>
+                            ${extraInfo}
                         </div>
                     </div>
                 `;
             },
             
             // 打开项目详情
-            openItem(type, id) {
+            openItem(type, id, shareGroupId = '') {
                 this.toggle(); // 关闭搜索
                 
-                if (type === 'event') {
+                if (type === 'event' || type === 'shareGroupEvent') {
                     // 找到原始事件数据
-                    const eventData = this.searchData.events.find(e => e.id === id);
-                    if (eventData && window.modalManager) {
+                    let eventData = null;
+                    if (type === 'event') {
+                        eventData = this.searchData.events.find(e => e.id === id);
+                    } else {
+                        eventData = this.searchData.shareGroupEvents.find(e => e.id === id);
+                    }
+                    
+                    if (eventData && window.eventManager) {
                         // 将原始数据转换为 FullCalendar event 格式
                         const fcEvent = {
                             id: eventData.id,
                             title: eventData.title,
                             start: eventData.start,
                             end: eventData.end,
+                            editable: type === 'event' || eventData.isMyEvent,  // 只读判断
                             extendedProps: {
                                 description: eventData.description || '',
                                 importance: eventData.importance || '',
@@ -4464,10 +4570,16 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                                 is_main_event: eventData.is_main_event || false,
                                 is_detached: eventData.is_detached || false,
                                 recurrence_id: eventData.recurrence_id || '',
-                                parent_event_id: eventData.parent_event_id || ''
+                                parent_event_id: eventData.parent_event_id || '',
+                                isGroupView: type === 'shareGroupEvent',
+                                isMyEvent: type === 'event' || eventData.isMyEvent,  // 添加 isMyEvent 标识
+                                is_readonly: type === 'shareGroupEvent' && !eventData.isMyEvent,
+                                owner_username: eventData.ownerName || '',
+                                ownerUsername: eventData.ownerName || '',  // 兼容不同的命名
+                                owner_name: eventData.ownerName || ''
                             }
                         };
-                        window.modalManager.openEditEventModal(fcEvent);
+                        window.eventManager.openEventDetailModal(fcEvent);
                     }
                 } else if (type === 'reminder') {
                     // 找到并触发提醒点击 - 使用正确的函数
@@ -4499,10 +4611,12 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
             saveFilterSettings() {
                 const typeFilter = document.getElementById('searchTypeFilter').value;
                 const groupFilter = document.getElementById('searchGroupFilter').value;
+                const shareGroupFilter = document.getElementById('searchShareGroupFilter').value;
                 const timeFilter = document.getElementById('searchTimeFilter').value;
                 
                 sessionStorage.setItem('globalSearch_typeFilter', typeFilter);
                 sessionStorage.setItem('globalSearch_groupFilter', groupFilter);
+                sessionStorage.setItem('globalSearch_shareGroupFilter', shareGroupFilter);
                 sessionStorage.setItem('globalSearch_timeFilter', timeFilter);
             },
             
@@ -4510,6 +4624,7 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
             restoreFilterSettings() {
                 const typeFilter = sessionStorage.getItem('globalSearch_typeFilter');
                 const groupFilter = sessionStorage.getItem('globalSearch_groupFilter');
+                const shareGroupFilter = sessionStorage.getItem('globalSearch_shareGroupFilter');
                 const timeFilter = sessionStorage.getItem('globalSearch_timeFilter');
                 
                 if (typeFilter) {
@@ -4517,6 +4632,9 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                 }
                 if (groupFilter) {
                     document.getElementById('searchGroupFilter').value = groupFilter;
+                }
+                if (shareGroupFilter) {
+                    document.getElementById('searchShareGroupFilter').value = shareGroupFilter;
                 }
                 if (timeFilter) {
                     document.getElementById('searchTimeFilter').value = timeFilter;

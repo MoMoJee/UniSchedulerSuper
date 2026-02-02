@@ -4,9 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="升级 search_items 的搜索和缓存功能，支持多轮调用&#10;区分 get_event_groups 和 get_share_groups 的返回结果#代号&#10;更新 search_items 的 time_range 解析工具 time_parser 以支持多种日期范围分隔符&#10;优化 search_items 中的搜索结果展示逻辑，区分用户自己的被分享日程和他人的日程">
-      <change afterPath="$PROJECT_DIR$/api_examples/111.py" afterDir="false" />
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260202_2004 development&#10;&#10;升级 search_items 的搜索和缓存功能，支持多轮调用&#10;区分 get_event_groups 和 get_share_groups 的返回结果#代号&#10;更新 search_items 的 time_range 解析工具 time_parser 以支持多种日期范围分隔符&#10;优化 search_items 中的搜索结果展示逻辑，区分用户自己的被分享日程和他人的日程">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/css/home-styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/css/home-styles.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/home.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/home.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/css/home-styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/css/home-styles.css" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -83,65 +86,65 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
-    "DefaultHtmlFileTemplate": "HTML File",
-    "Django 服务器.UniSchedulerSuper.executor": "Run",
-    "Django 服务器.局域网.executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found": "找到数据库连接形参",
-    "Notification.DoNotAsk-DatabaseConfigFileWatcher.found": "true",
-    "Python.111 (1).executor": "Run",
-    "Python.111.executor": "Run",
-    "Python.UniSchedulerSuper.executor": "Run",
-    "Python.code_line_counter.executor": "Run",
-    "Python.example_reminders_api.executor": "Run",
-    "Python.graph.executor": "Run",
-    "Python.mcp_server.executor": "Run",
-    "Python.mcp_tools.executor": "Run",
-    "Python.raw_http_dump_middleware.executor": "Run",
-    "Python.tavily_test.executor": "Run",
-    "Python.test_browser_session.executor": "Run",
-    "Python.test_event_operations.executor": "Run",
-    "Python.test_exception_debug.executor": "Run",
-    "Python.test_reminder_operations.executor": "Run",
-    "Python.test_rrule_system.executor": "Run",
-    "Python.test_token_auth.executor": "Run",
-    "Python.test_validator_schema_standalone.executor": "Run",
-    "Python.test_variflight_tools.executor": "Run",
-    "Python.tools.executor": "Run",
-    "Python.views.executor": "Run",
-    "RunOnceActivity.MCP Project settings loaded": "true",
-    "RunOnceActivity.OpenDjangoStructureViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.pycharm.django.structure.promotion.once.per.project": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "ai.playground.ignore.import.keys.banner.in.settings": "true",
-    "aidebugger.tracer.lastRunConfigName": "test_variflight_tools",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "development__new",
-    "ignore.virus.scanning.warn.message": "true",
-    "junie.onboarding.icon.badge.shown": "true",
-    "last_opened_file_path": "D:/PROJECTS/UniSchedulerSuper/staticfiles/css",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "terminal",
-    "to.speed.mode.migration.done": "true",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_MARK_IGNORED_FILES_AS_EXCLUDED&quot;: &quot;true&quot;,
+    &quot;DefaultHtmlFileTemplate&quot;: &quot;HTML File&quot;,
+    &quot;Django 服务器.UniSchedulerSuper.executor&quot;: &quot;Run&quot;,
+    &quot;Django 服务器.局域网.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;找到数据库连接形参&quot;,
+    &quot;Notification.DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;true&quot;,
+    &quot;Python.111 (1).executor&quot;: &quot;Run&quot;,
+    &quot;Python.111.executor&quot;: &quot;Run&quot;,
+    &quot;Python.UniSchedulerSuper.executor&quot;: &quot;Run&quot;,
+    &quot;Python.code_line_counter.executor&quot;: &quot;Run&quot;,
+    &quot;Python.example_reminders_api.executor&quot;: &quot;Run&quot;,
+    &quot;Python.graph.executor&quot;: &quot;Run&quot;,
+    &quot;Python.mcp_server.executor&quot;: &quot;Run&quot;,
+    &quot;Python.mcp_tools.executor&quot;: &quot;Run&quot;,
+    &quot;Python.raw_http_dump_middleware.executor&quot;: &quot;Run&quot;,
+    &quot;Python.tavily_test.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_browser_session.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_event_operations.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_exception_debug.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_reminder_operations.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_rrule_system.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_token_auth.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_validator_schema_standalone.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_variflight_tools.executor&quot;: &quot;Run&quot;,
+    &quot;Python.tools.executor&quot;: &quot;Run&quot;,
+    &quot;Python.views.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.OpenDjangoStructureViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.pycharm.django.structure.promotion.once.per.project&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;ai.playground.ignore.import.keys.banner.in.settings&quot;: &quot;true&quot;,
+    &quot;aidebugger.tracer.lastRunConfigName&quot;: &quot;test_variflight_tools&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;development__new&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/PROJECTS/UniSchedulerSuper/staticfiles/css&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;terminal&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
-  "keyToStringList": {
-    "com.intellij.ide.scratch.ScratchImplUtil$2/新建临时文件": [
-      "JSON"
+  &quot;keyToStringList&quot;: {
+    &quot;com.intellij.ide.scratch.ScratchImplUtil$2/新建临时文件&quot;: [
+      &quot;JSON&quot;
     ]
   }
-}]]></component>
+}</component>
   <component name="RecapSpentCounter">
     <option name="endsOfQuotaMs" value="1770444026584" />
     <option name="spentUsd" value="0.07884385" />
@@ -165,7 +168,7 @@
       <recent name="D:\PROJECTS\UniSchedulerSuper\docs\开发文档" />
     </key>
   </component>
-  <component name="RunManager">
+  <component name="RunManager" selected="Django 服务器.UniSchedulerSuper">
     <configuration name="graph" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="UniSchedulerSuper" />
       <option name="ENV_FILES" value="" />
@@ -374,15 +377,7 @@
       <workItem from="1769503142225" duration="20870000" />
       <workItem from="1769588629076" duration="9579000" />
       <workItem from="1769859963031" duration="11300000" />
-      <workItem from="1769873648853" duration="20014000" />
-    </task>
-    <task id="LOCAL-00022" summary="UniSchedulerSuper 1.5.4.20251107_2256  development&#10;&#10;文档优化&#10;创建 url 说明文档">
-      <option name="closed" value="true" />
-      <created>1762527450033</created>
-      <option name="number" value="00022" />
-      <option name="presentableId" value="LOCAL-00022" />
-      <option name="project" value="LOCAL" />
-      <updated>1762527450033</updated>
+      <workItem from="1769873648853" duration="24647000" />
     </task>
     <task id="LOCAL-00023" summary="UniSchedulerSuper 1.5.4.20251109_0233  development&#10;&#10;新增 API 与 Token 登录功能 (beta)">
       <option name="closed" value="true" />
@@ -768,7 +763,15 @@
       <option name="project" value="LOCAL" />
       <updated>1770033519346</updated>
     </task>
-    <option name="localTasksCounter" value="71" />
+    <task id="LOCAL-00071" summary="UniSchedulerSuper 1.5.4.20260202_2004 development&#10;&#10;升级 search_items 的搜索和缓存功能，支持多轮调用&#10;区分 get_event_groups 和 get_share_groups 的返回结果#代号&#10;更新 search_items 的 time_range 解析工具 time_parser 以支持多种日期范围分隔符&#10;优化 search_items 中的搜索结果展示逻辑，区分用户自己的被分享日程和他人的日程">
+      <option name="closed" value="true" />
+      <created>1770033792438</created>
+      <option name="number" value="00071" />
+      <option name="presentableId" value="LOCAL-00071" />
+      <option name="project" value="LOCAL" />
+      <updated>1770033792438</updated>
+    </task>
+    <option name="localTasksCounter" value="72" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -807,7 +810,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="新增 `enable_context_optimization` 字段到 `DialogStyle` 模型，并实现前端上下文优化配置与 Token 管理者模块" />
     <MESSAGE value="Add `enable_context_optimization` field to DialogStyle model and implement front-end agent configuration management for context optimization settings." />
     <MESSAGE value="Add `enable_context_optimization` field to `DialogStyle` model and implement agent configuration UI enhancements, including context optimization and token management settings improvements." />
     <MESSAGE value="Enable context optimization options and integrate agent configuration management module." />
@@ -832,7 +834,8 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260131_2345 development&#10;&#10;新增 飞常准 VariFlight MCP 工具&#10;将 AMAP 的 MCP 配置整合到总 MCP 配置中" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260202_0332 development&#10;&#10;升级 统一搜索 search_items 工具，支持搜索分享组中的日程&#10;新增 获取分享组 get_share_groups 工具，供 Agent 使用" />
     <MESSAGE value="升级 search_items 的搜索和缓存功能，支持多轮调用&#10;区分 get_event_groups 和 get_share_groups 的返回结果#代号&#10;更新 search_items 的 time_range 解析工具 time_parser 以支持多种日期范围分隔符&#10;优化 search_items 中的搜索结果展示逻辑，区分用户自己的被分享日程和他人的日程" />
-    <option name="LAST_COMMIT_MESSAGE" value="升级 search_items 的搜索和缓存功能，支持多轮调用&#10;区分 get_event_groups 和 get_share_groups 的返回结果#代号&#10;更新 search_items 的 time_range 解析工具 time_parser 以支持多种日期范围分隔符&#10;优化 search_items 中的搜索结果展示逻辑，区分用户自己的被分享日程和他人的日程" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260202_2004 development&#10;&#10;升级 search_items 的搜索和缓存功能，支持多轮调用&#10;区分 get_event_groups 和 get_share_groups 的返回结果#代号&#10;更新 search_items 的 time_range 解析工具 time_parser 以支持多种日期范围分隔符&#10;优化 search_items 中的搜索结果展示逻辑，区分用户自己的被分享日程和他人的日程" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260202_2004 development&#10;&#10;升级 search_items 的搜索和缓存功能，支持多轮调用&#10;区分 get_event_groups 和 get_share_groups 的返回结果#代号&#10;更新 search_items 的 time_range 解析工具 time_parser 以支持多种日期范围分隔符&#10;优化 search_items 中的搜索结果展示逻辑，区分用户自己的被分享日程和他人的日程" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
