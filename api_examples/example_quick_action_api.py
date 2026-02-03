@@ -1,0 +1,533 @@
+"""
+Quick Action API 使用示例
+展示如何使用 Token 认证调用 Quick Action 快速操作 API
+
+Quick Action 是一个快速操作执行器，可以通过一句话完成日程管理任务，
+无需多轮对话，适合移动端、快捷方式等场景。
+
+API 端点：
+- POST   /api/agent/quick-action/           - 创建快速操作任务（同步/异步）
+- GET    /api/agent/quick-action/<uuid>/    - 查询任务状态（支持长轮询）
+- GET    /api/agent/quick-action/list/      - 获取历史任务列表
+- DELETE /api/agent/quick-action/<uuid>/cancel/ - 取消待执行任务
+
+前置条件：
+1. Django 服务已启动：python manage.py runserver
+2. 已有用户账号（需配置 LLM）
+3. 已执行数据库迁移：python manage.py migrate
+
+使用方法：
+    python api_examples/example_quick_action_api.py
+"""
+
+import requests
+import json
+import time
+from datetime import datetime
+
+# ==================== 配置区 ====================
+BASE_URL = "http://127.0.0.1:8000"
+USERNAME = "MoMoJee"  # 修改为你的用户名
+PASSWORD = "yzh11621@411314"  # 修改为你的密码
+
+# ==================== 辅助函数 ====================
+
+class Colors:
+    """终端颜色"""
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+
+
+def print_success(message):
+    print(f"{Colors.OKGREEN}✅ {message}{Colors.ENDC}")
+
+
+def print_error(message):
+    print(f"{Colors.FAIL}❌ {message}{Colors.ENDC}")
+
+
+def print_warning(message):
+    print(f"{Colors.WARNING}⚠️  {message}{Colors.ENDC}")
+
+
+def print_info(message):
+    print(f"{Colors.OKCYAN}ℹ️  {message}{Colors.ENDC}")
+
+
+def print_header(message):
+    print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*60}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{Colors.BOLD}{message:^60}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{Colors.BOLD}{'='*60}{Colors.ENDC}\n")
+
+
+def get_auth_token(username=USERNAME, password=PASSWORD):
+    """获取认证 Token"""
+    print_header("获取认证 Token")
+    
+    try:
+        response = requests.post(
+            f"{BASE_URL}/api/auth/login/",
+            json={"username": username, "password": password}
+        )
+        
+        if response.status_code == 200:
+            token = response.json().get('token')
+            print_success(f"Token 获取成功")
+            return token
+        else:
+            print_error(f"登录失败 (状态码: {response.status_code})")
+            print(f"响应: {response.text}")
+            return None
+    except Exception as e:
+        print_error(f"请求失败: {e}")
+        return None
+
+
+def get_headers(token):
+    """生成请求头"""
+    return {
+        "Authorization": f"Token {token}",
+        "Content-Type": "application/json"
+    }
+
+
+def format_result(result_data):
+    """格式化输出结果"""
+    if not result_data:
+        return
+    
+    result_type = result_data.get('type', '')
+    message = result_data.get('message', '')
+    
+    if result_type == 'action_completed':
+        print_success(f"操作成功: {message}")
+    elif result_type == 'need_clarification':
+        print_warning(f"需要补充信息:\n{message}")
+    elif result_type == 'error':
+        print_error(f"操作失败: {message}")
+    else:
+        print_info(f"结果: {message}")
+    
+    # 显示工具调用记录
+    tool_calls = result_data.get('tool_calls', [])
+    if tool_calls:
+        print(f"\n  工具调用记录 ({len(tool_calls)} 次):")
+        for i, call in enumerate(tool_calls, 1):
+            status = "✓" if call.get('status') == 'success' else "✗"
+            print(f"    {i}. {status} {call.get('tool')} - {call.get('result', '')[:50]}...")
+
+
+# ==================== Quick Action API 示例 ====================
+
+def example_create_quick_action_async(token):
+    """
+    示例 1: 创建快速操作（异步模式）
+    
+    POST /api/agent/quick-action/
+    """
+    print_header("示例 1: 创建快速操作（异步模式）")
+    
+    # 测试用例：创建明天的会议
+    payload = {
+        "text": "明天下午3点开会，讨论项目进度",
+        "sync": False  # 异步模式
+    }
+    
+    print_info(f"请求内容: {payload['text']}")
+    
+    try:
+        response = requests.post(
+            f"{BASE_URL}/api/agent/quick-action/",
+            headers=get_headers(token),
+            json=payload
+        )
+        
+        if response.status_code == 201:
+            data = response.json()
+            task_id = data.get('task_id')
+            print_success(f"任务创建成功")
+            print(f"  任务 ID: {task_id}")
+            print(f"  状态: {data.get('status')}")
+            print(f"  创建时间: {data.get('created_at')}")
+            return task_id
+        else:
+            print_error(f"请求失败 (状态码: {response.status_code})")
+            print(f"响应: {response.text}")
+            return None
+    except Exception as e:
+        print_error(f"请求失败: {e}")
+        return None
+
+
+def example_create_quick_action_sync(token):
+    """
+    示例 2: 创建快速操作（同步模式）
+    
+    POST /api/agent/quick-action/
+    """
+    print_header("示例 2: 创建快速操作（同步模式）")
+    
+    # 测试用例：完成待办
+    payload = {
+        "text": "完成今天的代码评审任务",
+        "sync": True,  # 同步模式
+        "timeout": 30
+    }
+    
+    print_info(f"请求内容: {payload['text']}")
+    print_info("同步模式：将等待任务执行完成...")
+    
+    try:
+        response = requests.post(
+            f"{BASE_URL}/api/agent/quick-action/",
+            headers=get_headers(token),
+            json=payload
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            print_success(f"任务执行完成")
+            print(f"  任务 ID: {data.get('task_id')}")
+            print(f"  状态: {data.get('status')}")
+            print(f"  执行时间: {data.get('execution_time_ms')} ms")
+            
+            # 显示结果
+            if data.get('result'):
+                print("\n  执行结果:")
+                format_result(data.get('result'))
+            
+            # 显示 Token 消耗
+            tokens = data.get('tokens', {})
+            if tokens:
+                print(f"\n  Token 消耗:")
+                print(f"    输入: {tokens.get('input')}")
+                print(f"    输出: {tokens.get('output')}")
+                print(f"    成本: {tokens.get('cost')} CNY")
+                print(f"    模型: {tokens.get('model')}")
+            
+            return data.get('task_id')
+        else:
+            print_error(f"请求失败 (状态码: {response.status_code})")
+            print(f"响应: {response.text}")
+            return None
+    except Exception as e:
+        print_error(f"请求失败: {e}")
+        return None
+
+
+def example_get_task_status(token, task_id):
+    """
+    示例 3: 查询任务状态
+    
+    GET /api/agent/quick-action/<task_id>/
+    """
+    print_header("示例 3: 查询任务状态")
+    
+    if not task_id:
+        print_error("任务 ID 为空，跳过测试")
+        return
+    
+    print_info(f"查询任务: {task_id}")
+    
+    try:
+        response = requests.get(
+            f"{BASE_URL}/api/agent/quick-action/{task_id}/",
+            headers=get_headers(token)
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            status = data.get('status')
+            
+            print_success(f"任务状态: {status}")
+            print(f"  输入文本: {data.get('input_text')}")
+            print(f"  创建时间: {data.get('created_at')}")
+            
+            if data.get('started_at'):
+                print(f"  开始时间: {data.get('started_at')}")
+            
+            if data.get('completed_at'):
+                print(f"  完成时间: {data.get('completed_at')}")
+                print(f"  执行时长: {data.get('duration', 0):.2f} 秒")
+            
+            # 如果任务完成，显示结果
+            if status in ['success', 'failed'] and data.get('result'):
+                print("\n  执行结果:")
+                format_result(data.get('result'))
+            
+            return data
+        else:
+            print_error(f"请求失败 (状态码: {response.status_code})")
+            print(f"响应: {response.text}")
+            return None
+    except Exception as e:
+        print_error(f"请求失败: {e}")
+        return None
+
+
+def example_long_polling(token, task_id):
+    """
+    示例 4: 长轮询查询任务状态
+    
+    GET /api/agent/quick-action/<task_id>/?wait=true
+    """
+    print_header("示例 4: 长轮询查询任务状态")
+    
+    if not task_id:
+        print_error("任务 ID 为空，跳过测试")
+        return
+    
+    print_info(f"长轮询任务: {task_id}")
+    print_info("等待任务完成（最多30秒）...")
+    
+    try:
+        start_time = time.time()
+        response = requests.get(
+            f"{BASE_URL}/api/agent/quick-action/{task_id}/?wait=true",
+            headers=get_headers(token),
+            timeout=35  # 稍微大于服务器的30秒超时
+        )
+        wait_time = time.time() - start_time
+        
+        if response.status_code == 200:
+            data = response.json()
+            status = data.get('status')
+            
+            print_success(f"任务状态: {status} (等待了 {wait_time:.2f} 秒)")
+            
+            if status in ['success', 'failed']:
+                if data.get('result'):
+                    print("\n  执行结果:")
+                    format_result(data.get('result'))
+            elif status in ['pending', 'processing']:
+                print_warning("任务仍在执行中，需要继续等待")
+            
+            return data
+        else:
+            print_error(f"请求失败 (状态码: {response.status_code})")
+            return None
+    except requests.Timeout:
+        print_warning("请求超时（任务可能需要更长时间执行）")
+        return None
+    except Exception as e:
+        print_error(f"请求失败: {e}")
+        return None
+
+
+def example_list_quick_actions(token):
+    """
+    示例 5: 获取历史任务列表
+    
+    GET /api/agent/quick-action/list/
+    """
+    print_header("示例 5: 获取历史任务列表")
+    
+    try:
+        response = requests.get(
+            f"{BASE_URL}/api/agent/quick-action/list/?limit=5",
+            headers=get_headers(token)
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            tasks = data.get('tasks', [])
+            count = data.get('count', 0)
+            
+            print_success(f"获取成功 (共 {count} 个任务，显示最近 {len(tasks)} 个)")
+            
+            if tasks:
+                print("\n  最近的任务:")
+                for i, task in enumerate(tasks, 1):
+                    status_icon = {
+                        'pending': '⏳',
+                        'processing': '🔄',
+                        'success': '✅',
+                        'failed': '❌',
+                        'timeout': '⏱️'
+                    }.get(task.get('status'), '❓')
+                    
+                    print(f"\n  {i}. {status_icon} {task.get('status').upper()}")
+                    print(f"     任务ID: {task.get('task_id')}")
+                    print(f"     输入: {task.get('input_text')}")
+                    print(f"     创建时间: {task.get('created_at')}")
+                    
+                    if task.get('result_preview'):
+                        print(f"     结果预览: {task.get('result_preview')[:100]}...")
+                    
+                    if task.get('execution_time_ms'):
+                        print(f"     执行时间: {task.get('execution_time_ms')} ms")
+            else:
+                print_info("暂无历史任务")
+            
+            return tasks
+        else:
+            print_error(f"请求失败 (状态码: {response.status_code})")
+            print(f"响应: {response.text}")
+            return None
+    except Exception as e:
+        print_error(f"请求失败: {e}")
+        return None
+
+
+def example_cancel_task(token, task_id):
+    """
+    示例 6: 取消待执行任务
+    
+    DELETE /api/agent/quick-action/<task_id>/cancel/
+    """
+    print_header("示例 6: 取消待执行任务")
+    
+    if not task_id:
+        print_error("任务 ID 为空，跳过测试")
+        return
+    
+    print_info(f"取消任务: {task_id}")
+    
+    try:
+        response = requests.delete(
+            f"{BASE_URL}/api/agent/quick-action/{task_id}/cancel/",
+            headers=get_headers(token)
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            print_success(f"任务已取消: {data.get('message')}")
+            return True
+        elif response.status_code == 400:
+            data = response.json()
+            print_warning(f"无法取消: {data.get('error')}")
+            return False
+        elif response.status_code == 404:
+            print_error("任务不存在")
+            return False
+        else:
+            print_error(f"请求失败 (状态码: {response.status_code})")
+            print(f"响应: {response.text}")
+            return False
+    except Exception as e:
+        print_error(f"请求失败: {e}")
+        return False
+
+
+def example_multiple_scenarios(token):
+    """
+    示例 7: 多场景测试
+    """
+    print_header("示例 7: 多场景测试")
+    
+    test_cases = [
+        "明天上午10点开会",
+        "后天下午3点到5点有个培训",
+        "下周一提醒我交报告",
+        "完成买菜这个待办",
+        "2月10日的会议改到晚上8点",
+        "查看本周的所有会议",
+    ]
+    
+    results = []
+    
+    for i, text in enumerate(test_cases, 1):
+        print(f"\n{Colors.OKCYAN}测试用例 {i}/{len(test_cases)}: {text}{Colors.ENDC}")
+        
+        # 创建任务（同步模式，快速得到结果）
+        payload = {"text": text, "sync": True, "timeout": 30}
+        
+        try:
+            response = requests.post(
+                f"{BASE_URL}/api/agent/quick-action/",
+                headers=get_headers(token),
+                json=payload,
+                timeout=35
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                result_type = data.get('result', {}).get('type')
+                
+                if result_type == 'action_completed':
+                    print_success("执行成功")
+                elif result_type == 'need_clarification':
+                    print_warning("需要补充信息")
+                else:
+                    print_error("执行失败")
+                
+                results.append({
+                    'text': text,
+                    'success': result_type == 'action_completed',
+                    'result_type': result_type
+                })
+            else:
+                print_error(f"请求失败 (状态码: {response.status_code})")
+                results.append({'text': text, 'success': False, 'result_type': 'error'})
+        except Exception as e:
+            print_error(f"请求失败: {e}")
+            results.append({'text': text, 'success': False, 'result_type': 'error'})
+        
+        # 短暂延迟，避免请求过快
+        time.sleep(0.5)
+    
+    # 统计结果
+    print(f"\n{Colors.HEADER}{Colors.BOLD}测试结果统计{Colors.ENDC}")
+    success_count = sum(1 for r in results if r['success'])
+    print(f"  成功: {success_count}/{len(results)}")
+    print(f"  失败: {len(results) - success_count}/{len(results)}")
+    
+    return results
+
+
+# ==================== 主函数 ====================
+
+def main():
+    """主测试流程"""
+    print(f"{Colors.HEADER}{Colors.BOLD}")
+    print("="*60)
+    print("Quick Action API 测试脚本".center(60))
+    print("="*60)
+    print(f"{Colors.ENDC}")
+    
+    # 1. 获取 Token
+    token = get_auth_token()
+    if not token:
+        print_error("无法获取 Token，测试终止")
+        return
+    
+    # 2. 测试异步模式
+    task_id_async = example_create_quick_action_async(token)
+    
+    if task_id_async:
+        time.sleep(1)  # 等待1秒
+        example_get_task_status(token, task_id_async)
+        time.sleep(1)
+        example_long_polling(token, task_id_async)
+    
+    # 3. 测试同步模式
+    example_create_quick_action_sync(token)
+    
+    # 4. 查看历史列表
+    example_list_quick_actions(token)
+    
+    # 5. 测试取消任务（创建一个新任务再取消）
+    print_info("\n准备测试取消功能...")
+    cancel_task_id = example_create_quick_action_async(token)
+    if cancel_task_id:
+        time.sleep(0.2)  # 短暂延迟
+        example_cancel_task(token, cancel_task_id)
+    
+    # 6. 多场景测试（可选，耗时较长）
+    print_info("\n是否执行多场景测试？这可能需要几分钟时间...")
+    user_input = input("输入 'y' 继续，或按回车跳过: ").strip().lower()
+    if user_input == 'y':
+        example_multiple_scenarios(token)
+    
+    print_header("测试完成")
+    print_success("所有测试已完成！")
+
+
+if __name__ == "__main__":
+    main()

@@ -735,3 +735,173 @@ class ShareGroupCache(models.Model):
     def is_valid(self, ttl_seconds: int = 3600) -> bool:
         """检查缓存是否有效（未过期）"""
         return not self.is_stale(ttl_seconds)
+
+
+# ==========================================
+# Quick Action 快速操作模型
+# ==========================================
+
+import uuid as uuid_module
+
+class QuickActionTask(models.Model):
+    """
+    快速操作任务
+    
+    用于追踪通过 HTTP API 触发的快速操作执行状态。
+    支持异步执行和长轮询查询结果。
+    """
+    
+    # 状态选项
+    STATUS_CHOICES = [
+        ('pending', '等待执行'),
+        ('processing', '执行中'),
+        ('success', '成功'),
+        ('failed', '失败'),
+        ('timeout', '超时'),
+    ]
+    
+    # 结果类型选项
+    RESULT_TYPE_CHOICES = [
+        ('action_completed', '操作完成'),
+        ('need_clarification', '需要补充信息'),
+        ('error', '错误'),
+    ]
+    
+    task_id = models.UUIDField(primary_key=True, default=uuid_module.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='quick_action_tasks')
+    
+    # 输入
+    input_text = models.TextField(verbose_name="用户输入", help_text="用户的快速操作指令")
+    
+    # 状态
+    status = models.CharField(
+        max_length=20, 
+        choices=STATUS_CHOICES,
+        default='pending', 
+        db_index=True,
+        help_text="任务执行状态"
+    )
+    
+    # 结果类型
+    result_type = models.CharField(
+        max_length=30, 
+        choices=RESULT_TYPE_CHOICES,
+        blank=True,
+        help_text="结果类型：action_completed/need_clarification/error"
+    )
+    
+    # 结果详情（JSON）
+    # 格式: {"message": "...", "details": {...}, "items_affected": [...]}
+    result = models.JSONField(
+        null=True, 
+        blank=True,
+        help_text="执行结果详情"
+    )
+    
+    # 执行追踪
+    # 格式: [{"tool": "search_items", "args": {...}, "result": {...}, "timestamp": "..."}, ...]
+    tool_calls = models.JSONField(
+        default=list,
+        help_text="工具调用记录"
+    )
+    agent_reasoning = models.TextField(
+        blank=True,
+        help_text="Agent 推理过程"
+    )
+    
+    # 时间戳
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True, help_text="开始执行时间")
+    completed_at = models.DateTimeField(null=True, blank=True, help_text="完成时间")
+    
+    # Token 消耗（按用户配置的模型计费）
+    input_tokens = models.IntegerField(default=0, help_text="输入 token 数")
+    output_tokens = models.IntegerField(default=0, help_text="输出 token 数")
+    total_cost = models.FloatField(default=0.0, help_text="总成本 (CNY)")
+    model_used = models.CharField(max_length=100, blank=True, help_text="使用的模型名称")
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "快速操作任务"
+        verbose_name_plural = "快速操作任务"
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['status', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.input_text[:30]}... - {self.status}"
+    
+    def mark_processing(self):
+        """标记为执行中"""
+        from django.utils import timezone
+        self.status = 'processing'
+        self.started_at = timezone.now()
+        self.save(update_fields=['status', 'started_at'])
+    
+    def mark_completed(self, result_type: str, result: dict, 
+                       input_tokens: int = 0, output_tokens: int = 0,
+                       total_cost: float = 0.0, model_used: str = '',
+                       agent_reasoning: str = ''):
+        """标记为完成（成功或失败）"""
+        from django.utils import timezone
+        self.status = 'success' if result_type == 'action_completed' else 'failed'
+        self.result_type = result_type
+        self.result = result
+        self.completed_at = timezone.now()
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+        self.total_cost = total_cost
+        self.model_used = model_used
+        self.agent_reasoning = agent_reasoning
+        self.save()
+    
+    def mark_timeout(self):
+        """标记为超时"""
+        from django.utils import timezone
+        self.status = 'timeout'
+        self.result_type = 'error'
+        self.result = {'message': '执行超时，请稍后重试', 'error': 'timeout'}
+        self.completed_at = timezone.now()
+        self.save()
+    
+    def add_tool_call(self, tool_name: str, args: dict, result: dict):
+        """添加工具调用记录"""
+        from django.utils import timezone
+        call_record = {
+            'tool': tool_name,
+            'args': args,
+            'result': result,
+            'timestamp': timezone.now().isoformat()
+        }
+        if not isinstance(self.tool_calls, list):
+            self.tool_calls = []
+        self.tool_calls.append(call_record)
+        self.save(update_fields=['tool_calls'])
+    
+    def get_execution_time_ms(self) -> int:
+        """获取执行时间（毫秒）"""
+        if self.started_at and self.completed_at:
+            delta = self.completed_at - self.started_at
+            return int(delta.total_seconds() * 1000)
+        return 0
+    
+    def to_response_dict(self) -> dict:
+        """转换为 API 响应格式"""
+        return {
+            'task_id': str(self.task_id),
+            'status': self.status,
+            'result_type': self.result_type,
+            'result': self.result,
+            'input_text': self.input_text,
+            'tool_calls_count': len(self.tool_calls) if self.tool_calls else 0,
+            'execution_time_ms': self.get_execution_time_ms(),
+            'tokens': {
+                'input': self.input_tokens,
+                'output': self.output_tokens,
+                'cost': self.total_cost,
+                'model': self.model_used
+            },
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+        }

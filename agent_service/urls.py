@@ -5,6 +5,7 @@ from django.urls import path
 from . import views_api
 from . import views_memory_api
 from . import views_config_api
+from . import views_quick_action
 
 app_name = 'agent_service'
 
@@ -86,4 +87,12 @@ urlpatterns = [
     
     # 上下文使用情况
     path('context-usage/', views_api.get_context_usage, name='get_context_usage'),
+    
+    # ==========================================
+    # Quick Action 快速操作 API
+    # ==========================================
+    path('quick-action/', views_quick_action.create_quick_action, name='create_quick_action'),
+    path('quick-action/list/', views_quick_action.list_quick_actions, name='list_quick_actions'),
+    path('quick-action/<uuid:task_id>/', views_quick_action.get_quick_action_status, name='get_quick_action_status'),
+    path('quick-action/<uuid:task_id>/cancel/', views_quick_action.cancel_quick_action, name='cancel_quick_action'),
 ]
