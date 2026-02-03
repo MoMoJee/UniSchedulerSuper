@@ -961,6 +961,11 @@ def get_available_tools(request):
         # Search (联网搜索)
         "web_search": "简单搜索",
         "web_search_advanced": "高级搜索",
+        # VariFlight
+        "query_flight_by_number": "航班实时动态",
+        "query_flights_by_route": "查询目标起降机场之间的航班信息",
+        "query_flight_itineraries": "搜索航班行程价格",
+        "query_flight_transfer": "航班中转方案",
     }
     
     default_tools = get_default_tools()

@@ -978,7 +978,7 @@
 }
 
 [data-theme="dark"] .context-bar-segment.remaining-segment {
-    background: var(--bg-secondary, #2d3748);
+    background: #4a5568;
 }
 
 [data-theme="dark"] .context-trigger-line {
@@ -1570,6 +1570,11 @@
     background: rgba(13, 110, 253, 0.2);
 }
 
+[data-theme="platinum-dark"] .session-item.active {
+    background: linear-gradient(90deg, rgba(201, 169, 97, 0.15), rgba(201, 169, 97, 0.25));
+    border-left: 3px solid #c9a961;
+}
+
 @keyframes slideIn {
     from {
         opacity: 0;
@@ -1860,6 +1865,33 @@
 
 [data-theme="dark"] .tool-select-btn.active {
     background: #0d6efd;
+    color: white;
+}
+
+/* 黑金主题 */
+[data-theme="platinum-dark"] .tool-select-panel {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+
+[data-theme="platinum-dark"] .tool-panel-header {
+    background: linear-gradient(135deg, rgba(201, 169, 97, 0.15), rgba(212, 184, 117, 0.15));
+}
+
+[data-theme="platinum-dark"] .tool-panel-footer {
+    background: var(--bg-tertiary);
+}
+
+[data-theme="platinum-dark"] .tool-category-header {
+    border-color: var(--border-color);
+}
+
+[data-theme="platinum-dark"] .tool-select-btn .tool-badge {
+    background: #c9a961;
+}
+
+[data-theme="platinum-dark"] .tool-select-btn.active {
+    background: #c9a961;
     color: white;
 }
 
