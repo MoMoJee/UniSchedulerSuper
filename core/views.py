@@ -16,6 +16,9 @@ except ImportError:
 # 导入我们的新引擎
 from integrated_reminder_manager import IntegratedReminderManager
 
+# 导入备案信息管理器
+from config.beian_manager import get_beian_info, format_beian_html
+
 # 提醒管理器工厂函数
 def get_reminder_manager(request):
     """获取用户专属的提醒管理器实例"""
@@ -71,7 +74,8 @@ from .views_events import (
 
 # 索引页
 def index(request):
-    return render(request, 'index.html')
+    beian_info = get_beian_info()
+    return render(request, 'index.html', {'beian_info': beian_info})
 
 # 关于我们
 def about(request):
@@ -118,6 +122,9 @@ def user_login(request):
                 return redirect('home')  # 重定向到首页
     else:
         form = AuthenticationForm()
+    
+    beian_info = get_beian_info()
+    return render(request, 'user_login.html', {'form': form, 'beian_info': beian_info})
     return render(request, 'user_login.html', {'form': form})
 
 # 找回密码页面
@@ -158,6 +165,8 @@ def get_user_preferences(request):
 
 @login_required
 def home(request):
+    beian_info = get_beian_info()
+    
     user_preference_data :'UserData'
     user_preference_data, created, result = UserData.get_or_initialize(request=request, new_key="user_preference")
     # TODO 新加一个用户 config ，存储新手教程类和“不再提示”这种配置
@@ -203,6 +212,9 @@ def home(request):
 
     # 初始化 rrule_series_storage 。否则直接创建的时候不知道为啥会创建两个 rrule_series_storage，找半天找不到错在哪儿
     rrule_series_storage, created, result = UserData.get_or_initialize(request, new_key="rrule_series_storage")
+
+    # 添加备案信息到context
+    context['beian_info'] = beian_info
 
     return render(request, 'home.html', context)
 

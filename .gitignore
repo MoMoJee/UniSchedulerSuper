@@ -13,3 +13,6 @@ db.sqlite3
 
 # API 密钥配置文件（包含敏感信息）
 /config/api_keys.json
+
+# 备案信息配置文件（包含敏感信息）
+/config/beian.json
