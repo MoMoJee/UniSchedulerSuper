@@ -16,3 +16,6 @@ db.sqlite3
 
 # 备案信息配置文件（包含敏感信息）
 /config/beian.json
+
+# 邮件配置文件（包含敏感信息）
+/config/email.json

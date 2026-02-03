@@ -1,0 +1,10 @@
+{
+  "enabled": false,
+  "smtp_host": "smtp.examplemail.com",
+  "smtp_port": 465,
+  "smtp_use_ssl": true,
+  "smtp_user": "noreply@example.com",
+  "smtp_password": "",
+  "from_email": "noreply@example.com",
+  "from_name": "时间管理大师"
+}

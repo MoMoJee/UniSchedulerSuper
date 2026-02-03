@@ -97,17 +97,36 @@ def about(request):
 
 # 注册界面
 def user_register(request):
+    # 获取邮件配置状态
+    from config.email_manager import get_email_config
+    email_config = get_email_config()
+    email_enabled = email_config.get('enabled', False)
+    
     if request.method == 'POST':
+        # 检查是否已通过邮箱验证
+        email_verified = request.POST.get('email_verified', 'false')
+        
         form = RegisterForm(request.POST)
         if form.is_valid():
-            user = form.save()  # 创建用户
-            login(request, user)  # 自动登录新注册的用户
-
-            # 这里可以用新的函数，为用户初始化数据表，实现网页功能
-            return redirect('home')  # 重定向到首页
+            # 如果前端标记了邮箱已验证，或者邮件功能未启用，允许注册
+            if email_verified == 'true' or not email_enabled:
+                user = form.save()  # 创建用户
+                login(request, user)  # 自动登录新注册的用户
+                return redirect('home')  # 重定向到首页
+            else:
+                # 邮件功能启用但未验证邮箱
+                return render(request, 'user_register.html', {
+                    'form': form,
+                    'email_enabled': email_enabled,
+                    'error': '请先完成邮箱验证'
+                })
     else:
         form = RegisterForm()
-    return render(request, 'user_register.html', {'form': form})
+    
+    return render(request, 'user_register.html', {
+        'form': form,
+        'email_enabled': email_enabled
+    })
 
 # 登录页面
 def user_login(request):
@@ -129,7 +148,11 @@ def user_login(request):
 
 # 找回密码页面
 def password_reset_page(request):
-    return render(request, 'password_reset.html')
+    from config.email_manager import get_email_config
+    email_config = get_email_config()
+    return render(request, 'password_reset.html', {
+        'email_enabled': email_config.get('enabled', False)
+    })
 
 # TODO 所有交互函数的参数有效性验证都是一坨狗屎，且就算传入了错误的参数（名），也很大概率是不会返回任何错误，只是直接不执行。
 #  浏览器端其实没啥问题，但是这对于 API 端来说极大增加了排错工程量
@@ -1308,6 +1331,149 @@ def change_password(request):
         )
 
 
+# ===== 邮箱验证功能 =====
+
+@api_view(['POST'])
+@permission_classes([])  # 允许未认证用户访问
+def request_email_verification(request):
+    """
+    请求邮箱验证码（用于注册等场景）
+    POST /api/email/request-verification/
+    Body: {
+        "email": "用户邮箱",
+        "purpose": "register"  # 可选，默认为register
+    }
+    """
+    try:
+        from .models import EmailVerificationCode
+        from django.contrib.auth.models import User
+        from config.email_manager import send_verification_code_email, get_email_config
+        
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        email = data.get('email', '').strip()
+        purpose = data.get('purpose', 'register')
+        
+        if not email:
+            return Response(
+                {'error': '请输入邮箱地址'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 检查邮箱格式
+        from django.core.validators import validate_email
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            validate_email(email)
+        except DjangoValidationError:
+            return Response(
+                {'error': '邮箱格式不正确'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 对于注册场景，检查邮箱是否已被注册
+        if purpose == 'register':
+            if User.objects.filter(email=email).exists():
+                return Response(
+                    {'error': '该邮箱已被注册，请使用其他邮箱或尝试找回密码'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # 生成验证码
+        verification_code = EmailVerificationCode.generate_code(email, purpose)
+        
+        # 检查邮件配置是否启用
+        email_config = get_email_config()
+        if email_config.get('enabled', False):
+            # 发送邮件
+            success, message = send_verification_code_email(
+                email,
+                verification_code.code,
+                purpose=purpose
+            )
+            
+            if success:
+                logger.info(f"Verification code sent to {email} for {purpose}")
+                return Response({
+                    'message': '验证码已发送到您的邮箱，请注意查收',
+                    'email': email,
+                    'expires_in': '15分钟'
+                })
+            else:
+                logger.error(f"Failed to send verification email to {email}: {message}")
+                return Response({
+                    'error': '邮件发送失败，请稍后重试',
+                    'detail': message
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            # 邮件功能未启用，返回验证码（仅用于开发测试）
+            logger.warning(f"Email not enabled. Verification code for {email}: {verification_code.code}")
+            return Response({
+                'message': '验证码已生成（邮件功能未启用，仅供测试）',
+                'email': email,
+                'code': verification_code.code,  # 仅用于开发测试
+                'expires_in': '15分钟'
+            })
+        
+    except Exception as e:
+        logger.error(f"Request email verification error: {str(e)}")
+        return Response(
+            {'error': f'请求失败: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([])  # 允许未认证用户访问
+def verify_email_code(request):
+    """
+    验证邮箱验证码
+    POST /api/email/verify-code/
+    Body: {
+        "email": "用户邮箱",
+        "code": "验证码",
+        "purpose": "register"  # 可选，默认为register
+    }
+    """
+    try:
+        from .models import EmailVerificationCode
+        
+        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        email = data.get('email', '').strip()
+        code = data.get('code', '').strip()
+        purpose = data.get('purpose', 'register')
+        
+        if not email or not code:
+            return Response(
+                {'error': '请输入邮箱和验证码'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 验证验证码
+        is_valid, verification_code_obj = EmailVerificationCode.verify_code(email, code, purpose)
+        
+        if not is_valid:
+            return Response(
+                {'error': '验证码无效或已过期'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 标记验证码为已使用
+        verification_code_obj.is_used = True
+        verification_code_obj.save()
+        
+        return Response({
+            'message': '验证成功',
+            'email': email
+        })
+        
+    except Exception as e:
+        logger.error(f"Verify email code error: {str(e)}")
+        return Response(
+            {'error': f'验证失败: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
 # ===== 找回密码功能 =====
 
 @api_view(['POST'])
@@ -1323,6 +1489,7 @@ def request_password_reset(request):
     try:
         from .models import PasswordResetCode
         from django.contrib.auth.models import User
+        from config.email_manager import send_verification_code_email, get_email_config
         
         data = request.data if hasattr(request, 'data') else json.loads(request.body)
         email = data.get('email', '').strip()
@@ -1348,16 +1515,38 @@ def request_password_reset(request):
         # 生成验证码
         reset_code = PasswordResetCode.generate_code(user)
         
-        # TODO: 这里应该发送邮件，但目前先在响应中返回验证码（仅用于开发测试）
-        # 在生产环境中，应该通过邮件发送验证码，而不是直接返回
-        logger.info(f"Password reset code for {email}: {reset_code.code}")
-        
-        return Response({
-            'message': '验证码已生成，请查看服务器日志（生产环境将发送到邮箱）',
-            'email': email,
-            'code': reset_code.code,  # 仅用于开发测试，生产环境应删除此行
-            'expires_in': '15分钟'
-        })
+        # 检查邮件配置是否启用
+        email_config = get_email_config()
+        if email_config.get('enabled', False):
+            # 发送邮件
+            success, message = send_verification_code_email(
+                email,
+                reset_code.code,
+                purpose='reset_password'
+            )
+            
+            if success:
+                logger.info(f"Password reset code sent to {email}")
+                return Response({
+                    'message': '验证码已发送到您的邮箱，请注意查收',
+                    'email': email,
+                    'expires_in': '15分钟'
+                })
+            else:
+                logger.error(f"Failed to send password reset email to {email}: {message}")
+                return Response({
+                    'error': '邮件发送失败，请稍后重试',
+                    'detail': message
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            # 邮件功能未启用，返回验证码（仅用于开发测试）
+            logger.warning(f"Email not enabled. Password reset code for {email}: {reset_code.code}")
+            return Response({
+                'message': '验证码已生成（邮件功能未启用，仅供测试）',
+                'email': email,
+                'code': reset_code.code,  # 仅用于开发测试
+                'expires_in': '15分钟'
+            })
         
     except Exception as e:
         logger.error(f"Request password reset error: {str(e)}")

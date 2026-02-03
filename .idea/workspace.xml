@@ -4,11 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260203_0144 development&#10;&#10;新增冲突检查工具 check_schedule_conflicts 提供硬冲突列表和LLM配合用户个人信息进行的详情分析">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260203_1817 development&#10;&#10;添加备案号（补充）">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/views_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_api.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/static/css/agent-chat.css" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/css/agent-chat.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/templates/home.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/home.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/password_reset.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/password_reset.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/user_register.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/user_register.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/urls.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -377,31 +381,7 @@
       <workItem from="1769503142225" duration="20870000" />
       <workItem from="1769588629076" duration="9579000" />
       <workItem from="1769859963031" duration="11300000" />
-      <workItem from="1769873648853" duration="35555000" />
-    </task>
-    <task id="LOCAL-00026" summary="UniSchedulerSuper 1.5.4.20251109_2247  development&#10;&#10;新增设置界面”我的“选项框，包含 token 管理、用户数据等&#10;新增修改用户名密码功能&#10;新增登录界面忘记密码功能（现无邮件服务器，只有测试实现，直接验证码发到浏览器界面上，之后必须去掉）&#10;修复深色和黑金模式的UI问题">
-      <option name="closed" value="true" />
-      <created>1762712433255</created>
-      <option name="number" value="00026" />
-      <option name="presentableId" value="LOCAL-00026" />
-      <option name="project" value="LOCAL" />
-      <updated>1762712433255</updated>
-    </task>
-    <task id="LOCAL-00027" summary="UniSchedulerSuper 1.5.4.20251110_1528  development&#10;&#10;新增 token 验证重置密码功能">
-      <option name="closed" value="true" />
-      <created>1762759728910</created>
-      <option name="number" value="00027" />
-      <option name="presentableId" value="LOCAL-00027" />
-      <option name="project" value="LOCAL" />
-      <updated>1762759728910</updated>
-    </task>
-    <task id="LOCAL-00028" summary="UniSchedulerSuper 1.5.4.20251111_0009 development&#10;&#10;给主界面加了全局搜素功能&#10;美化了设置按钮和搜索按钮的UI(beta)">
-      <option name="closed" value="true" />
-      <created>1762791052645</created>
-      <option name="number" value="00028" />
-      <option name="presentableId" value="LOCAL-00028" />
-      <option name="project" value="LOCAL" />
-      <updated>1762791052645</updated>
+      <workItem from="1769873648853" duration="41559000" />
     </task>
     <task id="LOCAL-00029" summary="UniSchedulerSuper 1.5.4.20251111_1812 development&#10;&#10;正在开发群组共享功能，当前已完成了数据库模型的创建和配置">
       <option name="closed" value="true" />
@@ -771,7 +751,31 @@
       <option name="project" value="LOCAL" />
       <updated>1770054251666</updated>
     </task>
-    <option name="localTasksCounter" value="75" />
+    <task id="LOCAL-00075" summary="UniSchedulerSuper 1.5.4.20260203_1741 development&#10;&#10;前端 UI 优化">
+      <option name="closed" value="true" />
+      <created>1770111687854</created>
+      <option name="number" value="00075" />
+      <option name="presentableId" value="LOCAL-00075" />
+      <option name="project" value="LOCAL" />
+      <updated>1770111687854</updated>
+    </task>
+    <task id="LOCAL-00076" summary="UniSchedulerSuper 1.5.4.20260203_1741 development&#10;&#10;添加备案号">
+      <option name="closed" value="true" />
+      <created>1770113822408</created>
+      <option name="number" value="00076" />
+      <option name="presentableId" value="LOCAL-00076" />
+      <option name="project" value="LOCAL" />
+      <updated>1770113822408</updated>
+    </task>
+    <task id="LOCAL-00077" summary="UniSchedulerSuper 1.5.4.20260203_1817 development&#10;&#10;添加备案号（补充）">
+      <option name="closed" value="true" />
+      <created>1770113848933</created>
+      <option name="number" value="00077" />
+      <option name="presentableId" value="LOCAL-00077" />
+      <option name="project" value="LOCAL" />
+      <updated>1770113848933</updated>
+    </task>
+    <option name="localTasksCounter" value="78" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -810,9 +814,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20260117_0100 development&#10;&#10;新增 `DialogStyle` 的 `enable_context_optimization` 字段及其优化设置功能，完善 AI 模型配置与 Token 管理交互模块&#10;升级上下文优化相关逻辑" />
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20260117_0147 development&#10;&#10;优化 requirements" />
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20260119_2650 development&#10;&#10;修复了前端 Agent 对话时刷新界面导致流式传输状态丢失的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260119_1937 development&#10;&#10;修复了前端 Agent 对话时实时输出的样式和刷新后的样式不一致的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260122_2101 development&#10;&#10;新增上文总结功能，实现持久会话" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260122_2310 development&#10;&#10;新增上下文使用量百分比堆积条形图，做了一些同步更新按钮绑定" />
@@ -835,7 +836,10 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260202_2254 development&#10;&#10;升级了前端的全局搜索工具，支持搜索分享组中别人的日程&#10;优化：点击搜出的东西后展示内容从 event modal 改为 event detail modal" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260202_2328 development&#10;&#10;升级了 Agent 侧边栏的 md 解析器" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260203_0144 development&#10;&#10;新增冲突检查工具 check_schedule_conflicts 提供硬冲突列表和LLM配合用户个人信息进行的详情分析" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260203_0144 development&#10;&#10;新增冲突检查工具 check_schedule_conflicts 提供硬冲突列表和LLM配合用户个人信息进行的详情分析" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260203_1741 development&#10;&#10;前端 UI 优化" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260203_1741 development&#10;&#10;添加备案号" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260203_1817 development&#10;&#10;添加备案号（补充）" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260203_1817 development&#10;&#10;添加备案号（补充）" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

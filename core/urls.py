@@ -32,6 +32,10 @@ urlpatterns = [
     path('api/user/change-username/', views.change_username, name='change_username'),
     path('api/user/change-password/', views.change_password, name='change_password'),
     
+    # Email verification
+    path('api/email/request-verification/', views.request_email_verification, name='request_email_verification'),
+    path('api/email/verify-code/', views.verify_email_code, name='verify_email_code'),
+    
     # Password reset
     path('api/password-reset/request/', views.request_password_reset, name='request_password_reset'),
     path('api/password-reset/verify/', views.verify_reset_code, name='verify_reset_code'),

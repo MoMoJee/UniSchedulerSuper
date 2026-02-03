@@ -213,14 +213,31 @@ pip install -r requirements.txt
 - 下载地址: https://aka.ms/vs/16/release/vc_redist.x64.exe
 - 安装后重启命令行
 
-#### 4. 数据库迁移
+#### 4. 配置邮件服务（可选）
+
+系统默认运行在**测试模式**，无需配置邮件即可使用。如需启用真实邮件发送（用户注册验证码、密码重置），请参考：
+
+- **详细配置指南**: [docs/邮件服务配置指南.md](docs/邮件服务配置指南.md)
+- **快速配置**: 
+  ```bash
+  cd config
+  cp email.example.json email.json
+  # 编辑 email.json，填入您的 SMTP 配置
+  ```
+
+**测试模式特性**：
+- ✅ 验证码显示在网页上（无需邮件）
+- ✅ 适合开发环境和快速测试
+- ✅ 页面会显示黄色提示横幅
+
+#### 5. 数据库迁移
 
 ```bash
 python manage.py makemigrations
 python manage.py migrate
 ```
 
-#### 5. 创建管理员账户
+#### 6. 创建管理员账户
 
 ```bash
 python manage.py createsuperuser
@@ -237,7 +254,7 @@ Password (again): ******
 Superuser created successfully.
 ```
 
-#### 6. 启动开发服务器
+#### 7. 启动开发服务器
 
 ```bash
 python manage.py runserver

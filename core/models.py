@@ -1623,6 +1623,72 @@ class PasswordResetCode(models.Model):
             return False, None, None
 
 
+class EmailVerificationCode(models.Model):
+    """邮箱验证码模型（用于注册等场景）"""
+    email = models.EmailField()  # 待验证的邮箱
+    code = models.CharField(max_length=6)  # 6位数字验证码
+    purpose = models.CharField(max_length=20, default='register')  # 用途：register, change_email等
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()  # 过期时间
+    is_used = models.BooleanField(default=False)  # 是否已使用
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['email', 'code', 'is_used']),
+        ]
+    
+    def __str__(self):
+        return f"{self.email} - {self.code} ({self.purpose})"
+    
+    @classmethod
+    def generate_code(cls, email, purpose='register'):
+        """为邮箱生成新的验证码"""
+        # 生成6位数字验证码
+        code = ''.join(random.choices(string.digits, k=6))
+        
+        # 使用 Django 的 timezone 来生成时区感知的时间
+        from django.utils import timezone
+        expires_at = timezone.now() + timezone.timedelta(minutes=15)
+        
+        # 创建验证码记录
+        verification_code = cls.objects.create(
+            email=email,
+            code=code,
+            purpose=purpose,
+            expires_at=expires_at
+        )
+        
+        return verification_code
+    
+    def is_valid(self):
+        """检查验证码是否有效"""
+        from django.utils import timezone
+        if self.is_used:
+            return False
+        if timezone.now() > self.expires_at:
+            return False
+        return True
+    
+    @classmethod
+    def verify_code(cls, email, code, purpose='register'):
+        """验证邮箱和验证码是否匹配"""
+        try:
+            # 查找最新的未使用且未过期的验证码
+            verification_code = cls.objects.filter(
+                email=email,
+                code=code,
+                purpose=purpose,
+                is_used=False
+            ).order_by('-created_at').first()
+            
+            if verification_code and verification_code.is_valid():
+                return True, verification_code
+            return False, None
+        except Exception:
+            return False, None
+
+
 # ==================== 群组协作功能模型 ====================
 
 class CollaborativeCalendarGroup(models.Model):
