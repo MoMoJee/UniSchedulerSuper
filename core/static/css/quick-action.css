@@ -1,0 +1,577 @@
+/**
+ * Quick Action 悬浮球样式
+ * 配合主题系统，支持桌宠特性
+ */
+
+/* ============================================
+   容器
+   ============================================ */
+#quick-action-container {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+}
+
+#quick-action-container > * {
+    pointer-events: auto;
+}
+
+#quick-action-container.disabled {
+    pointer-events: none !important;
+    opacity: 0.5;
+}
+
+#quick-action-container.disabled * {
+    pointer-events: none !important;
+}
+
+/* ============================================
+   主悬浮球
+   ============================================ */
+.qa-main-bubble {
+    position: fixed;
+    right: 30px;
+    bottom: 100px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary, #64748b) 0%, var(--primary-hover, #475569) 100%);
+    box-shadow: 0 4px 20px rgba(var(--primary-rgb, 100, 116, 139), 0.4),
+                0 0 0 3px rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+}
+
+.qa-main-bubble:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 30px rgba(var(--primary-rgb, 100, 116, 139), 0.5),
+                0 0 0 4px rgba(255, 255, 255, 0.3);
+}
+
+.qa-main-bubble.active {
+    transform: scale(1.15);
+}
+
+.qa-main-bubble.dragging {
+    cursor: grabbing;
+    transition: none;
+}
+
+/* 闪电图标 */
+.qa-bubble-icon {
+    position: absolute;
+    color: white;
+    font-size: 24px;
+    transition: opacity 0.3s ease;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.qa-main-bubble:hover .qa-bubble-icon,
+.qa-main-bubble.active .qa-bubble-icon {
+    opacity: 0;
+}
+
+/* 表情脸 */
+.qa-bubble-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.qa-main-bubble:hover .qa-bubble-face,
+.qa-main-bubble.active .qa-bubble-face {
+    opacity: 1;
+}
+
+/* 眼睛 */
+.qa-eye {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+    top: 18px;
+    transition: all 0.2s ease;
+}
+
+.qa-eye-left {
+    left: 16px;
+}
+
+.qa-eye-right {
+    right: 16px;
+}
+
+.qa-eye.blink {
+    height: 2px;
+    transform: translateY(3px);
+}
+
+.qa-eye.focused {
+    width: 6px;
+    height: 10px;
+}
+
+/* 嘴巴 */
+.qa-mouth {
+    position: absolute;
+    width: 16px;
+    height: 8px;
+    background: white;
+    border-radius: 0 0 8px 8px;
+    bottom: 25%;
+    left: 50%;
+    margin-left: -8px; /* 用margin居中，不用transform */
+    transition: all 0.3s ease;
+}
+
+/* 表情状态 */
+.qa-bubble-face.happy .qa-mouth {
+    height: 10px;
+    border-radius: 0 0 10px 10px;
+}
+
+.qa-bubble-face.sad .qa-mouth {
+    border-radius: 8px 8px 0 0;
+}
+
+.qa-bubble-face.confused .qa-eye-left {
+    transform: translateY(-2px);
+}
+
+.qa-bubble-face.confused .qa-eye-right {
+    transform: translateY(2px);
+}
+
+.qa-bubble-face.working .qa-eye {
+    animation: lookAround 2s ease-in-out infinite;
+}
+
+@keyframes lookAround {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    75% { transform: translateX(2px); }
+}
+
+/* 分身按钮 */
+.qa-split-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--success, #22c55e);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.qa-main-bubble:hover .qa-split-btn {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.qa-split-btn:hover {
+    background: var(--success-hover, #16a34a);
+    transform: scale(1.2);
+}
+
+/* 空闲动画 */
+.qa-main-bubble.wiggle {
+    animation: wiggle 0.5s ease-in-out;
+}
+
+.qa-main-bubble.bounce {
+    animation: bounce 0.6s ease;
+}
+
+@keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-10deg); }
+    75% { transform: rotate(10deg); }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+/* ============================================
+   输入面板
+   ============================================ */
+.qa-input-panel {
+    position: fixed;
+    right: 100px;
+    bottom: 100px;
+    width: 320px;
+    background: var(--bg-primary, #ffffff);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15),
+                0 0 0 1px rgba(var(--primary-rgb, 100, 116, 139), 0.1);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px) scale(0.9);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+.qa-input-panel.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+.qa-input-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, var(--primary, #64748b) 0%, var(--primary-hover, #475569) 100%);
+    color: white;
+    font-weight: 600;
+}
+
+.qa-close-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.qa-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.qa-input-body {
+    padding: 16px;
+}
+
+.qa-input-body textarea {
+    width: 100%;
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 14px;
+    resize: none;
+    background: var(--bg-secondary, #f8fafc);
+    color: var(--text-primary, #1e293b);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.qa-input-body textarea:focus {
+    outline: none;
+    border-color: var(--primary, #64748b);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 100, 116, 139), 0.1);
+}
+
+.qa-input-body textarea::placeholder {
+    color: var(--text-secondary, #94a3b8);
+}
+
+.qa-input-hints {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+.qa-hint {
+    padding: 4px 10px;
+    background: var(--bg-tertiary, #f1f5f9);
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--text-secondary, #64748b);
+}
+
+.qa-input-footer {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-color, #e2e8f0);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.qa-send-btn {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, var(--primary, #64748b) 0%, var(--primary-hover, #475569) 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.qa-send-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb, 100, 116, 139), 0.4);
+}
+
+/* ============================================
+   任务气泡（分身）
+   ============================================ */
+.qa-task-bubble {
+    position: fixed;
+    min-width: 200px;
+    max-width: 300px;
+    background: var(--bg-primary, #ffffff);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    padding: 12px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    opacity: 0;
+    transform: translateX(20px) scale(0.9);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 2px solid transparent;
+}
+
+.qa-task-bubble.visible {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+}
+
+.qa-task-bubble.closing {
+    opacity: 0;
+    transform: translateX(20px) scale(0.9);
+}
+
+/* 状态边框 */
+.qa-task-bubble.pending {
+    border-color: var(--warning, #f59e0b);
+}
+
+.qa-task-bubble.processing {
+    border-color: var(--primary, #64748b);
+    animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+.qa-task-bubble.success {
+    border-color: var(--success, #22c55e);
+}
+
+.qa-task-bubble.failed,
+.qa-task-bubble.error {
+    border-color: var(--danger, #ef4444);
+}
+
+@keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(var(--primary-rgb, 100, 116, 139), 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(var(--primary-rgb, 100, 116, 139), 0); }
+}
+
+/* 任务图标 */
+.qa-task-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: var(--bg-secondary, #f1f5f9);
+    color: var(--primary, #64748b);
+}
+
+.qa-task-bubble.success .qa-task-icon {
+    background: var(--success, #22c55e);
+    color: white;
+}
+
+.qa-task-bubble.failed .qa-task-icon,
+.qa-task-bubble.error .qa-task-icon {
+    background: var(--danger, #ef4444);
+    color: white;
+}
+
+/* 任务内容 */
+.qa-task-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.qa-task-text {
+    font-size: 14px;
+    color: var(--text-primary, #1e293b);
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+.qa-task-status {
+    font-size: 12px;
+    color: var(--text-secondary, #64748b);
+    margin-top: 4px;
+}
+
+/* 关闭按钮 */
+.qa-task-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #94a3b8);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.qa-task-close:hover {
+    background: var(--bg-tertiary, #f1f5f9);
+    color: var(--text-primary, #1e293b);
+}
+
+/* 重试按钮 */
+.qa-retry-btn {
+    margin-top: 8px;
+    padding: 6px 12px;
+    background: var(--primary, #64748b);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.qa-retry-btn:hover {
+    background: var(--primary-hover, #475569);
+    transform: translateY(-1px);
+}
+
+/* ============================================
+   深色主题适配
+   ============================================ */
+[data-theme="dark"] .qa-input-panel,
+[data-theme="cyberpunk"] .qa-input-panel,
+[data-theme="platinum-dark"] .qa-input-panel {
+    background: var(--bg-primary, #1e293b);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .qa-task-bubble,
+[data-theme="cyberpunk"] .qa-task-bubble,
+[data-theme="platinum-dark"] .qa-task-bubble {
+    background: var(--bg-primary, #1e293b);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .qa-input-body textarea,
+[data-theme="cyberpunk"] .qa-input-body textarea,
+[data-theme="platinum-dark"] .qa-input-body textarea {
+    background: var(--bg-secondary, #0f172a);
+    border-color: var(--border-color, #334155);
+}
+
+/* ============================================
+   特殊主题适配
+   ============================================ */
+
+/* 中国红 */
+[data-theme="china-red"] .qa-main-bubble {
+    background: linear-gradient(135deg, #de2910 0%, #c41e0b 100%);
+}
+
+/* 海洋 */
+[data-theme="ocean"] .qa-main-bubble {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+}
+
+/* 森林 */
+[data-theme="forest"] .qa-main-bubble {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+}
+
+/* 日落 */
+[data-theme="sunset"] .qa-main-bubble {
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+}
+
+/* 樱花 */
+[data-theme="sakura"] .qa-main-bubble {
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+}
+
+/* 赛博朋克 */
+[data-theme="cyberpunk"] .qa-main-bubble {
+    background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.5),
+                0 0 40px rgba(168, 85, 247, 0.3);
+}
+
+[data-theme="cyberpunk"] .qa-main-bubble:hover {
+    box-shadow: 0 0 30px rgba(168, 85, 247, 0.7),
+                0 0 60px rgba(168, 85, 247, 0.4);
+}
+
+/* 黑金 */
+[data-theme="platinum-dark"] .qa-main-bubble {
+    background: linear-gradient(135deg, #d4af37 0%, #b8860b 100%);
+    box-shadow: 0 4px 20px rgba(212, 175, 55, 0.4);
+}
+
+[data-theme="platinum-dark"] .qa-input-header {
+    background: linear-gradient(135deg, #d4af37 0%, #b8860b 100%);
+    color: #0d0d0d;
+}
+
+/* 马卡龙 */
+[data-theme="macaron"] .qa-main-bubble {
+    background: linear-gradient(135deg, #f9a8d4 0%, #f472b6 100%);
+}
+
+/* 多巴胺 */
+[data-theme="dopamine"] .qa-main-bubble {
+    background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
+}
+
+/* ============================================
+   响应式
+   ============================================ */
+@media (max-width: 768px) {
+    .qa-main-bubble {
+        width: 48px;
+        height: 48px;
+        right: 16px;
+        bottom: 80px;
+    }
+    
+    .qa-bubble-icon {
+        font-size: 20px;
+    }
+    
+    .qa-input-panel {
+        right: 16px;
+        left: 16px;
+        width: auto;
+        bottom: 140px;
+    }
+    
+    .qa-task-bubble {
+        right: 16px !important;
+        left: 16px !important;
+        width: auto !important;
+        max-width: none;
+    }
+}

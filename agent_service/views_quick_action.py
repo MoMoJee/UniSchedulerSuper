@@ -361,8 +361,10 @@ def cancel_quick_action(request, task_id):
     
     DELETE /api/quick-action/<task_id>/
     
-    只能取消 pending 状态的任务。
+    可以取消 pending 或 processing 状态的任务。
     """
+    from .quick_action_agent import set_task_cancelled
+    
     try:
         task = QuickActionTask.objects.get(task_id=task_id, user=request.user)
     except QuickActionTask.DoesNotExist:
@@ -371,12 +373,16 @@ def cancel_quick_action(request, task_id):
             status=status.HTTP_404_NOT_FOUND
         )
     
-    if task.status != 'pending':
+    if task.status not in ['pending', 'processing']:
         return Response(
             {"error": f"无法取消状态为 {task.status} 的任务", "code": "INVALID_STATUS"},
             status=status.HTTP_400_BAD_REQUEST
         )
     
+    # 设置取消标志（通知后台线程停止）
+    set_task_cancelled(str(task_id))
+    
+    # 更新任务状态
     task.status = 'failed'
     task.result_type = 'error'
     task.result = {"message": "任务已被用户取消", "cancelled": True}

@@ -15,6 +15,8 @@
     <link rel="stylesheet" href="{% static 'css/share-groups.css' %}?v=20251111-001">
     <!-- Agent Chat CSS -->
     <link rel="stylesheet" href="{% static 'css/agent-chat.css' %}?v=20251201-001">
+    <!-- Quick Action CSS -->
+    <link rel="stylesheet" href="{% static 'css/quick-action.css' %}?v=20260204-001">
     
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">    <!-- 强制隐藏editEventRecurringInfo元素的样式 -->
@@ -4785,6 +4787,8 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
     <!-- AI Agent 模块 -->
     <script src="{% static 'js/agent-chat.js' %}?v=20251222-001"></script>
     <script src="{% static 'js/agent-config.js' %}?v=20260102-001"></script>
+    <!-- Quick Action 快速操作模块 -->
+    <script src="{% static 'js/quick-action.js' %}?v=20260204-001"></script>
     <script>
         // 初始化 Agent Chat
         agentChat = new AgentChat({{ user.id }}, window.CSRF_TOKEN);

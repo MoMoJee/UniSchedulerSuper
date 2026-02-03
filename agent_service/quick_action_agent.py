@@ -21,6 +21,66 @@ from agent_service.context_optimizer import update_token_usage, get_current_mode
 from logger import logger
 
 
+# 全局取消标志（线程安全）
+import threading
+_cancellation_flags = {}  # task_id -> bool
+_cancellation_lock = threading.Lock()
+
+
+def set_task_cancelled(task_id: str):
+    """设置任务为取消状态"""
+    with _cancellation_lock:
+        _cancellation_flags[task_id] = True
+        logger.info(f"[QuickAction] Task {task_id} marked as cancelled")
+
+
+def is_task_cancelled(task_id: str) -> bool:
+    """检查任务是否已取消"""
+    with _cancellation_lock:
+        return _cancellation_flags.get(task_id, False)
+
+
+def clear_task_cancellation(task_id: str):
+    """清除任务取消标志"""
+    with _cancellation_lock:
+        _cancellation_flags.pop(task_id, None)
+
+
+class TaskCancelledException(Exception):
+    """任务被取消异常"""
+    pass
+
+
+# 全局取消标志（线程安全）
+import threading
+_cancellation_flags = {}  # task_id -> bool
+_cancellation_lock = threading.Lock()
+
+
+def set_task_cancelled(task_id: str):
+    """设置任务为取消状态"""
+    with _cancellation_lock:
+        _cancellation_flags[task_id] = True
+        logger.info(f"[QuickAction] Task {task_id} marked as cancelled")
+
+
+def is_task_cancelled(task_id: str) -> bool:
+    """检查任务是否已取消"""
+    with _cancellation_lock:
+        return _cancellation_flags.get(task_id, False)
+
+
+def clear_task_cancellation(task_id: str):
+    """清除任务取消标志"""
+    with _cancellation_lock:
+        _cancellation_flags.pop(task_id, None)
+
+
+class TaskCancelledException(Exception):
+    """任务被取消异常"""
+    pass
+
+
 class QuickActionState(TypedDict):
     """Quick Action 状态"""
     messages: Annotated[List, operator.add]
@@ -167,6 +227,13 @@ def build_system_message(current_time: str) -> SystemMessage:
 # ============================================
 def agent_node(state: QuickActionState) -> Dict:
     """Agent 决策节点"""
+    task_id = state['task_id']
+    
+    # 检查任务是否已取消
+    if is_task_cancelled(task_id):
+        logger.info(f"[QuickAction] Task {task_id} cancelled, stopping agent")
+        raise TaskCancelledException(f"Task {task_id} was cancelled by user")
+    
     user = state['user']
     messages = state['messages']
     
@@ -213,6 +280,13 @@ def agent_node(state: QuickActionState) -> Dict:
 def tool_node_wrapper(state: QuickActionState) -> Dict:
     """工具执行节点"""
     from langchain_core.runnables import RunnableConfig
+    
+    task_id = state['task_id']
+    
+    # 检查任务是否已取消
+    if is_task_cancelled(task_id):
+        logger.info(f"[QuickAction] Task {task_id} cancelled, stopping tools")
+        raise TaskCancelledException(f"Task {task_id} was cancelled by user")
     
     user = state['user']
     messages = state['messages']
@@ -436,6 +510,9 @@ def execute_quick_action_sync(user, input_text: str, task_id: Optional[str] = No
             config={"recursion_limit": 15}
         )
         
+        # 清除取消标志
+        clear_task_cancellation(task_id)
+        
         # 获取结果
         result = final_state.get('final_result', {})
         tokens = final_state.get('tokens_used', {})
@@ -446,9 +523,20 @@ def execute_quick_action_sync(user, input_text: str, task_id: Optional[str] = No
             "tool_calls": result.get('tool_calls', []),
             "tokens": tokens
         }
+    
+    except TaskCancelledException as e:
+        logger.info(f"[QuickAction] Task {task_id} was cancelled: {e}")
+        clear_task_cancellation(task_id)
+        return {
+            "type": "error",
+            "message": "❌ 任务已被用户取消",
+            "tool_calls": [],
+            "tokens": {"input": 0, "output": 0}
+        }
         
     except Exception as e:
         logger.exception(f"[QuickAction] Execution failed: {e}")
+        clear_task_cancellation(task_id)
         return {
             "type": "error",
             "message": f"❌ 执行出错: {str(e)}",
