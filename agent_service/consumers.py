@@ -9,7 +9,8 @@ Agent WebSocket Consumer
 # 一轮完整的"工具调用"通常需要 2-3 个步数：LLM生成工具调用 → 执行工具 → LLM处理结果
 # 建议值：50 (约可支持 15-20 轮工具调用)，25 (约可支持 8-10 轮工具调用)
 # 达到此限制后会提示用户是否继续
-RECURSION_LIMIT = 25
+# 【已废弃】此常量已移至用户配置中，保留仅作为后备默认值
+RECURSION_LIMIT = 25  # 后备默认值
 
 import json
 import asyncio
@@ -293,13 +294,18 @@ class AgentConsumer(AsyncWebsocketConsumer):
             await self.send_json({"type": "processing", "message": "正在思考..."})
             
             # 准备配置
+            # 从用户配置读取 recursion_limit
+            from agent_service.context_optimizer import get_optimization_config
+            opt_config = await database_sync_to_async(get_optimization_config)(self.user)
+            recursion_limit = opt_config.get('recursion_limit', RECURSION_LIMIT)
+            
             config = {
                 "configurable": {
                     "thread_id": self.session_id,
                     "user": self.user,
                     "active_tools": self.active_tools  # 传递 active_tools 到 config
                 },
-                "recursion_limit": RECURSION_LIMIT  # 单次对话最大工具调用步数
+                "recursion_limit": recursion_limit  # 从用户配置读取，单次对话最大工具调用步数
             }
             
             # 获取异步 app

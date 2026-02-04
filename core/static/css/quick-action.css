@@ -8,7 +8,7 @@
    ============================================ */
 #quick-action-container {
     position: fixed;
-    z-index: 9999;
+    z-index: 100001 !important;  /* 确保悬浮球始终在最上层，高于导航栏(10000)、搜索栏(100000) */
     pointer-events: none;
 }
 

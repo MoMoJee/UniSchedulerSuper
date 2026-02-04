@@ -585,6 +585,7 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
                     summary_metadata=summary_metadata,
                     token_calculator=calculator,
                     tool_compressor=tool_compressor,
+                    preserve_recent_count=opt_config.get('tool_compress_preserve_recent_messages', 5)
                 )
                 
                 # 移除第一个 SystemMessage（因为 build_optimized_context 已经添加了）

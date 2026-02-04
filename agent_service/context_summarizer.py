@@ -426,7 +426,8 @@ class ConversationSummarizer:
 # ========== 工具压缩配置 ==========
 # 保留最近 X 条用户消息对应的工具调用结果不压缩
 # 只有 X 条用户消息之前的工具调用结果会被压缩
-TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES = 5
+# 【已废弃】此常量已移至用户配置（tool_compress_preserve_recent_messages），保留仅作为后备默认值
+TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES = 5  # 后备默认值
 
 
 def _find_compression_boundary(messages: List[BaseMessage], preserve_count: int) -> int:
@@ -470,7 +471,8 @@ def build_optimized_context(
     token_calculator,
     tool_compressor,
     summary_token_budget: Optional[int] = None,  # 已弃用，保留参数兼容性
-    recent_token_budget: Optional[int] = None    # 已弃用，保留参数兼容性
+    recent_token_budget: Optional[int] = None,   # 已弃用，保留参数兼容性
+    preserve_recent_count: int = TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES  # 保留最近几条用户消息对应的工具不压缩
 ) -> List[BaseMessage]:
     """
     构建优化的上下文
@@ -478,6 +480,9 @@ def build_optimized_context(
     新逻辑:
     - 如果有总结，使用 [System] + [Summary] + [总结截止点之后的所有消息]
     - 如果没有总结，使用 [System] + [所有消息]（智能压缩工具输出）
+    
+    Args:
+        preserve_recent_count: 保留最近几条用户消息对应的工具调用结果不压缩
     - 工具压缩策略：只压缩最近 N 条用户消息之前的工具调用结果
     - 不再做消息截断，依赖总结功能来控制 token 数
 

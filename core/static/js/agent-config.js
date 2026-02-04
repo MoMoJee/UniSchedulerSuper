@@ -541,6 +541,13 @@ const agentConfig = {
         
         const toolMax = document.getElementById('toolOutputMaxTokens');
         if (toolMax) toolMax.value = config.tool_output_max_tokens || 200;
+        
+        const preserveRecent = document.getElementById('toolCompressPreserveRecent');
+        if (preserveRecent) preserveRecent.value = config.tool_compress_preserve_recent_messages || 5;
+        
+        // 执行控制
+        const recursionLimit = document.getElementById('recursionLimit');
+        if (recursionLimit) recursionLimit.value = config.recursion_limit || 25;
     },
     
     /**
@@ -557,7 +564,9 @@ const agentConfig = {
                 summary_token_ratio: parseInt(document.getElementById('summaryTokenRatio').value) / 100,
                 min_messages_before_summary: parseInt(document.getElementById('minMessagesBeforeSummary').value),
                 compress_tool_output: document.getElementById('compressToolOutput').checked,
-                tool_output_max_tokens: parseInt(document.getElementById('toolOutputMaxTokens').value)
+                tool_output_max_tokens: parseInt(document.getElementById('toolOutputMaxTokens').value),
+                tool_compress_preserve_recent_messages: parseInt(document.getElementById('toolCompressPreserveRecent').value),
+                recursion_limit: parseInt(document.getElementById('recursionLimit').value)
             }
         };
         
@@ -604,6 +613,8 @@ const agentConfig = {
         document.getElementById('minMessagesBeforeSummary').value = 20;
         document.getElementById('compressToolOutput').checked = true;
         document.getElementById('toolOutputMaxTokens').value = 200;
+        document.getElementById('toolCompressPreserveRecent').value = 5;
+        document.getElementById('recursionLimit').value = 25;
     },
     
     // ==========================================

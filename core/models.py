@@ -1262,6 +1262,18 @@ DATA_SCHEMA = {
                 "nullable": False,
                 "default": 200,
             },
+            # Agent 最大递归限制（图执行步数）
+            "recursion_limit": {
+                "type": int,
+                "nullable": False,
+                "default": 25,
+            },
+            # 工具压缩：保留最近几条用户消息对应的工具调用不压缩
+            "tool_compress_preserve_recent_messages": {
+                "type": int,
+                "nullable": False,
+                "default": 5,
+            },
         },
     },
 }

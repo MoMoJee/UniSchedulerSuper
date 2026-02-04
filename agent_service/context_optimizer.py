@@ -523,6 +523,8 @@ def get_optimization_config(user) -> Dict:
         'compress_tool_output': True,
         'tool_output_max_tokens': 200,
         'target_summary_tokens': 2000,      # 目标总结 token 数
+        'recursion_limit': 25,              # Agent 最大递归限制
+        'tool_compress_preserve_recent_messages': 5,  # 保留最近几条用户消息对应的工具不压缩
     }
 
     try:

@@ -365,7 +365,9 @@ def update_opt_config(request):
                 'summary_trigger_ratio',
                 'min_messages_before_summary',
                 'compress_tool_output',
-                'tool_output_max_tokens'
+                'tool_output_max_tokens',
+                'tool_compress_preserve_recent_messages',
+                'recursion_limit'
             ]
             
             # 更新允许的字段
