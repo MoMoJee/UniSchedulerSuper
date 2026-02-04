@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录</title>
+  <!-- 引入 Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="card-title text-center mb-4">登录</h2>
+          <form method="post">
+              {% csrf_token %}
+              <div class="mb-3 text-center">
+                  {{ form.username.label_tag }}
+                  <div class="d-flex justify-content-center">
+                      {{ form.username }}
+                  </div>
+                  {% if form.username.errors %}
+                      <div class="text-danger">{{ form.username.errors }}</div>
+                  {% endif %}
+              </div>
+              <div class="mb-3 text-center">
+                  {{ form.password.label_tag }}
+                  <div class="d-flex justify-content-center">
+                      {{ form.password }}
+                  </div>
+                  {% if form.password.errors %}
+                      <div class="text-danger">{{ form.password.errors }}</div>
+                  {% endif %}
+                  <div class="text-end mt-2">
+                      <a href="/password-reset/" class="text-decoration-none small">忘记密码？</a>
+                  </div>
+              </div>
+              <div class="d-flex justify-content-between">
+                  <button type="submit" class="btn btn-primary flex-fill me-2">启动！</button>
+                  <br/>
+                  <a href="/" class="btn btn-secondary flex-fill">返回</a>
+              </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if beian_info.enabled %}
+<div class="beian-info" style="position: fixed; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 0.85rem; color: #6c757d;">
+    {% if beian_info.icp_number %}
+    <a href="{{ beian_info.icp_link }}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none; margin: 0 5px;">{{ beian_info.icp_number }}</a>
+    {% endif %}
+    {% if beian_info.gongan_number %}
+    <span style="margin: 0 5px;">|</span>
+    <a href="{{ beian_info.gongan_link }}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none; margin: 0 5px;">{{ beian_info.gongan_number }}</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- 引入 Bootstrap JS 和依赖项 -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

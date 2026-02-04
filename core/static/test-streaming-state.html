@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>流式状态调试工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            max-height: 400px;
+        }
+        .log {
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            width: 200px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Agent 流式状态调试工具</h1>
+    
+    <div class="section">
+        <h2>1. 查看所有 localStorage 键</h2>
+        <button onclick="showAllKeys()">显示所有键</button>
+        <button onclick="showStreamingKeys()">仅显示流式状态键</button>
+        <pre id="keysOutput"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>2. 模拟保存流式状态</h2>
+        <div>
+            <label>用户ID: <input type="text" id="userId" value="1"></label>
+            <label>会话ID: <input type="text" id="sessionId" value="user_1_test_session"></label>
+        </div>
+        <div>
+            <label>内容: <input type="text" id="content" value="测试内容"></label>
+        </div>
+        <button onclick="saveTestState()">保存测试状态</button>
+        <button onclick="loadTestState()">读取测试状态</button>
+        <pre id="testOutput"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>3. 清除操作</h2>
+        <button class="danger" onclick="clearStreamingKeys()">清除所有流式状态键</button>
+        <button class="danger" onclick="clearAllAgentKeys()">清除所有 Agent 相关键</button>
+        <pre id="clearOutput"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>4. 实时监控</h2>
+        <button onclick="startMonitor()">开始监控</button>
+        <button onclick="stopMonitor()">停止监控</button>
+        <pre id="monitorOutput" class="log"></pre>
+    </div>
+
+    <script>
+        let monitorInterval = null;
+        
+        function showAllKeys() {
+            const output = document.getElementById('keysOutput');
+            const keys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                keys.push({
+                    key: key,
+                    length: value.length,
+                    preview: value.substring(0, 100)
+                });
+            }
+            output.textContent = JSON.stringify(keys, null, 2);
+        }
+        
+        function showStreamingKeys() {
+            const output = document.getElementById('keysOutput');
+            const keys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('agent_streaming_')) {
+                    const value = localStorage.getItem(key);
+                    try {
+                        const parsed = JSON.parse(value);
+                        keys.push({
+                            key: key,
+                            data: parsed
+                        });
+                    } catch (e) {
+                        keys.push({
+                            key: key,
+                            error: '解析失败',
+                            raw: value
+                        });
+                    }
+                }
+            }
+            
+            if (keys.length === 0) {
+                output.textContent = '没有找到流式状态键';
+            } else {
+                output.textContent = JSON.stringify(keys, null, 2);
+            }
+        }
+        
+        function saveTestState() {
+            const userId = document.getElementById('userId').value;
+            const sessionId = document.getElementById('sessionId').value;
+            const content = document.getElementById('content').value;
+            const output = document.getElementById('testOutput');
+            
+            const key = `agent_streaming_${userId}_${sessionId}`;
+            const state = {
+                isActive: true,
+                content: content,
+                timestamp: Date.now(),
+                sessionId: sessionId
+            };
+            
+            try {
+                localStorage.setItem(key, JSON.stringify(state));
+                output.innerHTML = `<span class="success">✓ 保存成功！</span>\n` + 
+                    `键: ${key}\n` +
+                    `内容: ${JSON.stringify(state, null, 2)}`;
+            } catch (e) {
+                output.innerHTML = `<span class="error">✗ 保存失败: ${e.message}</span>`;
+            }
+        }
+        
+        function loadTestState() {
+            const userId = document.getElementById('userId').value;
+            const sessionId = document.getElementById('sessionId').value;
+            const output = document.getElementById('testOutput');
+            
+            const key = `agent_streaming_${userId}_${sessionId}`;
+            const value = localStorage.getItem(key);
+            
+            if (value) {
+                try {
+                    const state = JSON.parse(value);
+                    output.innerHTML = `<span class="success">✓ 读取成功！</span>\n` +
+                        `键: ${key}\n` +
+                        `内容: ${JSON.stringify(state, null, 2)}`;
+                } catch (e) {
+                    output.innerHTML = `<span class="error">✗ 解析失败: ${e.message}</span>\n原始值: ${value}`;
+                }
+            } else {
+                output.innerHTML = `<span class="error">✗ 未找到该键</span>\n键: ${key}`;
+            }
+        }
+        
+        function clearStreamingKeys() {
+            const output = document.getElementById('clearOutput');
+            const keys = [];
+            
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+                const key = localStorage.key(i);
+                if (key.startsWith('agent_streaming_')) {
+                    keys.push(key);
+                    localStorage.removeItem(key);
+                }
+            }
+            
+            output.textContent = keys.length > 0 
+                ? `已清除 ${keys.length} 个键:\n${keys.join('\n')}`
+                : '没有找到需要清除的键';
+        }
+        
+        function clearAllAgentKeys() {
+            const output = document.getElementById('clearOutput');
+            const keys = [];
+            
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+                const key = localStorage.key(i);
+                if (key.startsWith('agent_')) {
+                    keys.push(key);
+                    localStorage.removeItem(key);
+                }
+            }
+            
+            output.textContent = keys.length > 0 
+                ? `已清除 ${keys.length} 个键:\n${keys.join('\n')}`
+                : '没有找到需要清除的键';
+        }
+        
+        function startMonitor() {
+            const output = document.getElementById('monitorOutput');
+            if (monitorInterval) {
+                output.textContent += '\n监控已在运行中';
+                return;
+            }
+            
+            output.textContent = '开始监控 localStorage 变化...\n\n';
+            let lastSnapshot = JSON.stringify(getStreamingSnapshot());
+            
+            monitorInterval = setInterval(() => {
+                const currentSnapshot = JSON.stringify(getStreamingSnapshot());
+                if (currentSnapshot !== lastSnapshot) {
+                    const timestamp = new Date().toLocaleTimeString();
+                    output.textContent += `[${timestamp}] 检测到变化:\n${getStreamingSnapshot().map(s => 
+                        `  ${s.key}: ${s.isActive ? '激活' : '未激活'}, ${s.contentLength} 字符`
+                    ).join('\n')}\n\n`;
+                    lastSnapshot = currentSnapshot;
+                    
+                    // 自动滚动到底部
+                    output.scrollTop = output.scrollHeight;
+                }
+            }, 500);
+        }
+        
+        function stopMonitor() {
+            if (monitorInterval) {
+                clearInterval(monitorInterval);
+                monitorInterval = null;
+                const output = document.getElementById('monitorOutput');
+                output.textContent += '\n监控已停止';
+            }
+        }
+        
+        function getStreamingSnapshot() {
+            const snapshot = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('agent_streaming_')) {
+                    try {
+                        const state = JSON.parse(localStorage.getItem(key));
+                        snapshot.push({
+                            key: key,
+                            isActive: state.isActive,
+                            contentLength: state.content?.length || 0,
+                            timestamp: state.timestamp
+                        });
+                    } catch (e) {}
+                }
+            }
+            return snapshot;
+        }
+        
+        // 页面加载时自动显示流式状态键
+        window.onload = function() {
+            showStreamingKeys();
+        };
+    </script>
+</body>
+</html>

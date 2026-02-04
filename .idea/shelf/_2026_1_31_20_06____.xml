@@ -1,0 +1,9 @@
+<changelist name="在进行更新之前于_2026_1_31_20_06_取消提交了更改_[更改]" date="1769861200198" recycled="true" deleted="true">
+  <option name="PATH" value="$PROJECT_DIR$/.idea/shelf/在进行更新之前于_2026_1_31_20_06_取消提交了更改_[更改]/shelved.patch" />
+  <option name="DESCRIPTION" value="在进行更新之前于 2026/1/31 20:06 取消提交了更改 [更改]" />
+  <binary>
+    <option name="BEFORE_PATH" value="db.sqlite3" />
+    <option name="AFTER_PATH" value="db.sqlite3" />
+    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/在进行更新之前于_2026_1_31_20_06_取消提交了更改_[更改]/db.sqlite3" />
+  </binary>
+</changelist>

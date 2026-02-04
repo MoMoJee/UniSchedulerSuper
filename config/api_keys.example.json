@@ -1,0 +1,95 @@
+{
+    "_comment": "API 密钥配置文件 - 请勿将此文件提交到版本控制系统",
+    "_注意": "此文件包含敏感信息，请妥善保管",
+
+    "system_models": {
+        "_description": "系统提供的大语言模型配置（统一参数源），至少得写一个",
+        "system_deepseek": {
+            "name": "DeepSeek V3（系统提供）",
+            "provider": "deepseek",
+            "api_key": "your-deepseek-api-key-here",
+            "base_url": "https://api.deepseek.com",
+            "model_name": "deepseek-chat",
+            "context_window": 131072,
+            "supports_tools": true,
+            "cost_per_1k_input": 0.002,
+            "cost_per_1k_output": 0.003,
+            "cost_currency": "CNY",
+            "readonly": true,
+            "enabled": true
+        },
+        "system_moonshot": {
+            "name": "kimi-k2-0905-preview（系统提供）",
+            "provider": "moonshot",
+            "api_key": "your-moonshot-api-key-here",
+            "base_url": "https://api.moonshot.cn/v1",
+            "model_name": "kimi-k2-0905-preview",
+            "context_window": 262144,
+            "supports_tools": true,
+            "cost_per_1k_input": 0.004,
+            "cost_per_1k_output": 0.016,
+            "cost_currency": "CNY",
+            "readonly": true,
+            "enabled": true
+        }
+    },
+
+    "llm": {
+        "_description": "（旧配置，保留兼容性）大语言模型 API 密钥",
+        "_deprecated": "请使用 system_models 配置，此配置将在未来版本移除",
+        "deepseek": {
+            "api_key": "your-deepseek-api-key-here",
+            "base_url": "https://api.deepseek.com",
+            "default_model": "deepseek-chat"
+        },
+        "moonshot": {
+            "api_key": "your-moonshot-api-key-here",
+            "base_url": "https://api.moonshot.cn/v1",
+            "default_model": "kimi-latest"
+        },
+        "openai": {
+            "api_key": "your-openai-api-key-here",
+            "base_url": "https://api.openai.com/v1",
+            "default_model": "gpt-4-turbo"
+        }
+    },
+
+    "map_services": {
+        "_description": "地图服务 API 密钥，不配置也不影响其他功能使用",
+        "amap": {
+            "api_key": "your-amap-key-here",
+            "mcp_url": "https://mcp.amap.com/sse"
+        }
+    },
+
+    "search_services": {
+        "_description": "搜索服务 API 密钥，不配置也不影响其他功能使用",
+        "tavily": {
+            "api_key": "your-tavily-api-key-here"
+        },
+        "serper": {
+            "api_key": "your-serper-api-key-here"
+        }
+    },
+
+    "mcp_services": {
+        "_description": "MCP 服务配置，不配置也不影响其他功能使用",
+        "12306": {
+            "enabled": true,
+            "mcp_url": "http://localhost:8001/mcp",
+            "transport": "streamable_http",
+            "description": "12306 火车票查询服务，不配置也不影响其他功能使用"
+        }
+    },
+
+    "billing": {
+        "_description": "计费相关配置",
+        "monthly_credit": 5.0,
+        "credit_currency": "CNY",
+        "billing_description": "每月抵用金额度"
+    },
+    
+    "other_services": {
+        "_description": "其他服务 API 密钥"
+    }
+}

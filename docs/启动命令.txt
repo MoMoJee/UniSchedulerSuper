@@ -1,0 +1,17 @@
+初次运行：
+cd <项目根目录>
+比如 cd D:\PROJECTS\UniSchedulerSuper
+
+创建虚拟环境：
+python -m venv venv
+
+激活虚拟环境：
+.\\venv\Scripts\activate
+
+安装依赖：
+pip install -r requirements.txt
+
+运行：
+python manage.py runserver 0.0.0.0:8000
+
+

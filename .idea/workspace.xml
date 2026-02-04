@@ -1,0 +1,1352 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.6&#10;&#10;清理了一些无用日志">
+      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/ai_debugger.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/ai_toolkit.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/copilot.data.migration.agent.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/copilot.data.migration.ask.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/copilot.data.migration.ask2agent.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/copilot.data.migration.edit.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/dataSources/de14a52a-c287-464a-b0f5-de030c0a2204.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/dataSources/de14a52a-c287-464a-b0f5-de030c0a2204/storage_v2/_src_/schema/main.uQUzAA.meta" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/db-forest-config.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/shelf/_2026_1_31_20_06____.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/shelf/_2026_2_2_20_03____.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/shelf/_2026_2_2_20_04____.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/shelf/在进行更新之前于_2026_1_31_20_06_取消提交了更改_[更改]/shelved.patch" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/shelf/在进行更新之前于_2026_2_2_20_03_取消提交了更改_[更改]/shelved.patch" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/shelf/在进行更新之前于_2026_2_2_20_04_取消提交了更改_[更改]/shelved.patch" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/UniSchedulerSuper/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/UniSchedulerSuper/asgi.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/UniSchedulerSuper/settings.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/UniSchedulerSuper/urls.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/UniSchedulerSuper/wsgi.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/admin.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/apps.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/consumers.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/context_optimizer.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/context_summarizer.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/mcp_tools.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0001_initial.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0002_alter_memoryitem_options_memoryitem_category_and_more.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0003_add_description_to_agenttransaction.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0004_add_agent_session.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0005_dialogstyle_sessiontodoitem_sessiontodosnapshot_and_more.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0006_dialogstyle_custom_instructions_and_more.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0007_dialogstyle_memory_batch_size.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0008_eventgroupcache_searchresultcache.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0009_dialogstyle_enable_context_optimization.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0010_agentsession_is_summarizing_and_more.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0011_add_summary_history.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0012_add_naming_fields.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0013_add_naming_and_preview_fields.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0014_sharegroupcache.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0015_add_smart_cache_fields.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0016_add_quick_action_task.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/models.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/quick_action_agent.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/routing.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/tools/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/tools/cache_manager.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/tools/conflict_analyzer.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/tools/event_group_service.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/tools/identifier_resolver.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/tools/memory_tools.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/tools/memory_tools_v2.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/tools/param_adapter.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/tools/planner_tools.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/tools/repeat_parser.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/tools/search_tools.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/tools/share_group_service.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/tools/time_parser.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/tools/todo_tools.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/tools/unified_planner_tools.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/tools/variflight_tools.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/urls.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/utils.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/views_api.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/views_config_api.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/views_memory_api.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/views_quick_action.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai_chatting/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai_chatting/admin.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai_chatting/ai_responder.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai_chatting/apps.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai_chatting/forms.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai_chatting/migrations/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai_chatting/models.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai_chatting/templates/ai_chatting_index.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai_chatting/templates/chatting.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai_chatting/templates/input.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai_chatting/templates/output.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai_chatting/tests.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai_chatting/urls.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai_chatting/views.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/api_examples/QUICKSTART.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/api_examples/README.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/api_examples/README_QUICK_ACTION.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/api_examples/example_eventgroups_api.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/api_examples/example_events_api.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/api_examples/example_quick_action_api.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/api_examples/example_reminders_api.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/api_examples/example_todos_api.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/api_examples/simple_quick_action_test.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/api_examples/test_token_auth.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/config/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/config/api_keys.example.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/config/api_keys_manager.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/config/beian.example.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/config/beian_manager.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/config/email.example.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/config/email_manager.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/config/encryption.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/admin.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/apps.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/forms.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/middleware/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/middleware/request_logger.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/migrations/0001_initial.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/migrations/0002_alter_userdata_value.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/migrations/0003_collaborativeeventgroup_alter_userdata_value_and_more.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/migrations/0004_passwordresetcode.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/migrations/0005_collaborativecalendargroup_groupcalendardata_and_more.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/migrations/0006_groupmembership_member_color.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/migrations/0007_agenttransaction.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/migrations/0008_emailverificationcode.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/migrations/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/models.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/services/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/services/event_service.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/services/reminder_service.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/services/todo_service.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/about.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/css/agent-chat.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/css/home-styles.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/css/quick-action.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/css/share-groups.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/css/style_memory.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/fullcalendar_index.global.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/fullcalendar_index.global.min.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/github-markdown.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/index.global.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/js/agent-chat.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/js/agent-config.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/js/calendar-touch-swipe.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/js/container-query-polyfill.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/js/event-manager.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/js/group-manager.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/js/modal-manager.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/js/panel-resizer.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/js/quick-action.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/js/reminder-manager.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/js/rrule-manager.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/js/settings-manager.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/js/share-groups.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/js/theme-manager.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/js/todo-manager.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/popper.min.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/test-streaming-state.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/tooltip.min.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/static/基本上，我算是非常善于管理时间的人.jpg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/OldFiles/home.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/about.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/animation.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/help.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/home.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/index.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/memory.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/outport_calendar.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/password_reset.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/resource-add-remove.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/three_body.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/timeline-sticky-header.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/token_management.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/user_data.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/user_login.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/user_preferences.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/templates/user_register.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/urls.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/utils/validators.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/views.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/views_import_events.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/views_reminder.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/views_rollback.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/views_share_groups.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/views_token.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/default_files/events.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/default_files/planner.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/API_TOKEN_使用指南.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/Agent_Integration_Plan.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/Agent_Markdown_功能演示.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/Agent_Markdown_测试用例.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/Agent上下文优化详解.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/Agent前端流式回复优化说明.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/Agent流式状态调试指南.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/Agent配置升级-递归限制与工具压缩.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/Implementation_Checklist.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/Phase2_Completion_Summary.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/SMTP连接问题排查.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/Tokens统计计费升级文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/User_Customization_Design.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/前端配置存储系统.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/Planner工具优化方案.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/RRule编辑操作指南.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/Reminders_API修复说明.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/URL路由功能说明文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/上下文优化实施方案.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/上下文优化方案.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/上下文优化需求总结.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/升级详细文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/升级预期.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/记忆系统升级方案.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/课表导入功能升级方案.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/附件系统接口文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/CSS修复问题根本原因分析.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/DDL参数传递和UI交互修复文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/DDL日期修复测试指南.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/DOM结构调试命令.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Events功能分析与问题总结.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Events的RRule功能升级文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/FullCalendar主题适配优化文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/GroupID丢失问题修复说明.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/GroupID字段名大小写不一致问题修复.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Modal_Header主题适配修复.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Reminder_API双重装饰器修复文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Reminder功能实现文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Reminder浏览器操作500错误修复.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/TODO重要性紧急性升级文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Token密码重置功能文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/jQuery依赖移除修复.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/两天日视图功能说明.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/临时测试方案.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/主题修复说明.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/主题系统升级文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/修复仅此模式编辑第一个日程导致系列无主事件的问题.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/单个日程转换为重复日程TypeError修复.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/取消重复日程功能修复文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/取消重复日程功能完整修复报告.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/取消重复日程功能最终修复总结.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/取消重复日程问题诊断.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/周数显示功能实现文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/四选一框问题修复详细分析.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/多维度筛选实现v20251101-009.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/开发文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/批量编辑示例补充说明.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/拖拽重复事件修复说明.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒日历刷新问题修复v20251031-007.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒日历集成-问题修复说明.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒日历集成v20251031-006修复说明.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒日历集成功能文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒筛选器和刷新问题修复v20251101-008.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历主题适配修复总结.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历刷新问题诊断指南v20251101-010.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历实例引用修复.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历滑动丝滑度优化文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历滑动体验最终优化文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历滚动和周数主题修复总结.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历筛选功能实现文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历触屏滑动功能实现文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历触屏滑动动效优化文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历触屏滑动测试指南.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日程组功能恢复文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日程组编辑修复说明.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/时间格式修复说明.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/最终修复方案_2025-11-04.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/月视图显示问题修复.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/月视图滚动调试.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/滑动禁用交互精确修复文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/用户设置功能实现文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/第二批创意主题文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/编辑模态框修复说明.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/编辑重复日程DDL问题修复文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/自动DDL功能说明.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/重复事件编辑问题修复总结.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/重复日程DDL日期问题修复.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/重复日程截止时间功能修复文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/启动命令.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/备案信息配置说明.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/快速创建功能构建计划.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/流式状态恢复-关键问题修复.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/流式状态恢复-超时机制优化.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/流式状态恢复功能-最新更新.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/群组协作功能升级方案.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/腾讯云邮件模板.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/腾讯云邮件配置说明.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/邮件功能优雅降级-完成报告.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/邮件功能优雅降级-测试清单.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/邮件服务配置指南.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/邮件验证-快速开始.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/邮件验证功能升级总结.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/邮件验证配置说明.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/邮件验证问题修复.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/integrated_reminder_manager.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logger.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/manage.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/AI_search.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/AI助手升级预期.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/ChattingCore.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/LLMFunctions.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/admin.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/apps.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/migrations/0001_initial.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/migrations/0002_delete_agenttransaction.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/migrations/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/models.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/searcher.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/static/about.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/static/fullcalendar_index.global.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/static/fullcalendar_index.global.min.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/static/github-markdown.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/templates/planner_index.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/testing-AI/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/testing-AI/events.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/testing-AI/planner.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/testing-AI/testing-AI.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/tests.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/urls.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/planner/views.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/rrule_engine.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/about.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/autocomplete.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/base.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/changelists.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/dark_mode.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/dashboard.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/forms.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/login.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/nav_sidebar.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/responsive.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/responsive_rtl.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/rtl.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/unusable_password_field.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/vendor/select2/LICENSE-SELECT2.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/vendor/select2/select2.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/vendor/select2/select2.min.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/widgets.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/LICENSE" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/README.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/calendar-icons.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/gis/move_vertex_off.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/gis/move_vertex_on.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-addlink.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-alert.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-calendar.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-changelink.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-clock.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-deletelink.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-hidelink.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-no.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-unknown-alt.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-unknown.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-viewlink.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-yes.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/inline-delete.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/search.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/selector-icons.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/sorting-icons.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/tooltag-add.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/tooltag-arrowright.svg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/SelectBox.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/SelectFilter2.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/actions.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/admin/DateTimeShortcuts.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/admin/RelatedObjectLookups.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/autocomplete.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/calendar.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/cancel.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/change_form.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/core.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/filters.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/inlines.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/jquery.init.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/nav_sidebar.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/popup_response.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/prepopulate.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/prepopulate_init.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/theme.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/unusable_password_field.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/urlify.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/jquery/LICENSE.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/jquery/jquery.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/jquery/jquery.min.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/LICENSE.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/af.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ar.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/az.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/bg.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/bn.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/bs.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ca.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/cs.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/da.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/de.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/dsb.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/el.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/en.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/es.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/et.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/eu.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/fa.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/fi.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/fr.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/gl.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/he.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hi.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hr.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hsb.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hu.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hy.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/id.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/is.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/it.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ja.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ka.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/km.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ko.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/lt.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/lv.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/mk.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ms.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/nb.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ne.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/nl.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/pl.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ps.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/pt-BR.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/pt.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ro.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ru.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sk.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sl.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sq.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sr-Cyrl.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sr.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sv.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/th.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/tk.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/tr.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/uk.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/vi.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/zh-CN.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/zh-TW.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/select2.full.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/select2.full.min.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/xregexp/LICENSE.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/xregexp/xregexp.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/xregexp/xregexp.min.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/css/home-styles.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/css/style_memory.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/fullcalendar_index.global.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/fullcalendar_index.global.min.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/github-markdown.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/home.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/index.global.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/js/calendar-touch-swipe.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/js/event-manager.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/js/group-manager.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/js/modal-manager.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/js/panel-resizer.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/js/reminder-manager.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/js/rrule-manager.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/js/settings-manager.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/js/theme-manager.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/js/todo-manager.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/popper.min.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/staticfiles/tooltip.min.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test_config_upgrade.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test_smtp_config.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test_streaming_cache.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/OD对航班查询（searchFlightsByDepArr）测试.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/jwxs_response.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/parsed_courses.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/scratch_响应.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/serachFlightsByNumber测试.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/tavily_test.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/test_agent_graph_simple.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/test_context_optimization.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/test_context_optimization_live.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/test_jwxs_api.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/test_phase3_api.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/test_validator_empty.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/test_validator_schema_standalone.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/test_variflight_tools.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/中转航班返回值示例.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/教务系统Index.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/行程价格查询示例" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/UniSchedulerSuper.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/UniSchedulerSuper.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="DjangoConsoleOptions" custom-start-script="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)">
+    <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)" />
+  </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="572" />
+    <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="HTML File" />
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="FlaskConsoleOptions" custom-start-script="import sys; print('Python %s on %s' % (sys.version, sys.platform)); sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;from flask.cli import ScriptInfo, NoAppException&#10;for module in [&quot;main.py&quot;, &quot;wsgi.py&quot;, &quot;app.py&quot;]:&#10;    try: locals().update(ScriptInfo(app_import_path=module, create_app=None).load_app().make_shell_context()); print(&quot;\nFlask App: %s&quot; % app.import_name); break&#10;    except NoAppException: pass">
+    <envs>
+      <env key="FLASK_APP" value="app" />
+    </envs>
+    <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform)); sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;from flask.cli import ScriptInfo, NoAppException&#10;for module in [&quot;main.py&quot;, &quot;wsgi.py&quot;, &quot;app.py&quot;]:&#10;    try: locals().update(ScriptInfo(app_import_path=module, create_app=None).load_app().make_shell_context()); print(&quot;\nFlask App: %s&quot; % app.import_name); break&#10;    except NoAppException: pass" />
+    <option name="myEnvs">
+      <map>
+        <entry key="FLASK_APP" value="app" />
+      </map>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="release" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;MoMoJee&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/MoMoJee/UniSchedulerSuper&quot;,
+    &quot;accountId&quot;: &quot;a602f574-96af-4e54-b743-f602b02df597&quot;
+  }
+}</component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/core/Events的RRule功能升级文档.md" root0="FORCE_HIGHLIGHTING" root1="SKIP_HIGHLIGHTING" />
+  </component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
+  <component name="PerforceDirect.Settings">
+    <option name="CHARSET" value="none" />
+  </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="AISelfReview" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 7
+}</component>
+  <component name="ProjectId" id="2zOWRWCFylfbQkTm8PgfJSdUIwV" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_MARK_IGNORED_FILES_AS_EXCLUDED&quot;: &quot;true&quot;,
+    &quot;DefaultHtmlFileTemplate&quot;: &quot;HTML File&quot;,
+    &quot;Django 服务器.UniSchedulerSuper.executor&quot;: &quot;Run&quot;,
+    &quot;Django 服务器.局域网.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;找到数据库连接形参&quot;,
+    &quot;Notification.DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;true&quot;,
+    &quot;Python.111 (1).executor&quot;: &quot;Run&quot;,
+    &quot;Python.111.executor&quot;: &quot;Run&quot;,
+    &quot;Python.UniSchedulerSuper.executor&quot;: &quot;Run&quot;,
+    &quot;Python.code_line_counter.executor&quot;: &quot;Run&quot;,
+    &quot;Python.example_quick_action_api.executor&quot;: &quot;Run&quot;,
+    &quot;Python.example_reminders_api.executor&quot;: &quot;Run&quot;,
+    &quot;Python.graph.executor&quot;: &quot;Run&quot;,
+    &quot;Python.mcp_server.executor&quot;: &quot;Run&quot;,
+    &quot;Python.mcp_tools.executor&quot;: &quot;Run&quot;,
+    &quot;Python.raw_http_dump_middleware.executor&quot;: &quot;Run&quot;,
+    &quot;Python.tavily_test.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_browser_session.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_event_operations.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_exception_debug.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_reminder_operations.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_rrule_system.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_token_auth.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_validator_schema_standalone.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_variflight_tools.executor&quot;: &quot;Run&quot;,
+    &quot;Python.tools.executor&quot;: &quot;Run&quot;,
+    &quot;Python.views.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.OpenDjangoStructureViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.pycharm.django.structure.promotion.once.per.project&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;ai.playground.ignore.import.keys.banner.in.settings&quot;: &quot;true&quot;,
+    &quot;aidebugger.tracer.lastRunConfigName&quot;: &quot;example_quick_action_api&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/PROJECTS/UniSchedulerSuper/staticfiles/css&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;inlay.hints&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  },
+  &quot;keyToStringList&quot;: {
+    &quot;com.intellij.ide.scratch.ScratchImplUtil$2/新建临时文件&quot;: [
+      &quot;JSON&quot;
+    ]
+  }
+}</component>
+  <component name="RecapSpentCounter">
+    <option name="endsOfQuotaMs" value="1770444026584" />
+    <option name="spentUsd" value="0.07884385" />
+  </component>
+  <component name="RecapUselessUpdatesCounter">
+    <option name="suspendCountdown" value="0" />
+  </component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="D:\PROJECTS\UniSchedulerSuper\staticfiles\css" />
+      <recent name="D:\PROJECTS\UniSchedulerSuper\staticfiles\js" />
+      <recent name="D:\PROJECTS\UniSchedulerSuper\core\static\js" />
+      <recent name="D:\PROJECTS\UniSchedulerSuper\core\static" />
+      <recent name="D:\PROJECTS\UniSchedulerSuper\core" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="D:\PROJECTS\UniSchedulerSuper\tests" />
+      <recent name="D:\PROJECTS\UniSchedulerSuper\docs\升级日志与过时文件" />
+      <recent name="D:\PROJECTS\UniSchedulerSuper\examples" />
+      <recent name="D:\PROJECTS\UniSchedulerSuper\docs\升级与开发文档" />
+      <recent name="D:\PROJECTS\UniSchedulerSuper\docs\开发文档" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Django 服务器.UniSchedulerSuper">
+    <configuration name="graph" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="UniSchedulerSuper" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/agent_service" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/agent_service/graph.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="mcp_server" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="UniSchedulerSuper" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/agent_service" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/agent_service/mcp_server.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="局域网" type="Python.DjangoServer" factoryName="Django server">
+      <module name="UniSchedulerSuper" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+        <env name="DJANGO_SETTINGS_MODULE" value="UniSchedulerSuper.settings" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="SDK_NAME" value="Python 3.12 (UniSchedulerSuper)" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="RUN_TOOL" value="" />
+      <option name="launchJavascriptDebuger" value="false" />
+      <option name="port" value="8000" />
+      <option name="host" value="0.0.0.0" />
+      <option name="additionalOptions" value="" />
+      <option name="browserUrl" value="" />
+      <option name="runTestServer" value="false" />
+      <option name="runNoReload" value="false" />
+      <option name="useCustomRunCommand" value="false" />
+      <option name="customRunCommand" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="UniSchedulerSuper" type="Python.DjangoServer" factoryName="Django server">
+      <module name="UniSchedulerSuper" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+        <env name="DJANGO_SETTINGS_MODULE" value="UniSchedulerSuper.settings" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="SDK_NAME" value="Python 3.12 (UniSchedulerSuper)" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="RUN_TOOL" value="" />
+      <option name="launchJavascriptDebuger" value="false" />
+      <option name="port" value="8000" />
+      <option name="host" value="" />
+      <option name="additionalOptions" value="" />
+      <option name="browserUrl" value="" />
+      <option name="runTestServer" value="false" />
+      <option name="runNoReload" value="false" />
+      <option name="useCustomRunCommand" value="false" />
+      <option name="customRunCommand" value="" />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="Django 服务器.UniSchedulerSuper" />
+      <item itemvalue="Django 服务器.局域网" />
+      <item itemvalue="Python.graph" />
+      <item itemvalue="Python.mcp_server" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.mcp_server" />
+        <item itemvalue="Python.graph" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-PY-253.29346.142" />
+        <option value="bundled-python-sdk-f2b7a9f6281b-6e1f45a539f7-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.29346.142" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration>C:\Users\MoMoJee\AppData\Roaming\Subversion</configuration>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="默认任务">
+      <changelist id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="" />
+      <created>1751602591266</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1751602591266</updated>
+      <workItem from="1751602592269" duration="157000" />
+      <workItem from="1751615380378" duration="48000" />
+      <workItem from="1751615609105" duration="91000" />
+      <workItem from="1751615740525" duration="666000" />
+      <workItem from="1751616975528" duration="86000" />
+      <workItem from="1751617235637" duration="444000" />
+      <workItem from="1753024526649" duration="1482000" />
+      <workItem from="1753096187081" duration="960000" />
+      <workItem from="1753102751334" duration="7000" />
+      <workItem from="1753185741560" duration="608000" />
+      <workItem from="1753240491390" duration="763000" />
+      <workItem from="1753241482409" duration="2367000" />
+      <workItem from="1755359527573" duration="90000" />
+      <workItem from="1755360077777" duration="218000" />
+      <workItem from="1755491982074" duration="4809000" />
+      <workItem from="1755786173666" duration="41156000" />
+      <workItem from="1755975110883" duration="57374000" />
+      <workItem from="1756735143958" duration="156000" />
+      <workItem from="1756735336173" duration="16816000" />
+      <workItem from="1756914624532" duration="1270000" />
+      <workItem from="1756915921189" duration="10146000" />
+      <workItem from="1757259184445" duration="3026000" />
+      <workItem from="1757611195406" duration="213000" />
+      <workItem from="1757654103865" duration="35518000" />
+      <workItem from="1758198931480" duration="17665000" />
+      <workItem from="1758628009469" duration="17000" />
+      <workItem from="1758638055813" duration="11111000" />
+      <workItem from="1758737500947" duration="929000" />
+      <workItem from="1758786029684" duration="600000" />
+      <workItem from="1758804325528" duration="23513000" />
+      <workItem from="1759331774557" duration="5320000" />
+      <workItem from="1759393884340" duration="264000" />
+      <workItem from="1759394164518" duration="884000" />
+      <workItem from="1759479239565" duration="91000" />
+      <workItem from="1759934353777" duration="12254000" />
+      <workItem from="1760257440894" duration="23560000" />
+      <workItem from="1760435046776" duration="25269000" />
+      <workItem from="1761204791275" duration="1981000" />
+      <workItem from="1761385862883" duration="1273000" />
+      <workItem from="1761394417087" duration="1073000" />
+      <workItem from="1761396195174" duration="1309000" />
+      <workItem from="1761663102588" duration="84000" />
+      <workItem from="1761663195900" duration="56000" />
+      <workItem from="1761663264199" duration="50117000" />
+      <workItem from="1762271450601" duration="1874000" />
+      <workItem from="1762421881575" duration="611000" />
+      <workItem from="1762430604007" duration="171000" />
+      <workItem from="1762435690055" duration="127304000" />
+      <workItem from="1763199797935" duration="22990000" />
+      <workItem from="1763901256275" duration="13000" />
+      <workItem from="1763901280057" duration="15000" />
+      <workItem from="1764608212762" duration="39613000" />
+      <workItem from="1765126995124" duration="3401000" />
+      <workItem from="1765211848812" duration="2430000" />
+      <workItem from="1765387958263" duration="3967000" />
+      <workItem from="1765448091766" duration="5062000" />
+      <workItem from="1765474716965" duration="12930000" />
+      <workItem from="1765989820776" duration="1774000" />
+      <workItem from="1765995594594" duration="87000" />
+      <workItem from="1765995702430" duration="5068000" />
+      <workItem from="1766083452660" duration="18272000" />
+      <workItem from="1766223042390" duration="12227000" />
+      <workItem from="1766299541175" duration="36303000" />
+      <workItem from="1766452527641" duration="18235000" />
+      <workItem from="1766553512183" duration="4608000" />
+      <workItem from="1766564142333" duration="167000" />
+      <workItem from="1766564339388" duration="120521000" />
+      <workItem from="1767880328316" duration="1949000" />
+      <workItem from="1768052963860" duration="19137000" />
+      <workItem from="1768758714722" duration="26998000" />
+      <workItem from="1768997538704" duration="4055000" />
+      <workItem from="1769014121780" duration="55614000" />
+      <workItem from="1769503142225" duration="20870000" />
+      <workItem from="1769588629076" duration="9579000" />
+      <workItem from="1769859963031" duration="11300000" />
+      <workItem from="1769873648853" duration="64578000" />
+      <workItem from="1770227085437" duration="344000" />
+      <workItem from="1770227447099" duration="2148000" />
+    </task>
+    <task id="LOCAL-00035" summary="UniSchedulerSuper 1.5.4.20251221_1714 development&#10;&#10;已完成前三个阶段的升级（后端）">
+      <option name="closed" value="true" />
+      <created>1766308496625</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1766308496625</updated>
+    </task>
+    <task id="LOCAL-00036" summary="UniSchedulerSuper 1.5.4.20251224_0154 development">
+      <option name="closed" value="true" />
+      <created>1766512496233</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1766512496233</updated>
+    </task>
+    <task id="LOCAL-00037" summary="UniSchedulerSuper 1.5.4.20251225_0105 development">
+      <option name="closed" value="true" />
+      <created>1766595911386</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
+      <option name="project" value="LOCAL" />
+      <updated>1766595911386</updated>
+    </task>
+    <task id="LOCAL-00038" summary="UniSchedulerSuper 1.5.4.20251225_1712 development&#10;升级Agent中 - Phase 1 &amp; 2 已完成">
+      <option name="closed" value="true" />
+      <created>1766654092080</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1766654092080</updated>
+    </task>
+    <task id="LOCAL-00039" summary="UniSchedulerSuper 1.5.4.20251225_1712 development&#10;升级Agent中 - Phase 3 &amp; 4 &amp; 5 已完成">
+      <option name="closed" value="true" />
+      <created>1766682589508</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1766682589508</updated>
+    </task>
+    <task id="LOCAL-00040" summary="UniSchedulerSuper 1.5.4.20251225_1712 development&#10;升级Agent中 - Phase 6 已完成，进入优化阶段">
+      <option name="closed" value="true" />
+      <created>1766737250020</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1766737250020</updated>
+    </task>
+    <task id="LOCAL-00041" summary="UniSchedulerSuper 1.5.4.20251226_1813 development  &#10;添加会话隔离逻辑，修复了切换用户时会话 ID 不隔离的错误&#10;添加用户验证以避免错误会话，优化会话安全性">
+      <option name="closed" value="true" />
+      <created>1766744040936</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
+      <option name="project" value="LOCAL" />
+      <updated>1766744040936</updated>
+    </task>
+    <task id="LOCAL-00042" summary="UniSchedulerSuper 1.5.4.20251227_0045 development  &#10;增加数据库超时配置及WAL模式，优化并发性能，修复手动写TODO时的数据库锁定问题&#10;添加 `ddl` 参数支持到事件接口，修复创建日程时缺少 ddl 的报错">
+      <option name="closed" value="true" />
+      <created>1766767629478</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1766767629478</updated>
+    </task>
+    <task id="LOCAL-00043" summary="UniSchedulerSuper 1.5.4.2025128_0027 development&#10;&#10;增加附件系统接口与前端支持，包括获取附件列表、格式化附件内容的后端逻辑，以及前端附件面板与交互功能。当前支持将保存的工作流文本作为附件发送">
+      <option name="closed" value="true" />
+      <created>1766852833043</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1766852833043</updated>
+    </task>
+    <task id="LOCAL-00044" summary="UniSchedulerSuper 1.5.4.2025129_1907 development&#10;暂时搁置Planner工具的优化，因为还得先优化屎山一样的日程存储结构">
+      <option name="closed" value="true" />
+      <created>1767006491484</created>
+      <option name="number" value="00044" />
+      <option name="presentableId" value="LOCAL-00044" />
+      <option name="project" value="LOCAL" />
+      <updated>1767006491484</updated>
+    </task>
+    <task id="LOCAL-00045" summary="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;增加（升级）课表导入功能，包括后端API设计与实现、RRule规则推断、课程数据解析逻辑及完整的前端交互界面 (支持Cookie输入、课程预览、日程组选择与批量导入)。">
+      <option name="closed" value="true" />
+      <created>1767029612355</created>
+      <option name="number" value="00045" />
+      <option name="presentableId" value="LOCAL-00045" />
+      <option name="project" value="LOCAL" />
+      <updated>1767029612355</updated>
+    </task>
+    <task id="LOCAL-00046" summary="UniSchedulerSuper 1.5.4.2025129_2301 development&#10;&#10;增加（升级）课表导入功能，包括后端API设计与实现、RRule规则推断、课程数据解析逻辑及完整的前端交互界面 (支持Cookie输入、课程预览、日程组选择与批量导入)。">
+      <option name="closed" value="true" />
+      <created>1767110255947</created>
+      <option name="number" value="00046" />
+      <option name="presentableId" value="LOCAL-00046" />
+      <option name="project" value="LOCAL" />
+      <updated>1767110255947</updated>
+    </task>
+    <task id="LOCAL-00047" summary="UniSchedulerSuper 1.5.4.20251231_1358 development&#10;对 Agent 的 Planner 工具集做了较大优化&#10;新增缓存与标识符解析模块，支持搜索结果与事件组缓存的管理和名称解析，包括：&#10;- 定义 `EventGroupCache` 和 `SearchResultCache` 模型&#10;- 引入缓存管理器处理搜索缓存的创建、更新与失效逻辑；&#10;- 实现事件组管理模块以提供缓存更新、解析与默认分组查询功能；&#10;- 添加通用标识符解析工具，支持通过编号、UUID、或标题解析项目。">
+      <option name="closed" value="true" />
+      <created>1767160865174</created>
+      <option name="number" value="00047" />
+      <option name="presentableId" value="LOCAL-00047" />
+      <option name="project" value="LOCAL" />
+      <updated>1767160865174</updated>
+    </task>
+    <task id="LOCAL-00048" summary="UniSchedulerSuper 1.5.4.20260101_1658 development&#10;&#10;改进重复规则解析器，支持中文数字解析及动态间隔处理。提供 Rrule 编辑详情指南&#10;优化回滚逻辑，支持基于 `tool_call_id` 精确匹配回滚点。增强 `AgentTransaction` 模块，支持 `tool_call_id` 元数据匹配。修复工具执行流程，将 `tool_call_id` 作为配置传递，修复回滚问题。&#10;把日志器的文件大小改成了16MB">
+      <option name="closed" value="true" />
+      <created>1767257928904</created>
+      <option name="number" value="00048" />
+      <option name="presentableId" value="LOCAL-00048" />
+      <option name="project" value="LOCAL" />
+      <updated>1767257928904</updated>
+    </task>
+    <task id="LOCAL-00049" summary="UniSchedulerSuper 1.5.4.20260101_2000 development&#10;&#10;1. 优化 get_events 时的分享组筛选、rrule检查导致的巨大性能开销&#10;2. 修复前端获取分享组更新时的版本号问题&#10;3. 修复通过日程组删除处在分享组中的日程时的分享组同步缺失问题&#10;4. 优化无限重复日程、提醒的生成">
+      <option name="closed" value="true" />
+      <created>1767269016937</created>
+      <option name="number" value="00049" />
+      <option name="presentableId" value="LOCAL-00049" />
+      <option name="project" value="LOCAL" />
+      <updated>1767269016937</updated>
+    </task>
+    <task id="LOCAL-00050" summary="UniSchedulerSuper 1.5.4.20260117_0100 development&#10;&#10;新增 `DialogStyle` 的 `enable_context_optimization` 字段及其优化设置功能，完善 AI 模型配置与 Token 管理交互模块&#10;升级上下文优化相关逻辑">
+      <option name="closed" value="true" />
+      <created>1768582843539</created>
+      <option name="number" value="00050" />
+      <option name="presentableId" value="LOCAL-00050" />
+      <option name="project" value="LOCAL" />
+      <updated>1768582843539</updated>
+    </task>
+    <task id="LOCAL-00051" summary="UniSchedulerSuper 1.5.4.20260117_0147 development&#10;&#10;优化 requirements">
+      <option name="closed" value="true" />
+      <created>1768585639365</created>
+      <option name="number" value="00051" />
+      <option name="presentableId" value="LOCAL-00051" />
+      <option name="project" value="LOCAL" />
+      <updated>1768585639365</updated>
+    </task>
+    <task id="LOCAL-00052" summary="UniSchedulerSuper 1.5.4.20260119_2650 development&#10;&#10;修复了前端 Agent 对话时刷新界面导致流式传输状态丢失的问题">
+      <option name="closed" value="true" />
+      <created>1768812842407</created>
+      <option name="number" value="00052" />
+      <option name="presentableId" value="LOCAL-00052" />
+      <option name="project" value="LOCAL" />
+      <updated>1768812842407</updated>
+    </task>
+    <task id="LOCAL-00053" summary="UniSchedulerSuper 1.5.4.20260119_1937 development&#10;&#10;修复了前端 Agent 对话时实时输出的样式和刷新后的样式不一致的问题">
+      <option name="closed" value="true" />
+      <created>1768822687614</created>
+      <option name="number" value="00053" />
+      <option name="presentableId" value="LOCAL-00053" />
+      <option name="project" value="LOCAL" />
+      <updated>1768822687614</updated>
+    </task>
+    <task id="LOCAL-00054" summary="UniSchedulerSuper 1.5.4.20260122_2101 development&#10;&#10;新增上文总结功能，实现持久会话">
+      <option name="closed" value="true" />
+      <created>1769086923827</created>
+      <option name="number" value="00054" />
+      <option name="presentableId" value="LOCAL-00054" />
+      <option name="project" value="LOCAL" />
+      <updated>1769086923828</updated>
+    </task>
+    <task id="LOCAL-00055" summary="UniSchedulerSuper 1.5.4.20260122_2310 development&#10;&#10;新增上下文使用量百分比堆积条形图，做了一些同步更新按钮绑定">
+      <option name="closed" value="true" />
+      <created>1769094649861</created>
+      <option name="number" value="00055" />
+      <option name="presentableId" value="LOCAL-00055" />
+      <option name="project" value="LOCAL" />
+      <updated>1769094649861</updated>
+    </task>
+    <task id="LOCAL-00056" summary="UniSchedulerSuper 1.5.4.20260123_2041 development&#10;&#10;升级会话历史界面中的预览内容为最后一条消息&#10;升级自动标题命名（依据用户首条消息）">
+      <option name="closed" value="true" />
+      <created>1769172085502</created>
+      <option name="number" value="00056" />
+      <option name="presentableId" value="LOCAL-00056" />
+      <option name="project" value="LOCAL" />
+      <updated>1769172085502</updated>
+    </task>
+    <task id="LOCAL-00057" summary="UniSchedulerSuper 1.5.4.20260123_2348 development&#10;&#10;去除了硬编码的api-key(我不想强制推送和覆盖了，求求不要偷用我的API，上回kimi的被偷用完了byd）&#10;更新了用户自定义LLM 的 key 的保存方式，不再明文存储">
+      <option name="closed" value="true" />
+      <created>1769183426253</created>
+      <option name="number" value="00057" />
+      <option name="presentableId" value="LOCAL-00057" />
+      <option name="project" value="LOCAL" />
+      <updated>1769183426253</updated>
+    </task>
+    <task id="LOCAL-00058" summary="UniSchedulerSuper 1.5.4.20260124_2012 development&#10;&#10;添加了基于 Tavily 的两个 Agent 搜索工具&#10;&#10;通过添加前端重复性校验，修复了当 Agent 使用了工具后，前端会出现两个重复的 tool-call-indicator tool-completed ，两个 agent-message ，两个 tool-result-indicator 的问题（源于后端广播机制）&#10;&#10;修复了由于 压缩工具调用结果 导致的 最新工具结果丢失问题&#10;&#10;修复了由于流式传输时限定工具调用输出长度200字符导致的流式传输结束前后工具调用结果显示不一致的问题">
+      <option name="closed" value="true" />
+      <created>1769256742940</created>
+      <option name="number" value="00058" />
+      <option name="presentableId" value="LOCAL-00058" />
+      <option name="project" value="LOCAL" />
+      <updated>1769256742940</updated>
+    </task>
+    <task id="LOCAL-00059" summary="UniSchedulerSuper 1.5.4.20260124_2051 development&#10;&#10;修复了前端回滚后工具调用结果不同步清除的问题">
+      <option name="closed" value="true" />
+      <created>1769259070696</created>
+      <option name="number" value="00059" />
+      <option name="presentableId" value="LOCAL-00059" />
+      <option name="project" value="LOCAL" />
+      <updated>1769259070696</updated>
+    </task>
+    <task id="LOCAL-00060" summary="UniSchedulerSuper 1.5.4.20260124_2051 development&#10;&#10;修复了前端回滚后工具调用结果不同步清除的问题">
+      <option name="closed" value="true" />
+      <created>1769259084183</created>
+      <option name="number" value="00060" />
+      <option name="presentableId" value="LOCAL-00060" />
+      <option name="project" value="LOCAL" />
+      <updated>1769259084183</updated>
+    </task>
+    <task id="LOCAL-00061" summary="UniSchedulerSuper 1.5.4.20260126_0346 development&#10;&#10;升级了 Tokes 用量统计功能&#10;添加了限制逻辑，每月可用5CNY的配额">
+      <option name="closed" value="true" />
+      <created>1769370379964</created>
+      <option name="number" value="00061" />
+      <option name="presentableId" value="LOCAL-00061" />
+      <option name="project" value="LOCAL" />
+      <updated>1769370379964</updated>
+    </task>
+    <task id="LOCAL-00062" summary="UniSchedulerSuper 1.5.4.20260126_2036 development&#10;&#10;修复了抵用金用尽时弹出的 quota-exceeded-content 中 onclick=&quot;agentChat.openModelConfig();&quot; 按钮无法点击的问题">
+      <option name="closed" value="true" />
+      <created>1769430985787</created>
+      <option name="number" value="00062" />
+      <option name="presentableId" value="LOCAL-00062" />
+      <option name="project" value="LOCAL" />
+      <updated>1769430985787</updated>
+    </task>
+    <task id="LOCAL-00063" summary="UniSchedulerSuper 1.5.4.20260127_0242 development&#10;&#10;1. MCP及工具调用优化&#10;新增 12306-mcp-server 工具集&#10;优化了前端 tools 的友好名称&#10;&#10;2. Agent 流优化&#10;修复了压缩工具调用结果时，本次对话、上轮调用结果会被优化的问题，使用 TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES 控制压缩第 X 条用户消息以前的工具调用结果被压缩 &#10;修复了第二次达到递归上限时不弹继续提示的错误，通过 RECURSION_LIMIT 限制递归上限">
+      <option name="closed" value="true" />
+      <created>1769452930617</created>
+      <option name="number" value="00063" />
+      <option name="presentableId" value="LOCAL-00063" />
+      <option name="project" value="LOCAL" />
+      <updated>1769452930617</updated>
+    </task>
+    <task id="LOCAL-00064" summary="UniSchedulerSuper 1.5.4.20260127_1733 development&#10;&#10;修复了当某个 MCP 服务不可用时其余服务受影响无法加载的问题">
+      <option name="closed" value="true" />
+      <created>1769506446860</created>
+      <option name="number" value="00064" />
+      <option name="presentableId" value="LOCAL-00064" />
+      <option name="project" value="LOCAL" />
+      <updated>1769506446860</updated>
+    </task>
+    <task id="LOCAL-00065" summary="UniSchedulerSuper 1.5.4.20260128_0100 development&#10;&#10;1. LLM相关优化&#10;支持了更多系统提供模型，完善了切换系统提供模型时的逻辑&#10;升级了 api_keys.json 的功能，使其成为统一的 LLM 参数来源&#10;将LLM回复方式重设为一次性回（懒得弄流式了）&#10;&#10;2. 前端UI优化&#10;修复了 用户设置-AI设置-模型配置 界面中显示美元符号的问题&#10;修复了 用户设置-AI设置-模型配置 界面中，点击切换模型后，模型的三大参数显示消失的问题&#10;所有上下文 xxx k 的千单位改为1024计算&#10;&#10;3. 日志优化&#10;彻底把所有的有用的没用的文件的日志器改成统一 from logger import logger&#10;由于 Django 的 HTTP 访问日志是由 ASGI/WSGI 服务器直接发出，因此通过中间件 RequestLogMiddleware 实现写入application.log">
+      <option name="closed" value="true" />
+      <created>1769533210347</created>
+      <option name="number" value="00065" />
+      <option name="presentableId" value="LOCAL-00065" />
+      <option name="project" value="LOCAL" />
+      <updated>1769533210347</updated>
+    </task>
+    <task id="LOCAL-00066" summary="UniSchedulerSuper 1.5.4.20260128_1626 development&#10;&#10;完善了前端终止回复按钮的前后端架构，将请求LLM回复的操作改为异步">
+      <option name="closed" value="true" />
+      <created>1769588787791</created>
+      <option name="number" value="00066" />
+      <option name="presentableId" value="LOCAL-00066" />
+      <option name="project" value="LOCAL" />
+      <updated>1769588787791</updated>
+    </task>
+    <task id="LOCAL-00067" summary="UniSchedulerSuper 1.5.4.20260131_2003 development&#10;&#10;修复了 1.5.4.20260128_1626 版本中 Agent 聊天数据库错误地使用了内存测试数据库的问题">
+      <option name="closed" value="true" />
+      <created>1769861035811</created>
+      <option name="number" value="00067" />
+      <option name="presentableId" value="LOCAL-00067" />
+      <option name="project" value="LOCAL" />
+      <updated>1769861035812</updated>
+    </task>
+    <task id="LOCAL-00068" summary="UniSchedulerSuper 1.5.4.20260131_2345 development&#10;&#10;新增 飞常准 VariFlight MCP 工具&#10;将 AMAP 的 MCP 配置整合到总 MCP 配置中">
+      <option name="closed" value="true" />
+      <created>1769874311794</created>
+      <option name="number" value="00068" />
+      <option name="presentableId" value="LOCAL-00068" />
+      <option name="project" value="LOCAL" />
+      <updated>1769874311795</updated>
+    </task>
+    <task id="LOCAL-00069" summary="UniSchedulerSuper 1.5.4.20260202_0332 development&#10;&#10;升级 统一搜索 search_items 工具，支持搜索分享组中的日程&#10;新增 获取分享组 get_share_groups 工具，供 Agent 使用">
+      <option name="closed" value="true" />
+      <created>1769974345743</created>
+      <option name="number" value="00069" />
+      <option name="presentableId" value="LOCAL-00069" />
+      <option name="project" value="LOCAL" />
+      <updated>1769974345743</updated>
+    </task>
+    <task id="LOCAL-00070" summary="升级 search_items 的搜索和缓存功能，支持多轮调用&#10;区分 get_event_groups 和 get_share_groups 的返回结果#代号&#10;更新 search_items 的 time_range 解析工具 time_parser 以支持多种日期范围分隔符&#10;优化 search_items 中的搜索结果展示逻辑，区分用户自己的被分享日程和他人的日程">
+      <option name="closed" value="true" />
+      <created>1770033519346</created>
+      <option name="number" value="00070" />
+      <option name="presentableId" value="LOCAL-00070" />
+      <option name="project" value="LOCAL" />
+      <updated>1770033519346</updated>
+    </task>
+    <task id="LOCAL-00071" summary="UniSchedulerSuper 1.5.4.20260202_2004 development&#10;&#10;升级 search_items 的搜索和缓存功能，支持多轮调用&#10;区分 get_event_groups 和 get_share_groups 的返回结果#代号&#10;更新 search_items 的 time_range 解析工具 time_parser 以支持多种日期范围分隔符&#10;优化 search_items 中的搜索结果展示逻辑，区分用户自己的被分享日程和他人的日程">
+      <option name="closed" value="true" />
+      <created>1770033792438</created>
+      <option name="number" value="00071" />
+      <option name="presentableId" value="LOCAL-00071" />
+      <option name="project" value="LOCAL" />
+      <updated>1770033792438</updated>
+    </task>
+    <task id="LOCAL-00072" summary="UniSchedulerSuper 1.5.4.20260202_2254 development&#10;&#10;升级了前端的全局搜索工具，支持搜索分享组中别人的日程&#10;优化：点击搜出的东西后展示内容从 event modal 改为 event detail modal">
+      <option name="closed" value="true" />
+      <created>1770044049749</created>
+      <option name="number" value="00072" />
+      <option name="presentableId" value="LOCAL-00072" />
+      <option name="project" value="LOCAL" />
+      <updated>1770044049749</updated>
+    </task>
+    <task id="LOCAL-00073" summary="UniSchedulerSuper 1.5.4.20260202_2328 development&#10;&#10;升级了 Agent 侧边栏的 md 解析器">
+      <option name="closed" value="true" />
+      <created>1770046105286</created>
+      <option name="number" value="00073" />
+      <option name="presentableId" value="LOCAL-00073" />
+      <option name="project" value="LOCAL" />
+      <updated>1770046105286</updated>
+    </task>
+    <task id="LOCAL-00074" summary="UniSchedulerSuper 1.5.4.20260203_0144 development&#10;&#10;新增冲突检查工具 check_schedule_conflicts 提供硬冲突列表和LLM配合用户个人信息进行的详情分析">
+      <option name="closed" value="true" />
+      <created>1770054251666</created>
+      <option name="number" value="00074" />
+      <option name="presentableId" value="LOCAL-00074" />
+      <option name="project" value="LOCAL" />
+      <updated>1770054251666</updated>
+    </task>
+    <task id="LOCAL-00075" summary="UniSchedulerSuper 1.5.4.20260203_1741 development&#10;&#10;前端 UI 优化">
+      <option name="closed" value="true" />
+      <created>1770111687854</created>
+      <option name="number" value="00075" />
+      <option name="presentableId" value="LOCAL-00075" />
+      <option name="project" value="LOCAL" />
+      <updated>1770111687854</updated>
+    </task>
+    <task id="LOCAL-00076" summary="UniSchedulerSuper 1.5.4.20260203_1741 development&#10;&#10;添加备案号">
+      <option name="closed" value="true" />
+      <created>1770113822408</created>
+      <option name="number" value="00076" />
+      <option name="presentableId" value="LOCAL-00076" />
+      <option name="project" value="LOCAL" />
+      <updated>1770113822408</updated>
+    </task>
+    <task id="LOCAL-00077" summary="UniSchedulerSuper 1.5.4.20260203_1817 development&#10;&#10;添加备案号（补充）">
+      <option name="closed" value="true" />
+      <created>1770113848933</created>
+      <option name="number" value="00077" />
+      <option name="presentableId" value="LOCAL-00077" />
+      <option name="project" value="LOCAL" />
+      <updated>1770113848933</updated>
+    </task>
+    <task id="LOCAL-00078" summary="UniSchedulerSuper 1.5.4.20260203_2333 development&#10;&#10;完善注册和找回密码时的邮件验证功能及配置&#10;&#10;- 添加 `EmailVerificationCode` 模型&#10;- 新增邮件配置文件 `email.example.json`&#10;- 实现邮件发送管理模块 `email_manager.py`&#10;- 添加 SMTP 连接问题排查文档&#10;- 创建测试脚本 `test_smtp_config.py`&#10;- 添加腾讯云邮件模板及配置说明">
+      <option name="closed" value="true" />
+      <created>1770132783759</created>
+      <option name="number" value="00078" />
+      <option name="presentableId" value="LOCAL-00078" />
+      <option name="project" value="LOCAL" />
+      <updated>1770132783759</updated>
+    </task>
+    <task id="LOCAL-00079" summary="UniSchedulerSuper 1.5.4.20260204_0129 development&#10;&#10;添加 Quick Action 功能及 API 示例，支持同步和异步调用，可以在一次调用中完成简单的日程任务&#10;核心组件是一个轻量的 Agent，可以自行执行多次工具调用，返回成功或失败信息&#10;应用场景是，手机或其他不方便访问网页端的场景，或只是想快速进行日程操作的场景&#10;&#10;- 提供四个 URL 用于相关操作&#10;- 添加 `QuickActionTask` 模型&#10;- 实现 `quick_action_agent.py` 用于处理快速操作任务&#10;- 添加 API 使用示例 `example_quick_action_api.py`&#10;- 更新文档 `README_QUICK_ACTION.md` 说明使用方法">
+      <option name="closed" value="true" />
+      <created>1770139751554</created>
+      <option name="number" value="00079" />
+      <option name="presentableId" value="LOCAL-00079" />
+      <option name="project" value="LOCAL" />
+      <updated>1770139751554</updated>
+    </task>
+    <task id="LOCAL-00080" summary="UniSchedulerSuper 1.5.4.20260204_0306 development&#10;&#10;添加 Quick Action 悬浮球样式和管理器，调用新的快速创建接口，采用异步模式，支持任务分身、实时状态显示及简单桌宠特性">
+      <option name="closed" value="true" />
+      <created>1770145564840</created>
+      <option name="number" value="00080" />
+      <option name="presentableId" value="LOCAL-00080" />
+      <option name="project" value="LOCAL" />
+      <updated>1770145564840</updated>
+    </task>
+    <task id="LOCAL-00081" summary="UniSchedulerSuper 1.5.4.20260204_2053 development&#10;&#10;优化前端对 Agent 操作的同步性问题&#10;&#10;- 更新前端代码以支持新的刷新逻辑，包括待办事项、提醒和事件的刷新&#10;- 修复筛选参数保持问题，确保在重新加载数据时保留当前筛选状态">
+      <option name="closed" value="true" />
+      <created>1770209607497</created>
+      <option name="number" value="00081" />
+      <option name="presentableId" value="LOCAL-00081" />
+      <option name="project" value="LOCAL" />
+      <updated>1770209607497</updated>
+    </task>
+    <task id="LOCAL-00082" summary="UniSchedulerSuper 1.5.4.20260204_2317 development&#10;&#10;将硬编码的 `RECURSION_LIMIT` 和 `TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES` 迁移到用户可配置的 `agent_optimization_config` 中&#10;&#10;- 用户可以通过前端 UI 自定义配置&#10;- 支持实时生效，无需重启服务&#10;- 更新相关后端和前端代码以支持新配置项&#10;&#10;修复悬浮球会被顶端搜索和设置栏目遮挡的问题">
+      <option name="closed" value="true" />
+      <created>1770218247077</created>
+      <option name="number" value="00082" />
+      <option name="presentableId" value="LOCAL-00082" />
+      <option name="project" value="LOCAL" />
+      <updated>1770218247077</updated>
+    </task>
+    <task id="LOCAL-00083" summary="UniSchedulerSuper 1.5.4.20260205_0115 development&#10;&#10;清理了一些无用日志">
+      <option name="closed" value="true" />
+      <created>1770225350000</created>
+      <option name="number" value="00083" />
+      <option name="presentableId" value="LOCAL-00083" />
+      <option name="project" value="LOCAL" />
+      <updated>1770225350000</updated>
+    </task>
+    <option name="localTasksCounter" value="84" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="UnknownFeatures">
+    <option featureType="com.intellij.fileTypeFactory" implementationName="*.8" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="COLUMN_ID_WIDTH">
+                <map>
+                  <entry key="Table.Default.Date.ColumnIdWidth" value="111" />
+                  <entry key="Table.GitHub.CommitStatus.ColumnIdWidth" value="46" />
+                </map>
+              </option>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="release_new" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260126_2036 development&#10;&#10;修复了抵用金用尽时弹出的 quota-exceeded-content 中 onclick=&quot;agentChat.openModelConfig();&quot; 按钮无法点击的问题" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260127_0242 development&#10;&#10;1. MCP及工具调用优化&#10;新增 12306-mcp-server 工具集&#10;优化了前端 tools 的友好名称&#10;&#10;2. Agent 流优化&#10;修复了压缩工具调用结果时，本次对话、上轮调用结果会被优化的问题，使用 TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES 控制压缩第 X 条用户消息以前的工具调用结果被压缩 &#10;修复了第二次达到递归上限时不弹继续提示的错误，通过 RECURSION_LIMIT 限制递归上限" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260127_1733 development&#10;&#10;修复了当某个 MCP 服务不可用时其余服务受影响无法加载的问题" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260128_0100 development&#10;&#10;1. LLM相关优化&#10;支持了更多系统提供模型，完善了切换系统提供模型时的逻辑&#10;升级了 api_keys.json 的功能，使其成为统一的 LLM 参数来源&#10;将LLM回复方式重设为一次性回（懒得弄流式了）&#10;&#10;2. 前端UI优化&#10;修复了 用户设置-AI设置-模型配置 界面中显示美元符号的问题&#10;修复了 用户设置-AI设置-模型配置 界面中，点击切换模型后，模型的三大参数显示消失的问题&#10;所有上下文 xxx k 的千单位改为1024计算&#10;&#10;3. 日志优化&#10;彻底把所有的有用的没用的文件的日志器改成统一 from logger import logger&#10;由于 Django 的 HTTP 访问日志是由 ASGI/WSGI 服务器直接发出，因此通过中间件 RequestLogMiddleware 实现写入application.log" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260128_1626 development&#10;&#10;完善了前端终止回复按钮的前后端架构，将请求LLM回复的操作改为异步" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260131_2003 development&#10;&#10;修复了 1.5.4.20260128_1626 版本中 Agent 聊天数据库错误地使用了内存测试数据库的问题&#10;&#10;优化了登录界面" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260131_2003 development&#10;&#10;修复了 1.5.4.20260128_1626 版本中 Agent 聊天数据库错误地使用了内存测试数据库的问题&#10;&#10;优化了登录界面" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260131_2345 development&#10;&#10;新增 飞常准 VariFlight MCP 工具&#10;将 AMAP 的 MCP 配置整合到总 MCP 配置中" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260202_0332 development&#10;&#10;升级 统一搜索 search_items 工具，支持搜索分享组中的日程&#10;新增 获取分享组 get_share_groups 工具，供 Agent 使用" />
+    <MESSAGE value="升级 search_items 的搜索和缓存功能，支持多轮调用&#10;区分 get_event_groups 和 get_share_groups 的返回结果#代号&#10;更新 search_items 的 time_range 解析工具 time_parser 以支持多种日期范围分隔符&#10;优化 search_items 中的搜索结果展示逻辑，区分用户自己的被分享日程和他人的日程" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260202_2004 development&#10;&#10;升级 search_items 的搜索和缓存功能，支持多轮调用&#10;区分 get_event_groups 和 get_share_groups 的返回结果#代号&#10;更新 search_items 的 time_range 解析工具 time_parser 以支持多种日期范围分隔符&#10;优化 search_items 中的搜索结果展示逻辑，区分用户自己的被分享日程和他人的日程" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260202_2254 development&#10;&#10;升级了前端的全局搜索工具，支持搜索分享组中别人的日程&#10;优化：点击搜出的东西后展示内容从 event modal 改为 event detail modal" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260202_2328 development&#10;&#10;升级了 Agent 侧边栏的 md 解析器" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260203_0144 development&#10;&#10;新增冲突检查工具 check_schedule_conflicts 提供硬冲突列表和LLM配合用户个人信息进行的详情分析" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260203_1741 development&#10;&#10;前端 UI 优化" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260203_1741 development&#10;&#10;添加备案号" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260203_1817 development&#10;&#10;添加备案号（补充）" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260203_2333 development&#10;&#10;完善注册和找回密码时的邮件验证功能及配置&#10;&#10;- 添加 `EmailVerificationCode` 模型&#10;- 新增邮件配置文件 `email.example.json`&#10;- 实现邮件发送管理模块 `email_manager.py`&#10;- 添加 SMTP 连接问题排查文档&#10;- 创建测试脚本 `test_smtp_config.py`&#10;- 添加腾讯云邮件模板及配置说明" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260204_0129 development&#10;&#10;添加 Quick Action 功能及 API 示例，支持同步和异步调用，可以在一次调用中完成简单的日程任务&#10;核心组件是一个轻量的 Agent，可以自行执行多次工具调用，返回成功或失败信息&#10;应用场景是，手机或其他不方便访问网页端的场景，或只是想快速进行日程操作的场景&#10;&#10;- 提供四个 URL 用于相关操作&#10;- 添加 `QuickActionTask` 模型&#10;- 实现 `quick_action_agent.py` 用于处理快速操作任务&#10;- 添加 API 使用示例 `example_quick_action_api.py`&#10;- 更新文档 `README_QUICK_ACTION.md` 说明使用方法" />
+    <MESSAGE value="添加 Quick Action 悬浮球样式和管理器，支持桌宠特性和任务分身功能" />
+    <MESSAGE value="添加 Quick Action 悬浮球样式和管理器，支持任务分身和实时状态显示" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260204_0306 development&#10;&#10;添加 Quick Action 悬浮球样式和管理器，调用新的快速创建接口，采用异步模式，支持任务分身、实时状态显示及简单桌宠特性" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260204_2053 development&#10;&#10;优化前端对 Agent 操作的同步性问题&#10;&#10;- 更新前端代码以支持新的刷新逻辑，包括待办事项、提醒和事件的刷新&#10;- 修复筛选参数保持问题，确保在重新加载数据时保留当前筛选状态" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260204_2317 development&#10;&#10;将硬编码的 `RECURSION_LIMIT` 和 `TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES` 迁移到用户可配置的 `agent_optimization_config` 中&#10;&#10;- 用户可以通过前端 UI 自定义配置&#10;- 支持实时生效，无需重启服务&#10;- 更新相关后端和前端代码以支持新配置项&#10;&#10;修复悬浮球会被顶端搜索和设置栏目遮挡的问题" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260205_0115 development&#10;&#10;清理了一些无用日志" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260205_0115 development&#10;&#10;清理了一些无用日志" />
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$111__1_.coverage" NAME="111 (1) 覆盖结果" MODIFIED="1762698704329" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/api_examples" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$raw_http_dump_middleware.coverage" NAME="raw_http_dump_middleware 覆盖结果" MODIFIED="1766136938370" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$tavily_test.coverage" NAME="tavily_test 覆盖结果" MODIFIED="1769186378591" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_variflight_tools.coverage" NAME="test_variflight_tools 覆盖结果" MODIFIED="1769963860374" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$111.coverage" NAME="111 覆盖结果" MODIFIED="1766138421179" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/api_examples" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_exception_debug.coverage" NAME="test_exception_debug 覆盖结果" MODIFIED="1756045494260" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$tools.coverage" NAME="tools 覆盖结果" MODIFIED="1764698201022" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/agent_service" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$code_line_counter.coverage" NAME="code_line_counter 覆盖结果" MODIFIED="1755359556811" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$views.coverage" NAME="views 覆盖结果" MODIFIED="1764663740136" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/core" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$UniSchedulerSuper.coverage" NAME="UniSchedulerSuper 覆盖结果" MODIFIED="1762694228421" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$mcp_server.coverage" NAME="mcp_server 覆盖结果" MODIFIED="1765556907747" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/agent_service" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$example_reminders_api.coverage" NAME="example_reminders_api 覆盖结果" MODIFIED="1762696347053" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/api_examples" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_browser_session.coverage" NAME="test_browser_session 覆盖结果" MODIFIED="1762539566092" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$example_quick_action_api.coverage" NAME="example_quick_action_api 覆盖结果" MODIFIED="1770137014896" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/api_examples" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$mcp_tools.coverage" NAME="mcp_tools 覆盖结果" MODIFIED="1764785758204" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/agent_service" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_rrule_system.coverage" NAME="test_rrule_system 覆盖结果" MODIFIED="1756019650259" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_event_operations.coverage" NAME="test_event_operations 覆盖结果" MODIFIED="1762539335202" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_validator_schema_standalone.coverage" NAME="test_validator_schema_standalone 覆盖结果" MODIFIED="1764612118563" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$graph.coverage" NAME="graph 覆盖结果" MODIFIED="1765995732775" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/agent_service" />
+    <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_reminder_operations.coverage" NAME="test_reminder_operations 覆盖结果" MODIFIED="1762541044737" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+  </component>
+</project>

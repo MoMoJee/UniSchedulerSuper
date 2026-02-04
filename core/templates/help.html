@@ -1,0 +1,188 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>帮助文档 - UniSchedulerSuper</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 0;
+        }
+        .help-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .help-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .help-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+        .help-content {
+            padding: 40px;
+        }
+        .section {
+            margin-bottom: 40px;
+        }
+        .section h2 {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .feature-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        .feature-card h4 {
+            color: #495057;
+            margin-bottom: 10px;
+        }
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <a href="{% url 'home' %}" class="btn btn-light back-btn">
+        <i class="fas fa-arrow-left"></i> 返回主页
+    </a>
+
+    <div class="help-container">
+        <div class="help-header">
+            <h1><i class="fas fa-question-circle"></i> 帮助文档</h1>
+            <p class="mb-0">UniSchedulerSuper 使用指南</p>
+        </div>
+
+        <div class="help-content">
+            <!-- 快速开始 -->
+            <div class="section">
+                <h2><i class="fas fa-rocket"></i> 快速开始</h2>
+                <div class="feature-card">
+                    <h4>欢迎使用 UniSchedulerSuper！</h4>
+                    <p>这是一个强大的智能日程管理系统，帮助你高效管理时间和任务。</p>
+                </div>
+            </div>
+
+            <!-- 主要功能 -->
+            <div class="section">
+                <h2><i class="fas fa-star"></i> 主要功能</h2>
+                
+                <div class="feature-card">
+                    <h4><i class="fas fa-calendar-alt"></i> 日程管理</h4>
+                    <ul>
+                        <li>创建、编辑、删除日程事件</li>
+                        <li>支持重复日程（每日、每周、每月等）</li>
+                        <li>设置截止时间（DDL）和优先级</li>
+                        <li>拖拽调整日程时间</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <h4><i class="fas fa-bell"></i> 智能提醒</h4>
+                    <ul>
+                        <li>自动提醒即将到来的日程</li>
+                        <li>多维度筛选（状态、优先级、类型）</li>
+                        <li>提醒卡片直观展示</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <h4><i class="fas fa-robot"></i> AI 助手</h4>
+                    <ul>
+                        <li>智能对话助手</li>
+                        <li>日程智能分析</li>
+                        <li>个性化建议</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <h4><i class="fas fa-search"></i> 智能搜索</h4>
+                    <ul>
+                        <li>快速搜索日程和任务</li>
+                        <li>多条件筛选</li>
+                        <li>历史记录查询</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 使用技巧 -->
+            <div class="section">
+                <h2><i class="fas fa-lightbulb"></i> 使用技巧</h2>
+                
+                <div class="feature-card">
+                    <h4>日程操作</h4>
+                    <ul>
+                        <li><strong>创建日程</strong>：点击日历空白处或使用"添加日程"按钮</li>
+                        <li><strong>编辑日程</strong>：点击日程卡片进入编辑模式</li>
+                        <li><strong>快速调整</strong>：直接拖拽日程到新时间</li>
+                        <li><strong>重复日程</strong>：创建时选择重复规则（RRule）</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <h4>提醒管理</h4>
+                    <ul>
+                        <li>使用筛选器快速定位特定类型的提醒</li>
+                        <li>点击"刷新"按钮获取最新提醒</li>
+                        <li>支持按状态、优先级、类型多维度筛选</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 常见问题 -->
+            <div class="section">
+                <h2><i class="fas fa-question"></i> 常见问题</h2>
+                
+                <div class="feature-card">
+                    <h4>Q: 如何设置重复日程？</h4>
+                    <p>A: 在创建或编辑日程时，勾选"重复"选项，然后选择重复频率（每日/每周/每月等）和结束条件。</p>
+                </div>
+
+                <div class="feature-card">
+                    <h4>Q: 如何修改用户设置？</h4>
+                    <p>A: 点击右上角用户头像，选择"设置"，可以配置个人偏好、日程默认值等。</p>
+                </div>
+
+                <div class="feature-card">
+                    <h4>Q: AI 助手如何使用？</h4>
+                    <p>A: 点击左侧导航栏的"AI 助手"，与智能助手对话，获取日程建议和分析。</p>
+                </div>
+            </div>
+
+            <!-- 联系支持 -->
+            <div class="section">
+                <h2><i class="fas fa-life-ring"></i> 需要帮助？</h2>
+                <div class="feature-card">
+                    <p><strong>如果你遇到问题或有建议，欢迎联系我们：</strong></p>
+                    <ul>
+                        <li><i class="fas fa-envelope"></i> 邮箱：momojee@yeah.net</li>
+                        <li><i class="fab fa-github"></i> GitHub：<a href="https://github.com/MoMoJee/UniSchedulerSuper" target="_blank">MoMoJee/UniSchedulerSuper</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

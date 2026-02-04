@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>数据</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      line-height: 1.6;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    
+    h1 {
+      color: #2c3e50;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 10px;
+    }
+    
+    .data-container {
+      background: white;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .data-key {
+      font-weight: bold;
+      color: #2980b9;
+      margin-bottom: 5px;
+      font-size: 18px;
+    }
+    
+    .json-viewer {
+      background-color: #f8f9fa;
+      border-radius: 4px;
+      border: 1px solid #e9ecef;
+      padding: 10px;
+      margin-top: 5px;
+      font-family: 'Consolas', 'Monaco', monospace;
+    }
+    
+    .collapsible {
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .collapsible:before {
+      content: '▶';
+      display: inline-block;
+      margin-right: 5px;
+      transition: transform 0.2s;
+    }
+    
+    .expanded:before {
+      transform: rotate(90deg);
+    }
+    
+    .collapsed-content {
+      display: none;
+      padding-left: 20px;
+    }
+    
+    .string { color: #008000; }
+    .number { color: #0000ff; }
+    .boolean { color: #b22222; }
+    .null { color: #808080; }
+    .key { color: #a52a2a; }
+    
+    .home-button {
+      display: inline-block;
+      background-color: #3498db;
+      color: white;
+      padding: 10px 20px;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: bold;
+      transition: background-color 0.3s;
+      margin-bottom: 20px;
+    }
+    
+    .home-button:hover {
+      background-color: #2980b9;
+    }
+    
+    .home-button i {
+      margin-right: 8px;
+    }
+    
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+<div class="header-container">
+  <h1>您的数据</h1>
+  <a href="/home" class="home-button"><i>⌂</i> 返回主页</a>
+</div>
+
+<div class="data-container">
+  {% for data in user_data %}
+  <div class="data-item">
+    <div class="data-key">{{ data.key }}</div>
+    <div class="json-viewer" id="json-{{ forloop.counter }}"></div>
+  </div>
+  <script>
+    (function() {
+      const jsonData = {{ data.value|safe }};
+      const container = document.getElementById('json-{{ forloop.counter }}');
+      
+      function createJsonView(obj, level = 0) {
+        if (obj === null) return '<span class="null">null</span>';
+        
+        const type = typeof obj;
+        
+        if (type === 'string') return `<span class="string">"${obj}"</span>`;
+        if (type === 'number') return `<span class="number">${obj}</span>`;
+        if (type === 'boolean') return `<span class="boolean">${obj}</span>`;
+        
+        if (Array.isArray(obj)) {
+          const isLong = obj.length > 3;
+          let html = '[';
+          
+          if (isLong) {
+            html += `<span class="collapsible">...</span><div class="collapsed-content">`;
+          }
+          
+          obj.forEach((item, index) => {
+            html += createJsonView(item, level + 1);
+            if (index < obj.length - 1) html += ', ';
+          });
+          
+          if (isLong) {
+            html += '</div>';
+          }
+          
+          html += ']';
+          return html;
+        }
+        
+        if (type === 'object') {
+          const keys = Object.keys(obj);
+          const isLong = keys.length > 3;
+          
+          let html = '{';
+          
+          if (isLong) {
+            html += `<span class="collapsible">...</span><div class="collapsed-content">`;
+          }
+          
+          keys.forEach((key, index) => {
+            html += `<span class="key">"${key}"</span>: ${createJsonView(obj[key], level + 1)}`;
+            if (index < keys.length - 1) html += ', ';
+          });
+          
+          if (isLong) {
+            html += '</div>';
+          }
+          
+          html += '}';
+          return html;
+        }
+        
+        return String(obj);
+      }
+      
+      container.innerHTML = createJsonView(jsonData);
+      
+      // 为可折叠元素添加事件监听
+      container.querySelectorAll('.collapsible').forEach(el => {
+        el.addEventListener('click', function() {
+          this.classList.toggle('expanded');
+          const content = this.nextElementSibling;
+          content.style.display = content.style.display === 'block' ? 'none' : 'block';
+        });
+      });
+    })();
+  </script>
+  {% endfor %}
+</div>
+
+<script>
+  // 页面加载完成后执行
+  document.addEventListener('DOMContentLoaded', function() {
+    // 所有初始折叠的内容设为隐藏
+    document.querySelectorAll('.collapsed-content').forEach(el => {
+      el.style.display = 'none';
+    });
+  });
+</script>
+</body>
+</html>

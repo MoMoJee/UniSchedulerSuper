@@ -1,0 +1,133 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <title>web</title>
+    <link rel="stylesheet" href="{% static 'css/style_memory.css' %}">
+    <style>
+        body{
+            background-color: rgb(233, 232, 232);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="topping">
+            <div class="topping_l">
+                <!-- 这个负责左边排版 -->
+                <p class="topfont1">大米官网</p>
+                <span class="topicon">|</span>
+                <p class="topfont">大米商城</p>
+                <span class="topicon">|</span>
+                <p class="topfont">大米汽车</p>
+                <span class="topicon">|</span>
+                <p class="topfont">云服务</p>
+                <span class="topicon">|</span>
+                <p class="topfont">下载app</p>
+            </div>
+            <div class="topping_r">
+                <!-- 这个负责右边排版 -->
+                <p class="topfont topfont2">登录</p>
+                <span class="topicon topfont2">|</span>
+                <p class="topfont topfont2">注册</p>
+                <span class="topicon topfont2">|</span>
+                <p class="topfont topfont2">消息通知</p>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="content_u">Welcome to Master He's website</div>
+
+        </div>
+
+        <div class="body">
+            <div class="body_l">
+                <ul class="content_l1">
+                    <li class="content_l">1
+                        <span class="arrow"> 
+                            <img src="../../字体图标/font1/arrowright.svg" class="arrow_img">         
+                        </span>
+                        <div class="hoverbox"></div>
+                        <!-- 这是因为, 必须得是子元素才能设置悬浮hover -->
+                        <!-- 超级长, 而且你的hoverbox里面还要加内容, 瑟瑟发抖 -->
+                    </li>
+                    <li class="content_l content_ll">2
+                        <span class="arrow"> 
+                            <img src="../../字体图标/font1/arrowright.svg" class="arrow_img">         
+                        </span>
+                        <div class="hoverbox1"></div>
+                    </li>
+                    <li class="content_l">3
+                        <span class="arrow"> 
+                            <img src="../../字体图标/font1/arrowright.svg" class="arrow_img">         
+                        </span>
+                        <div class="hoverbox"></div>
+                    </li>
+                    <li class="content_l">4
+                        <span class="arrow"> 
+                            <img src="../../字体图标/font1/arrowright.svg" class="arrow_img">         
+                        </span>
+                        <div class="hoverbox"></div>
+                    </li>
+                    <li class="content_l content_ll">5
+                        <span class="arrow"> 
+                            <img src="../../字体图标/font1/arrowright.svg" class="arrow_img">         
+                        </span>
+                        <div class="hoverbox1"></div>
+                    </li>
+                    <li class="content_l">6
+                        <span class="arrow"> 
+                            <img src="../../字体图标/font1/arrowright.svg" class="arrow_img">         
+                        </span>
+                        <div class="hoverbox"></div>
+                    </li>
+                    <li class="content_l">7
+                        <span class="arrow"> 
+                            <img src="../../字体图标/font1/arrowright.svg" class="arrow_img">         
+                        </span>
+                        <div class="hoverbox"></div>
+                    </li>
+                </ul>
+            </div>
+            <div class="body_r">
+                <img src="../../图片放这里/嘉兴红船.png" class="img_body">
+            </div>
+        </div>
+
+        <div class="third">
+            <div class="third1"></div>
+            <div class="third2"></div>
+            <div class="third2"></div>
+            <div class="third2"></div>
+        </div>
+
+        <div class="fixing">
+            <div class="fixing1">
+                <svg class="icon" aria-hidden="true">
+                    <use xlink:href="#icon-bianmu"></use>
+                </svg>
+            </div>
+            <div class="fixing1">
+                <svg class="icon" aria-hidden="true">
+                    <use xlink:href="#icon-helanzhu"></use>
+                </svg>
+            </div>
+            <div class="fixing1">
+                <svg class="icon" aria-hidden="true">
+                    <use xlink:href="#icon-jumao"></use>
+                </svg>
+            </div>
+            <div class="fixing1">
+                <svg class="icon" aria-hidden="true">
+                    <use xlink:href="#icon-baimao"></use>
+                </svg>
+            </div>
+        </div>
+        <div style="height: 50px;margin:20px auto;"></div>
+    </div>
+    <div style="height: 2000px;margin:20px auto;"></div>
+
+    <script src="../../字体图标/font1/iconfont.js"></script>
+</body>
+</html>

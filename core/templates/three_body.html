@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三体运动模拟器</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(ellipse at center, #0a0e2a 0%, #000000 70%);
+            color: #e0f7ff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        
+        canvas {
+            display: block;
+            background: transparent;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(10, 14, 42, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(64, 224, 255, 0.3);
+            max-width: 320px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .control-group {
+            margin-bottom: 12px;
+        }
+        
+        label {
+            display: inline-block;
+            width: 140px;
+            font-size: 13px;
+            color: #a0dfff;
+        }
+        
+        input[type="number"] {
+            width: 90px;
+            background: rgba(5, 15, 30, 0.7);
+            border: 1px solid rgba(64, 224, 255, 0.4);
+            color: #40e0ff;
+            padding: 5px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #00a8ff, #0066ff);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 8px 5px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(0, 102, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 102, 255, 0.5);
+        }
+        
+        .info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(10, 14, 42, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 15px;
+            border: 1px solid rgba(64, 224, 255, 0.3);
+            font-size: 14px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+        
+        .info div {
+            margin-bottom: 8px;
+        }
+        
+        h3, h4 {
+            color: #40e0ff;
+            text-shadow: 0 0 10px rgba(64, 224, 255, 0.7);
+            margin-top: 0;
+        }
+        
+        .preset-buttons {
+            margin-top: 15px;
+        }
+        
+        .preset-buttons button {
+            background: linear-gradient(135deg, #0066ff, #00a8ff);
+            font-size: 12px;
+            padding: 8px 12px;
+            margin: 4px 2px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="controls">
+        <h3>三体运动模拟器</h3>
+        
+        <h4>恒星1参数</h4>
+        <div class="control-group">
+            <label>质量:</label>
+            <input type="number" id="star1Mass" value="100" step="10" min="50" max="200">
+        </div>
+        <div class="control-group">
+            <label>初始X位置:</label>
+            <input type="number" id="star1X" value="200" step="10">
+        </div>
+        <div class="control-group">
+            <label>初始Y位置:</label>
+            <input type="number" id="star1Y" value="200" step="10">
+        </div>
+        <div class="control-group">
+            <label>初始X速度:</label>
+            <input type="number" id="star1VX" value="0" step="0.1">
+        </div>
+        <div class="control-group">
+            <label>初始Y速度:</label>
+            <input type="number" id="star1VY" value="0" step="0.1">
+        </div>
+        
+        <h4>恒星2参数</h4>
+        <div class="control-group">
+            <label>质量:</label>
+            <input type="number" id="star2Mass" value="100" step="10" min="50" max="200">
+        </div>
+        <div class="control-group">
+            <label>初始X位置:</label>
+            <input type="number" id="star2X" value="400" step="10">
+        </div>
+        <div class="control-group">
+            <label>初始Y位置:</label>
+            <input type="number" id="star2Y" value="200" step="10">
+        </div>
+        <div class="control-group">
+            <label>初始X速度:</label>
+            <input type="number" id="star2VX" value="0" step="0.1">
+        </div>
+        <div class="control-group">
+            <label>初始Y速度:</label>
+            <input type="number" id="star2VY" value="0" step="0.1">
+        </div>
+        
+        <h4>恒星3参数</h4>
+        <div class="control-group">
+            <label>质量:</label>
+            <input type="number" id="star3Mass" value="100" step="10" min="50" max="200">
+        </div>
+        <div class="control-group">
+            <label>初始X位置:</label>
+            <input type="number" id="star3X" value="300" step="10">
+        </div>
+        <div class="control-group">
+            <label>初始Y位置:</label>
+            <input type="number" id="star3Y" value="350" step="10">
+        </div>
+        <div class="control-group">
+            <label>初始X速度:</label>
+            <input type="number" id="star3VX" value="0" step="0.1">
+        </div>
+        <div class="control-group">
+            <label>初始Y速度:</label>
+            <input type="number" id="star3VY" value="0" step="0.1">
+        </div>
+        
+        <h4>行星参数</h4>
+        <div class="control-group">
+            <label>质量:</label>
+            <input type="number" id="planetMass" value="1" step="0.1" min="0.1" max="5">
+        </div>
+        <div class="control-group">
+            <label>初始X位置:</label>
+            <input type="number" id="planetX" value="300" step="10">
+        </div>
+        <div class="control-group">
+            <label>初始Y位置:</label>
+            <input type="number" id="planetY" value="200" step="10">
+        </div>
+        <div class="control-group">
+            <label>初始X速度:</label>
+            <input type="number" id="planetVX" value="1" step="0.1">
+        </div>
+        <div class="control-group">
+            <label>初始Y速度:</label>
+            <input type="number" id="planetVY" value="0" step="0.1">
+        </div>
+        
+        <div class="preset-buttons">
+            <h4>预设场景</h4>
+            <button onclick="loadPreset('figure8')">8字形轨道</button>
+            <button onclick="loadPreset('stable')">稳定三角形</button>
+            <button onclick="loadPreset('chaos')">混沌系统</button>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <button onclick="startSimulation()">开始模拟</button>
+            <button onclick="stopSimulation()">停止模拟</button>
+            <button onclick="resetSimulation()">重置</button>
+            <button onclick="clearTrails()">清除轨迹</button>
+        </div>
+    </div>
+    
+    <div class="info">
+        <div>状态: <span id="status">就绪</span></div>
+        <div>时间: <span id="time">0</span></div>
+        <div>行星状态: <span id="planetStatus">正常</span></div>
+        <div>恒星碰撞: <span id="collisionStatus">无</span></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        let animationId = null;
+        let time = 0;
+        let bodies = [];
+        let trails = [[], [], [], []]; // 三个恒星和一个行星的轨迹
+        let destroyed = false;
+        let collisionOccurred = false;
+        
+        class CelestialBody {
+            constructor(x, y, vx, vy, mass, radius, color, type) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.mass = mass;
+                this.radius = radius;
+                this.color = color;
+                this.type = type;
+                this.destroyed = false;
+                this.brightness = 1;
+                this.pulsePhase = Math.random() * Math.PI * 2;
+            }
+            
+            update(gravitationalBodies, dt) {
+                if (this.destroyed) return;
+                
+                let fx = 0, fy = 0;
+                
+                for (let other of gravitationalBodies) {
+                    if (other === this || other.destroyed) continue;
+                    
+                    const dx = other.x - this.x;
+                    const dy = other.y - this.y;
+                    const r = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (r < this.radius + other.radius) {
+                        if (this.type === 'planet') {
+                            this.destroyed = true;
+                            return;
+                        }
+                    }
+                    
+                    if (r > 0) {
+                        const F = (this.mass * other.mass) / (r * r);
+                        fx += F * dx / r;
+                        fy += F * dy / r;
+                    }
+                }
+                
+                const ax = fx / this.mass;
+                const ay = fy / this.mass;
+                
+                this.vx += ax * dt;
+                this.vy += ay * dt;
+                
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+                
+                // 边界检查
+                if (this.x < -500 || this.x > canvas.width + 500 || 
+                    this.y < -500 || this.y > canvas.height + 500) {
+                    if (this.type === 'planet') {
+                        this.destroyed = true;
+                    }
+                }
+                
+                // 更新脉冲相位
+                this.pulsePhase += 0.05;
+                this.brightness = 0.8 + 0.2 * Math.sin(this.pulsePhase);
+            }
+            
+            draw(ctx) {
+                if (this.destroyed) return;
+                
+                ctx.save();
+                
+                if (this.type === 'star') {
+                    // 绘制恒星光晕效果
+                    const outerRadius = this.radius * 4;
+                    const innerRadius = this.radius * 2;
+                    
+                    // 外层光晕
+                    const outerGradient = ctx.createRadialGradient(
+                        this.x, this.y, 0, 
+                        this.x, this.y, outerRadius
+                    );
+                    outerGradient.addColorStop(0, this.color.replace('rgb', 'rgba').replace(')', ', 0.4)'));
+                    outerGradient.addColorStop(0.3, this.color.replace('rgb', 'rgba').replace(')', ', 0.2)'));
+                    outerGradient.addColorStop(0.7, this.color.replace('rgb', 'rgba').replace(')', ', 0.05)'));
+                    outerGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    
+                    ctx.fillStyle = outerGradient;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, outerRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // 中层光晕
+                    const middleGradient = ctx.createRadialGradient(
+                        this.x, this.y, 0, 
+                        this.x, this.y, innerRadius
+                    );
+                    middleGradient.addColorStop(0, this.color.replace('rgb', 'rgba').replace(')', ', 0.8)'));
+                    middleGradient.addColorStop(0.5, this.color.replace('rgb', 'rgba').replace(')', ', 0.4)'));
+                    middleGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    
+                    ctx.fillStyle = middleGradient;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, innerRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // 恒星核心
+                    const coreGradient = ctx.createRadialGradient(
+                        this.x, this.y, 0, 
+                        this.x, this.y, this.radius
+                    );
+                    coreGradient.addColorStop(0, `rgba(255, 255, 255, ${this.brightness})`);
+                    coreGradient.addColorStop(0.7, this.color.replace('rgb', 'rgba').replace(')', `, ${this.brightness * 0.9})`));
+                    coreGradient.addColorStop(1, this.color.replace('rgb', 'rgba').replace(')', `, ${this.brightness * 0.7})`));
+                    
+                    ctx.fillStyle = coreGradient;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // 添加星芒效果
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${this.brightness * 0.6})`;
+                    ctx.lineWidth = 2;
+                    for (let i = 0; i < 4; i++) {
+                        const angle = (i * Math.PI / 2) + this.pulsePhase * 0.1;
+                        const length = this.radius * 1.5;
+                        ctx.beginPath();
+                        ctx.moveTo(
+                            this.x + Math.cos(angle) * this.radius,
+                            this.y + Math.sin(angle) * this.radius
+                        );
+                        ctx.lineTo(
+                            this.x + Math.cos(angle) * (this.radius + length),
+                            this.y + Math.sin(angle) * (this.radius + length)
+                        );
+                        ctx.stroke();
+                    }
+                    
+                } else if (this.type === 'planet') {
+                    // 行星绘制
+                    const gradient = ctx.createRadialGradient(
+                        this.x - this.radius * 0.3, this.y - this.radius * 0.3, 0,
+                        this.x, this.y, this.radius
+                    );
+                    gradient.addColorStop(0, '#66d9ff');
+                    gradient.addColorStop(0.7, '#3399ff');
+                    gradient.addColorStop(1, '#0066cc');
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // 行星边框
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
+            }
+        }
+        
+        function checkCollisions() {
+            collisionOccurred = false;
+            
+            // 检查恒星之间的碰撞
+            for (let i = 0; i < 3; i++) {
+                for (let j = i + 1; j < 3; j++) {
+                    const star1 = bodies[i];
+                    const star2 = bodies[j];
+                    const dx = star1.x - star2.x;
+                    const dy = star1.y - star2.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < star1.radius + star2.radius) {
+                        collisionOccurred = true;
+                    }
+                }
+            }
+            
+            document.getElementById('collisionStatus').textContent = 
+                collisionOccurred ? '碰撞 detected' : '无';
+        }
+        
+        function initSimulation() {
+            bodies = [];
+            trails = [[], [], [], []];
+            time = 0;
+            destroyed = false;
+            collisionOccurred = false;
+            
+            // 创建三个恒星
+            bodies.push(new CelestialBody(
+                parseFloat(document.getElementById('star1X').value),
+                parseFloat(document.getElementById('star1Y').value),
+                parseFloat(document.getElementById('star1VX').value),
+                parseFloat(document.getElementById('star1VY').value),
+                parseFloat(document.getElementById('star1Mass').value),
+                15,
+                'rgb(255, 100, 100)',
+                'star'
+            ));
+            
+            bodies.push(new CelestialBody(
+                parseFloat(document.getElementById('star2X').value),
+                parseFloat(document.getElementById('star2Y').value),
+                parseFloat(document.getElementById('star2VX').value),
+                parseFloat(document.getElementById('star2VY').value),
+                parseFloat(document.getElementById('star2Mass').value),
+                15,
+                'rgb(100, 255, 100)',
+                'star'
+            ));
+            
+            bodies.push(new CelestialBody(
+                parseFloat(document.getElementById('star3X').value),
+                parseFloat(document.getElementById('star3Y').value),
+                parseFloat(document.getElementById('star3VX').value),
+                parseFloat(document.getElementById('star3VY').value),
+                parseFloat(document.getElementById('star3Mass').value),
+                15,
+                'rgb(100, 150, 255)',
+                'star'
+            ));
+            
+            // 创建行星
+            bodies.push(new CelestialBody(
+                parseFloat(document.getElementById('planetX').value),
+                parseFloat(document.getElementById('planetY').value),
+                parseFloat(document.getElementById('planetVX').value),
+                parseFloat(document.getElementById('planetVY').value),
+                parseFloat(document.getElementById('planetMass').value),
+                5,
+                'rgb(200, 200, 200)',
+                'planet'
+            ));
+        }
+        
+        function updateTrails() {
+            for (let i = 0; i < bodies.length; i++) {
+                if (!bodies[i].destroyed) {
+                    trails[i].push({x: bodies[i].x, y: bodies[i].y});
+                    if (trails[i].length > 300) {
+                        trails[i].shift();
+                    }
+                }
+            }
+        }
+        
+        function drawTrails() {
+            for (let i = 0; i < trails.length; i++) {
+                if (trails[i].length < 2) continue;
+                
+                ctx.strokeStyle = i < 3 ? 
+                    bodies[i].color.replace('rgb', 'rgba').replace(')', ', 0.3)') : 
+                    'rgba(200, 200, 200, 0.3)';
+                ctx.lineWidth = i < 3 ? 2 : 1;
+                ctx.beginPath();
+                ctx.moveTo(trails[i][0].x, trails[i][0].y);
+                
+                for (let j = 1; j < trails[i].length; j++) {
+                    const alpha = j / trails[i].length;
+                    ctx.globalAlpha = alpha * 0.5;
+                    ctx.lineTo(trails[i][j].x, trails[i][j].y);
+                }
+                
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
+        }
+        
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 更新轨迹
+            updateTrails();
+            
+            // 绘制轨迹
+            drawTrails();
+            
+            // 更新天体
+            for (let body of bodies) {
+                body.update(bodies, 0.1);
+            }
+            
+            // 检查碰撞
+            checkCollisions();
+            
+            // 检查行星状态
+            if (bodies[3].destroyed && !destroyed) {
+                destroyed = true;
+                document.getElementById('planetStatus').textContent = '已摧毁';
+                document.getElementById('planetStatus').style.color = '#ff4444';
+            } else if (!bodies[3].destroyed) {
+                document.getElementById('planetStatus').textContent = '正常';
+                document.getElementById('planetStatus').style.color = '#44ff44';
+            }
+            
+            // 绘制天体
+            for (let body of bodies) {
+                body.draw(ctx);
+            }
+            
+            time += 0.1;
+            document.getElementById('time').textContent = time.toFixed(1);
+            
+            if (!destroyed || time < 100) {
+                animationId = requestAnimationFrame(animate);
+            } else {
+                document.getElementById('status').textContent = '模拟结束';
+            }
+        }
+        
+        function startSimulation() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            
+            initSimulation();
+            document.getElementById('status').textContent = '运行中';
+            document.getElementById('planetStatus').textContent = '正常';
+            document.getElementById('planetStatus').style.color = '#44ff44';
+            
+            animate();
+        }
+        
+        function stopSimulation() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+                document.getElementById('status').textContent = '已停止';
+            }
+        }
+        
+        function resetSimulation() {
+            stopSimulation();
+            initSimulation();
+            document.getElementById('status').textContent = '就绪';
+            document.getElementById('time').textContent = '0';
+            document.getElementById('planetStatus').textContent = '正常';
+            document.getElementById('planetStatus').style.color = '#44ff44';
+            
+            // 重绘初始状态
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawTrails();
+            for (let body of bodies) {
+                body.draw(ctx);
+            }
+        }
+        
+        function clearTrails() {
+            trails = [[], [], [], []];
+        }
+        
+        function loadPreset(preset) {
+            switch(preset) {
+                case 'figure8':
+                    // 8字形轨道预设
+                    document.getElementById('star1X').value = 200;
+                    document.getElementById('star1Y').value = 200;
+                    document.getElementById('star1VX').value = 0.5;
+                    document.getElementById('star1VY').value = 0.3;
+                    
+                    document.getElementById('star2X').value = 400;
+                    document.getElementById('star2Y').value = 200;
+                    document.getElementById('star2VX').value = -0.5;
+                    document.getElementById('star2VY').value = 0.3;
+                    
+                    document.getElementById('star3X').value = 300;
+                    document.getElementById('star3Y').value = 350;
+                    document.getElementById('star3VX').value = 0;
+                    document.getElementById('star3VY').value = -0.6;
+                    
+                    document.getElementById('planetX').value = 300;
+                    document.getElementById('planetY').value = 100;
+                    document.getElementById('planetVX').value = 1.2;
+                    document.getElementById('planetVY').value = 0;
+                    break;
+                    
+                case 'stable':
+                    // 稳定三角形预设
+                    document.getElementById('star1X').value = 200;
+                    document.getElementById('star1Y').value = 200;
+                    document.getElementById('star1VX').value = 0;
+                    document.getElementById('star1VY').value = 0;
+                    
+                    document.getElementById('star2X').value = 400;
+                    document.getElementById('star2Y').value = 200;
+                    document.getElementById('star2VX').value = 0;
+                    document.getElementById('star2VY').value = 0;
+                    
+                    document.getElementById('star3X').value = 300;
+                    document.getElementById('star3Y').value = 346;
+                    document.getElementById('star3VX').value = 0;
+                    document.getElementById('star3VY').value = 0;
+                    
+                    document.getElementById('planetX').value = 300;
+                    document.getElementById('planetY').value = 200;
+                    document.getElementById('planetVX').value = 0.8;
+                    document.getElementById('planetVY').value = 0;
+                    break;
+                    
+                case 'chaos':
+                    // 混沌系统预设
+                    document.getElementById('star1X').value = 150;
+                    document.getElementById('star1Y').value = 200;
+                    document.getElementById('star1VX').value = 0.8;
+                    document.getElementById('star1VY').value = 0.2;
+                    
+                    document.getElementById('star2X').value = 450;
+                    document.getElementById('star2Y').value = 250;
+                    document.getElementById('star2VX').value = -0.6;
+                    document.getElementById('star2VY').value = -0.3;
+                    
+                    document.getElementById('star3X').value = 300;
+                    document.getElementById('star3Y').value = 400;
+                    document.getElementById('star3VX').value = 0.2;
+                    document.getElementById('star3VY').value = -0.7;
+                    
+                    document.getElementById('planetX').value = 300;
+                    document.getElementById('planetY').value = 100;
+                    document.getElementById('planetVX').value = 1.5;
+                    document.getElementById('planetVY').value = 0.5;
+                    break;
+            }
+        }
+        
+        // 窗口大小调整
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+        
+        // 初始化
+        initSimulation();
+        
+        // 绘制初始状态
+        for (let body of bodies) {
+            body.draw(ctx);
+        }
+    </script>
+</body>
+</html>
