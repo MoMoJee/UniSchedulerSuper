@@ -513,7 +513,7 @@ def create_reminder(request):
                             action_type="create_reminder",
                             description=f"Created reminder: {title}"
                         )
-                        logger.info(f"Recorded AgentTransaction for session {session_id}")
+                        logger.debug(f"Recorded AgentTransaction for session {session_id}")
                     except Exception as e:
                         logger.error(f"Failed to record AgentTransaction: {e}")
                         
@@ -566,7 +566,7 @@ def update_reminder(request):
             
             if rrule_change_scope == 'all' and not target_reminder.get('series_id') and data.get('rrule'):
                 # 普通提醒转重复提醒（唯一使用重复规则变化的场景）
-                logger.info(f"Converting single reminder {reminder_id} to recurring with rrule: {data.get('rrule')}")
+                logger.debug(f"Converting single reminder {reminder_id} to recurring with rrule: {data.get('rrule')}")
                 
                 manager = IntegratedReminderManager(django_request)
                 
@@ -834,8 +834,8 @@ def bulk_edit_reminders(request):
         # 过滤掉None值
         updates = {k: v for k, v in updates.items() if v is not None}
         
-        logger.info(f"Received updates: {updates}")
-        logger.debug(f"{data=}")
+        logger.debug(f"Received updates: {updates}")
+        # logger.debug(f"{data=}")
         
         if not reminder_id:
             return JsonResponse({'status': 'error', 'message': '提醒ID是必填项'}, status=400)

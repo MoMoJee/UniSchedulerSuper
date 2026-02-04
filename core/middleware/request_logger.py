@@ -47,14 +47,16 @@ class RequestLogMiddleware:
                 f'{response.get("Content-Length", "-")} '
                 f'{duration:.3f}s'
             )
-            
+
             # 根据状态码选择日志级别
             if response.status_code >= 500:
                 logger.error(log_message)
-            elif response.status_code >= 400:
+            elif 400 <= response.status_code < 500:
                 logger.warning(log_message)
-            else:
+            elif 300 <= response.status_code < 400:
                 logger.info(log_message)
+            else:
+                logger.debug(log_message)
             
         except Exception as e:
             logger.error(f"Error in RequestLogMiddleware: {e}")

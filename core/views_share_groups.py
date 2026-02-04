@@ -109,7 +109,7 @@ def create_share_group(request):
             version=0
         )
         
-        logger.info(f"用户 {request.user.username} 创建了群组 {share_group_id}: {share_group_name}")
+        logger.debug(f"用户 {request.user.username} 创建了群组 {share_group_id}: {share_group_name}")
         
         return JsonResponse({
             'status': 'success',
@@ -255,7 +255,7 @@ def join_share_group(request):
             member_color=member_color
         )
         
-        logger.info(f"用户 {request.user.username} 加入了群组 {share_group_id}")
+        logger.debug(f"用户 {request.user.username} 加入了群组 {share_group_id}")
         
         return JsonResponse({
             'status': 'success',
@@ -319,7 +319,7 @@ def leave_share_group(request, share_group_id):
         # 重新同步群组数据（移除该用户分享的日程）
         sync_group_calendar_data([share_group_id], request.user)
         
-        logger.info(f"用户 {request.user.username} 退出了群组 {share_group_id}")
+        logger.debug(f"用户 {request.user.username} 退出了群组 {share_group_id}")
         
         return JsonResponse({
             'status': 'success',
@@ -368,7 +368,7 @@ def delete_share_group(request, share_group_id):
         # 删除群组（会级联删除成员关系和日历数据）
         group.delete()
         
-        logger.info(f"用户 {request.user.username} 删除了群组 {share_group_id}: {group_name}")
+        logger.debug(f"用户 {request.user.username} 删除了群组 {share_group_id}: {group_name}")
         
         return JsonResponse({
             'status': 'success',
@@ -684,28 +684,28 @@ def update_share_group(request, share_group_id):
         # 解析请求数据
         data = request.validated_data
         
-        logger.info(f"收到的更新数据: {data}")
-        logger.info(f"更新前 - 名称: {group.share_group_name}, 颜色: {group.share_group_color}, 描述: {group.share_group_description}")
+        logger.debug(f"收到的更新数据: {data}")
+        logger.debug(f"更新前 - 名称: {group.share_group_name}, 颜色: {group.share_group_color}, 描述: {group.share_group_description}")
         
         # 更新群组信息
         if 'share_group_name' in data:
             new_name = data['share_group_name'].strip()
             if new_name:
                 group.share_group_name = new_name
-                logger.info(f"更新名称为: {new_name}")
+                # logger.debug(f"更新名称为: {new_name}")
         
         if 'share_group_color' in data:
             group.share_group_color = data['share_group_color']
-            logger.info(f"更新颜色为: {data['share_group_color']}")
+            # logger.info(f"更新颜色为: {data['share_group_color']}")
         
         if 'share_group_description' in data:
             group.share_group_description = data['share_group_description']
-            logger.info(f"更新描述为: {data['share_group_description']}")
+            # logger.info(f"更新描述为: {data['share_group_description']}")
         
         group.save()
         
-        logger.info(f"保存后 - 名称: {group.share_group_name}, 颜色: {group.share_group_color}, 描述: {group.share_group_description}")
-        logger.info(f"用户 {request.user.username} 更新了群组 {share_group_id} 的信息")
+        # logger.info(f"保存后 - 名称: {group.share_group_name}, 颜色: {group.share_group_color}, 描述: {group.share_group_description}")
+        logger.debug(f"用户 {request.user.username} 更新了群组 {share_group_id} 的信息")
         
         return JsonResponse({
             'status': 'success',
@@ -741,7 +741,7 @@ def sync_group_calendar_data(share_group_ids: List[str], trigger_user=None):
     
     try:
         for group_id in share_group_ids:
-            logger.info(f"开始同步群组 {group_id} 的日历数据...")
+            logger.debug(f"开始同步群组 {group_id} 的日历数据...")
             
             # 获取群组
             try:
@@ -789,7 +789,7 @@ def sync_group_calendar_data(share_group_ids: List[str], trigger_user=None):
                         if group_id in e.get('shared_to_groups', [])
                     ]
                     
-                    logger.info(f"用户 {user.username} 分享了 {len(shared_events)} 个日程到群组 {group_id}")
+                    # logger.info(f"用户 {user.username} 分享了 {len(shared_events)} 个日程到群组 {group_id}")
                     
                     # 添加 owner 信息、成员颜色和只读标记
                     for event in shared_events:
@@ -885,7 +885,7 @@ def update_member_color(request, share_group_id):
         # 触发群组数据同步（更新所有事件的 owner_color）
         sync_group_calendar_data([share_group_id], request.user)
         
-        logger.info(f"用户 {request.user.username} 更新了在群组 {share_group_id} 中的颜色为 {member_color}")
+        # logger.info(f"用户 {request.user.username} 更新了在群组 {share_group_id} 中的颜色为 {member_color}")
         
         return JsonResponse({
             'status': 'success',

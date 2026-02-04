@@ -515,7 +515,7 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     if user and user.is_authenticated:
         try:
             current_model_id, model_config = get_current_model_config(user)
-            logger.info(f"[Agent] 获取到模型配置: model_id={current_model_id}")
+            logger.debug(f"[Agent] 获取到模型配置: model_id={current_model_id}")
             logger.debug(f"[Agent] 模型详情: {model_config}")
         except Exception as e:
             logger.warning(f"[Agent] 获取模型配置失败: {e}")
@@ -557,7 +557,7 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
                 if session:
                     summary_metadata = session.get_summary_metadata()
                     if summary_metadata:
-                        logger.info(f"[Agent] 加载历史总结: {summary_metadata.get('summary_tokens', 0)}t, 截止第 {summary_metadata.get('summarized_until', 0)} 条")
+                        logger.debug(f"[Agent] 加载历史总结: {summary_metadata.get('summary_tokens', 0)}t, 截止第 {summary_metadata.get('summarized_until', 0)} 条")
             
             if enable_optimization:
                 # 创建工具压缩器
@@ -574,8 +574,8 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
                 # 计算原始消息的 token 总数
                 original_tokens = sum(calculator.calculate_message(m) for m in messages)
                 
-                logger.info(f"[Agent] 上下文优化:")
-                logger.info(f"[Agent]   - 原始消息: {len(messages)} 条, {original_tokens} tokens")
+                logger.debug(f"[Agent] 上下文优化:")
+                logger.debug(f"[Agent]   - 原始消息: {len(messages)} 条, {original_tokens} tokens")
                 
                 # 使用优化上下文（使用已有总结，不再截断）
                 optimized_messages = build_optimized_context(
@@ -595,10 +595,10 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
                 # 计算优化后的 token 总数
                 optimized_tokens = sum(calculator.calculate_message(m) for m in optimized_messages)
                 
-                logger.info(f"[Agent] 上下文优化完成:")
-                logger.info(f"[Agent]   - 优化后消息: {len(optimized_messages)} 条, {optimized_tokens} tokens")
+                logger.debug(f"[Agent] 上下文优化完成:")
+                logger.debug(f"[Agent]   - 优化后消息: {len(optimized_messages)} 条, {optimized_tokens} tokens")
                 if original_tokens > 0:
-                    logger.info(f"[Agent]   - 削减率: {(1 - optimized_tokens/original_tokens)*100:.1f}%")
+                    logger.debug(f"[Agent]   - 削减率: {(1 - optimized_tokens/original_tokens)*100:.1f}%")
                 
         except Exception as e:
             logger.error(f"[Agent] 上下文优化失败: {e}", exc_info=True)
@@ -607,7 +607,7 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     full_messages = [system_message] + list(optimized_messages)
     
     # 打印最终发送给 LLM 的消息
-    logger.info(f"[Agent] 发送给 LLM 的消息: {len(full_messages)} 条")
+    logger.debug(f"[Agent] 发送给 LLM 的消息: {len(full_messages)} 条")
     
     response = llm_with_tools.invoke(full_messages, config)
     

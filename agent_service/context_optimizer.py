@@ -532,8 +532,8 @@ def get_optimization_config(user) -> Dict:
         if opt_config_data:
             config = opt_config_data.get_value()
             merged = {**default_config, **config}
-            logger.info(f"[优化配置] 用户配置: {config}")
-            logger.info(f"[优化配置] 合并后: target_usage_ratio={merged.get('target_usage_ratio')}, summary_token_ratio={merged.get('summary_token_ratio')}")
+            logger.debug(f"[优化配置] 用户配置: {config}")
+            logger.debug(f"[优化配置] 合并后: target_usage_ratio={merged.get('target_usage_ratio')}, summary_token_ratio={merged.get('summary_token_ratio')}")
             return merged
         else:
             logger.info(f"[优化配置] 用户无自定义配置，使用默认值")

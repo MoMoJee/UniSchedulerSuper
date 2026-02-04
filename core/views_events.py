@@ -55,7 +55,7 @@ def _sync_groups_after_edit(events: List[Dict], series_id: str, user, deleted_ev
         # 如果传入了被删除事件的群组，先添加这些
         if deleted_event_groups:
             affected_groups.update(deleted_event_groups)
-            logger.info(f"[SYNC] 收集到被删除事件的群组: {deleted_event_groups}")
+            logger.debug(f"[SYNC] 收集到被删除事件的群组: {deleted_event_groups}")
         
         # 如果有 series_id，检查该系列的所有事件
         if series_id:
@@ -75,7 +75,7 @@ def _sync_groups_after_edit(events: List[Dict], series_id: str, user, deleted_ev
         if affected_groups:
             from .views_share_groups import sync_group_calendar_data
             sync_group_calendar_data(list(affected_groups), user)
-            logger.info(f"编辑事件后同步到群组: {affected_groups}")
+            logger.debug(f"编辑事件后同步到群组: {affected_groups}")
             
     except Exception as e:
         logger.error(f"同步群组数据失败: {str(e)}")
@@ -145,13 +145,13 @@ class EventsRRuleManager(IntegratedReminderManager):
             
             # 判断是否为复杂重复模式，需要查找下一个符合条件的时间点
             needs_next_occurrence = self._is_complex_rrule(rrule)
-            logger.info(f"Event RRule: {rrule}, is_complex: {needs_next_occurrence}, start_time: {start_time}")
+            logger.debug(f"Event RRule: {rrule}, is_complex: {needs_next_occurrence}, start_time: {start_time}")
             
             if needs_next_occurrence:
                 # 对于复杂重复模式，查找下一个符合条件的时间点
                 # 无论是单个还是多个BYDAY值，都需要验证所选日期是否符合规则
                 actual_start_time = self._find_next_occurrence(rrule, start_time)
-                logger.info(f"Found next occurrence: {actual_start_time}")
+                logger.debug(f"Found next occurrence: {actual_start_time}")
                 if actual_start_time:
                     # 使用找到的时间点，但保留原始时间的时分秒
                     original_hour = start_time.hour
@@ -163,7 +163,7 @@ class EventsRRuleManager(IntegratedReminderManager):
                         second=original_second,
                         microsecond=start_time.microsecond
                     )
-                    logger.info(f"Adjusted start time from {start_time} to {actual_start_time} (preserved time {original_hour}:{original_minute}:{original_second})")
+                    logger.debug(f"Adjusted start time from {start_time} to {actual_start_time} (preserved time {original_hour}:{original_minute}:{original_second})")
                 else:
                     # 如果找不到符合条件的时间点，使用原始时间
                     actual_start_time = start_time
@@ -171,7 +171,7 @@ class EventsRRuleManager(IntegratedReminderManager):
             else:
                 # 对于简单重复模式，直接使用用户输入的时间
                 actual_start_time = start_time
-                logger.info(f"Simple repeat mode, using original time: {actual_start_time}")
+                logger.debug(f"Simple repeat mode, using original time: {actual_start_time}")
             
             # 创建RRule系列，使用返回的UID作为series_id
             series_id = self.rrule_engine.create_series(rrule, actual_start_time)
@@ -433,7 +433,7 @@ class EventsRRuleManager(IntegratedReminderManager):
                         continue
                     else:
                         # 需要补充实例
-                        logger.debug(f"Series {series_id} COUNT: {current_count}/{count_limit}, generating more")
+                        # logger.debug(f"Series {series_id} COUNT: {current_count}/{count_limit}, generating more")
                         # 生成足够的实例来达到目标数量
                         remaining_count = count_limit - current_count
                         # 传递较大的max_instances来确保生成足够的实例
@@ -910,7 +910,7 @@ class EventsRRuleManager(IntegratedReminderManager):
                     })
                     new_events.append(new_event)
             
-            logger.info(f"Generated {len(new_events)} new event instances")
+            # logger.info(f"Generated {len(new_events)} new event instances")
             return new_events
             
         except Exception as e:

@@ -76,7 +76,7 @@ class UserDataStorageBackend:
         
         # 保存回UserData
         user_data.set_value(current_data)
-        logger.info(f"Saved {len(segments_data)} segments for uid {uid}")
+        logger.debug(f"Saved {len(segments_data)} segments for uid {uid}")
     
     def load_segments(self, uid: str) -> Optional[List[Dict[str, Any]]]:
         """从UserData加载规则段数据"""
@@ -161,11 +161,11 @@ class UserDataStorageBackend:
         if existing_exception is not None:
             # 更新现有异常
             exceptions[existing_exception] = exception_record
-            logger.info(f"Updated exception for series {series_id} on {exception_date}")
+            logger.debug(f"Updated exception for series {series_id} on {exception_date}")
         else:
             # 添加新异常
             exceptions.append(exception_record)
-            logger.info(f"Added new exception for series {series_id} on {exception_date}")
+            logger.debug(f"Added new exception for series {series_id} on {exception_date}")
         
         current_data["exceptions"] = exceptions
         
@@ -219,7 +219,7 @@ class UserDataStorageBackend:
         orphaned_series_ids = stored_series_ids - active_series_ids
         
         if orphaned_series_ids:
-            logger.info(f"Found {len(orphaned_series_ids)} orphaned series: {orphaned_series_ids}")
+            logger.debug(f"Found {len(orphaned_series_ids)} orphaned series: {orphaned_series_ids}")
             
             # 删除孤儿系列的segments
             current_data["segments"] = [s for s in segments if s.get("uid") not in orphaned_series_ids]
@@ -235,12 +235,12 @@ class UserDataStorageBackend:
             deleted_segments = original_segment_count - len(current_data["segments"])
             deleted_exceptions = original_exception_count - len(current_data["exceptions"])
             
-            logger.info(f"Cleaned up {len(orphaned_series_ids)} orphaned series, "
+            logger.debug(f"Cleaned up {len(orphaned_series_ids)} orphaned series, "
                        f"deleted {deleted_segments} segments and {deleted_exceptions} exceptions")
             
             return len(orphaned_series_ids)
         else:
-            logger.info("No orphaned series found")
+            logger.debug("No orphaned series found")
             return 0
 
 
@@ -331,7 +331,7 @@ class IntegratedReminderManager:
         if needs_next_occurrence:
             # 对于复杂重复模式，查找从起始时间开始的下一个符合条件的时间点
             actual_start_time = self._find_next_occurrence(rrule_str, start_time)
-            logger.info(f"Found next occurrence: {actual_start_time}")
+            logger.debug(f"Found next occurrence: {actual_start_time}")
             if actual_start_time:
                 # 使用找到的时间点，但保留原始时间的时分秒
                 actual_start_time = actual_start_time.replace(
@@ -340,7 +340,7 @@ class IntegratedReminderManager:
                     second=start_time.second,
                     microsecond=start_time.microsecond
                 )
-                logger.info(f"Adjusted start time: {actual_start_time}")
+                logger.debug(f"Adjusted start time: {actual_start_time}")
             else:
                 # 如果找不到符合条件的时间点，使用原始时间
                 actual_start_time = start_time
@@ -348,7 +348,7 @@ class IntegratedReminderManager:
         else:
             # 对于简单重复模式，直接使用用户输入的时间
             actual_start_time = start_time
-            logger.info(f"Simple repeat mode, using original time: {actual_start_time}")
+            # logger.info(f"Simple repeat mode, using original time: {actual_start_time}")
         
         # 在 RRule 引擎中创建系列 - 只调用一次
         series_id = self.rrule_engine.create_series(rrule_str, actual_start_time)

@@ -649,9 +649,9 @@ def delete_event_groups(request):
             try:
                 from .views_share_groups import sync_group_calendar_data
                 sync_group_calendar_data(list(affected_share_groups), django_request.user)
-                logger.info(f"[DELETE_GROUP_SYNC] 删除日程组后同步分享组: {affected_share_groups}")
+                logger.debug(f"[DELETE_GROUP_SYNC] 删除日程组后同步分享组: {affected_share_groups}")
             except Exception as sync_error:
-                logger.error(f"[DELETE_GROUP_SYNC] 同步分享组失败: {sync_error}")
+                logger.warning(f"[DELETE_GROUP_SYNC] 同步分享组失败: {sync_error}")
 
         return JsonResponse({'status': 'success'})
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)

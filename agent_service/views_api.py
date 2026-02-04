@@ -791,7 +791,7 @@ def rollback_to_message(request):
                         "action": trans.action_type,
                         "description": trans.description
                     })
-                    logger.info(f"回滚事务 #{trans.id}: {trans.action_type} - {trans.description}")
+                    logger.debug(f"回滚事务 #{trans.id}: {trans.action_type} - {trans.description}")
                 except reversion.models.Revision.DoesNotExist:
                     logger.warning(f"Revision {trans.revision_id} 不存在，标记为已回滚")
                     trans.is_rolled_back = True
@@ -802,7 +802,7 @@ def rollback_to_message(request):
                 # 没有 revision_id 的事务直接标记为已回滚
                 trans.is_rolled_back = True
                 trans.save()
-                logger.info(f"事务 #{trans.id} 没有 revision_id，已标记为回滚")
+                logger.debug(f"事务 #{trans.id} 没有 revision_id，已标记为回滚")
         
         logger.info(f"共回滚了 {rolled_back_transactions} 个数据库事务")
 

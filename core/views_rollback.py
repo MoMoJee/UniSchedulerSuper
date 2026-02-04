@@ -122,7 +122,7 @@ def _revert_single_transaction(transaction):
             
             if previous_version:
                 previous_version.revert()
-                logger.info(f"Reverted object {version.object_repr} to previous version from {previous_version.revision.date_created}")
+                logger.debug(f"Reverted object {version.object_repr} to previous version from {previous_version.revision.date_created}")
                 reverted_count += 1
             else:
                 # 如果没有前一个版本，说明该对象是在此次操作中创建的
