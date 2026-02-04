@@ -835,9 +835,21 @@ class QuickActionManager {
             }
             
             // 刷新待办列表
-            if (window.todoManager && typeof window.todoManager.refreshTodoList === 'function') {
-                window.todoManager.refreshTodoList();
+            if (window.todoManager) {
+                if (typeof window.todoManager.loadTodos === 'function') {
+                    // loadTodos() 内部会调用 applyFilters()，保持筛选参数
+                    window.todoManager.loadTodos();
+                } else if (typeof window.todoManager.refreshTodoList === 'function') {
+                    window.todoManager.refreshTodoList();
+                }
                 console.log('✅ 待办列表已刷新');
+            }
+            
+            // 刷新提醒列表
+            if (window.reminderManager && typeof window.reminderManager.loadReminders === 'function') {
+                // loadReminders() 后由 settingsManager 应用筛选
+                window.reminderManager.loadReminders();
+                console.log('🔔 提醒列表已刷新');
             }
             
             // 刷新事件管理器

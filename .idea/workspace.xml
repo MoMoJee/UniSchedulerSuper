@@ -4,12 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260204_0129 development&#10;&#10;添加 Quick Action 功能及 API 示例，支持同步和异步调用，可以在一次调用中完成简单的日程任务&#10;核心组件是一个轻量的 Agent，可以自行执行多次工具调用，返回成功或失败信息&#10;应用场景是，手机或其他不方便访问网页端的场景，或只是想快速进行日程操作的场景&#10;&#10;- 提供四个 URL 用于相关操作&#10;- 添加 `QuickActionTask` 模型&#10;- 实现 `quick_action_agent.py` 用于处理快速操作任务&#10;- 添加 API 使用示例 `example_quick_action_api.py`&#10;- 更新文档 `README_QUICK_ACTION.md` 说明使用方法">
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.5.4.20260204_0306 development&#10;&#10;添加 Quick Action 悬浮球样式和管理器，调用新的快速创建接口，采用异步模式，支持任务分身、实时状态显示及简单桌宠特性">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/quick_action_agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/quick_action_agent.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_service/views_quick_action.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_quick_action.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/templates/home.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/home.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/consumers.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/consumers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/js/agent-chat.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/agent-chat.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/js/quick-action.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/quick-action.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/js/reminder-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/reminder-manager.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/js/todo-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/todo-manager.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/js/reminder-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/js/reminder-manager.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/js/todo-manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/js/todo-manager.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -20,7 +24,7 @@
     <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;import django; print('Django %s' % django.get_version())&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;if 'setup' in dir(django): django.setup()&#10;import django_manage_shell; django_manage_shell.run(PROJECT_ROOT)" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="535" />
+    <option name="cachedIndexableFilesCount" value="565" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="FileTemplateManagerImpl">
@@ -378,15 +382,7 @@
       <workItem from="1769503142225" duration="20870000" />
       <workItem from="1769588629076" duration="9579000" />
       <workItem from="1769859963031" duration="11300000" />
-      <workItem from="1769873648853" duration="51509000" />
-    </task>
-    <task id="LOCAL-00031" summary="UniSchedulerSuper 1.5.4.20251111_1837 development&#10;&#10;正在开发群组共享功能，当前已完成了后端核心功能 的所有开发任务">
-      <option name="closed" value="true" />
-      <created>1762857448372</created>
-      <option name="number" value="00031" />
-      <option name="presentableId" value="LOCAL-00031" />
-      <option name="project" value="LOCAL" />
-      <updated>1762857448372</updated>
+      <workItem from="1769873648853" duration="56393000" />
     </task>
     <task id="LOCAL-00032" summary="UniSchedulerSuper 1.5.4.20251113_1712 development&#10;&#10;完成群组功能的开发(beta)">
       <option name="closed" value="true" />
@@ -772,7 +768,15 @@
       <option name="project" value="LOCAL" />
       <updated>1770139751554</updated>
     </task>
-    <option name="localTasksCounter" value="80" />
+    <task id="LOCAL-00080" summary="UniSchedulerSuper 1.5.4.20260204_0306 development&#10;&#10;添加 Quick Action 悬浮球样式和管理器，调用新的快速创建接口，采用异步模式，支持任务分身、实时状态显示及简单桌宠特性">
+      <option name="closed" value="true" />
+      <created>1770145564840</created>
+      <option name="number" value="00080" />
+      <option name="presentableId" value="LOCAL-00080" />
+      <option name="project" value="LOCAL" />
+      <updated>1770145564840</updated>
+    </task>
+    <option name="localTasksCounter" value="81" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -811,9 +815,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20260122_2310 development&#10;&#10;新增上下文使用量百分比堆积条形图，做了一些同步更新按钮绑定" />
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20260123_2041 development&#10;&#10;升级会话历史界面中的预览内容为最后一条消息&#10;升级自动标题命名（依据用户首条消息）" />
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20260123_2348 development&#10;&#10;去除了硬编码的api-key(我不想强制推送和覆盖了，求求不要偷用我的API，上回kimi的被偷用完了byd）&#10;更新了用户自定义LLM 的 key 的保存方式，不再明文存储" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260124_2012 development&#10;&#10;添加了基于 Tavily 的两个 Agent 搜索工具&#10;&#10;通过添加前端重复性校验，修复了当 Agent 使用了工具后，前端会出现两个重复的 tool-call-indicator tool-completed ，两个 agent-message ，两个 tool-result-indicator 的问题（源于后端广播机制）&#10;&#10;修复了由于 压缩工具调用结果 导致的 最新工具结果丢失问题&#10;&#10;修复了由于流式传输时限定工具调用输出长度200字符导致的流式传输结束前后工具调用结果显示不一致的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260124_2051 development&#10;&#10;修复了前端回滚后工具调用结果不同步清除的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260126_0346 development&#10;&#10;升级了 Tokes 用量统计功能&#10;添加了限制逻辑，每月可用5CNY的配额" />
@@ -836,7 +837,10 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260203_1817 development&#10;&#10;添加备案号（补充）" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260203_2333 development&#10;&#10;完善注册和找回密码时的邮件验证功能及配置&#10;&#10;- 添加 `EmailVerificationCode` 模型&#10;- 新增邮件配置文件 `email.example.json`&#10;- 实现邮件发送管理模块 `email_manager.py`&#10;- 添加 SMTP 连接问题排查文档&#10;- 创建测试脚本 `test_smtp_config.py`&#10;- 添加腾讯云邮件模板及配置说明" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260204_0129 development&#10;&#10;添加 Quick Action 功能及 API 示例，支持同步和异步调用，可以在一次调用中完成简单的日程任务&#10;核心组件是一个轻量的 Agent，可以自行执行多次工具调用，返回成功或失败信息&#10;应用场景是，手机或其他不方便访问网页端的场景，或只是想快速进行日程操作的场景&#10;&#10;- 提供四个 URL 用于相关操作&#10;- 添加 `QuickActionTask` 模型&#10;- 实现 `quick_action_agent.py` 用于处理快速操作任务&#10;- 添加 API 使用示例 `example_quick_action_api.py`&#10;- 更新文档 `README_QUICK_ACTION.md` 说明使用方法" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260204_0129 development&#10;&#10;添加 Quick Action 功能及 API 示例，支持同步和异步调用，可以在一次调用中完成简单的日程任务&#10;核心组件是一个轻量的 Agent，可以自行执行多次工具调用，返回成功或失败信息&#10;应用场景是，手机或其他不方便访问网页端的场景，或只是想快速进行日程操作的场景&#10;&#10;- 提供四个 URL 用于相关操作&#10;- 添加 `QuickActionTask` 模型&#10;- 实现 `quick_action_agent.py` 用于处理快速操作任务&#10;- 添加 API 使用示例 `example_quick_action_api.py`&#10;- 更新文档 `README_QUICK_ACTION.md` 说明使用方法" />
+    <MESSAGE value="添加 Quick Action 悬浮球样式和管理器，支持桌宠特性和任务分身功能" />
+    <MESSAGE value="添加 Quick Action 悬浮球样式和管理器，支持任务分身和实时状态显示" />
+    <MESSAGE value="UniSchedulerSuper 1.5.4.20260204_0306 development&#10;&#10;添加 Quick Action 悬浮球样式和管理器，调用新的快速创建接口，采用异步模式，支持任务分身、实时状态显示及简单桌宠特性" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260204_0306 development&#10;&#10;添加 Quick Action 悬浮球样式和管理器，调用新的快速创建接口，采用异步模式，支持任务分身、实时状态显示及简单桌宠特性" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

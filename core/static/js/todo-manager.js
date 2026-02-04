@@ -90,14 +90,30 @@ class TodoManager {
             return;
         }
 
+        // 【关键】保存当前筛选状态（在重新生成控件前）
+        const currentGroupFilter = Array.from(groupFilterList.querySelectorAll('input[type="checkbox"]:checked'))
+            .map(cb => cb.value);
+        console.log('保存当前日程组筛选状态:', currentGroupFilter);
+
         // 清空现有选项
         groupFilterList.innerHTML = '';
+
+        // 从 settingsManager 获取保存的筛选状态（如果有）
+        let savedGroupFilter = currentGroupFilter;
+        if (window.settingsManager && window.settingsManager.settings && window.settingsManager.settings.todoFilters) {
+            const savedFilters = window.settingsManager.settings.todoFilters.groups;
+            if (savedFilters && savedFilters.length > 0) {
+                savedGroupFilter = savedFilters;
+                console.log('从 settingsManager 恢复日程组筛选:', savedGroupFilter);
+            }
+        }
 
         // 添加"无日程组"选项
         const noneDiv = document.createElement('div');
         noneDiv.className = 'form-check';
+        const noneChecked = savedGroupFilter.length === 0 || savedGroupFilter.includes('none');
         noneDiv.innerHTML = `
-            <input class="form-check-input" type="checkbox" value="none" id="todoGroup_none" checked>
+            <input class="form-check-input" type="checkbox" value="none" id="todoGroup_none" ${noneChecked ? 'checked' : ''}>
             <label class="form-check-label" for="todoGroup_none">📋 其他</label>
         `;
         groupFilterList.appendChild(noneDiv);
@@ -111,8 +127,10 @@ class TodoManager {
             console.log('添加日程组选项:', group.name, group.id, group.color);
             const groupDiv = document.createElement('div');
             groupDiv.className = 'form-check';
+            // 【关键】根据保存的筛选状态设置复选框
+            const isChecked = savedGroupFilter.length === 0 || savedGroupFilter.includes(group.id);
             groupDiv.innerHTML = `
-                <input class="form-check-input" type="checkbox" value="${group.id}" id="todoGroup_${group.id}" checked>
+                <input class="form-check-input" type="checkbox" value="${group.id}" id="todoGroup_${group.id}" ${isChecked ? 'checked' : ''}>
                 <label class="form-check-label" for="todoGroup_${group.id}">
                     <span style="display:inline-block;width:10px;height:10px;background-color:${group.color};margin-right:5px;border-radius:2px;"></span>
                     ${group.name}
@@ -261,11 +279,12 @@ class TodoManager {
             // 重新加载日程组选项（确保在 groupManager 初始化后）
             this.loadGroupOptions();
             
-            this.renderTodos();
+            // 【关键修复】调用 applyFilters() 而非 renderTodos()，以保持筛选参数
+            this.applyFilters();
         } catch (error) {
             console.error('Error loading todos:', error);
             this.todos = [];
-            this.renderTodos();
+            this.applyFilters();
         }
     }
 

@@ -161,6 +161,9 @@ class AgentChat {
                 this.restoreStreamingState();
             }
             
+            // 【关键】检查并恢复递归限制状态（在流式状态之后）
+            this.restoreRecursionLimitState();
+            
             // 加载上下文使用情况
             this.updateContextUsageBar();
         });
@@ -666,6 +669,11 @@ class AgentChat {
                 this.showToolResult(data.name || data.tool, data.result);
                 // 检查是否是 TO DO 相关工具，实时更新 TO DO 面板
                 this.updateTodoFromToolResult(data.name || data.tool, data.result);
+                // 根据后端返回的 refresh 字段刷新对应数据
+                if (data.refresh && Array.isArray(data.refresh) && data.refresh.length > 0) {
+                    console.log('🔄 工具执行完成，刷新数据:', data.refresh);
+                    this.refreshData(data.refresh);
+                }
                 break;
             
             case 'finished':
@@ -691,6 +699,9 @@ class AgentChat {
                     clearTimeout(this.streamingRestoreTimeout);
                     this.streamingRestoreTimeout = null;
                 }
+                
+                // 【关键】清除递归限制状态
+                this.clearRecursionLimitState();
                 
                 // 更新上下文使用量条形图
                 this.updateContextUsageBar();
@@ -718,6 +729,8 @@ class AgentChat {
                 this.isStreamingActive = false;
                 this.streamingContent = '';
                 this.clearStreamingState();
+                // 【关键】错误时清除递归限制状态
+                this.clearRecursionLimitState();
                 break;
                 
             case 'quota_exceeded':
@@ -742,6 +755,8 @@ class AgentChat {
                 this.isStreamingActive = false;
                 this.streamingContent = '';
                 this.clearStreamingState();
+                // 【关键】停止时清除递归限制状态
+                this.clearRecursionLimitState();
                 break;
                 
             case 'recursion_limit':
@@ -751,6 +766,8 @@ class AgentChat {
                 this.isProcessing = false;
                 this.updateSendButton();
                 this.showRecursionLimitMessage(data.message || '工具调用次数达到上限，是否继续执行？');
+                // 【关键】保存递归限制状态，以便刷新后恢复
+                this.saveRecursionLimitState(data.message || '工具调用次数达到上限，是否继续执行？');
                 console.log('✅ 递归限制按钮已显示');
                 break;
             
@@ -931,6 +948,8 @@ class AgentChat {
         this.isStreamingActive = false;
         this.streamingContent = '';
         this.clearStreamingState();
+        // 【关键】清除递归限制状态
+        this.clearRecursionLimitState();
     }
 
     // ==========================================
@@ -2804,9 +2823,11 @@ class AgentChat {
             window.eventManager.loadEvents();
         }
         if (refreshTypes.includes('todos') && window.todoManager) {
+            // loadTodos() 内部会调用 applyFilters()，保持筛选参数
             window.todoManager.loadTodos();
         }
         if (refreshTypes.includes('reminders') && window.reminderManager) {
+            // loadReminders() 后由 settingsManager 应用筛选
             window.reminderManager.loadReminders();
         }
     }
@@ -2855,6 +2876,8 @@ class AgentChat {
                 this.socket.send(JSON.stringify({ type: 'continue' }));
                 this.isProcessing = true;
                 this.updateSendButton();
+                // 【关键】清除递归限制状态
+                this.clearRecursionLimitState();
                 // 先移除这个提示框，再显示 typing indicator
                 container.remove();
                 this.showTyping();
@@ -2868,6 +2891,10 @@ class AgentChat {
         });
         
         cancelBtn.addEventListener('click', () => {
+            // 【关键】清除递归限制状态并标记为用户主动停止
+            this.clearRecursionLimitState();
+            this.isProcessing = false;
+            this.updateSendButton();
             // 直接移除这个提示
             container.remove();
             this.showNotification('已停止继续执行', 'info');
@@ -3534,6 +3561,108 @@ class AgentChat {
         } catch (error) {
             console.error('获取附件内容失败:', error);
             return '';
+        }
+    }
+
+    // ==========================================
+    // 递归限制状态管理（刷新恢复）
+    // ==========================================
+
+    /**
+     * 获取递归限制状态存储键
+     */
+    getRecursionLimitStateKey() {
+        return `agent_recursion_limit_${this.userId}_${this.sessionId}`;
+    }
+
+    /**
+     * 保存递归限制状态到 localStorage
+     */
+    saveRecursionLimitState(message) {
+        try {
+            const state = {
+                message: message,
+                timestamp: Date.now(),
+                sessionId: this.sessionId
+            };
+            const key = this.getRecursionLimitStateKey();
+            localStorage.setItem(key, JSON.stringify(state));
+            console.log('💾 保存递归限制状态:', {
+                key: key,
+                message: message,
+                sessionId: state.sessionId
+            });
+        } catch (error) {
+            console.error('保存递归限制状态失败:', error);
+        }
+    }
+
+    /**
+     * 清除递归限制状态
+     */
+    clearRecursionLimitState() {
+        try {
+            localStorage.removeItem(this.getRecursionLimitStateKey());
+            console.log('🧹 清除递归限制状态');
+        } catch (error) {
+            console.error('清除递归限制状态失败:', error);
+        }
+    }
+
+    /**
+     * 恢复递归限制状态（页面刷新后调用）
+     */
+    restoreRecursionLimitState() {
+        try {
+            const key = this.getRecursionLimitStateKey();
+            const stateJson = localStorage.getItem(key);
+            
+            console.log('🔍 检查递归限制状态:', {
+                key: key,
+                hasState: !!stateJson,
+                userId: this.userId,
+                sessionId: this.sessionId
+            });
+            
+            if (!stateJson) {
+                console.log('ℹ️ 无需恢复递归限制状态');
+                return;
+            }
+
+            const state = JSON.parse(stateJson);
+            console.log('📦 读取到递归限制状态:', {
+                message: state.message,
+                timestamp: new Date(state.timestamp).toLocaleString(),
+                sessionId: state.sessionId
+            });
+            
+            // 检查状态是否过期（超过 10 分钟则认为无效）
+            const now = Date.now();
+            const age = now - state.timestamp;
+            if (age > 10 * 60 * 1000) {
+                console.log('⏰ 递归限制状态已过期，清除', { ageMinutes: (age / 60000).toFixed(1) });
+                this.clearRecursionLimitState();
+                return;
+            }
+
+            // 检查会话 ID 是否匹配
+            if (state.sessionId !== this.sessionId) {
+                console.log('🔄 会话 ID 不匹配，清除旧递归限制状态', {
+                    expected: this.sessionId,
+                    actual: state.sessionId
+                });
+                this.clearRecursionLimitState();
+                return;
+            }
+
+            // 状态有效，恢复显示
+            console.log('✅ 恢复递归限制提示');
+            this.showRecursionLimitMessage(state.message);
+            this.isProcessing = false;
+            this.updateSendButton();
+        } catch (error) {
+            console.error('恢复递归限制状态失败:', error);
+            this.clearRecursionLimitState();
         }
     }
 

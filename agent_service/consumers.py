@@ -422,10 +422,14 @@ class AgentConsumer(AsyncWebsocketConsumer):
                                 # 处理 ToolMessage
                                 if hasattr(msg, 'type') and getattr(msg, 'type', None) == 'tool':
                                     result_str = str(msg.content) if hasattr(msg, 'content') else str(msg)
+                                    tool_name = msg.name if hasattr(msg, 'name') else "tool"
+                                    # 根据工具名称确定需要刷新的数据类型
+                                    refresh_types = self._get_refresh_types_for_tool(tool_name)
                                     await self.send_json({
                                         "type": "tool_result",
-                                        "name": msg.name if hasattr(msg, 'name') else "tool",
-                                        "result": result_str
+                                        "name": tool_name,
+                                        "result": result_str,
+                                        "refresh": refresh_types
                                     })
                     
                     # 每次迭代后让出控制权，允许处理取消信号
@@ -588,10 +592,14 @@ class AgentConsumer(AsyncWebsocketConsumer):
                                 # 处理 ToolMessage
                                 if hasattr(msg, 'type') and getattr(msg, 'type', None) == 'tool':
                                     result_str = str(msg.content) if hasattr(msg, 'content') else str(msg)
+                                    tool_name = msg.name if hasattr(msg, 'name') else "tool"
+                                    # 根据工具名称确定需要刷新的数据类型
+                                    refresh_types = self._get_refresh_types_for_tool(tool_name)
                                     await self.send_json({
                                         "type": "tool_result",
-                                        "name": msg.name if hasattr(msg, 'name') else "tool",
-                                        "result": result_str
+                                        "name": tool_name,
+                                        "result": result_str,
+                                        "refresh": refresh_types
                                     })
                     
                     # 让出控制权
@@ -787,6 +795,34 @@ class AgentConsumer(AsyncWebsocketConsumer):
     async def _init_graph(self):
         """初始化 Agent Graph"""
         self.graph = await get_async_app()
+    
+    def _get_refresh_types_for_tool(self, tool_name: str) -> list:
+        """
+        根据工具名称确定需要刷新的前端数据类型
+        
+        Args:
+            tool_name: 工具名称
+            
+        Returns:
+            需要刷新的数据类型列表 ['events', 'todos', 'reminders']
+        """
+        # 写入类工具（创建、更新、删除、完成）需要刷新对应的数据
+        REFRESH_MAP = {
+            # 创建/更新/删除项目 - 根据项目类型刷新
+            'create_item': ['events', 'todos', 'reminders'],  # 无法预知类型，全部刷新
+            'update_item': ['events', 'todos', 'reminders'],  # 无法预知类型，全部刷新
+            'delete_item': ['events', 'todos', 'reminders'],  # 无法预知类型，全部刷新
+            # 待办专用
+            'complete_todo': ['todos'],
+            # 事件组/分享组（可能影响日历显示）
+            'get_event_groups': [],  # 只读
+            'get_share_groups': [],  # 只读
+            # 查询类工具 - 不刷新
+            'search_items': [],
+            'check_schedule_conflicts': [],
+        }
+        
+        return REFRESH_MAP.get(tool_name, [])
     
     def _parse_query_string(self, query_string: str) -> dict:
         """解析 URL 查询参数"""

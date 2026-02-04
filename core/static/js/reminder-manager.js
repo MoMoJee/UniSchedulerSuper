@@ -66,13 +66,13 @@ class ReminderManager {
             const data = await response.json();
             this.reminders = data.reminders || [];
             
-            console.log('提醒数据加载完成，等待设置管理器应用筛选');
-            // 移除自动调用，改为由设置管理器统一控制
-            // this.applyFilters();
+            console.log('提醒数据加载完成，应用筛选');
+            // 【关键修复】调用 applyFilters() 以保持筛选参数并渲染
+            this.applyFilters();
         } catch (error) {
             console.error('Error loading reminders:', error);
             this.reminders = [];
-            this.renderReminders();
+            this.applyFilters();
         }
     }
 
