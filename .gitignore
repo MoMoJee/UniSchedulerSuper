@@ -2,6 +2,9 @@
 /logs/
 /agent_service/checkpoints
 /staticfiles
+/.ai/
+/.jbeval/
+/.idea
 /agent_service/agent_service/long_term_memory.json
 /agent_service/MCP测试.py
 /.idea/dataSources/a90fd367-285e-4cef-a2c7-4755172f4dc0.xml
@@ -19,3 +22,4 @@ db.sqlite3
 
 # 邮件配置文件（包含敏感信息）
 /config/email.json
+

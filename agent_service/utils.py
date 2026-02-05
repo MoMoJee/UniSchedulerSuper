@@ -40,14 +40,29 @@ def agent_transaction(action_type):
 
             # 2. 在执行操作之前，先保存当前状态的快照
             # 这样回滚时可以恢复到操作前的状态
+            # 
+            # 【优化】只追踪 Agent 工具实际操作的 UserData keys
+            # 避免误伤用户配置（如 user_preference, agent_config 等）
+            TRACKED_KEYS = [
+                'todos',                    # 待办事项
+                'outport_calendar_data',   # 日历导出数据
+                'events',                   # 日程
+                'events_rrule_series',     # 日程重复规则系列
+                'reminders',                # 提醒
+                'rrule_series_storage',    # 通用重复规则存储
+            ]
+            
             with reversion.create_revision():
                 reversion.set_user(user)
                 reversion.set_comment(f"Before: {action_type}")
                 
-                # 保存该用户的所有 UserData 当前状态（操作前）
-                user_data_objects = UserData.objects.filter(user=user)
+                # 只保存 Agent 工具会修改的 UserData keys（操作前状态）
+                user_data_objects = UserData.objects.filter(user=user, key__in=TRACKED_KEYS)
                 for ud in user_data_objects:
                     reversion.add_to_revision(ud)
+                
+                tracked_count = user_data_objects.count()
+                logger.debug(f"Tracking {tracked_count} UserData objects: {TRACKED_KEYS}")
             
             # 获取刚创建的快照 revision（操作前状态）
             before_revision = reversion.models.Revision.objects.filter(user=user).order_by('-date_created').first()
