@@ -125,7 +125,12 @@ const agentConfig = {
         const select = document.getElementById('currentModelSelect');
         if (!select) return;
         
-        const modelId = select.value;
+        const newModelId = select.value;
+        
+        // 记录切换前的模型能力
+        const prevModelId = this.config?.model?.current_model_id;
+        const prevModel = this.allModels[prevModelId];
+        const prevSupportsVision = prevModel?.supports_vision || false;
         
         try {
             const response = await fetch('/api/agent/model-config/update/', {
@@ -134,23 +139,168 @@ const agentConfig = {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': this.getCSRFToken()
                 },
-                body: JSON.stringify({ current_model_id: modelId })
+                body: JSON.stringify({ current_model_id: newModelId })
             });
             
             const data = await response.json();
             if (data.success) {
                 this.showSuccess('模型已切换');
                 await this.loadAllConfig();
+                
                 // 刷新上下文使用量条形图
                 if (typeof agentChat !== 'undefined' && agentChat && typeof agentChat.updateContextUsageBar === 'function') {
                     console.log('📊 刷新上下文条形图 (模型切换)');
                     agentChat.updateContextUsageBar();
+                }
+                
+                // 检查是否从 Vision 模型切换到纯文本模型
+                const newModel = this.allModels[newModelId];
+                const newSupportsVision = newModel?.supports_vision || false;
+                
+                if (prevSupportsVision && !newSupportsVision) {
+                    // 从 Vision → 纯文本，检查是否有待 OCR 的图片
+                    this.checkPendingOCR();
                 }
             } else {
                 this.showError(data.error || '切换失败');
             }
         } catch (error) {
             this.showError('切换模型失败: ' + error.message);
+        }
+    },
+    
+    /**
+     * 检查是否有待 OCR 的图片
+     */
+    async checkPendingOCR() {
+        if (typeof agentChat === 'undefined' || !agentChat || !agentChat.sessionId) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(
+                `/api/agent/attachments/pending-ocr/?session_id=${encodeURIComponent(agentChat.sessionId)}`,
+                {
+                    headers: { 'X-CSRFToken': this.getCSRFToken() }
+                }
+            );
+            
+            if (!response.ok) return;
+            
+            const data = await response.json();
+            
+            if (data.has_pending && data.count > 0) {
+                this.showOCRPrompt(data.attachments);
+            }
+        } catch (error) {
+            console.warn('[AgentConfig] 检查待 OCR 图片失败:', error);
+        }
+    },
+    
+    /**
+     * 显示 OCR 提示对话框
+     */
+    showOCRPrompt(attachments) {
+        const count = attachments.length;
+        
+        // 创建模态框
+        const modalHtml = `
+            <div class="modal fade" id="ocrPromptModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-image text-warning me-2"></i>
+                                图片 OCR 处理
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>您已切换到纯文本模型。当前会话中有 <strong>${count}</strong> 张图片尚未进行 OCR 文字识别。</p>
+                            <p class="text-muted small">
+                                如果不执行 OCR，这些图片在对话中将显示为占位符。
+                                OCR 处理可能需要一些时间，具体取决于图片数量和大小。
+                            </p>
+                            <div id="ocrProgressContainer" style="display: none;">
+                                <div class="progress">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                         role="progressbar" style="width: 0%" id="ocrProgressBar"></div>
+                                </div>
+                                <p class="text-center small mt-2" id="ocrProgressText">正在处理...</p>
+                            </div>
+                        </div>
+                        <div class="modal-footer" id="ocrModalFooter">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">暂不处理</button>
+                            <button type="button" class="btn btn-primary" id="startOCRBtn">
+                                <i class="fas fa-magic me-1"></i>执行 OCR (${count} 张)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 移除可能存在的旧模态框
+        const oldModal = document.getElementById('ocrPromptModal');
+        if (oldModal) oldModal.remove();
+        
+        // 添加新模态框
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        const modal = new bootstrap.Modal(document.getElementById('ocrPromptModal'));
+        modal.show();
+        
+        // 绑定 OCR 按钮
+        document.getElementById('startOCRBtn').onclick = () => {
+            this.runBatchOCR(attachments, modal);
+        };
+    },
+    
+    /**
+     * 执行批量 OCR
+     */
+    async runBatchOCR(attachments, modal) {
+        const ids = attachments.map(a => a.id);
+        const progressBar = document.getElementById('ocrProgressBar');
+        const progressText = document.getElementById('ocrProgressText');
+        const progressContainer = document.getElementById('ocrProgressContainer');
+        const footer = document.getElementById('ocrModalFooter');
+        
+        // 显示进度
+        progressContainer.style.display = 'block';
+        footer.innerHTML = '<button type="button" class="btn btn-secondary" disabled>处理中...</button>';
+        
+        try {
+            const response = await fetch('/api/agent/attachments/batch-ocr/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify({ attachment_ids: ids })
+            });
+            
+            const data = await response.json();
+            
+            // 更新进度为 100%
+            progressBar.style.width = '100%';
+            progressText.textContent = `完成: 成功 ${data.success} 张，失败 ${data.failed} 张`;
+            
+            // 延迟关闭
+            setTimeout(() => {
+                modal.hide();
+                
+                if (data.success > 0) {
+                    this.showSuccess(`OCR 处理完成: ${data.success} 张图片已识别`);
+                }
+                if (data.failed > 0) {
+                    this.showError(`${data.failed} 张图片 OCR 失败`);
+                }
+            }, 1500);
+            
+        } catch (error) {
+            progressText.textContent = 'OCR 处理失败: ' + error.message;
+            footer.innerHTML = '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>';
         }
     },
     

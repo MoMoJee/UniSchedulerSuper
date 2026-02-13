@@ -1,6 +1,10 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
+from datetime import timedelta
 import json
+import os
+
 
 class AgentSession(models.Model):
     """
@@ -905,3 +909,383 @@ class QuickActionTask(models.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
         }
+
+
+# ==========================================
+# 统一附件系统
+# ==========================================
+
+class SessionAttachment(models.Model):
+    """
+    会话附件模型
+    支持外部文件上传和内部元素（events/todos/reminders/工作流）作为附件
+    
+    设计要点：
+    - events/todos/reminders 存储在 UserData (JSON)，不是独立 ORM 模型
+    - 内部元素通过 internal_snapshot 保存快照，防止数据变更后信息丢失
+    - 双格式存储: base64_data (vision) + parsed_text (非 vision 降级)
+    - 软删除支持: 回滚时标记删除，7天后物理清理
+    """
+    
+    # ========== 类型定义 ==========
+    TYPE_CHOICES = [
+        ('image', '图片'),
+        ('pdf', 'PDF文档'),
+        ('word', 'Word文档'),
+        ('excel', 'Excel表格'),
+        ('workflow', '工作流规则'),
+        ('event', '日程事件'),
+        ('todo', '待办事项'),
+        ('reminder', '提醒'),
+    ]
+    
+    # 文件类型 MIME 白名单
+    ALLOWED_MIME_TYPES = {
+        'image/jpeg': 'image',
+        'image/png': 'image',
+        'image/gif': 'image',
+        'image/webp': 'image',
+        'application/pdf': 'pdf',
+        'application/msword': 'word',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'word',
+        'application/vnd.ms-excel': 'excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'excel',
+    }
+    
+    # 文件大小上限 (20MB)
+    MAX_FILE_SIZE = 20 * 1024 * 1024
+    
+    # ========== 基础信息 ==========
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='session_attachments')
+    session_id = models.CharField(max_length=200, db_index=True, help_text="关联的 AgentSession.session_id")
+    
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, help_text="附件类型")
+    filename = models.CharField(max_length=255, help_text="文件名或元素标题")
+    
+    # ========== 消息关联 ==========
+    message_index = models.IntegerField(
+        null=True, 
+        blank=True, 
+        help_text="附件被发送时的消息索引（LangGraph messages 数组索引）"
+    )
+    sent_at = models.DateTimeField(null=True, blank=True, help_text="发送时间")
+    
+    # ========== 文件存储（外部文件） ==========
+    file = models.FileField(
+        upload_to='attachments/%Y/%m/%d/', 
+        null=True, 
+        blank=True, 
+        help_text="原始文件"
+    )
+    file_size = models.BigIntegerField(default=0, help_text="文件大小（字节）")
+    mime_type = models.CharField(max_length=100, blank=True, default='', help_text="MIME 类型")
+    thumbnail = models.ImageField(
+        upload_to='attachments/thumbs/%Y/%m/%d/',
+        null=True,
+        blank=True,
+        help_text="缩略图"
+    )
+    
+    # ========== 多模态支持 ==========
+    base64_data = models.TextField(
+        blank=True, 
+        default='', 
+        help_text="Base64 编码的图片数据（用于 vision 模型）"
+    )
+    
+    # ========== 降级方案 ==========
+    parsed_text = models.TextField(
+        blank=True, 
+        default='', 
+        help_text="解析后的文本内容（OCR/文档提取，用于非 vision 模型）"
+    )
+    parse_status = models.CharField(
+        max_length=20,
+        default='pending',
+        choices=[
+            ('pending', '待处理'),
+            ('processing', '处理中'),
+            ('completed', '已完成'),
+            ('failed', '失败'),
+        ],
+        help_text="解析状态"
+    )
+    parse_error = models.TextField(blank=True, default='', help_text="解析错误信息")
+    
+    # ========== 内部元素引用 ==========
+    internal_type = models.CharField(
+        max_length=20, 
+        blank=True, 
+        default='', 
+        help_text="内部元素类型：event, todo, reminder, workflow"
+    )
+    internal_id = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="内部元素 ID（UserData JSON 中的 id 字段，或 WorkflowRule.id）"
+    )
+    internal_snapshot = models.JSONField(
+        default=dict, 
+        blank=True, 
+        help_text="内部元素的快照数据（防止元素被删除后无法回溯）"
+    )
+    
+    # ========== 发送记录 ==========
+    sent_as_format = models.CharField(
+        max_length=20, 
+        blank=True, 
+        default='', 
+        help_text="实际发送格式：base64, text, markdown"
+    )
+    sent_with_model = models.CharField(
+        max_length=100, 
+        blank=True, 
+        default='', 
+        help_text="发送时使用的模型 ID"
+    )
+    
+    # ========== 软删除支持 ==========
+    is_deleted = models.BooleanField(default=False, help_text="是否已软删除")
+    deleted_at = models.DateTimeField(null=True, blank=True, help_text="软删除时间")
+    deleted_with_message_index = models.IntegerField(
+        null=True, 
+        blank=True, 
+        help_text="回滚时关联删除的消息索引"
+    )
+    deleted_reason = models.CharField(
+        max_length=50, 
+        blank=True, 
+        default='', 
+        help_text="删除原因：rollback, manual, expired"
+    )
+    
+    # ========== 时间戳 ==========
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "会话附件"
+        verbose_name_plural = "会话附件"
+        indexes = [
+            models.Index(fields=['session_id', 'is_deleted']),
+            models.Index(fields=['user', 'is_deleted']),
+            models.Index(fields=['deleted_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username}: {self.filename} ({self.type})"
+    
+    # ========== 属性 ==========
+    
+    @property
+    def can_restore(self):
+        """是否可以恢复（7天内的软删除附件）"""
+        if not self.is_deleted or not self.deleted_at:
+            return False
+        grace_period = timedelta(days=7)
+        return timezone.now() - self.deleted_at < grace_period
+    
+    @property
+    def is_internal(self):
+        """是否为内部元素附件"""
+        return self.type in ('event', 'todo', 'reminder', 'workflow')
+    
+    @property
+    def is_file_attachment(self):
+        """是否为外部文件附件"""
+        return self.type in ('image', 'pdf', 'word', 'excel')
+    
+    @property
+    def is_ready(self):
+        """内容是否已解析完成，可以发送"""
+        if self.is_internal:
+            return True  # 内部元素无需异步解析
+        return self.parse_status == 'completed'
+    
+    # ========== 格式化方法 ==========
+    
+    def get_formatted_content(self, model_supports_vision=False):
+        """
+        根据模型能力返回格式化内容
+        
+        Args:
+            model_supports_vision: 当前模型是否支持 vision
+            
+        Returns:
+            dict: {"type": "base64"|"text"|"markdown", "content": str, "metadata": dict}
+        """
+        if self.is_internal:
+            # 内部元素始终返回 Markdown
+            content = self.parsed_text or self._format_internal_element()
+            return {
+                "type": "markdown",
+                "content": content,
+                "metadata": {
+                    "internal_type": self.internal_type,
+                    "internal_id": self.internal_id,
+                    "filename": self.filename,
+                }
+            }
+        
+        # 外部文件
+        if model_supports_vision and self.base64_data and self.type == 'image':
+            return {
+                "type": "base64",
+                "content": self.base64_data,
+                "metadata": {
+                    "filename": self.filename,
+                    "mime_type": self.mime_type,
+                }
+            }
+        else:
+            return {
+                "type": "text",
+                "content": self.parsed_text or f"[文件: {self.filename}，内容未解析]",
+                "metadata": {
+                    "filename": self.filename,
+                    "original_type": self.type,
+                }
+            }
+    
+    def _format_internal_element(self):
+        """格式化内部元素为 Markdown"""
+        snapshot = self.internal_snapshot or {}
+        
+        if self.internal_type == 'event':
+            title = snapshot.get('title', '无标题事件')
+            start = snapshot.get('start', '')
+            end = snapshot.get('end', '')
+            desc = snapshot.get('description', '')
+            location = snapshot.get('location', '')
+            
+            md = f"### 📅 {title}\n"
+            md += f"- **时间**: {start} ~ {end}\n"
+            if location:
+                md += f"- **地点**: {location}\n"
+            if desc:
+                md += f"- **描述**: {desc}\n"
+            return md
+        
+        elif self.internal_type == 'todo':
+            title = snapshot.get('title', '无标题待办')
+            status = snapshot.get('status', 'pending')
+            due_date = snapshot.get('due_date', '')
+            desc = snapshot.get('description', '')
+            importance = snapshot.get('importance', '')
+            urgency = snapshot.get('urgency', '')
+            
+            status_map = {'pending': '待完成', 'in-progress': '进行中', 'completed': '已完成', 'cancelled': '已取消'}
+            icon = '✅' if status == 'completed' else '⬜'
+            
+            md = f"### {icon} {title}\n"
+            md += f"- **状态**: {status_map.get(status, status)}\n"
+            if due_date:
+                md += f"- **截止时间**: {due_date}\n"
+            if importance:
+                md += f"- **重要性**: {importance}\n"
+            if urgency:
+                md += f"- **紧急度**: {urgency}\n"
+            if desc:
+                md += f"- **描述**: {desc}\n"
+            return md
+        
+        elif self.internal_type == 'reminder':
+            title = snapshot.get('title', '无标题提醒')
+            trigger_time = snapshot.get('trigger_time', '')
+            content = snapshot.get('content', '')
+            priority = snapshot.get('priority', 'normal')
+            
+            md = f"### ⏰ {title}\n"
+            md += f"- **提醒时间**: {trigger_time}\n"
+            md += f"- **优先级**: {priority}\n"
+            if content:
+                md += f"- **内容**: {content}\n"
+            return md
+        
+        elif self.internal_type == 'workflow':
+            name = snapshot.get('name', '工作流规则')
+            trigger = snapshot.get('trigger', '')
+            steps = snapshot.get('steps', '')
+            
+            md = f"### 🔄 {name}\n"
+            md += f"**触发条件**: {trigger}\n"
+            md += f"**执行步骤**: {steps}\n"
+            return md
+        
+        return f"[{self.internal_type}: {self.filename}]"
+    
+    # ========== 生命周期方法 ==========
+    
+    def soft_delete(self, reason='manual', message_index=None):
+        """软删除附件"""
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.deleted_reason = reason
+        if message_index is not None:
+            self.deleted_with_message_index = message_index
+        self.save(update_fields=[
+            'is_deleted', 'deleted_at', 'deleted_reason', 'deleted_with_message_index'
+        ])
+    
+    def restore(self):
+        """恢复软删除的附件"""
+        if not self.can_restore:
+            return False
+        self.is_deleted = False
+        self.deleted_at = None
+        self.deleted_reason = ''
+        self.deleted_with_message_index = None
+        self.save(update_fields=[
+            'is_deleted', 'deleted_at', 'deleted_reason', 'deleted_with_message_index'
+        ])
+        return True
+    
+    def hard_delete(self):
+        """物理删除（包括文件）"""
+        # 删除原始文件
+        if self.file:
+            try:
+                self.file.delete(save=False)
+            except Exception:
+                pass
+        
+        # 删除缩略图
+        if self.thumbnail:
+            try:
+                self.thumbnail.delete(save=False)
+            except Exception:
+                pass
+        
+        # 删除数据库记录
+        self.delete()
+    
+    def to_api_dict(self):
+        """转换为 API 响应格式"""
+        result = {
+            'id': self.id,
+            'type': self.type,
+            'filename': self.filename,
+            'file_size': self.file_size,
+            'mime_type': self.mime_type,
+            'parse_status': self.parse_status,
+            'is_internal': self.is_internal,
+            'created_at': self.created_at.isoformat(),
+        }
+        
+        if self.is_internal:
+            result['internal_type'] = self.internal_type
+            result['internal_id'] = self.internal_id
+            result['preview'] = (self.parsed_text or self._format_internal_element())[:200]
+        
+        if self.file:
+            result['file_url'] = self.file.url
+        if self.thumbnail:
+            result['thumbnail_url'] = self.thumbnail.url
+        
+        if self.message_index is not None:
+            result['message_index'] = self.message_index
+            result['sent_at'] = self.sent_at.isoformat() if self.sent_at else None
+        
+        return result

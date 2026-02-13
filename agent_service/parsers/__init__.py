@@ -1,0 +1,58 @@
+"""
+附件解析器系统
+
+提供统一的文件解析接口，支持：
+- 图片解析 (OCR + Base64)
+- PDF 解析 (文字提取 + 表格)
+- Word/Excel 文档解析
+- 内部元素解析 (events/todos/reminders/workflows)
+"""
+
+from .base import BaseParser
+from .image_parser import ImageParser
+from .document_parser import PDFParser, WordParser, ExcelParser
+from .internal_parser import InternalElementParser
+
+
+class ParserFactory:
+    """解析器工厂 - 根据文件类型选择合适的解析器"""
+    
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._parsers = [
+                ImageParser(),
+                PDFParser(),
+                WordParser(),
+                ExcelParser(),
+            ]
+            cls._instance._internal_parser = InternalElementParser()
+        return cls._instance
+    
+    def get_parser(self, mime_type: str):
+        """根据 MIME 类型获取合适的解析器"""
+        for parser in self._parsers:
+            if parser.can_parse(mime_type):
+                return parser
+        return None
+    
+    def get_internal_parser(self) -> InternalElementParser:
+        """获取内部元素解析器"""
+        return self._internal_parser
+
+
+# 全局单例
+parser_factory = ParserFactory()
+
+__all__ = [
+    'BaseParser',
+    'ImageParser',
+    'PDFParser',
+    'WordParser',
+    'ExcelParser',
+    'InternalElementParser',
+    'ParserFactory',
+    'parser_factory',
+]

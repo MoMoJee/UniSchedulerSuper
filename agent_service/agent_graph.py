@@ -259,7 +259,7 @@ class AgentState(TypedDict):
 # ==========================================
 llm = ChatOpenAI(
     model="deepseek-chat",
-    temperature=0,
+    # temperature=0,
     streaming=False,  # 关闭流式传输（项目只需节点级别流式，不需要 LLM 级别流式）
     base_url=os.environ.get("OPENAI_API_BASE"),
 )
@@ -313,7 +313,7 @@ def get_user_llm(user):
                         model=model_name,
                         base_url=base_url,
                         api_key=api_key,  # type: ignore
-                        temperature=0.7,
+                        # temperature=1,
                         streaming=False,  # 关闭流式传输（项目只需节点级别流式）
                     )
                     logger.info(f"[LLM] 使用系统模型: {model_name} ({current_model_id}) @ {base_url}")
@@ -338,7 +338,7 @@ def get_user_llm(user):
                 model=model_name,
                 base_url=api_url,
                 api_key=api_key,  # type: ignore
-                temperature=0.7,
+                # temperature=0.7,
                 streaming=False,  # 关闭流式传输（项目只需节点级别流式）
             )
             logger.info(f"[LLM] 使用自定义模型: {model_name} @ {api_url}")
@@ -605,6 +605,84 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
             optimized_messages = messages
     
     full_messages = [system_message] + list(optimized_messages)
+    
+    # ========== 注入附件上下文 ==========
+    # 检查最后一条 HumanMessage 是否有附件上下文（供 LLM 理解附件内容）
+    if optimized_messages:
+        last_msg = optimized_messages[-1]
+        if hasattr(last_msg, 'additional_kwargs') and last_msg.additional_kwargs:
+            attachments_context = last_msg.additional_kwargs.get('attachments_context', '')
+            if attachments_context:
+                # 在 system_message 后插入附件上下文说明
+                attachment_system_msg = SystemMessage(
+                    content=f"【附件内容】用户在最新消息中包含了以下附件的详细信息，请结合这些信息理解用户的问题：\n\n{attachments_context}"
+                )
+                full_messages.insert(1, attachment_system_msg)  # 插入到 system_message 之后
+                logger.debug(f"[Agent] 注入附件上下文: {len(attachments_context)} 字符")
+    
+    # ========== 多模态动态重建：根据当前模型能力重建历史消息中的图片内容 ==========
+    current_supports_vision = model_config.get('supports_vision', False) if model_config else False
+    rebuilt_count = 0
+    
+    for i, msg in enumerate(full_messages):
+        if not isinstance(msg, HumanMessage):
+            continue
+        
+        # 检查消息是否包含附件
+        attachment_ids = []
+        if hasattr(msg, 'additional_kwargs') and msg.additional_kwargs:
+            attachment_ids = msg.additional_kwargs.get('attachment_ids', [])
+            # 也检查 attachments_metadata 中的 sa_id
+            if not attachment_ids:
+                metadata = msg.additional_kwargs.get('attachments_metadata', [])
+                attachment_ids = [m.get('sa_id') for m in metadata if m.get('sa_id')]
+        
+        if not attachment_ids:
+            # 没有附件，但可能有旧格式的 image_url 块需要降级
+            if not current_supports_vision and isinstance(msg.content, list):
+                text_parts = []
+                image_count = 0
+                for block in msg.content:
+                    if isinstance(block, dict):
+                        if block.get('type') == 'text':
+                            text_parts.append(block.get('text', ''))
+                        elif block.get('type') == 'image_url':
+                            image_count += 1
+                    elif isinstance(block, str):
+                        text_parts.append(block)
+                if image_count > 0:
+                    text_parts.append(f"[此消息包含 {image_count} 张图片，当前模型不支持图片识别]")
+                    new_content = '\n'.join(text_parts) if text_parts else str(msg.content)
+                    full_messages[i] = HumanMessage(
+                        content=new_content,
+                        additional_kwargs=msg.additional_kwargs,
+                    )
+                    rebuilt_count += 1
+            continue
+        
+        # 有附件，根据模型能力重建消息内容
+        try:
+            from agent_service.attachment_handler import AttachmentHandler
+            
+            new_content = AttachmentHandler.rebuild_message_content_for_model(
+                original_content=msg.content,
+                attachment_ids=attachment_ids,
+                user=user,
+                supports_vision=current_supports_vision
+            )
+            
+            if new_content != msg.content:
+                full_messages[i] = HumanMessage(
+                    content=new_content,
+                    additional_kwargs=msg.additional_kwargs,
+                )
+                rebuilt_count += 1
+        except Exception as e:
+            logger.warning(f"[Agent] 重建消息内容失败: {e}")
+    
+    if rebuilt_count > 0:
+        mode = "多模态" if current_supports_vision else "纯文本"
+        logger.info(f"[Agent] 动态重建: {rebuilt_count} 条消息已根据当前模型能力({mode})重建内容")
     
     # 打印最终发送给 LLM 的消息
     logger.debug(f"[Agent] 发送给 LLM 的消息: {len(full_messages)} 条")

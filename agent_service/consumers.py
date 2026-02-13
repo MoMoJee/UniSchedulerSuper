@@ -212,6 +212,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
             elif msg_type == "message":
                 # 用户消息
                 content = data.get("content", "").strip()
+                attachment_ids = data.get("attachment_ids", [])
                 if not content:
                     await self.send_json({"type": "error", "message": "消息内容不能为空"})
                     return
@@ -223,7 +224,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 # 重置停止标志
                 self.should_stop = False
                 # 创建任务并运行
-                self.current_task = asyncio.create_task(self._process_message(content))
+                self.current_task = asyncio.create_task(self._process_message(content, attachment_ids=attachment_ids))
             
             elif msg_type == "continue":
                 # 用户选择继续执行（达到递归限制后）
@@ -282,10 +283,121 @@ class AgentConsumer(AsyncWebsocketConsumer):
             logger.exception(f"处理消息时出错: {e}")
             await self.send_json({"type": "error", "message": f"服务器错误: {str(e)}"})
     
-    async def _process_message(self, content: str):
+    async def _build_human_message(self, content: str, attachment_ids: list = None) -> HumanMessage:
+        """
+        构建 HumanMessage，支持多模态附件。
+        
+        核心改造：
+        1. content 只包含用户输入文本（图片除外，图片以 image_url 块形式包含）
+        2. 附件的描述信息（给 LLM 看）存到 additional_kwargs['attachments_context']
+        3. 附件元数据（给前端历史渲染）存到 additional_kwargs['attachments_metadata']
+        """
+        if not attachment_ids:
+            return HumanMessage(content=content)
+        
+        try:
+            from agent_service.attachment_handler import AttachmentHandler
+            from agent_service.models import SessionAttachment
+            
+            # 异步查询附件
+            attachments = await database_sync_to_async(
+                lambda: list(SessionAttachment.objects.filter(
+                    id__in=attachment_ids, user=self.user, is_deleted=False
+                ))
+            )()
+            
+            if not attachments:
+                return HumanMessage(content=content)
+            
+            # 构建附件元数据（供前端历史渲染）
+            attachments_metadata = []
+            for att in attachments:
+                meta = {
+                    'sa_id': att.id,
+                    'type': att.type,
+                    'filename': att.filename,
+                    'mime_type': att.mime_type,
+                }
+                if att.is_internal:
+                    meta['internal_type'] = att.internal_type
+                    meta['internal_id'] = att.internal_id
+                    meta['name'] = att.filename  # 元素标题/名称
+                if att.file:
+                    meta['file_url'] = att.file.url
+                if att.thumbnail:
+                    meta['thumbnail_url'] = att.thumbnail.url
+                attachments_metadata.append(meta)
+            
+            # 构建多模态 content_blocks（用于判断是否有图片，以及给 LLM 的上下文）
+            content_blocks = await database_sync_to_async(
+                AttachmentHandler.format_for_message
+            )(attachments, user=self.user)
+            
+            if not content_blocks:
+                return HumanMessage(
+                    content=content,
+                    additional_kwargs={
+                        'attachment_ids': attachment_ids,
+                        'attachments_metadata': attachments_metadata,
+                    }
+                )
+            
+            # 分离图片块和文本块
+            image_blocks = [b for b in content_blocks if b.get('type') == 'image_url']
+            text_blocks = [b for b in content_blocks if b.get('type') == 'text']
+            
+            # 标记附件为已发送
+            att_ids = [a.id for a in attachments]
+            await database_sync_to_async(
+                AttachmentHandler.mark_sent
+            )(att_ids, message_index=0)
+            
+            if image_blocks:
+                # 有图片：构建多模态 content（text + images），文本块作为附件上下文
+                multimodal_content = [{"type": "text", "text": content}]
+                multimodal_content.extend(image_blocks)
+                
+                # 提取纯文本附件的描述（给 LLM 的上下文）
+                attachments_context = '\n\n'.join(b.get('text', '') for b in text_blocks)
+                
+                logger.info(f"[多模态] 构建多模态消息: {len(image_blocks)} 张图片, 附件上下文 {len(attachments_context)} 字符")
+                
+                return HumanMessage(
+                    content=multimodal_content,
+                    additional_kwargs={
+                        'attachment_ids': attachment_ids,
+                        'attachments_metadata': attachments_metadata,
+                        'attachments_context': attachments_context,
+                    }
+                )
+            else:
+                # 纯文本附件：content 只包含用户输入，附件描述存到 attachments_context
+                attachments_context = '\n\n'.join(b.get('text', '') for b in text_blocks)
+                
+                logger.info(f"[附件] 纯文本附件: {len(attachments)} 个, 上下文 {len(attachments_context)} 字符")
+                
+                return HumanMessage(
+                    content=content,
+                    additional_kwargs={
+                        'attachment_ids': attachment_ids,
+                        'attachments_metadata': attachments_metadata,
+                        'attachments_context': attachments_context,
+                    }
+                )
+            
+        except Exception as e:
+            logger.error(f"[多模态] 构建多模态消息失败: {e}", exc_info=True)
+            # 降级为纯文本
+            return HumanMessage(content=content)
+
+    async def _process_message(self, content: str, attachment_ids: list = None):
         """
         处理用户消息并真正流式输出
         使用 stream_mode="messages" 获取 token 级别的流式输出
+        
+        Args:
+            content: 用户消息文本
+            attachment_ids: SessionAttachment IDs（用于构建多模态消息）
         """
         self.is_processing = True
         
@@ -357,9 +469,11 @@ class AgentConsumer(AsyncWebsocketConsumer):
             # ========== 更新 last_message_preview ==========
             await self._update_last_message_preview(content)
             
-            # 准备输入
+            # 准备输入 — 支持多模态（attachment_ids → content_blocks）
+            human_message = await self._build_human_message(content, attachment_ids)
+            
             input_state = {
-                "messages": [HumanMessage(content=content)],
+                "messages": [human_message],
                 "active_tools": self.active_tools
             }
             

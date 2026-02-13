@@ -33,6 +33,8 @@ urlpatterns = [
 # 在开发环境和使用 daphne 时服务静态文件
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 else:
     # 在生产环境使用 daphne 时也需要服务静态文件（如果没有使用 Nginx）
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

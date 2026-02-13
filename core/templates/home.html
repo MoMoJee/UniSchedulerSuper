@@ -886,20 +886,52 @@
                         <div class="attachment-panel-body" id="attachmentPanelBody">
                             <!-- 第一级：附件类型选择 -->
                             <div class="attachment-type-list" id="attachmentTypeList">
+                                <!-- 文件上传区 -->
+                                <div class="attachment-type-item attachment-upload-entry" data-type="file-upload">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <span>上传文件</span>
+                                    <span class="badge bg-info ms-auto">图片/文档</span>
+                                </div>
+                                <hr class="my-1 mx-2" style="border-color: var(--card-border);">
+                                <!-- 内部元素 -->
                                 <div class="attachment-type-item" data-type="workflow">
                                     <i class="fas fa-project-diagram"></i>
                                     <span>工作流规则</span>
                                     <i class="fas fa-chevron-right ms-auto"></i>
                                 </div>
-                                <div class="attachment-type-item disabled" data-type="image" title="即将支持">
-                                    <i class="fas fa-image"></i>
-                                    <span>图片</span>
-                                    <span class="badge bg-secondary ms-auto">即将支持</span>
+                                <div class="attachment-type-item" data-type="event">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    <span>日程事件</span>
+                                    <i class="fas fa-chevron-right ms-auto"></i>
                                 </div>
-                                <div class="attachment-type-item disabled" data-type="document" title="即将支持">
-                                    <i class="fas fa-file-alt"></i>
-                                    <span>文档</span>
-                                    <span class="badge bg-secondary ms-auto">即将支持</span>
+                                <div class="attachment-type-item" data-type="todo">
+                                    <i class="fas fa-tasks"></i>
+                                    <span>待办事项</span>
+                                    <i class="fas fa-chevron-right ms-auto"></i>
+                                </div>
+                                <div class="attachment-type-item" data-type="reminder">
+                                    <i class="fas fa-bell"></i>
+                                    <span>提醒</span>
+                                    <i class="fas fa-chevron-right ms-auto"></i>
+                                </div>
+                            </div>
+                            <!-- 文件上传区域 -->
+                            <div class="attachment-upload-zone" id="attachmentUploadZone" style="display: none;">
+                                <div class="attachment-back-btn" id="attachmentUploadBackBtn">
+                                    <i class="fas fa-arrow-left me-2"></i>返回
+                                </div>
+                                <div class="upload-dropzone" id="uploadDropzone">
+                                    <i class="fas fa-cloud-upload-alt fa-2x mb-2"></i>
+                                    <p class="mb-1">拖拽文件到此处，或点击选择</p>
+                                    <small class="text-muted">支持图片 (JPG/PNG/GIF/WebP)、PDF、Word、Excel，最大 20MB</small>
+                                    <input type="file" id="fileUploadInput" style="display:none;" 
+                                           accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,.doc,.docx,.xls,.xlsx">
+                                </div>
+                                <div class="upload-progress" id="uploadProgress" style="display: none;">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                        <span id="uploadProgressText">上传中...</span>
+                                    </div>
                                 </div>
                             </div>
                             <!-- 第二级：具体内容选择 -->

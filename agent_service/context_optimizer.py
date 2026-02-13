@@ -406,6 +406,8 @@ def get_system_models() -> Dict[str, Dict]:
             'model_name': config.get('model_name', ''),
             'context_window': config.get('context_window', 128000),
             'supports_tools': config.get('supports_tools', True),
+            'supports_vision': config.get('supports_vision', False),
+            'supports_multimodal': config.get('supports_multimodal', False),
             'cost_per_1k_input': config.get('cost_per_1k_input', 0),
             'cost_per_1k_output': config.get('cost_per_1k_output', 0),
             'cost_currency': config.get('cost_currency', 'CNY'),

@@ -313,12 +313,20 @@ def get_history(request):
         for idx, msg in enumerate(messages_to_format, start=start_idx):
             if isinstance(msg, HumanMessage):
                 user_message_indices.append(idx)
+                
+                # 提取附件元数据（供前端渲染磁贴）
+                attachments = []
+                if hasattr(msg, 'additional_kwargs') and msg.additional_kwargs:
+                    attachments_metadata = msg.additional_kwargs.get('attachments_metadata', [])
+                    attachments = attachments_metadata
+                
                 formatted_messages.append({
                     "role": "user",
                     "content": msg.content,
                     "id": msg.id,
                     "index": idx,
-                    "can_rollback": True  # 用户消息可以回滚
+                    "can_rollback": True,  # 用户消息可以回滚
+                    "attachments": attachments  # 附件列表（供前端渲染磁贴）
                 })
             elif isinstance(msg, AIMessage):
                 formatted_messages.append({
@@ -1323,63 +1331,42 @@ def get_session_todos(request):
 @permission_classes([IsAuthenticated])
 def get_attachable_items(request):
     """
-    获取可用于附件的资源列表
-    
+    获取可用于附件的资源列表（扩展版：支持所有内部元素类型）
+
     GET /api/agent/attachments/
-    
+
     Query Parameters:
-        type: 资源类型 (可选，不传则返回所有类型)
-              - workflow: 工作流规则
-              - (未来扩展: file, image 等)
-    
+        type:   资源类型 (可选) — workflow / event / todo / reminder
+        search: 按标题搜索 (可选)
+
     Response:
     {
         "items": [
-            {
-                "type": "workflow",
-                "id": 1,
-                "name": "创建日程流程",
-                "preview": "当用户要求创建日程时...",
-                "metadata": {...}
-            }
+            {"type": "workflow", "id": "1", "title": "创建日程流程", "subtitle": "当用户要求…"},
+            {"type": "event",    "id": "uuid-xxx", "title": "周会", "subtitle": "2025-06-01 ~ …"},
+            ...
         ],
-        "types": ["workflow"]  // 当前支持的附件类型
+        "types": ["workflow", "event", "todo", "reminder"]
     }
     """
-    from agent_service.models import WorkflowRule
-    
+    from agent_service.parsers.internal_parser import InternalElementParser
+
     user = request.user
     resource_type = request.query_params.get('type', None)
-    
+    search = request.query_params.get('search', '')
+
+    available_types = ['workflow', 'event', 'todo', 'reminder']
     items = []
-    available_types = ['workflow']  # 当前支持的类型
-    
-    # 工作流规则
-    if resource_type is None or resource_type == 'workflow':
-        workflows = WorkflowRule.objects.filter(user=user, is_active=True).order_by('name')
-        for wf in workflows:
-            items.append({
-                "type": "workflow",
-                "id": wf.id,
-                "name": wf.name,
-                "preview": wf.trigger[:50] + "..." if len(wf.trigger) > 50 else wf.trigger,
-                "metadata": {
-                    "trigger": wf.trigger,
-                    "steps": wf.steps,
-                    "created_at": wf.created_at.isoformat(),
-                    "updated_at": wf.updated_at.isoformat()
-                }
-            })
-    
-    # 未来可扩展其他类型
-    # if resource_type is None or resource_type == 'file':
-    #     files = UserFile.objects.filter(user=user)
-    #     for f in files:
-    #         items.append({...})
-    
+
+    types_to_query = [resource_type] if resource_type else available_types
+
+    for t in types_to_query:
+        if t in available_types:
+            items.extend(InternalElementParser.list_attachable_items(user, t, search))
+
     return Response({
         "items": items,
-        "types": available_types
+        "types": available_types,
     })
 
 
@@ -1387,42 +1374,64 @@ def get_attachable_items(request):
 @permission_classes([IsAuthenticated])
 def format_attachment_content(request):
     """
-    格式化附件内容用于发送到 Agent
-    
+    格式化附件内容用于发送到 Agent（扩展版：支持文件附件 + 内部元素）
+
     POST /api/agent/attachments/format/
-    
+
     Body:
     {
-        "attachments": [
-            {"type": "workflow", "id": 1},
-            {"type": "workflow", "id": 2}
+        "attachment_ids": [1, 2, 3],        // SessionAttachment IDs (新增)
+        "attachments": [                     // 旧格式兼容
+            {"type": "workflow", "id": 1}
         ]
     }
-    
+
     Response:
     {
-        "formatted_content": "【附件：工作流规则】\n1. 创建日程流程\n触发条件: ...\n执行步骤: ...\n\n",
+        "formatted_content": "...",
+        "content_blocks": [...],    // 用于多模态的结构化内容块
         "count": 2
     }
     """
-    from agent_service.models import WorkflowRule
-    
+    from agent_service.models import SessionAttachment, WorkflowRule
+    from agent_service.attachment_handler import AttachmentHandler
+    from agent_service.model_capabilities import ModelCapabilities
+
     user = request.user
+
+    # ---------- 新逻辑：基于 SessionAttachment ----------
+    attachment_ids = request.data.get('attachment_ids', [])
+    if attachment_ids:
+        sa_qs = SessionAttachment.objects.filter(
+            id__in=attachment_ids, user=user, is_deleted=False
+        )
+        supports_vision = ModelCapabilities.supports_vision(user)
+        content_blocks = AttachmentHandler.format_for_message(
+            sa_qs, user=user, model_supports_vision=supports_vision
+        )
+        # 同时生成纯文本版（兼容旧前端）
+        text_parts = [
+            block.get('text', '') for block in content_blocks
+            if block.get('type') == 'text'
+        ]
+        return Response({
+            "formatted_content": "\n\n".join(text_parts),
+            "content_blocks": content_blocks,
+            "count": sa_qs.count(),
+        })
+
+    # ---------- 旧逻辑兼容：基于 type+id ----------
     attachments = request.data.get('attachments', [])
-    
     if not attachments:
-        return Response({"formatted_content": "", "count": 0})
-    
+        return Response({"formatted_content": "", "content_blocks": [], "count": 0})
+
     formatted_parts = []
     count = 0
-    
-    # 按类型分组处理
+
     workflows = []
-    
     for att in attachments:
         att_type = att.get('type')
         att_id = att.get('id')
-        
         if att_type == 'workflow':
             try:
                 wf = WorkflowRule.objects.get(id=att_id, user=user)
@@ -1430,8 +1439,7 @@ def format_attachment_content(request):
                 count += 1
             except WorkflowRule.DoesNotExist:
                 continue
-    
-    # 格式化工作流规则
+
     if workflows:
         wf_content = "【附件：工作流规则】\n请参考以下工作流规则执行任务：\n\n"
         for i, wf in enumerate(workflows, 1):
@@ -1439,11 +1447,373 @@ def format_attachment_content(request):
             wf_content += f"**触发条件**: {wf.trigger}\n"
             wf_content += f"**执行步骤**: {wf.steps}\n\n"
         formatted_parts.append(wf_content)
-    
+
     return Response({
         "formatted_content": "\n".join(formatted_parts),
-        "count": count
+        "content_blocks": [],
+        "count": count,
     })
+
+
+# ==========================================
+# 新增附件 API
+# ==========================================
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_attachment(request):
+    """
+    上传文件附件
+
+    POST /api/agent/attachments/upload/
+    Content-Type: multipart/form-data
+
+    Form Fields:
+        file:       上传文件 (必选)
+        session_id: 会话 ID (必选)
+
+    Response:
+    {
+        "success": true,
+        "attachment": { ...to_api_dict()... }
+    }
+    """
+    from agent_service.attachment_handler import AttachmentHandler
+
+    user = request.user
+    session_id = request.data.get('session_id', '')
+    uploaded_file = request.FILES.get('file')
+
+    if not session_id:
+        return Response(
+            {"error": "缺少 session_id"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    if not uploaded_file:
+        return Response(
+            {"error": "缺少上传文件"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # 验证 session 归属
+    if not session_id.startswith(f"user_{user.id}_"):
+        return Response(
+            {"error": "无权访问此会话"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    result = AttachmentHandler.handle_upload(user, session_id, uploaded_file)
+
+    if result['success']:
+        return Response({
+            "success": True,
+            "attachment": result['attachment'].to_api_dict(),
+        })
+    else:
+        return Response(
+            {"success": False, "error": result['error']},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def attach_internal(request):
+    """
+    将内部元素（日程/待办/提醒/工作流）绑定为附件
+
+    POST /api/agent/attachments/internal/
+
+    Body:
+    {
+        "session_id": "user_1_xxx",
+        "element_type": "event",     // event / todo / reminder / workflow
+        "element_id": "uuid-xxx"
+    }
+
+    Response:
+    {
+        "success": true,
+        "attachment": { ...to_api_dict()... }
+    }
+    """
+    from agent_service.attachment_handler import AttachmentHandler
+
+    user = request.user
+    session_id = request.data.get('session_id', '')
+    element_type = request.data.get('element_type', '')
+    element_id = request.data.get('element_id', '')
+
+    if not all([session_id, element_type, element_id]):
+        return Response(
+            {"error": "缺少必要参数: session_id, element_type, element_id"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if not session_id.startswith(f"user_{user.id}_"):
+        return Response(
+            {"error": "无权访问此会话"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    result = AttachmentHandler.handle_internal(user, session_id, element_type, element_id)
+
+    if result['success']:
+        return Response({
+            "success": True,
+            "attachment": result['attachment'].to_api_dict(),
+        })
+    else:
+        return Response(
+            {"success": False, "error": result['error']},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_session_attachments(request):
+    """
+    获取会话的附件列表
+
+    GET /api/agent/attachments/list/?session_id=xxx&include_deleted=false
+
+    Response:
+    {
+        "attachments": [ ...to_api_dict()... ],
+        "count": 5
+    }
+    """
+    from agent_service.attachment_handler import AttachmentHandler
+
+    user = request.user
+    session_id = request.query_params.get('session_id', '')
+
+    if not session_id:
+        return Response(
+            {"error": "缺少 session_id"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if not session_id.startswith(f"user_{user.id}_"):
+        return Response(
+            {"error": "无权访问此会话"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    include_deleted = request.query_params.get('include_deleted', 'false').lower() == 'true'
+    qs = AttachmentHandler.get_session_attachments(session_id, include_deleted)
+    # 仅返回属于此用户的
+    qs = qs.filter(user=user)
+
+    return Response({
+        "attachments": [att.to_api_dict() for att in qs],
+        "count": qs.count(),
+    })
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_attachment(request, attachment_id):
+    """
+    删除附件（软删除）
+
+    DELETE /api/agent/attachments/<id>/delete/
+
+    Response:
+    {"success": true}
+    """
+    from agent_service.models import SessionAttachment
+
+    user = request.user
+
+    try:
+        att = SessionAttachment.objects.get(id=attachment_id, user=user, is_deleted=False)
+    except SessionAttachment.DoesNotExist:
+        return Response(
+            {"error": "附件不存在"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    att.soft_delete(reason='manual')
+    return Response({"success": True})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def restore_attachment(request, attachment_id):
+    """
+    恢复软删除的附件
+
+    POST /api/agent/attachments/<id>/restore/
+
+    Response:
+    {"success": true}
+    """
+    from agent_service.models import SessionAttachment
+
+    user = request.user
+
+    try:
+        att = SessionAttachment.objects.get(id=attachment_id, user=user, is_deleted=True)
+    except SessionAttachment.DoesNotExist:
+        return Response(
+            {"error": "附件不存在或未被删除"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    if not att.can_restore:
+        return Response(
+            {"error": "附件已超过恢复期限（7天）"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    att.restore()
+    return Response({"success": True, "attachment": att.to_api_dict()})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def preview_attachment(request, attachment_id):
+    """
+    预览附件内容
+
+    GET /api/agent/attachments/<id>/preview/
+
+    Response:
+    {
+        "id": 1,
+        "type": "image",
+        "filename": "photo.jpg",
+        "format": "base64" | "text" | "markdown",
+        "content_preview": "...(前500字符)...",
+        "metadata": {...}
+    }
+    """
+    from agent_service.models import SessionAttachment
+    from agent_service.attachment_handler import AttachmentHandler
+    from agent_service.model_capabilities import ModelCapabilities
+
+    user = request.user
+
+    try:
+        att = SessionAttachment.objects.get(id=attachment_id, user=user, is_deleted=False)
+    except SessionAttachment.DoesNotExist:
+        return Response(
+            {"error": "附件不存在"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    supports_vision = ModelCapabilities.supports_vision(user)
+    return Response(AttachmentHandler.format_single(att, model_supports_vision=supports_vision))
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_model_capabilities(request):
+    """
+    获取当前模型的附件能力
+
+    GET /api/agent/attachments/capabilities/
+
+    Response:
+    {
+        "model_id": "system_gpt4o",
+        "model_name": "GPT-4o",
+        "supports_vision": true,
+        "supports_multimodal": true,
+        "context_window": 128000
+    }
+    """
+    from agent_service.model_capabilities import ModelCapabilities
+
+    caps = ModelCapabilities.get_capabilities(request.user)
+    return Response(caps)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_pending_ocr(request):
+    """
+    检查会话中是否有图片缺少 OCR 结果
+    
+    GET /api/agent/attachments/pending-ocr/?session_id=xxx
+    
+    Response:
+    {
+        "has_pending": true,
+        "count": 3,
+        "attachments": [
+            {"id": 1, "filename": "photo.jpg", "thumbnail_url": "...", "has_base64": true},
+            ...
+        ]
+    }
+    """
+    from agent_service.attachment_handler import AttachmentHandler
+    
+    session_id = request.query_params.get('session_id', '')
+    
+    if not session_id:
+        return Response(
+            {"error": "缺少 session_id"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # 验证会话归属
+    user = request.user
+    if not session_id.startswith(f"user_{user.id}_"):
+        return Response(
+            {"error": "无权访问此会话"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    attachments = AttachmentHandler.get_images_without_ocr(session_id)
+    
+    return Response({
+        "has_pending": len(attachments) > 0,
+        "count": len(attachments),
+        "attachments": attachments,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def batch_ocr_attachments(request):
+    """
+    对指定附件执行批量 OCR
+    
+    POST /api/agent/attachments/batch-ocr/
+    
+    Body:
+    {
+        "attachment_ids": [1, 2, 3]
+    }
+    
+    Response:
+    {
+        "success": 2,
+        "failed": 1,
+        "results": [
+            {"id": 1, "success": true, "error": ""},
+            {"id": 2, "success": true, "error": ""},
+            {"id": 3, "success": false, "error": "OCR 引擎不可用"}
+        ]
+    }
+    """
+    from agent_service.attachment_handler import AttachmentHandler
+    
+    user = request.user
+    attachment_ids = request.data.get('attachment_ids', [])
+    
+    if not attachment_ids:
+        return Response(
+            {"error": "缺少 attachment_ids"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    result = AttachmentHandler.batch_run_ocr(attachment_ids, user)
+    
+    return Response(result)
 
 
 # ==========================================
@@ -1526,6 +1896,20 @@ def get_context_usage(request):
             def estimate_tokens(text):
                 if not text:
                     return 0
+                # 多模态消息的 content 是 list[dict]，需要提取文本部分
+                if isinstance(text, list):
+                    total = 0
+                    for block in text:
+                        if isinstance(block, dict):
+                            if block.get('type') == 'text':
+                                total += estimate_tokens(block.get('text', ''))
+                            elif block.get('type') == 'image_url':
+                                total += 85  # 图片 token 估算（low detail ~85）
+                        elif isinstance(block, str):
+                            total += estimate_tokens(block)
+                    return total
+                if not isinstance(text, str):
+                    text = str(text)
                 # 简单估算：中文字符多的情况
                 chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
                 other_chars = len(text) - chinese_chars

@@ -23,3 +23,4 @@ db.sqlite3
 # 邮件配置文件（包含敏感信息）
 /config/email.json
 
+/media/
