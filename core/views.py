@@ -5,6 +5,7 @@ from typing import List
 import uuid
 import markdown
 from datetime import timedelta
+import reversion
 
 try:
     from dateutil.rrule import rrulestr
@@ -688,7 +689,10 @@ def import_events(request):
         events += imported_events
 
         # 更新数据库
-        user_data_events.set_value(events, check=True)
+        with reversion.create_revision():
+            reversion.set_user(request.user)
+            reversion.set_comment(f"Import {len(imported_events)} events to group {group_id}")
+            user_data_events.set_value(events, check=True)
 
         return JsonResponse({'status': 'success'})
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
@@ -977,22 +981,26 @@ def create_todo(request):
         urgency = data.get('urgency')
         group_id = data.get('groupID')
         
-        new_todo = {
-            "id": str(uuid.uuid4()),
-            "title": title,
-            "description": description,
-            "due_date": due_date,
-            "estimated_duration": estimated_duration,
-            "importance": importance,
-            "urgency": urgency,
-            "groupID": group_id,
-            "status": "pending",
-            "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "last_modified": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
-        
-        todos.append(new_todo)
-        user_todos_data.set_value(todos)
+        with reversion.create_revision():
+            reversion.set_user(request.user)
+            reversion.set_comment(f"Create todo: {title}")
+            
+            new_todo = {
+                "id": str(uuid.uuid4()),
+                "title": title,
+                "description": description,
+                "due_date": due_date,
+                "estimated_duration": estimated_duration,
+                "importance": importance,
+                "urgency": urgency,
+                "groupID": group_id,
+                "status": "pending",
+                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "last_modified": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            
+            todos.append(new_todo)
+            user_todos_data.set_value(todos)
         
         return JsonResponse({'status': 'success', 'todo': new_todo})
     
@@ -1054,7 +1062,10 @@ def update_todo(request):
         if not todo_found:
             return JsonResponse({'status': 'error', 'message': '未找到指定的待办事项'}, status=404)
         
-        user_todos_data.set_value(todos)
+        with reversion.create_revision():
+            reversion.set_user(request.user)
+            reversion.set_comment(f"Update todo: {todo_id}")
+            user_todos_data.set_value(todos)
         
         return JsonResponse({'status': 'success'})
     
@@ -1086,7 +1097,10 @@ def delete_todo(request):
         if len(todos) == original_length:
             return JsonResponse({'status': 'error', 'message': '未找到指定的待办事项'}, status=404)
         
-        user_todos_data.set_value(todos)
+        with reversion.create_revision():
+            reversion.set_user(request.user)
+            reversion.set_comment(f"Delete todo: {todo_id}")
+            user_todos_data.set_value(todos)
         
         return JsonResponse({'status': 'success'})
     
@@ -1128,29 +1142,33 @@ def convert_todo_to_event(request):
         if not todo_found:
             return JsonResponse({'status': 'error', 'message': '未找到指定的待办事项'}, status=404)
         
-        # 创建新事件
-        new_event = {
-            "id": str(uuid.uuid4()),
-            "title": todo_found['title'],
-            "start": start_time,
-            "end": end_time,
-            "description": todo_found['description'],
-            "importance": todo_found['importance'],
-            "urgency": todo_found['urgency'],
-            "groupID": todo_found['groupID'],
-            "ddl": todo_found.get('due_date', ''),
-            "last_modified": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "converted_from_todo": todo_id
-        }
-        
-        events.append(new_event)
-        user_events_data.set_value(events)
-        
-        # 标记待办事项为已转换
-        todo_found['status'] = 'converted'
-        todo_found['converted_to_event'] = new_event['id']
-        todo_found['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        user_todos_data.set_value(todos)
+        with reversion.create_revision():
+            reversion.set_user(request.user)
+            reversion.set_comment(f"Convert todo to event: {todo_id}")
+            
+            # 创建新事件
+            new_event = {
+                "id": str(uuid.uuid4()),
+                "title": todo_found['title'],
+                "start": start_time,
+                "end": end_time,
+                "description": todo_found['description'],
+                "importance": todo_found['importance'],
+                "urgency": todo_found['urgency'],
+                "groupID": todo_found['groupID'],
+                "ddl": todo_found.get('due_date', ''),
+                "last_modified": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "converted_from_todo": todo_id
+            }
+            
+            events.append(new_event)
+            user_events_data.set_value(events)
+            
+            # 标记待办事项为已转换
+            todo_found['status'] = 'converted'
+            todo_found['converted_to_event'] = new_event['id']
+            todo_found['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            user_todos_data.set_value(todos)
         
         return JsonResponse({'status': 'success', 'event': new_event})
     

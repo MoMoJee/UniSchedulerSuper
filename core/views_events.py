@@ -2724,6 +2724,11 @@ def update_events_impl(request):
     """更新事件 - 支持RRule修改"""
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+    
+    # 开启版本控制
+    with reversion.create_revision():
+        reversion.set_user(request.user)
+        reversion.set_comment("Update event")
         
     try:
         # 使用 validate_body 处理后的数据

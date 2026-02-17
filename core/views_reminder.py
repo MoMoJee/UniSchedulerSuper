@@ -575,18 +575,22 @@ def update_reminder(request):
                 if 'priority' in data:
                     target_reminder['priority'] = data['priority']
                 
-                # 从提醒列表中移除原提醒
-                reminders = [r for r in reminders if r['id'] != reminder_id]
-                
-                # 使用提醒管理器创建新的重复提醒
-                new_recurring_reminder = manager.create_recurring_reminder(target_reminder, data.get('rrule'))
-                
-                # 将新的重复提醒添加到列表
-                reminders.append(new_recurring_reminder)
-                
-                # 处理重复提醒数据以生成实例
-                final_reminders = manager.process_reminder_data(reminders)
-                user_reminders_data.set_value(final_reminders)
+                with reversion.create_revision():
+                    reversion.set_user(request.user)
+                    reversion.set_comment(f"Convert reminder to recurring: {reminder_id}")
+                    
+                    # 从提醒列表中移除原提醒
+                    reminders = [r for r in reminders if r['id'] != reminder_id]
+                    
+                    # 使用提醒管理器创建新的重复提醒
+                    new_recurring_reminder = manager.create_recurring_reminder(target_reminder, data.get('rrule'))
+                    
+                    # 将新的重复提醒添加到列表
+                    reminders.append(new_recurring_reminder)
+                    
+                    # 处理重复提醒数据以生成实例
+                    final_reminders = manager.process_reminder_data(reminders)
+                    user_reminders_data.set_value(final_reminders)
                 
                 return JsonResponse({'status': 'success'})
             
@@ -596,20 +600,25 @@ def update_reminder(request):
             
             else:
                 # 简单更新，直接修改提醒字段
-                if 'title' in data:
-                    target_reminder['title'] = data['title']
-                if 'content' in data:
-                    target_reminder['content'] = data['content']
-                if 'trigger_time' in data:
-                    target_reminder['trigger_time'] = data['trigger_time']
-                if 'priority' in data:
-                    target_reminder['priority'] = data['priority']
-                if 'status' in data:
-                    target_reminder['status'] = data['status']
+                with reversion.create_revision():
+                    reversion.set_user(request.user)
+                    reversion.set_comment(f"Update reminder: {reminder_id}")
+                    
+                    if 'title' in data:
+                        target_reminder['title'] = data['title']
+                    if 'content' in data:
+                        target_reminder['content'] = data['content']
+                    if 'trigger_time' in data:
+                        target_reminder['trigger_time'] = data['trigger_time']
+                    if 'priority' in data:
+                        target_reminder['priority'] = data['priority']
+                    if 'status' in data:
+                        target_reminder['status'] = data['status']
+                    
+                    target_reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    user_reminders_data.set_value(reminders)
                 
-                target_reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                
-                user_reminders_data.set_value(reminders)
                 return JsonResponse({'status': 'success'})
                 
         except Exception as e:
@@ -657,7 +666,10 @@ def update_reminder_status(request):
         if not reminder_found:
             return JsonResponse({'status': 'error', 'message': '未找到指定的提醒'}, status=404)
         
-        user_reminders_data.set_value(reminders)
+        with reversion.create_revision():
+            reversion.set_user(request.user)
+            reversion.set_comment(f"Update reminder status: {reminder_id} -> {new_status}")
+            user_reminders_data.set_value(reminders)
         
         return JsonResponse({'status': 'success'})
     
@@ -687,7 +699,10 @@ def delete_reminder(request):
         if len(reminders) == original_length:
             return JsonResponse({'status': 'error', 'message': '未找到指定的提醒'}, status=404)
         
-        user_reminders_data.set_value(reminders)
+        with reversion.create_revision():
+            reversion.set_user(request.user)
+            reversion.set_comment(f"Delete reminder: {reminder_id}")
+            user_reminders_data.set_value(reminders)
         
         return JsonResponse({'status': 'success'})
     
