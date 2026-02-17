@@ -266,8 +266,6 @@ def get_quick_action_status(request, task_id):
             time.sleep(interval)
             waited += interval
             task.refresh_from_db()
-        
-        logger.debug(f"[QuickAction] Long-poll waited {waited}s for task {task_id}")
     
     return Response(task.to_response_dict(), status=status.HTTP_200_OK)
 

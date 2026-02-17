@@ -4,498 +4,358 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.6&#10;&#10;清理了一些无用日志">
-      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/ai_debugger.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/ai_toolkit.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/copilot.data.migration.agent.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/copilot.data.migration.ask.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/copilot.data.migration.ask2agent.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/copilot.data.migration.edit.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/dataSources/de14a52a-c287-464a-b0f5-de030c0a2204.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/dataSources/de14a52a-c287-464a-b0f5-de030c0a2204/storage_v2/_src_/schema/main.uQUzAA.meta" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/db-forest-config.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/shelf/_2026_1_31_20_06____.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/shelf/_2026_2_2_20_03____.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/shelf/_2026_2_2_20_04____.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/shelf/在进行更新之前于_2026_1_31_20_06_取消提交了更改_[更改]/shelved.patch" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/shelf/在进行更新之前于_2026_2_2_20_03_取消提交了更改_[更改]/shelved.patch" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/shelf/在进行更新之前于_2026_2_2_20_04_取消提交了更改_[更改]/shelved.patch" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/UniSchedulerSuper/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/UniSchedulerSuper/asgi.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/UniSchedulerSuper/settings.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/UniSchedulerSuper/urls.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/UniSchedulerSuper/wsgi.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/admin.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/apps.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/consumers.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/context_optimizer.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/context_summarizer.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/mcp_tools.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0001_initial.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0002_alter_memoryitem_options_memoryitem_category_and_more.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0003_add_description_to_agenttransaction.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0004_add_agent_session.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0005_dialogstyle_sessiontodoitem_sessiontodosnapshot_and_more.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0006_dialogstyle_custom_instructions_and_more.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0007_dialogstyle_memory_batch_size.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0008_eventgroupcache_searchresultcache.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0009_dialogstyle_enable_context_optimization.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0010_agentsession_is_summarizing_and_more.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0011_add_summary_history.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0012_add_naming_fields.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0013_add_naming_and_preview_fields.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0014_sharegroupcache.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0015_add_smart_cache_fields.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0016_add_quick_action_task.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/migrations/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/models.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/quick_action_agent.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/routing.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/tools/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/tools/cache_manager.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/tools/conflict_analyzer.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/tools/event_group_service.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/tools/identifier_resolver.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/tools/memory_tools.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/tools/memory_tools_v2.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/tools/param_adapter.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/tools/planner_tools.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/tools/repeat_parser.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/tools/search_tools.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/tools/share_group_service.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/tools/time_parser.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/tools/todo_tools.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/tools/unified_planner_tools.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/tools/variflight_tools.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/urls.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/utils.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/views_api.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/views_config_api.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/views_memory_api.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/agent_service/views_quick_action.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai_chatting/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai_chatting/admin.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai_chatting/ai_responder.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai_chatting/apps.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai_chatting/forms.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai_chatting/migrations/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai_chatting/models.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai_chatting/templates/ai_chatting_index.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai_chatting/templates/chatting.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai_chatting/templates/input.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai_chatting/templates/output.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai_chatting/tests.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai_chatting/urls.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai_chatting/views.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/api_examples/QUICKSTART.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/api_examples/README.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/api_examples/README_QUICK_ACTION.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/api_examples/example_eventgroups_api.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/api_examples/example_events_api.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/api_examples/example_quick_action_api.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/api_examples/example_reminders_api.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/api_examples/example_todos_api.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/api_examples/simple_quick_action_test.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/api_examples/test_token_auth.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/config/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/config/api_keys.example.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/config/api_keys_manager.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/config/beian.example.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/config/beian_manager.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/config/email.example.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/config/email_manager.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/config/encryption.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/admin.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/apps.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/forms.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/middleware/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/middleware/request_logger.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/migrations/0001_initial.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/migrations/0002_alter_userdata_value.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/migrations/0003_collaborativeeventgroup_alter_userdata_value_and_more.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/migrations/0004_passwordresetcode.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/migrations/0005_collaborativecalendargroup_groupcalendardata_and_more.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/migrations/0006_groupmembership_member_color.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/migrations/0007_agenttransaction.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/migrations/0008_emailverificationcode.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/migrations/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/models.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/services/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/services/event_service.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/services/reminder_service.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/services/todo_service.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/about.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/css/agent-chat.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/css/home-styles.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/css/quick-action.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/css/share-groups.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/css/style_memory.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/fullcalendar_index.global.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/fullcalendar_index.global.min.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/github-markdown.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/index.global.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/js/agent-chat.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/js/agent-config.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/js/calendar-touch-swipe.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/js/container-query-polyfill.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/js/event-manager.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/js/group-manager.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/js/modal-manager.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/js/panel-resizer.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/js/quick-action.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/js/reminder-manager.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/js/rrule-manager.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/js/settings-manager.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/js/share-groups.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/js/theme-manager.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/js/todo-manager.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/popper.min.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/test-streaming-state.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/tooltip.min.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/static/基本上，我算是非常善于管理时间的人.jpg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/OldFiles/home.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/about.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/animation.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/help.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/home.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/index.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/memory.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/outport_calendar.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/password_reset.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/resource-add-remove.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/three_body.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/timeline-sticky-header.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/token_management.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/user_data.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/user_login.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/user_preferences.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/templates/user_register.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/urls.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/utils/validators.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/views.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/views_import_events.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/views_reminder.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/views_rollback.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/views_share_groups.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/views_token.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/default_files/events.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/default_files/planner.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/API_TOKEN_使用指南.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/Agent_Integration_Plan.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/Agent_Markdown_功能演示.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/Agent_Markdown_测试用例.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/Agent上下文优化详解.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/Agent前端流式回复优化说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/Agent流式状态调试指南.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/Agent配置升级-递归限制与工具压缩.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/Implementation_Checklist.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/Phase2_Completion_Summary.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/SMTP连接问题排查.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/Tokens统计计费升级文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/User_Customization_Design.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/前端配置存储系统.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/Planner工具优化方案.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/RRule编辑操作指南.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/Reminders_API修复说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/URL路由功能说明文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/上下文优化实施方案.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/上下文优化方案.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/上下文优化需求总结.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/升级详细文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/升级预期.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/记忆系统升级方案.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/课表导入功能升级方案.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级与开发文档/附件系统接口文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/CSS修复问题根本原因分析.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/DDL参数传递和UI交互修复文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/DDL日期修复测试指南.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/DOM结构调试命令.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Events功能分析与问题总结.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Events的RRule功能升级文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/FullCalendar主题适配优化文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/GroupID丢失问题修复说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/GroupID字段名大小写不一致问题修复.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Modal_Header主题适配修复.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Reminder_API双重装饰器修复文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Reminder功能实现文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Reminder浏览器操作500错误修复.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/TODO重要性紧急性升级文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/Token密码重置功能文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/jQuery依赖移除修复.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/两天日视图功能说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/临时测试方案.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/主题修复说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/主题系统升级文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/修复仅此模式编辑第一个日程导致系列无主事件的问题.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/单个日程转换为重复日程TypeError修复.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/取消重复日程功能修复文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/取消重复日程功能完整修复报告.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/取消重复日程功能最终修复总结.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/取消重复日程问题诊断.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/周数显示功能实现文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/四选一框问题修复详细分析.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/多维度筛选实现v20251101-009.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/开发文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/批量编辑示例补充说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/拖拽重复事件修复说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒日历刷新问题修复v20251031-007.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒日历集成-问题修复说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒日历集成v20251031-006修复说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒日历集成功能文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒筛选器和刷新问题修复v20251101-008.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历主题适配修复总结.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历刷新问题诊断指南v20251101-010.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历实例引用修复.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历滑动丝滑度优化文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历滑动体验最终优化文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历滚动和周数主题修复总结.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历筛选功能实现文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历触屏滑动功能实现文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历触屏滑动动效优化文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日历触屏滑动测试指南.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日程组功能恢复文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/日程组编辑修复说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/时间格式修复说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/最终修复方案_2025-11-04.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/月视图显示问题修复.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/月视图滚动调试.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/滑动禁用交互精确修复文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/用户设置功能实现文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/第二批创意主题文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/编辑模态框修复说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/编辑重复日程DDL问题修复文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/自动DDL功能说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/重复事件编辑问题修复总结.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/重复日程DDL日期问题修复.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/升级日志与过时文件/重复日程截止时间功能修复文档.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/启动命令.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/备案信息配置说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/快速创建功能构建计划.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/流式状态恢复-关键问题修复.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/流式状态恢复-超时机制优化.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/流式状态恢复功能-最新更新.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/群组协作功能升级方案.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/腾讯云邮件模板.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/腾讯云邮件配置说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/邮件功能优雅降级-完成报告.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/邮件功能优雅降级-测试清单.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/邮件服务配置指南.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/邮件验证-快速开始.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/邮件验证功能升级总结.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/邮件验证配置说明.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docs/邮件验证问题修复.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/integrated_reminder_manager.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/logger.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/manage.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/AI_search.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/AI助手升级预期.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/ChattingCore.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/LLMFunctions.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/admin.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/apps.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/migrations/0001_initial.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/migrations/0002_delete_agenttransaction.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/migrations/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/models.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/searcher.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/static/about.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/static/fullcalendar_index.global.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/static/fullcalendar_index.global.min.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/static/github-markdown.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/templates/planner_index.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/testing-AI/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/testing-AI/events.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/testing-AI/planner.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/testing-AI/testing-AI.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/tests.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/urls.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/planner/views.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/rrule_engine.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/about.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/autocomplete.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/base.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/changelists.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/dark_mode.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/dashboard.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/forms.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/login.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/nav_sidebar.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/responsive.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/responsive_rtl.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/rtl.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/unusable_password_field.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/vendor/select2/LICENSE-SELECT2.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/vendor/select2/select2.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/vendor/select2/select2.min.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/css/widgets.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/LICENSE" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/README.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/calendar-icons.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/gis/move_vertex_off.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/gis/move_vertex_on.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-addlink.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-alert.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-calendar.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-changelink.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-clock.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-deletelink.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-hidelink.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-no.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-unknown-alt.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-unknown.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-viewlink.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-yes.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/inline-delete.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/search.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/selector-icons.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/sorting-icons.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/tooltag-add.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/img/tooltag-arrowright.svg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/SelectBox.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/SelectFilter2.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/actions.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/admin/DateTimeShortcuts.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/admin/RelatedObjectLookups.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/autocomplete.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/calendar.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/cancel.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/change_form.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/core.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/filters.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/inlines.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/jquery.init.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/nav_sidebar.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/popup_response.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/prepopulate.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/prepopulate_init.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/theme.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/unusable_password_field.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/urlify.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/jquery/LICENSE.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/jquery/jquery.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/jquery/jquery.min.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/LICENSE.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/af.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ar.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/az.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/bg.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/bn.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/bs.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ca.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/cs.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/da.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/de.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/dsb.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/el.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/en.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/es.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/et.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/eu.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/fa.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/fi.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/fr.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/gl.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/he.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hi.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hr.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hsb.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hu.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hy.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/id.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/is.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/it.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ja.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ka.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/km.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ko.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/lt.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/lv.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/mk.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ms.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/nb.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ne.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/nl.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/pl.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ps.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/pt-BR.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/pt.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ro.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ru.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sk.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sl.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sq.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sr-Cyrl.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sr.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sv.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/th.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/tk.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/tr.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/uk.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/vi.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/zh-CN.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/zh-TW.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/select2.full.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/select2.full.min.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/xregexp/LICENSE.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/xregexp/xregexp.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/xregexp/xregexp.min.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/css/home-styles.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/css/style_memory.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/fullcalendar_index.global.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/fullcalendar_index.global.min.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/github-markdown.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/home.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/index.global.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/js/calendar-touch-swipe.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/js/event-manager.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/js/group-manager.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/js/modal-manager.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/js/panel-resizer.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/js/reminder-manager.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/js/rrule-manager.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/js/settings-manager.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/js/theme-manager.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/js/todo-manager.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/popper.min.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/staticfiles/tooltip.min.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test_config_upgrade.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test_smtp_config.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test_streaming_cache.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/OD对航班查询（searchFlightsByDepArr）测试.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/jwxs_response.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/parsed_courses.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/scratch_响应.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/serachFlightsByNumber测试.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/tavily_test.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/test_agent_graph_simple.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/test_context_optimization.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/test_context_optimization_live.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/test_jwxs_api.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/test_phase3_api.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/test_validator_empty.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/test_validator_schema_standalone.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/test_variflight_tools.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/中转航班返回值示例.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/教务系统Index.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/行程价格查询示例" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utils/utils.py" afterDir="false" />
+    <list default="true" id="efa12d32-181a-4714-a9c2-1a60d1308b7a" name="更改" comment="UniSchedulerSuper 1.6.1&#10;&#10;重构附件系统，支持将系统内 events/reminder/todo/工作流 作为附件上传，支持图片上传（包含 OCR/base64 自动切换，base64 当前仅支持系统内置模型）&#10;&#10;修复 CDN 解析问题&#10;修复 Agent 工具选择为空时默认返回系统工具的问题&#10;UI 优化&#10;清理了一些无用日志和过时文件">
+      <change afterPath="$PROJECT_DIR$/agent_service/attachment_handler.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0017_sessionattachment.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/migrations/0018_alter_sessionattachment_file.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/model_capabilities.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/parsers/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/parsers/base.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/parsers/document_parser.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/parsers/image_parser.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/agent_service/parsers/internal_parser.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/附件系统升级方案.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/UniSchedulerSuper.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/UniSchedulerSuper.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/shelf/在进行更新之前于_2026_1_31_20_06_取消提交了更改_[更改]/shelved.patch" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/shelf/在进行更新之前于_2026_2_2_20_04_取消提交了更改_[更改]/shelved.patch" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/UniSchedulerSuper/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/UniSchedulerSuper/settings.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/UniSchedulerSuper/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/UniSchedulerSuper/urls.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/agent_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/agent_graph.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/consumers.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/consumers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/context_optimizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/context_optimizer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/context_summarizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/context_summarizer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/quick_action_agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/quick_action_agent.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/tools/cache_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/tools/cache_manager.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/tools/conflict_analyzer.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/tools/conflict_analyzer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/tools/search_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/tools/search_tools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/tools/todo_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/tools/todo_tools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/tools/unified_planner_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/tools/unified_planner_tools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/tools/variflight_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/tools/variflight_tools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/urls.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/views_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_api.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/agent_service/views_quick_action.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_service/views_quick_action.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai_chatting/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai_chatting/admin.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai_chatting/ai_responder.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai_chatting/apps.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai_chatting/forms.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai_chatting/migrations/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai_chatting/models.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai_chatting/templates/ai_chatting_index.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai_chatting/templates/chatting.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai_chatting/templates/input.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai_chatting/templates/output.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai_chatting/tests.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai_chatting/urls.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai_chatting/views.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/api_examples/example_quick_action_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/api_examples/example_quick_action_api.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/api_examples/test_token_auth.py" beforeDir="false" afterPath="$PROJECT_DIR$/api_examples/test_token_auth.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/css/agent-chat.css" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/css/agent-chat.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/js/agent-chat.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/agent-chat.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/js/agent-config.js" beforeDir="false" afterPath="$PROJECT_DIR$/core/static/js/agent-config.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/test-streaming-state.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/static/基本上，我算是非常善于管理时间的人.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/OldFiles/home.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/help.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/help.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/home.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/home.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/index.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/outport_calendar.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/outport_calendar.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/password_reset.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/password_reset.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/user_login.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/user_login.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/user_preferences.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/user_preferences.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/templates/user_register.html" beforeDir="false" afterPath="$PROJECT_DIR$/core/templates/user_register.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/views_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_events.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/views_reminder.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_reminder.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/views_share_groups.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/views_share_groups.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/default_files/events.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/default_files/planner.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/API_TOKEN_使用指南.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Agent_Integration_Plan.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Agent_Markdown_功能演示.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Agent_Markdown_测试用例.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Agent上下文优化详解.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Agent前端流式回复优化说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Agent流式状态调试指南.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Agent配置升级-递归限制与工具压缩.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Implementation_Checklist.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Phase2_Completion_Summary.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/SMTP连接问题排查.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/Tokens统计计费升级文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/User_Customization_Design.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/前端配置存储系统.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/Planner工具优化方案.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/RRule编辑操作指南.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/Reminders_API修复说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/URL路由功能说明文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/上下文优化实施方案.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/上下文优化方案.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/上下文优化需求总结.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/升级详细文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/升级预期.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/记忆系统升级方案.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/课表导入功能升级方案.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级与开发文档/附件系统接口文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/CSS修复问题根本原因分析.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/DDL参数传递和UI交互修复文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/DDL日期修复测试指南.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/DOM结构调试命令.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/Events功能分析与问题总结.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/Events的RRule功能升级文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/FullCalendar主题适配优化文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/GroupID丢失问题修复说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/GroupID字段名大小写不一致问题修复.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/Modal_Header主题适配修复.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/Reminder_API双重装饰器修复文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/Reminder功能实现文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/Reminder浏览器操作500错误修复.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/TODO重要性紧急性升级文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/Token密码重置功能文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/jQuery依赖移除修复.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/两天日视图功能说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/临时测试方案.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/主题修复说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/主题系统升级文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/修复仅此模式编辑第一个日程导致系列无主事件的问题.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/单个日程转换为重复日程TypeError修复.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/取消重复日程功能修复文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/取消重复日程功能完整修复报告.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/取消重复日程功能最终修复总结.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/取消重复日程问题诊断.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/周数显示功能实现文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/四选一框问题修复详细分析.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/多维度筛选实现v20251101-009.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/开发文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/批量编辑示例补充说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/拖拽重复事件修复说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒日历刷新问题修复v20251031-007.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒日历集成-问题修复说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒日历集成v20251031-006修复说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒日历集成功能文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/提醒筛选器和刷新问题修复v20251101-008.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/日历主题适配修复总结.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/日历刷新问题诊断指南v20251101-010.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/日历实例引用修复.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/日历滑动丝滑度优化文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/日历滑动体验最终优化文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/日历滚动和周数主题修复总结.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/日历筛选功能实现文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/日历触屏滑动功能实现文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/日历触屏滑动动效优化文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/日历触屏滑动测试指南.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/日程组功能恢复文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/日程组编辑修复说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/时间格式修复说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/最终修复方案_2025-11-04.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/月视图显示问题修复.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/月视图滚动调试.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/滑动禁用交互精确修复文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/用户设置功能实现文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/第二批创意主题文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/编辑模态框修复说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/编辑重复日程DDL问题修复文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/自动DDL功能说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/重复事件编辑问题修复总结.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/重复日程DDL日期问题修复.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/升级日志与过时文件/重复日程截止时间功能修复文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/启动命令.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/备案信息配置说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/快速创建功能构建计划.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/流式状态恢复-关键问题修复.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/流式状态恢复-超时机制优化.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/流式状态恢复功能-最新更新.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/群组协作功能升级方案.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/腾讯云邮件模板.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/腾讯云邮件配置说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/邮件功能优雅降级-完成报告.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/邮件功能优雅降级-测试清单.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/邮件服务配置指南.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/邮件验证-快速开始.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/邮件验证功能升级总结.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/邮件验证配置说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/邮件验证问题修复.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/integrated_reminder_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/integrated_reminder_manager.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/AI_search.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/AI助手升级预期.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/ChattingCore.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/LLMFunctions.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/admin.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/apps.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/migrations/0001_initial.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/migrations/0002_delete_agenttransaction.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/migrations/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/models.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/searcher.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/static/about.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/static/fullcalendar_index.global.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/static/fullcalendar_index.global.min.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/static/github-markdown.css" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/templates/planner_index.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/testing-AI/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/testing-AI/events.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/testing-AI/planner.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/testing-AI/testing-AI.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/tests.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/urls.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/planner/views.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/css/autocomplete.css" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/css/autocomplete.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/css/base.css" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/css/base.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/css/changelists.css" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/css/changelists.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/css/dark_mode.css" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/css/dark_mode.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/css/dashboard.css" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/css/dashboard.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/css/forms.css" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/css/forms.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/css/login.css" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/css/login.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/css/nav_sidebar.css" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/css/nav_sidebar.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/css/responsive.css" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/css/responsive.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/css/responsive_rtl.css" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/css/responsive_rtl.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/css/rtl.css" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/css/rtl.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/css/unusable_password_field.css" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/css/unusable_password_field.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/css/vendor/select2/LICENSE-SELECT2.md" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/css/vendor/select2/LICENSE-SELECT2.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/css/vendor/select2/select2.css" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/css/vendor/select2/select2.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/css/vendor/select2/select2.min.css" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/css/vendor/select2/select2.min.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/css/widgets.css" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/css/widgets.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/LICENSE" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/README.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/calendar-icons.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/calendar-icons.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/gis/move_vertex_off.svg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/gis/move_vertex_on.svg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/icon-addlink.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-addlink.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/icon-alert.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-alert.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/icon-calendar.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-calendar.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/icon-changelink.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-changelink.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/icon-clock.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-clock.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/icon-deletelink.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-deletelink.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/icon-hidelink.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-hidelink.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/icon-no.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-no.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/icon-unknown-alt.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-unknown-alt.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/icon-unknown.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-unknown.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/icon-viewlink.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-viewlink.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/icon-yes.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/icon-yes.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/inline-delete.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/inline-delete.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/search.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/search.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/selector-icons.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/selector-icons.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/sorting-icons.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/sorting-icons.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/tooltag-add.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/tooltag-add.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/img/tooltag-arrowright.svg" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/img/tooltag-arrowright.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/SelectBox.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/SelectBox.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/SelectFilter2.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/SelectFilter2.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/actions.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/actions.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/admin/DateTimeShortcuts.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/admin/DateTimeShortcuts.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/admin/RelatedObjectLookups.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/admin/RelatedObjectLookups.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/autocomplete.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/autocomplete.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/calendar.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/calendar.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/cancel.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/cancel.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/change_form.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/change_form.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/core.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/core.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/filters.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/filters.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/inlines.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/inlines.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/jquery.init.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/jquery.init.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/nav_sidebar.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/nav_sidebar.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/popup_response.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/popup_response.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/prepopulate.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/prepopulate.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/prepopulate_init.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/prepopulate_init.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/theme.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/theme.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/unusable_password_field.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/urlify.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/urlify.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/jquery/LICENSE.txt" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/jquery/LICENSE.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/jquery/jquery.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/jquery/jquery.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/jquery/jquery.min.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/jquery/jquery.min.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/LICENSE.md" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/LICENSE.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/af.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/af.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ar.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ar.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/az.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/az.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/bg.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/bg.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/bn.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/bn.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/bs.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/bs.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ca.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ca.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/cs.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/cs.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/da.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/da.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/de.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/de.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/dsb.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/dsb.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/el.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/el.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/en.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/en.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/es.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/es.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/et.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/et.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/eu.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/eu.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/fa.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/fa.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/fi.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/fi.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/fr.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/fr.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/gl.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/gl.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/he.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/he.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hi.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hi.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hr.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hr.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hsb.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hsb.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hu.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hu.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hy.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/hy.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/id.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/id.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/is.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/is.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/it.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/it.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ja.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ja.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ka.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ka.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/km.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/km.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ko.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ko.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/lt.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/lt.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/lv.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/lv.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/mk.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/mk.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ms.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ms.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/nb.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/nb.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ne.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ne.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/nl.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/nl.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/pl.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/pl.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ps.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ps.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/pt-BR.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/pt-BR.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/pt.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/pt.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ro.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ro.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ru.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/ru.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sk.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sk.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sl.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sl.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sq.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sq.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sr-Cyrl.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sr-Cyrl.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sr.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sr.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sv.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/sv.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/th.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/th.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/tk.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/tk.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/tr.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/tr.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/uk.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/uk.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/vi.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/vi.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/zh-CN.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/zh-CN.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/zh-TW.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/i18n/zh-TW.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/select2.full.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/select2.full.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/select2.full.min.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/select2/select2.full.min.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/xregexp/LICENSE.txt" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/xregexp/LICENSE.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/xregexp/xregexp.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/xregexp/xregexp.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/admin/js/vendor/xregexp/xregexp.min.js" beforeDir="false" afterPath="$PROJECT_DIR$/staticfiles/admin/js/vendor/xregexp/xregexp.min.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/staticfiles/home.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_config_upgrade.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_smtp_config.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_streaming_cache.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/OD对航班查询（searchFlightsByDepArr）测试.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/jwxs_response.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/parsed_courses.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/scratch_响应.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/serachFlightsByNumber测试.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/tavily_test.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_agent_graph_simple.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_context_optimization.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_context_optimization_live.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_jwxs_api.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_phase3_api.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_validator_empty.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_validator_schema_standalone.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_variflight_tools.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/中转航班返回值示例.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/教务系统Index.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/行程价格查询示例" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/utils.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -542,12 +402,12 @@
     &quot;assignee&quot;: &quot;MoMoJee&quot;
   }
 }</component>
-  <component name="GithubPullRequestsUISettings">{
-  &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;https://github.com/MoMoJee/UniSchedulerSuper&quot;,
-    &quot;accountId&quot;: &quot;a602f574-96af-4e54-b743-f602b02df597&quot;
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/MoMoJee/UniSchedulerSuper.git",
+    "accountId": "a602f574-96af-4e54-b743-f602b02df597"
   }
-}</component>
+}]]></component>
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$PROJECT_DIR$/core/Events的RRule功能升级文档.md" root0="FORCE_HIGHLIGHTING" root1="SKIP_HIGHLIGHTING" />
   </component>
@@ -572,66 +432,66 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ASKED_MARK_IGNORED_FILES_AS_EXCLUDED&quot;: &quot;true&quot;,
-    &quot;DefaultHtmlFileTemplate&quot;: &quot;HTML File&quot;,
-    &quot;Django 服务器.UniSchedulerSuper.executor&quot;: &quot;Run&quot;,
-    &quot;Django 服务器.局域网.executor&quot;: &quot;Run&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;找到数据库连接形参&quot;,
-    &quot;Notification.DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;true&quot;,
-    &quot;Python.111 (1).executor&quot;: &quot;Run&quot;,
-    &quot;Python.111.executor&quot;: &quot;Run&quot;,
-    &quot;Python.UniSchedulerSuper.executor&quot;: &quot;Run&quot;,
-    &quot;Python.code_line_counter.executor&quot;: &quot;Run&quot;,
-    &quot;Python.example_quick_action_api.executor&quot;: &quot;Run&quot;,
-    &quot;Python.example_reminders_api.executor&quot;: &quot;Run&quot;,
-    &quot;Python.graph.executor&quot;: &quot;Run&quot;,
-    &quot;Python.mcp_server.executor&quot;: &quot;Run&quot;,
-    &quot;Python.mcp_tools.executor&quot;: &quot;Run&quot;,
-    &quot;Python.raw_http_dump_middleware.executor&quot;: &quot;Run&quot;,
-    &quot;Python.tavily_test.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_browser_session.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_event_operations.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_exception_debug.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_reminder_operations.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_rrule_system.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_token_auth.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_validator_schema_standalone.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_variflight_tools.executor&quot;: &quot;Run&quot;,
-    &quot;Python.tools.executor&quot;: &quot;Run&quot;,
-    &quot;Python.views.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.OpenDjangoStructureViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.pycharm.django.structure.promotion.once.per.project&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;ai.playground.ignore.import.keys.banner.in.settings&quot;: &quot;true&quot;,
-    &quot;aidebugger.tracer.lastRunConfigName&quot;: &quot;example_quick_action_api&quot;,
-    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/PROJECTS/UniSchedulerSuper/staticfiles/css&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;inlay.hints&quot;,
-    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
+    "DefaultHtmlFileTemplate": "HTML File",
+    "Django 服务器.UniSchedulerSuper.executor": "Run",
+    "Django 服务器.局域网.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found": "找到数据库连接形参",
+    "Notification.DoNotAsk-DatabaseConfigFileWatcher.found": "true",
+    "Python.111 (1).executor": "Run",
+    "Python.111.executor": "Run",
+    "Python.UniSchedulerSuper.executor": "Run",
+    "Python.code_line_counter.executor": "Run",
+    "Python.example_quick_action_api.executor": "Run",
+    "Python.example_reminders_api.executor": "Run",
+    "Python.graph.executor": "Run",
+    "Python.mcp_server.executor": "Run",
+    "Python.mcp_tools.executor": "Run",
+    "Python.raw_http_dump_middleware.executor": "Run",
+    "Python.tavily_test.executor": "Run",
+    "Python.test_browser_session.executor": "Run",
+    "Python.test_event_operations.executor": "Run",
+    "Python.test_exception_debug.executor": "Run",
+    "Python.test_reminder_operations.executor": "Run",
+    "Python.test_rrule_system.executor": "Run",
+    "Python.test_token_auth.executor": "Run",
+    "Python.test_validator_schema_standalone.executor": "Run",
+    "Python.test_variflight_tools.executor": "Run",
+    "Python.tools.executor": "Run",
+    "Python.views.executor": "Run",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.OpenDjangoStructureViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.pycharm.django.structure.promotion.once.per.project": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "ai.playground.ignore.import.keys.banner.in.settings": "true",
+    "aidebugger.tracer.lastRunConfigName": "example_quick_action_api",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "main",
+    "ignore.virus.scanning.warn.message": "true",
+    "junie.onboarding.icon.badge.shown": "true",
+    "last_opened_file_path": "D:/PROJECTS/UniSchedulerSuper/staticfiles/css",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
+    "to.speed.mode.migration.done": "true",
+    "vue.rearranger.settings.migration": "true"
   },
-  &quot;keyToStringList&quot;: {
-    &quot;com.intellij.ide.scratch.ScratchImplUtil$2/新建临时文件&quot;: [
-      &quot;JSON&quot;
+  "keyToStringList": {
+    "com.intellij.ide.scratch.ScratchImplUtil$2/新建临时文件": [
+      "JSON"
     ]
   }
-}</component>
+}]]></component>
   <component name="RecapSpentCounter">
     <option name="endsOfQuotaMs" value="1770444026584" />
     <option name="spentUsd" value="0.07884385" />
@@ -774,8 +634,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-PY-253.29346.142" />
-        <option value="bundled-python-sdk-f2b7a9f6281b-6e1f45a539f7-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.29346.142" />
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-PY-253.31033.23" />
+        <option value="bundled-python-sdk-5f4fdedec63d-6d6dccd035ac-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.31033.23" />
       </set>
     </attachedChunks>
   </component>
@@ -867,6 +727,7 @@
       <workItem from="1769873648853" duration="64578000" />
       <workItem from="1770227085437" duration="344000" />
       <workItem from="1770227447099" duration="2148000" />
+      <workItem from="1771315458729" duration="2146000" />
     </task>
     <task id="LOCAL-00035" summary="UniSchedulerSuper 1.5.4.20251221_1714 development&#10;&#10;已完成前三个阶段的升级（后端）">
       <option name="closed" value="true" />
@@ -1286,7 +1147,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="release_new" />
+                        <option value="origin/development_new" />
                       </list>
                     </value>
                   </entry>
@@ -1299,7 +1160,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="UniSchedulerSuper 1.5.4.20260126_2036 development&#10;&#10;修复了抵用金用尽时弹出的 quota-exceeded-content 中 onclick=&quot;agentChat.openModelConfig();&quot; 按钮无法点击的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260127_0242 development&#10;&#10;1. MCP及工具调用优化&#10;新增 12306-mcp-server 工具集&#10;优化了前端 tools 的友好名称&#10;&#10;2. Agent 流优化&#10;修复了压缩工具调用结果时，本次对话、上轮调用结果会被优化的问题，使用 TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES 控制压缩第 X 条用户消息以前的工具调用结果被压缩 &#10;修复了第二次达到递归上限时不弹继续提示的错误，通过 RECURSION_LIMIT 限制递归上限" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260127_1733 development&#10;&#10;修复了当某个 MCP 服务不可用时其余服务受影响无法加载的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260128_0100 development&#10;&#10;1. LLM相关优化&#10;支持了更多系统提供模型，完善了切换系统提供模型时的逻辑&#10;升级了 api_keys.json 的功能，使其成为统一的 LLM 参数来源&#10;将LLM回复方式重设为一次性回（懒得弄流式了）&#10;&#10;2. 前端UI优化&#10;修复了 用户设置-AI设置-模型配置 界面中显示美元符号的问题&#10;修复了 用户设置-AI设置-模型配置 界面中，点击切换模型后，模型的三大参数显示消失的问题&#10;所有上下文 xxx k 的千单位改为1024计算&#10;&#10;3. 日志优化&#10;彻底把所有的有用的没用的文件的日志器改成统一 from logger import logger&#10;由于 Django 的 HTTP 访问日志是由 ASGI/WSGI 服务器直接发出，因此通过中间件 RequestLogMiddleware 实现写入application.log" />
@@ -1324,7 +1184,8 @@
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260204_2053 development&#10;&#10;优化前端对 Agent 操作的同步性问题&#10;&#10;- 更新前端代码以支持新的刷新逻辑，包括待办事项、提醒和事件的刷新&#10;- 修复筛选参数保持问题，确保在重新加载数据时保留当前筛选状态" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260204_2317 development&#10;&#10;将硬编码的 `RECURSION_LIMIT` 和 `TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES` 迁移到用户可配置的 `agent_optimization_config` 中&#10;&#10;- 用户可以通过前端 UI 自定义配置&#10;- 支持实时生效，无需重启服务&#10;- 更新相关后端和前端代码以支持新配置项&#10;&#10;修复悬浮球会被顶端搜索和设置栏目遮挡的问题" />
     <MESSAGE value="UniSchedulerSuper 1.5.4.20260205_0115 development&#10;&#10;清理了一些无用日志" />
-    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.5.4.20260205_0115 development&#10;&#10;清理了一些无用日志" />
+    <MESSAGE value="UniSchedulerSuper 1.6.1&#10;&#10;重构附件系统，支持将系统内 events/reminder/todo/工作流 作为附件上传，支持图片上传（包含 OCR/base64 自动切换，base64 当前仅支持系统内置模型）&#10;&#10;修复 CDN 解析问题&#10;修复 Agent 工具选择为空时默认返回系统工具的问题&#10;UI 优化&#10;清理了一些无用日志和过时文件" />
+    <option name="LAST_COMMIT_MESSAGE" value="UniSchedulerSuper 1.6.1&#10;&#10;重构附件系统，支持将系统内 events/reminder/todo/工作流 作为附件上传，支持图片上传（包含 OCR/base64 自动切换，base64 当前仅支持系统内置模型）&#10;&#10;修复 CDN 解析问题&#10;修复 Agent 工具选择为空时默认返回系统工具的问题&#10;UI 优化&#10;清理了一些无用日志和过时文件" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/UniSchedulerSuper$test_token_auth.coverage" NAME="test_token_auth 覆盖结果" MODIFIED="1762538939077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

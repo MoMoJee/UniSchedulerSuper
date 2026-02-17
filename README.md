@@ -180,16 +180,16 @@ markdown
 ### 系统要求
 
 - **Python**: 3.12 或更高版本（推荐 3.12）
-- **操作系统**: Windows 10/11
-- **内存**: 至少 4GB RAM
+- **操作系统**: Windows 10/11 Ubuntu
+- **内存**: 至少 2GB RAM
 
 ### 安装步骤
 
 #### 1. 克隆项目
 
 ```bash
-git clone https://github.com/MoMoJee/UniSchedulerSuper.git
-cd UniSchedulerSuper
+git clone https://github.com/MoMoJee/UniSchedulerSuper2.git
+cd UniSchedulerSuper2
 ```
 
 #### 2. 创建虚拟环境（推荐）

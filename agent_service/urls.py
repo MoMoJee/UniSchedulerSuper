@@ -84,6 +84,15 @@ urlpatterns = [
     # 附件系统
     path('attachments/', views_api.get_attachable_items, name='get_attachable_items'),
     path('attachments/format/', views_api.format_attachment_content, name='format_attachment_content'),
+    path('attachments/upload/', views_api.upload_attachment, name='upload_attachment'),
+    path('attachments/internal/', views_api.attach_internal, name='attach_internal'),
+    path('attachments/list/', views_api.list_session_attachments, name='list_session_attachments'),
+    path('attachments/<int:attachment_id>/delete/', views_api.delete_attachment, name='delete_attachment'),
+    path('attachments/<int:attachment_id>/restore/', views_api.restore_attachment, name='restore_attachment'),
+    path('attachments/<int:attachment_id>/preview/', views_api.preview_attachment, name='preview_attachment'),
+    path('attachments/capabilities/', views_api.get_model_capabilities, name='get_model_capabilities'),
+    path('attachments/pending-ocr/', views_api.check_pending_ocr, name='check_pending_ocr'),
+    path('attachments/batch-ocr/', views_api.batch_ocr_attachments, name='batch_ocr_attachments'),
     
     # 上下文使用情况
     path('context-usage/', views_api.get_context_usage, name='get_context_usage'),

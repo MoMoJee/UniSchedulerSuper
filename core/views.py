@@ -154,9 +154,6 @@ def password_reset_page(request):
         'email_enabled': email_config.get('enabled', False)
     })
 
-# TODO 所有交互函数的参数有效性验证都是一坨狗屎，且就算传入了错误的参数（名），也很大概率是不会返回任何错误，只是直接不执行。
-#  浏览器端其实没啥问题，但是这对于 API 端来说极大增加了排错工程量
-
 # 测试
 @login_required
 def contact(request):
@@ -180,11 +177,6 @@ def user_data(request):
     user_data = UserData.objects.filter(user=request.user)
     return render(request, 'user_data.html', {'user_data': user_data})
 
-def get_user_preferences(request):
-    user_preference_data, created, result = UserData().get_or_initialize(request=request, new_key="user_preference")
-    # TODO 写完这个用于使用 POST 方式获取 user_preferences 的函数。然后还要再写一个界面用来修改和保存
-    return
-
 
 @login_required
 def home(request):
@@ -192,8 +184,6 @@ def home(request):
     
     user_preference_data :'UserData'
     user_preference_data, created, result = UserData.get_or_initialize(request=request, new_key="user_preference")
-    # TODO 新加一个用户 config ，存储新手教程类和“不再提示”这种配置
-    # TODO 还可以加一个，比如上一次创建的日程是什么日程组，下一次默认这个
 
 
     user_preference = user_preference_data.get_value(check=False)  # TODO 这里不能 check 由于检查函数的问题，布尔值检查会对 False 直接返回 假

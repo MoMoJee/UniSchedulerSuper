@@ -509,7 +509,6 @@ def analyze_with_llm(
         # 更新 Token 统计（自动计费）
         if input_tokens > 0 or output_tokens > 0:
             update_token_usage(user, input_tokens, output_tokens, current_model_id)
-            logger.info(f"[冲突分析] Token 已统计: in={input_tokens}, out={output_tokens}, model={current_model_id}")
         
         token_info = {
             'input_tokens': input_tokens,

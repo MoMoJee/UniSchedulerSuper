@@ -19,7 +19,6 @@ def agent_transaction(action_type):
             
             # 处理 config 为 None 或不存在的情况
             if config is None:
-                logger.debug(f"agent_transaction: config is None, running without tracking")
                 return func(*args, **kwargs)
             
             # 从 config 中提取 configurable
@@ -33,27 +32,36 @@ def agent_transaction(action_type):
 
             if not user or not session_id:
                 # 如果没有上下文，直接运行（兼容普通调用）
-                logger.debug(f"agent_transaction: no user ({user}) or session_id ({session_id}), running without tracking")
                 return func(*args, **kwargs)
-
-            logger.info(f"agent_transaction: {action_type} for session {session_id}, user {user}, tool_call_id={tool_call_id}")
 
             # 2. 在执行操作之前，先保存当前状态的快照
             # 这样回滚时可以恢复到操作前的状态
+            # 
+            # 【优化】只追踪 Agent 工具实际操作的 UserData keys
+            # 避免误伤用户配置（如 user_preference, agent_config 等）
+            TRACKED_KEYS = [
+                'todos',                    # 待办事项
+                'outport_calendar_data',   # 日历导出数据
+                'events',                   # 日程
+                'events_rrule_series',     # 日程重复规则系列
+                'reminders',                # 提醒
+                'rrule_series_storage',    # 通用重复规则存储
+            ]
+            
             with reversion.create_revision():
                 reversion.set_user(user)
                 reversion.set_comment(f"Before: {action_type}")
                 
-                # 保存该用户的所有 UserData 当前状态（操作前）
-                user_data_objects = UserData.objects.filter(user=user)
+                # 只保存 Agent 工具会修改的 UserData keys（操作前状态）
+                user_data_objects = UserData.objects.filter(user=user, key__in=TRACKED_KEYS)
                 for ud in user_data_objects:
                     reversion.add_to_revision(ud)
+                
+                tracked_count = user_data_objects.count()
             
             # 获取刚创建的快照 revision（操作前状态）
             before_revision = reversion.models.Revision.objects.filter(user=user).order_by('-date_created').first()
             revision_id = before_revision.id if before_revision else None
-            
-            logger.info(f"Saved pre-operation snapshot, revision_id={revision_id}")
                 
             # 3. 现在执行实际业务逻辑（会修改数据）
             result = func(*args, **kwargs)

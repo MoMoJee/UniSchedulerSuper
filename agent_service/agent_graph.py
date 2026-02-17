@@ -194,7 +194,12 @@ TOOL_CATEGORIES = {
     "map": {
         "display_name": "地图服务",
         "description": "查询地点、规划路线、周边搜索（高德地图）",
-        "tools": [t for t in MCP_TOOLS.keys() if 'amap' in t.lower() or 'maps' in t.lower() or 'poi' in t.lower() or 'route' in t.lower() or 'geocode' in t.lower() or 'regeo' in t.lower() or 'weather' in t.lower() or 'district' in t.lower() or 'traffic' in t.lower()]
+        # 排除包含 'train' 的工具（避免与火车票查询工具冲突，如 get-train-route-stations）
+        "tools": [t for t in MCP_TOOLS.keys() if 
+                  ('amap' in t.lower() or 'maps' in t.lower() or 'poi' in t.lower() or 
+                   'route' in t.lower() or 'geocode' in t.lower() or 'regeo' in t.lower() or 
+                   'weather' in t.lower() or 'district' in t.lower() or 'traffic' in t.lower()) and
+                  'train' not in t.lower()]  # 排除火车相关工具
     },
     "train": {
         "display_name": "火车票查询",
@@ -259,7 +264,7 @@ class AgentState(TypedDict):
 # ==========================================
 llm = ChatOpenAI(
     model="deepseek-chat",
-    temperature=0,
+    # temperature=0,
     streaming=False,  # 关闭流式传输（项目只需节点级别流式，不需要 LLM 级别流式）
     base_url=os.environ.get("OPENAI_API_BASE"),
 )
@@ -313,10 +318,10 @@ def get_user_llm(user):
                         model=model_name,
                         base_url=base_url,
                         api_key=api_key,  # type: ignore
-                        temperature=0.7,
+                        # temperature=1,
                         streaming=False,  # 关闭流式传输（项目只需节点级别流式）
                     )
-                    logger.info(f"[LLM] 使用系统模型: {model_name} ({current_model_id}) @ {base_url}")
+                    logger.debug(f"[LLM] 使用系统模型: {model_name} ({current_model_id}) @ {base_url}")
                     return user_llm
             
             # 系统模型配置不存在，使用默认
@@ -338,10 +343,10 @@ def get_user_llm(user):
                 model=model_name,
                 base_url=api_url,
                 api_key=api_key,  # type: ignore
-                temperature=0.7,
+                # temperature=0.7,
                 streaming=False,  # 关闭流式传输（项目只需节点级别流式）
             )
-            logger.info(f"[LLM] 使用自定义模型: {model_name} @ {api_url}")
+            logger.debug(f"[LLM] 使用自定义模型: {model_name} @ {api_url}")
             return user_llm
         
     except Exception as e:
@@ -395,8 +400,13 @@ def build_system_prompt(user, active_tool_names: List[str], current_time: str) -
         capabilities.append("- 任务追踪: 创建和管理会话级任务列表")
     
     # 检查 MCP 工具 - 分类处理
-    map_tools = [t for t in active_tool_names if t in MCP_TOOLS and ('amap' in t.lower() or 'maps' in t.lower() or 'poi' in t.lower() or 'route' in t.lower() or 'geocode' in t.lower())]
-    train_tools = [t for t in active_tool_names if t in MCP_TOOLS and ('ticket' in t.lower() or 'train' in t.lower() or 'station' in t.lower() or 'transfer' in t.lower())]
+    # 注意：排除包含 'train' 的工具，避免与火车票查询工具冲突
+    map_tools = [t for t in active_tool_names if t in MCP_TOOLS and 
+                 ('amap' in t.lower() or 'maps' in t.lower() or 'poi' in t.lower() or 
+                  'route' in t.lower() or 'geocode' in t.lower()) and
+                 'train' not in t.lower()]
+    train_tools = [t for t in active_tool_names if t in MCP_TOOLS and 
+                   ('ticket' in t.lower() or 'train' in t.lower() or 'station' in t.lower() or 'transfer' in t.lower())]
     
     if map_tools:
         capabilities.append("- 地图服务: 查询地点、规划路线、周边搜索（高德地图）")
@@ -484,14 +494,16 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     """
     messages = state['messages']
     
-    # 优先从 config 获取 active_tools，否则从 state 获取，最后使用默认值
+    # 优先从 config 获取 active_tools，否则从 state 获取
+    # 如果都没有，默认为空列表（不启用任何工具，纯对话模式）
     configurable = config.get("configurable", {})
-    active_tool_names = configurable.get("active_tools") or state.get('active_tools') or get_default_tools()
-    user = configurable.get("user")
+    active_tool_names = (
+        configurable.get("active_tools") or 
+        state.get('active_tools') or 
+        []  # 默认为空列表，而不是调用 get_default_tools()
+    )
     
-    logger.debug(f"[Agent] agent_node 调用:")
-    logger.debug(f"[Agent]   - active_tool_names (最终使用): {active_tool_names}")
-    logger.debug(f"[Agent]   - 消息数量: {len(messages)}")
+    user = configurable.get("user")
     
     # 获取当前时间
     now = datetime.datetime.now()
@@ -503,10 +515,6 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     
     # 动态获取工具
     tools = get_tools_by_names(active_tool_names)
-    
-    logger.debug(f"[Agent] 工具绑定:")
-    logger.debug(f"[Agent]   - 请求的工具名称: {active_tool_names}")
-    logger.debug(f"[Agent]   - 实际获取的工具数量: {len(tools)}")
     
     # ========== 获取当前模型配置 ==========
     current_model_id = 'system_deepseek'
@@ -606,6 +614,84 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     
     full_messages = [system_message] + list(optimized_messages)
     
+    # ========== 注入附件上下文 ==========
+    # 检查最后一条 HumanMessage 是否有附件上下文（供 LLM 理解附件内容）
+    if optimized_messages:
+        last_msg = optimized_messages[-1]
+        if hasattr(last_msg, 'additional_kwargs') and last_msg.additional_kwargs:
+            attachments_context = last_msg.additional_kwargs.get('attachments_context', '')
+            if attachments_context:
+                # 在 system_message 后插入附件上下文说明
+                attachment_system_msg = SystemMessage(
+                    content=f"【附件内容】用户在最新消息中包含了以下附件的详细信息，请结合这些信息理解用户的问题：\n\n{attachments_context}"
+                )
+                full_messages.insert(1, attachment_system_msg)  # 插入到 system_message 之后
+                logger.debug(f"[Agent] 注入附件上下文: {len(attachments_context)} 字符")
+    
+    # ========== 多模态动态重建：根据当前模型能力重建历史消息中的图片内容 ==========
+    current_supports_vision = model_config.get('supports_vision', False) if model_config else False
+    rebuilt_count = 0
+    
+    for i, msg in enumerate(full_messages):
+        if not isinstance(msg, HumanMessage):
+            continue
+        
+        # 检查消息是否包含附件
+        attachment_ids = []
+        if hasattr(msg, 'additional_kwargs') and msg.additional_kwargs:
+            attachment_ids = msg.additional_kwargs.get('attachment_ids', [])
+            # 也检查 attachments_metadata 中的 sa_id
+            if not attachment_ids:
+                metadata = msg.additional_kwargs.get('attachments_metadata', [])
+                attachment_ids = [m.get('sa_id') for m in metadata if m.get('sa_id')]
+        
+        if not attachment_ids:
+            # 没有附件，但可能有旧格式的 image_url 块需要降级
+            if not current_supports_vision and isinstance(msg.content, list):
+                text_parts = []
+                image_count = 0
+                for block in msg.content:
+                    if isinstance(block, dict):
+                        if block.get('type') == 'text':
+                            text_parts.append(block.get('text', ''))
+                        elif block.get('type') == 'image_url':
+                            image_count += 1
+                    elif isinstance(block, str):
+                        text_parts.append(block)
+                if image_count > 0:
+                    text_parts.append(f"[此消息包含 {image_count} 张图片，当前模型不支持图片识别]")
+                    new_content = '\n'.join(text_parts) if text_parts else str(msg.content)
+                    full_messages[i] = HumanMessage(
+                        content=new_content,
+                        additional_kwargs=msg.additional_kwargs,
+                    )
+                    rebuilt_count += 1
+            continue
+        
+        # 有附件，根据模型能力重建消息内容
+        try:
+            from agent_service.attachment_handler import AttachmentHandler
+            
+            new_content = AttachmentHandler.rebuild_message_content_for_model(
+                original_content=msg.content,
+                attachment_ids=attachment_ids,
+                user=user,
+                supports_vision=current_supports_vision
+            )
+            
+            if new_content != msg.content:
+                full_messages[i] = HumanMessage(
+                    content=new_content,
+                    additional_kwargs=msg.additional_kwargs,
+                )
+                rebuilt_count += 1
+        except Exception as e:
+            logger.warning(f"[Agent] 重建消息内容失败: {e}")
+    
+    if rebuilt_count > 0:
+        mode = "多模态" if current_supports_vision else "纯文本"
+        logger.debug(f"[Agent] 动态重建: {rebuilt_count} 条消息已根据当前模型能力({mode})重建内容")
+    
     # 打印最终发送给 LLM 的消息
     logger.debug(f"[Agent] 发送给 LLM 的消息: {len(full_messages)} 条")
     
@@ -656,7 +742,7 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
             if input_tokens > 0 or output_tokens > 0:
                 # 成本由 update_token_usage 自动计算（基于 CNY）
                 update_token_usage(user, input_tokens, output_tokens, current_model_id)
-                logger.info(f"[Agent] Token 统计已更新: in={input_tokens}, out={output_tokens}, model={current_model_id}")
+                logger.debug(f"[Agent] Token 统计已更新: in={input_tokens}, out={output_tokens}, model={current_model_id}")
         except Exception as e:
             logger.error(f"[Agent] Token 统计失败: {e}", exc_info=True)
     
@@ -696,10 +782,11 @@ def create_tool_node_with_permission_check():
         
         # 获取当前启用的工具列表
         configurable = config.get("configurable", {})
-        active_tool_names = configurable.get("active_tools") or state.get('active_tools') or get_default_tools()
-        
-        logger.debug(f"[ToolNode] 权限检查:")
-        logger.debug(f"[ToolNode]   - active_tools: {active_tool_names}")
+        active_tool_names = (
+            configurable.get("active_tools") or 
+            state.get('active_tools') or 
+            []  # 默认为空列表，不启用任何工具
+        )
         
         if not hasattr(last_message, 'tool_calls') or not last_message.tool_calls:
             return {"messages": []}
@@ -897,7 +984,7 @@ def clear_session_checkpoints(thread_id: str) -> bool:
         conn.commit()
         conn.close()
         
-        logger.info(f"已清除会话 {thread_id} 的 {deleted_checkpoints} 个 checkpoint")
+        logger.debug(f"已清除会话 {thread_id} 的 {deleted_checkpoints} 个 checkpoint")
         return True
     except Exception as e:
         logger.exception(f"清除会话 checkpoint 失败: {e}")

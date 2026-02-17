@@ -266,9 +266,6 @@ def agent_node(state: QuickActionState) -> Dict:
         "output": prev_tokens.get('output', 0) + output_tokens
     }
     
-    logger.debug(f"[QuickAction] Agent iteration {state.get('iteration', 0) + 1}, "
-                 f"tokens: +{input_tokens}/{output_tokens}, total: {new_tokens}")
-    
     # 更新状态
     return {
         "messages": [response],
@@ -336,8 +333,6 @@ def tool_node_wrapper(state: QuickActionState) -> Dict:
             
             log_entry["result"] = result_str[:1000] if len(result_str) > 1000 else result_str
             log_entry["status"] = "success"
-            
-            logger.debug(f"[QuickAction] Tool {tool_name} success: {log_entry['result'][:200]}...")
             
         except Exception as e:
             logger.error(f"[QuickAction] Tool {tool_name} failed: {e}")

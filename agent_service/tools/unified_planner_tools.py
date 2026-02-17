@@ -1349,7 +1349,6 @@ def check_schedule_conflicts(
     if include_share_groups:
         try:
             share_groups = ShareGroupService.get_user_share_groups(user, force_refresh=True)
-            logger.info(f"[冲突检查] 找到 {len(share_groups)} 个分享组")
             
             for group in share_groups:
                 group_id = group.get('share_group_id')  # 修复：正确的键名
@@ -1364,8 +1363,6 @@ def check_schedule_conflicts(
                     user=user,
                     share_group_id=str(group_id)
                 )
-                
-                logger.info(f"[冲突检查] 分享组 {group_name}: 获取到 {len(shared_events)} 个日程, {len(members)} 个成员")
                 
                 # 创建成员ID到用户名的映射
                 member_map = {m['user_id']: m['username'] for m in members}
@@ -1396,11 +1393,8 @@ def check_schedule_conflicts(
                     event['_share_group_name'] = group_name
                     all_events.append(event)
                     added_count += 1
-                    logger.debug(f"添加分享组日程 #{event_index}: {event.get('title')} (来自 {group_name})")
                     event_index += 1
                 
-                logger.info(f"[冲突检查] 分享组 {group_name}: 添加 {added_count} 个, 跳过自己的 {skipped_own} 个, 跳过时间范围外 {skipped_range} 个")
-                    
         except Exception as e:
             logger.error(f"获取分享组日程失败: {e}")
     
@@ -1416,8 +1410,6 @@ def check_schedule_conflicts(
     # 统计日程数量
     user_event_count = sum(1 for e in all_events if e.get('_source') == 'user')
     others_event_count = sum(1 for e in all_events if e.get('_source') == 'share_group')
-    
-    logger.info(f"[冲突检查] 收集到 {len(all_events)} 个日程: {user_event_count} 个用户日程, {others_event_count} 个分享组日程")
     
     # 构建报告头部
     output_parts = []

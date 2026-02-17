@@ -28,7 +28,7 @@ from datetime import datetime
 # ==================== 配置区 ====================
 BASE_URL = "http://127.0.0.1:8000"
 USERNAME = "MoMoJee"  # 修改为你的用户名
-PASSWORD = "yzh11621@411314"  # 修改为你的密码
+PASSWORD = "xxxxxx"  # 修改为你的密码
 
 # ==================== 辅助函数 ====================
 

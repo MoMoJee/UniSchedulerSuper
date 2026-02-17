@@ -115,7 +115,6 @@ def web_search(
     
     try:
         # 使用默认参数执行搜索
-        logger.info(f"[Tavily] 简单搜索: {query}")
         results = client.search(
             query=query,
             search_depth="basic",
@@ -230,7 +229,6 @@ def web_search_advanced(
             search_params["exclude_domains"] = exclude_domains
         
         # 执行搜索
-        logger.info(f"[Tavily] 高级搜索: {query}, 参数: {search_params}")
         results = client.search(**search_params)
         
         return _format_search_results(results, max_results)

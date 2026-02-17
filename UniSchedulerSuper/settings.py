@@ -37,9 +37,7 @@ INSTALLED_APPS = [
     # 'daphne',  # Daphne ASGI server - 生产环境需要: pip install daphne
     'channels',  # Django Channels for WebSocket
     'core',
-    'ai_chatting',
     'agent_service', # New Agent Service App
-    'planner',
     'corsheaders',
     'rest_framework',
     'rest_framework.authtoken',
@@ -149,6 +147,15 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
     BASE_DIR / 'core' / 'static',        # 你的 core/static/js/...
 ]
+
+# Media 文件配置（用户上传的附件等）
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# 附件系统限制
+ATTACHMENT_MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

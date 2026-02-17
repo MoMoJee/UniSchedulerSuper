@@ -25,14 +25,14 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('core.urls')),
-    path('ai_chatting/', include('ai_chatting.urls')),
-    path('planner/', include('planner.urls')),
     path('api/agent/', include('agent_service.urls')),  # Agent Service API
 ]
 
 # 在开发环境和使用 daphne 时服务静态文件
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 else:
     # 在生产环境使用 daphne 时也需要服务静态文件（如果没有使用 Nginx）
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

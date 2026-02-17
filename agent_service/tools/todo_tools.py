@@ -66,7 +66,6 @@ def _save_snapshot_if_needed(session, checkpoint_id: Optional[str] = None):
     
     if not existing:
         SessionTodoSnapshot.create_snapshot(session, checkpoint_id)
-        logger.debug(f"[TODO] 已创建快照: {checkpoint_id}")
     
     return checkpoint_id
 
@@ -280,7 +279,7 @@ def rollback_todos(session_id: str, target_checkpoint: str) -> bool:
         
         if not snapshot:
             # 如果没有快照，说明该检查点时没有 TODO，清空列表
-            logger.info(f"[TODO Rollback] 未找到检查点 {target_checkpoint} 的快照，清空 TODO 列表")
+            logger.debug(f"[TODO Rollback] 未找到检查点 {target_checkpoint} 的快照，清空 TODO 列表")
             SessionTodoItem.objects.filter(session=session).delete()
             return True
         

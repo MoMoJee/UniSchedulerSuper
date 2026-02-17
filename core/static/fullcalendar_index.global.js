@@ -5023,7 +5023,7 @@ var FullCalendar = (function (exports) {
             else if (sourceInput != null) { // an ID. accepts a number too
                 let sourceApi = this.getEventSourceById(sourceInput); // TODO: use an internal function
                 if (!sourceApi) {
-                    console.warn(`Could not find an event source with ID "${sourceInput}"`); // TODO: test
+                    console.warn(`Could not find an event source with ID "${sourceInput}"`); // TODO: tests
                     return null;
                 }
                 eventSource = sourceApi.internalEventSource;
@@ -11173,7 +11173,7 @@ var FullCalendar = (function (exports) {
                     disableCursor();
                 }
                 if (!isFinal) {
-                    if (initialContext === receivingContext && // TODO: write test for this
+                    if (initialContext === receivingContext && // TODO: write tests for this
                         isHitsEqual(initialHit, hit)) {
                         mutation = null;
                     }
@@ -11353,7 +11353,7 @@ var FullCalendar = (function (exports) {
             this.mutatedRelevantEvents = null;
         }
     }
-    // TODO: test this in IE11
+    // TODO: tests this in IE11
     // QUESTION: why do we need it on the resizable???
     EventDragging.SELECTOR = '.fc-event-draggable, .fc-event-resizable';
     function computeEventMutation(hit0, hit1, eventInstanceStart, massagers) {
@@ -11921,7 +11921,7 @@ var FullCalendar = (function (exports) {
         constructor(containerOrSettings, settings) {
             let containerEl = document;
             if (
-            // wish we could just test instanceof EventTarget, but doesn't work in IE11
+            // wish we could just tests instanceof EventTarget, but doesn't work in IE11
             containerOrSettings === document ||
                 containerOrSettings instanceof Element) {
                 containerEl = containerOrSettings;

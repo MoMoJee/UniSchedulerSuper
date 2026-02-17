@@ -73,7 +73,7 @@ class ConversationSummarizer:
         self.max_tokens = int(context_window * target_usage_ratio)
         self.summary_budget = int(self.max_tokens * summary_token_ratio)
         
-        logger.info(
+        logger.debug(
             f"[总结器初始化] context_window={context_window}, "
             f"target_usage_ratio={target_usage_ratio}, summary_token_ratio={summary_token_ratio}, "
             f"max_tokens={self.max_tokens}, summary_budget={self.summary_budget}"
@@ -96,20 +96,15 @@ class ConversationSummarizer:
         """
         # 消息数量不足
         if len(messages) < self.min_messages_before_summary:
-            logger.debug(f"[总结] 消息数不足: {len(messages)} < {self.min_messages_before_summary}")
             return False
 
         # 计算总 token 数，如果还没超过目标上限，不触发
         total_tokens = sum(self.token_calculator.calculate_message(m) for m in messages)
         if total_tokens <= self.max_tokens:
-            logger.debug(
-                f"[总结] Token 数未超过目标: {total_tokens} <= {self.max_tokens}, 不触发总结"
-            )
             return False
-
+            
         # 首次总结：无历史总结时触发
         if summary_metadata is None:
-            logger.info(f"[总结] 首次总结触发: {len(messages)} 条消息, {total_tokens} tokens > {self.max_tokens}")
             return True
 
         # 增量总结：计算新消息 token 与历史总结 token 的比例
@@ -125,12 +120,6 @@ class ConversationSummarizer:
         ratio = new_tokens / summary_tokens
 
         should = ratio > self.summary_trigger_ratio
-
-        logger.info(
-            f"[总结] 检查触发: 新消息={len(new_messages)}条({new_tokens}t), "
-            f"历史总结={summary_tokens}t, 比例={ratio:.1%}, 阈值={self.summary_trigger_ratio:.1%}, "
-            f"触发={'是' if should else '否'}"
-        )
 
         return should
 
@@ -158,10 +147,7 @@ class ConversationSummarizer:
         
         # 如果总 token 数还没超过目标，不需要总结
         if total_tokens <= self.max_tokens:
-            logger.info(
-                f"[总结] 范围计算: 总消息={len(messages)}, 总tokens={total_tokens}, "
-                f"目标上限={self.max_tokens}, 无需总结"
-            )
+
             return 0, 0
         
         # 从后往前计算需要保留的消息
@@ -193,7 +179,6 @@ class ConversationSummarizer:
         # 这样可以避免 "Messages with role 'tool' must be a response to a preceding message with 'tool_calls'" 错误
         while end_index < len(messages) and isinstance(messages[end_index], ToolMessage):
             end_index += 1
-            logger.debug(f"[总结] 调整截断点以保持工具调用完整性: end_index -> {end_index}")
         
         # 如果调整后 end_index 指向的是 AIMessage 且有 tool_calls，也需要包含后续的 ToolMessage
         # 反向检查：如果 end_index-1 是带 tool_calls 的 AIMessage，需要把 ToolMessage 也包含进保留部分
@@ -202,12 +187,11 @@ class ConversationSummarizer:
             if isinstance(prev_msg, AIMessage) and hasattr(prev_msg, 'tool_calls') and prev_msg.tool_calls:
                 # 前一条是带 tool_calls 的 AI 消息，需要把这条和后续的 ToolMessage 都包含在保留部分
                 end_index -= 1
-                logger.debug(f"[总结] 调整截断点以包含完整工具调用: end_index -> {end_index}")
 
         # 开始位置：从头开始（如果有之前的总结，将其内容融入新总结）
         start_index = 0
 
-        logger.info(
+        logger.debug(
             f"[总结] 范围计算: 总消息={len(messages)}, 总tokens={total_tokens}, "
             f"需要总结=[0, {end_index}), 保留=[{end_index}, {len(messages)}), "
             f"保留消息={len(messages) - end_index}条, 目标保留={target_keep}t"
@@ -517,7 +501,7 @@ def build_optimized_context(
         summary_tokens = summary_metadata.get('summary_tokens', 0)
         recent_start_index = summary_metadata.get('summarized_until', 0)
 
-        logger.info(f"[上下文] 添加历史总结: {summary_tokens}t, 截止第 {recent_start_index} 条")
+        logger.debug(f"[上下文] 添加历史总结: {summary_tokens}t, 截止第 {recent_start_index} 条")
 
     # 3. 最近对话（从总结截止点之后开始，包含所有消息）
     recent_messages = list(messages[recent_start_index:])
@@ -552,7 +536,7 @@ def build_optimized_context(
         recent_messages = compressed_messages
         
         if compressed_count > 0 or preserved_count > 0:
-            logger.info(f"[上下文] 工具压缩: 压缩 {compressed_count} 条, 保留 {preserved_count} 条 (边界索引={compress_boundary})")
+            logger.debug(f"[上下文] 工具压缩: 压缩 {compressed_count} 条, 保留 {preserved_count} 条 (边界索引={compress_boundary})")
 
     optimized.extend(recent_messages)
 
@@ -561,7 +545,7 @@ def build_optimized_context(
 
     # 日志
     total_tokens = system_tokens + summary_tokens + recent_tokens
-    logger.info(
+    logger.debug(
         f"[上下文] 构建完成: "
         f"System={system_tokens}t, "
         f"Summary={summary_tokens}t, "

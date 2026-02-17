@@ -406,6 +406,8 @@ def get_system_models() -> Dict[str, Dict]:
             'model_name': config.get('model_name', ''),
             'context_window': config.get('context_window', 128000),
             'supports_tools': config.get('supports_tools', True),
+            'supports_vision': config.get('supports_vision', False),
+            'supports_multimodal': config.get('supports_multimodal', False),
             'cost_per_1k_input': config.get('cost_per_1k_input', 0),
             'cost_per_1k_output': config.get('cost_per_1k_output', 0),
             'cost_currency': config.get('cost_currency', 'CNY'),
@@ -532,11 +534,9 @@ def get_optimization_config(user) -> Dict:
         if opt_config_data:
             config = opt_config_data.get_value()
             merged = {**default_config, **config}
-            logger.debug(f"[优化配置] 用户配置: {config}")
-            logger.debug(f"[优化配置] 合并后: target_usage_ratio={merged.get('target_usage_ratio')}, summary_token_ratio={merged.get('summary_token_ratio')}")
             return merged
         else:
-            logger.info(f"[优化配置] 用户无自定义配置，使用默认值")
+            logger.debug(f"[优化配置] 用户无自定义配置，使用默认值")
     except Exception as e:
         logger.warning(f"Failed to get optimization config: {e}")
 
@@ -574,9 +574,7 @@ def _ensure_current_month(stats: Dict) -> Dict:
         stats['monthly_used'] = 0.0
         stats['models'] = {}
         stats['last_reset'] = datetime.now(timezone.utc).isoformat()
-        
-        logger.info(f"Token 统计已重置为新月份: {current_month}")
-    
+            
     return stats
 
 
@@ -606,21 +604,21 @@ def update_token_usage(user, input_tokens: int, output_tokens: int, model_id: st
         get_model_cost_config, is_system_model, calculate_cost
     )
     
-    logger.info(f"[Token统计] 开始更新: user={user.username}, model={model_id}, in={input_tokens}, out={output_tokens}")
+    logger.debug(f"[Token统计] 开始更新: user={user.username}, model={model_id}, in={input_tokens}, out={output_tokens}")
     
     try:
         # 使用 get_or_initialize 获取或创建统计记录
         mock_request = MockRequest(user)
         usage_data, created, result = UserData.get_or_initialize(mock_request, new_key='agent_token_usage')
         
-        logger.info(f"[Token统计] get_or_initialize 结果: usage_data={usage_data is not None}, created={created}, result={result}")
+        logger.debug(f"[Token统计] get_or_initialize 结果: usage_data={usage_data is not None}, created={created}, result={result}")
         
         if not usage_data:
             logger.error(f"[Token统计] 无法获取 agent_token_usage: {result}")
             return False
         
         stats = usage_data.get_value() if not created else {}
-        logger.info(f"[Token统计] 当前数据: {stats}")
+        logger.debug(f"[Token统计] 当前数据: {stats}")
         
         # 确保是当前月份（自动重置）
         stats = _ensure_current_month(stats)
@@ -630,7 +628,7 @@ def update_token_usage(user, input_tokens: int, output_tokens: int, model_id: st
             cost_config = get_model_cost_config(model_id)
             if cost_config:
                 cost = calculate_cost(input_tokens, output_tokens, cost_config)
-                logger.info(f"[Token统计] 计算成本: ¥{cost:.6f}")
+                logger.debug(f"[Token统计] 计算成本: ¥{cost:.6f}")
         
         # 更新模型统计
         models = stats.get('models', {})
@@ -648,12 +646,12 @@ def update_token_usage(user, input_tokens: int, output_tokens: int, model_id: st
         
         stats['last_updated'] = datetime.now(timezone.utc).isoformat()
         
-        logger.info(f"[Token统计] 更新后数据: {stats}")
+        logger.debug(f"[Token统计] 更新后数据: {stats}")
         
         # 保存
         usage_data.set_value(stats)
         
-        logger.info(
+        logger.debug(
             f"[Token统计] 已保存: user={user.username}, model={model_id}, "
             f"input={input_tokens}, output={output_tokens}, cost=¥{cost:.4f}"
         )

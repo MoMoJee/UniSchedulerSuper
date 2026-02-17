@@ -76,7 +76,6 @@ class UserDataStorageBackend:
         
         # 保存回UserData
         user_data.set_value(current_data)
-        logger.debug(f"Saved {len(segments_data)} segments for uid {uid}")
     
     def load_segments(self, uid: str) -> Optional[List[Dict[str, Any]]]:
         """从UserData加载规则段数据"""
@@ -96,10 +95,8 @@ class UserDataStorageBackend:
         uid_segments = [s for s in segments if s.get("uid") == uid]
         
         if uid_segments:
-            # logger.info(f"Loaded {len(uid_segments)} segments for uid {uid}")
             return uid_segments
         else:
-            # logger.info(f"No segments found for uid {uid}")
             return None
     
     def delete_segments(self, uid: str):
@@ -123,7 +120,6 @@ class UserDataStorageBackend:
         
         # 保存回UserData
         user_data.set_value(current_data)
-        # logger.info(f"Deleted {deleted_count} segments for uid {uid}")
     
     def save_exception(self, series_id: str, exception_date: str, exception_type: str, new_data: Optional[Dict] = None):
         """保存异常数据到UserData"""
@@ -161,11 +157,9 @@ class UserDataStorageBackend:
         if existing_exception is not None:
             # 更新现有异常
             exceptions[existing_exception] = exception_record
-            logger.debug(f"Updated exception for series {series_id} on {exception_date}")
         else:
             # 添加新异常
             exceptions.append(exception_record)
-            logger.debug(f"Added new exception for series {series_id} on {exception_date}")
         
         current_data["exceptions"] = exceptions
         
@@ -189,7 +183,6 @@ class UserDataStorageBackend:
         # 过滤出指定系列的异常
         series_exceptions = [exc for exc in exceptions if exc["series_id"] == series_id]
         
-        logger.info(f"Loaded {len(series_exceptions)} exceptions for series {series_id}")
         return series_exceptions
 
     def cleanup_orphaned_series(self, active_series_ids: set):
@@ -219,8 +212,6 @@ class UserDataStorageBackend:
         orphaned_series_ids = stored_series_ids - active_series_ids
         
         if orphaned_series_ids:
-            logger.debug(f"Found {len(orphaned_series_ids)} orphaned series: {orphaned_series_ids}")
-            
             # 删除孤儿系列的segments
             current_data["segments"] = [s for s in segments if s.get("uid") not in orphaned_series_ids]
             
@@ -235,12 +226,8 @@ class UserDataStorageBackend:
             deleted_segments = original_segment_count - len(current_data["segments"])
             deleted_exceptions = original_exception_count - len(current_data["exceptions"])
             
-            logger.debug(f"Cleaned up {len(orphaned_series_ids)} orphaned series, "
-                       f"deleted {deleted_segments} segments and {deleted_exceptions} exceptions")
-            
             return len(orphaned_series_ids)
         else:
-            logger.debug("No orphaned series found")
             return 0
 
 
@@ -274,8 +261,6 @@ class IntegratedReminderManager:
         处理用户的提醒数据，确保重复提醒有足够的实例
         这是核心函数，解决自动补回删除提醒的问题
         """
-        print(f"DEBUG: process_reminder_data called with {len(user_reminders)} reminders")
-        
         # 0. 首先清理孤儿系列（不再被任何提醒使用的系列）
         active_series_ids = set()
         for reminder in user_reminders:
@@ -287,32 +272,19 @@ class IntegratedReminderManager:
             # 清理孤儿系列
             if self.rrule_engine.storage and hasattr(self.rrule_engine.storage, 'cleanup_orphaned_series'):
                 cleaned_count = self.rrule_engine.storage.cleanup_orphaned_series(active_series_ids)
-                if cleaned_count > 0:
-                    logger.info(f"Cleaned up {cleaned_count} orphaned series from storage")
         
         # 1. 分析现有的重复提醒系列
         series_info = self._analyze_recurring_series(user_reminders)
-        print(f"DEBUG: Found {len(series_info)} recurring series")
         
         # 2. 检查每个系列是否需要补充实例
         updated_reminders = user_reminders.copy()
         
         for series_id, info in series_info.items():
-            print(f"DEBUG: Checking series {series_id}")
             if self._needs_more_instances(info):
-                print(f"DEBUG: Series {series_id} needs more instances, generating...")
                 # 生成新的实例
-                logger.debug(f"===开始生成序列的新实例，详情：{info}===")
                 new_instances = self._generate_instances_for_series(info)
-                logger.debug(f"===序列的新实例生成完成，详情：{info}===")
-                print(f"DEBUG: Generated {len(new_instances)} new instances for series {series_id}")
                 updated_reminders.extend(new_instances)
-                
-                logger.info(f"Generated {len(new_instances)} new instances for series {series_id}")
-            else:
-                print(f"DEBUG: Series {series_id} has enough instances")
         
-        print(f"DEBUG: Returning {len(updated_reminders)} total reminders")
         return updated_reminders
     
     def create_recurring_reminder(self, reminder_data: Dict[str, Any], rrule_str: str) -> Dict[str, Any]:
@@ -326,12 +298,10 @@ class IntegratedReminderManager:
         
         # 判断是否为复杂重复模式，需要查找下一个符合条件的时间点
         needs_next_occurrence = self._is_complex_rrule(rrule_str)
-        logger.info(f"RRule: {rrule_str}, is_complex: {needs_next_occurrence}, start_time: {start_time}")
         
         if needs_next_occurrence:
             # 对于复杂重复模式，查找从起始时间开始的下一个符合条件的时间点
             actual_start_time = self._find_next_occurrence(rrule_str, start_time)
-            logger.debug(f"Found next occurrence: {actual_start_time}")
             if actual_start_time:
                 # 使用找到的时间点，但保留原始时间的时分秒
                 actual_start_time = actual_start_time.replace(
@@ -340,7 +310,6 @@ class IntegratedReminderManager:
                     second=start_time.second,
                     microsecond=start_time.microsecond
                 )
-                logger.debug(f"Adjusted start time: {actual_start_time}")
             else:
                 # 如果找不到符合条件的时间点，使用原始时间
                 actual_start_time = start_time
@@ -348,7 +317,6 @@ class IntegratedReminderManager:
         else:
             # 对于简单重复模式，直接使用用户输入的时间
             actual_start_time = start_time
-            # logger.info(f"Simple repeat mode, using original time: {actual_start_time}")
         
         # 在 RRule 引擎中创建系列 - 只调用一次
         series_id = self.rrule_engine.create_series(rrule_str, actual_start_time)
@@ -372,7 +340,6 @@ class IntegratedReminderManager:
             'last_modified': datetime.now().isoformat()
         })
         
-        logger.info(f"Created recurring reminder with series_id: {series_id}")
         return reminder_data
     
     def _is_complex_rrule(self, rrule_str: str) -> bool:
@@ -436,7 +403,6 @@ class IntegratedReminderManager:
             try:
                 trigger_time = datetime.fromisoformat(trigger_time_str.replace('Z', '+00:00'))
                 self.rrule_engine.delete_instance(series_id, trigger_time)
-                logger.info(f"Added exception for deleted reminder at {trigger_time}")
             except Exception as e:
                 logger.warning(f"Failed to add exception for deleted reminder: {e}")
         
@@ -447,7 +413,6 @@ class IntegratedReminderManager:
         """
         删除此提醒及之后的所有提醒（使用UNTIL截断）
         """
-        logger.info(f"Delete reminder at {reminder_id}")
         updated_reminders = []
         target_reminder = None
         
@@ -467,7 +432,6 @@ class IntegratedReminderManager:
             
             # 在RRule引擎中截断系列
             self.rrule_engine.truncate_series_until(series_id, trigger_time)
-            logger.info(f"Truncated series {series_id} until {trigger_time}")
             
             # 更新数据库中的提醒数据
             for reminder in user_reminders:
@@ -495,7 +459,6 @@ class IntegratedReminderManager:
                                 new_until_str = until_time.strftime('%Y%m%dT%H%M%S')
                                 updated_rrule = re.sub(r'UNTIL=\d{8}T\d{6}', f'UNTIL={new_until_str}', current_rrule, flags=re.IGNORECASE)
                                 reminder['rrule'] = updated_rrule
-                                logger.info(f"Updated reminder {reminder.get('id', 'unknown')} RRule UNTIL to {new_until_str}")
                             else:
                                 # 如果没有UNTIL，添加新的截止时间
                                 until_time = trigger_time - timedelta(seconds=1)
@@ -504,7 +467,6 @@ class IntegratedReminderManager:
                                     reminder['rrule'] = f"{current_rrule};UNTIL={until_str}"
                                 else:
                                     reminder['rrule'] = f"{current_rrule};UNTIL={until_str}"
-                                logger.info(f"Added UNTIL={until_str} to reminder {reminder.get('id', 'unknown')} RRule")
                             
                             updated_reminders.append(reminder)
                         # 在截断时间之后的提醒都被删除（不添加到updated_reminders）
@@ -560,22 +522,17 @@ class IntegratedReminderManager:
                 'rrule': new_rrule,
                 'instances': []
             }
-            logger.debug(f"===开始生成序列的新实例，详情：{series_info}===")
             new_instances = self._generate_instances_for_series(series_info)
-            logger.debug(f"===序列的新实例生成完成，详情：{series_info}===")
             updated_reminders.extend(new_instances)
             
         elif scope == 'from_this':
             # 从指定日期开始修改 - 需要创建新的series
-            logger.info(f"Modifying series {series_id} from {from_date} with new rule: {new_rrule}")
-            logger.info(f"Additional updates: {additional_updates}")
             
             # 1. 截断原来的series到指定时间
             self.rrule_engine.truncate_series_until(series_id, from_date)
             
             # 2. 创建新的series用于修改后的规则
             new_series_id = self.rrule_engine.create_series(new_rrule, from_date)
-            logger.info(f"Created new series {new_series_id} for modified rule")
             
             # 3. 处理所有提醒
             for reminder in user_reminders:
@@ -597,18 +554,16 @@ class IntegratedReminderManager:
                                 import re
                                 updated_rrule = re.sub(r'UNTIL=\d{8}T\d{6}', f'UNTIL={until_str}', current_rrule, flags=re.IGNORECASE)
                                 reminder['rrule'] = updated_rrule
-                                logger.info(f"Updated reminder {reminder.get('id', 'unknown')} RRule UNTIL to {until_str}")
                             else:
                                 # 如果没有UNTIL，添加新的截止时间
                                 if ';' in current_rrule:
                                     reminder['rrule'] = f"{current_rrule};UNTIL={until_str}"
                                 else:
                                     reminder['rrule'] = f"{current_rrule};UNTIL={until_str}"
-                                logger.info(f"Added UNTIL={until_str} to reminder {reminder.get('id', 'unknown')} RRule")
                             
                             # 特殊处理主提醒
                             if reminder.get('is_main_reminder', False):
-                                logger.info(f"Updated original main reminder with UNTIL={until_str}")
+                                pass  # 主提醒已更新UNTIL
                             
                             reminder['last_modified'] = datetime.now().isoformat()
                             updated_reminders.append(reminder)
@@ -618,8 +573,7 @@ class IntegratedReminderManager:
                             is_first_modified = (reminder_time == from_date)
                             
                             if is_first_modified:
-                                # 这是第一个被修改的提醒，但需要检查是否符合新的RRule
-                                logger.info(f"Processing first modified reminder at {from_date}")
+                                # 这是第一个被修改的提醒
                                 
                                 # 检查指定的时间是否符合新的RRule
                                 should_keep_original_time = True
@@ -630,7 +584,6 @@ class IntegratedReminderManager:
                                     try:
                                         requested_time = datetime.fromisoformat(additional_updates['trigger_time'])
                                         actual_start_time = requested_time
-                                        logger.info(f"Using requested trigger_time {requested_time} as start time")
                                     except:
                                         logger.warning(f"Invalid trigger_time format, using from_date")
                                 
@@ -650,15 +603,13 @@ class IntegratedReminderManager:
                                             if actual_time_normalized != first_time_normalized:
                                                 should_keep_original_time = False
                                                 actual_start_time = first_occurrence
-                                                logger.info(f"Original time {actual_start_time} doesn't match RRule, using first occurrence: {first_occurrence}")
                                             else:
-                                                logger.info(f"Original time {actual_start_time} matches RRule first occurrence")
+                                                pass  # 时间匹配
                                         else:
                                             logger.warning(f"No occurrences found for RRule: {new_rrule}")
                                             # 如果没有找到符合的时间，但这是第一个被修改的提醒，
                                             # 我们仍然需要创建主提醒，使用原始时间
                                             should_keep_original_time = True
-                                            logger.info(f"Creating main reminder with original time despite RRule mismatch")
                                     else:
                                         logger.warning("dateutil not available, cannot validate RRule")
                                         
@@ -684,19 +635,15 @@ class IntegratedReminderManager:
                                     if not should_keep_original_time:
                                         filtered_updates['trigger_time'] = actual_start_time.strftime('%Y-%m-%dT%H:%M')
                                     update_data.update(filtered_updates)
-                                    logger.info(f"Applied additional updates to new main reminder: {filtered_updates}")
                                 
                                 reminder.update(update_data)
                                 # 移除instance相关字段
                                 reminder.pop('original_reminder_id', None)
-                                logger.info(f"Set reminder as new main reminder for series {new_series_id}")
-                                logger.info(f"New main reminder data: title='{reminder.get('title')}', priority='{reminder.get('priority')}', trigger_time='{reminder.get('trigger_time')}'")
                                 
                                 # 只有第一个被修改的提醒才被添加到结果中，成为新系列的主提醒
                                 updated_reminders.append(reminder)
                             else:
                                 # 其他受影响的提醒被删除，稍后重新生成
-                                logger.info(f"Removing future reminder at {reminder_time} for regeneration")
                                 # 注意：这里不添加到updated_reminders，即删除这个提醒
                                 continue
                             
@@ -769,9 +716,7 @@ class IntegratedReminderManager:
                 }
                 # 从from_date的下一个实例开始生成
                 next_start = from_date + timedelta(days=1)
-                logger.debug(f"===开始生成序列的新实例，详情：{series_info}，start_from={next_start}===")
                 new_instances = self._generate_instances_for_series(series_info, start_from=next_start)
-                logger.debug(f"===序列的新实例生成完成，详情：{series_info}，start_from={next_start}===")
                 # 额外的更新参数已经在主提醒中了，所以新实例会自动继承
                 # 但我们还是要确保一下，防止主提醒更新后才生成实例的时序问题
                 if additional_updates:
@@ -785,12 +730,11 @@ class IntegratedReminderManager:
                                 instance['last_modified'] = datetime.now().isoformat()
                 
                 updated_reminders.extend(new_instances)
-                logger.info(f"Generated {len(new_instances)} new instances for series {new_series_id}")
+                logger.debug(f"Generated {len(new_instances)} new instances for series {new_series_id}")
             else:
                 logger.warning(f"Could not find new main reminder for series {new_series_id}")
                 
                 # 创建一个新的主提醒作为备用
-                logger.info(f"Creating fallback main reminder for series {new_series_id}")
                 
                 # 确定起始时间
                 start_time = from_date
@@ -826,7 +770,6 @@ class IntegratedReminderManager:
                             fallback_main_reminder[key] = value
                 
                 updated_reminders.append(fallback_main_reminder)
-                logger.info(f"Created fallback main reminder with id {fallback_main_reminder['id']}")
                 
                 # 现在可以生成实例了
                 series_info = {
@@ -836,11 +779,9 @@ class IntegratedReminderManager:
                     'instances': []
                 }
                 next_start = start_time + timedelta(days=1)
-                logger.debug(f"===开始生成序列的新实例，详情：{series_info}===")
                 new_instances = self._generate_instances_for_series(series_info, start_from=next_start)
-                logger.debug(f"===序列的新实例生成完成，详情：{series_info}===")
                 updated_reminders.extend(new_instances)
-                logger.info(f"Generated {len(new_instances)} new instances for fallback series {new_series_id}")
+                logger.debug(f"Generated {len(new_instances)} new instances for fallback series {new_series_id}")
         
         # 同步更新RRule引擎中的原系列数据
         # 找到更新后的原系列主提醒，将其RRule同步到引擎
@@ -854,12 +795,10 @@ class IntegratedReminderManager:
         if original_main_updated:
             updated_rrule = original_main_updated.get('rrule', '')
             if updated_rrule:
-                logger.info(f"Syncing original series {series_id} RRule to engine: {updated_rrule}")
                 try:
                     # 使用 modify_rule_from_date 更新RRule引擎中的原系列
                     # 由于我们是从 from_date 开始修改的，传入 from_date 作为修改起点
                     self.rrule_engine.modify_rule_from_date(series_id, from_date, updated_rrule)
-                    logger.info(f"Successfully synced original series {series_id} RRule to engine")
                 except Exception as e:
                     logger.warning(f"Failed to sync original series RRule to engine: {e}")
         
@@ -920,14 +859,11 @@ class IntegratedReminderManager:
                             recent_exceptions += 1
                 
                 if total_exceptions > 0:
-                    print(f"DEBUG: Series {series_id} has {total_exceptions} total exceptions, {recent_exceptions} future exceptions")
-                    
                     # 如果有很多未来的删除，说明用户不想要这个系列继续
                     if recent_exceptions >= 3:  # 如果删除了3个或更多未来实例
-                        print(f"DEBUG: Series {series_id} has too many future deletions, stopping generation")
                         return False
         except Exception as e:
-            print(f"DEBUG: Error checking series status for {series_id}: {e}")
+            pass  # 忽略异常，继续检查
         
         now = datetime.now()
         future_instances = 0
@@ -971,7 +907,6 @@ class IntegratedReminderManager:
         series_id = series_info['series_id']
         
         if has_until:
-            print(f"DEBUG: Series {series_id} (with UNTIL) has {future_instances} future instances, latest is {days_ahead} days ahead")
             # 对于有截止时间的系列，检查是否还需要在截止时间之前生成更多实例
             # 解析UNTIL时间
             import re
@@ -990,11 +925,8 @@ class IntegratedReminderManager:
                     until_time = datetime.strptime(until_str, '%Y%m%dT%H%M%S')
                     days_until_end = (until_time - now).days
                     
-                    print(f"DEBUG: Series {series_id} ends in {days_until_end} days (until {until_time})")
-                    
                     # 如果截止时间已过，不需要生成更多
                     if until_time <= now:
-                        print(f"DEBUG: Series {series_id} has ended, no more instances needed")
                         return False
                     
                     # 检查这是否是一个被截断的系列（最新实例时间接近UNTIL时间）
@@ -1002,32 +934,25 @@ class IntegratedReminderManager:
                         time_to_until = (until_time - latest_instance_time).total_seconds()
                         # 如果最新实例距离UNTIL时间少于24小时，说明这是被截断的系列
                         if abs(time_to_until) < 86400:  # 24小时 = 86400秒
-                            print(f"DEBUG: Series {series_id} appears to be truncated (latest instance near UNTIL), no more instances needed")
                             return False
                     
                     # 如果还有时间但实例不足，需要生成更多
                     if future_instances < self.min_future_instances and days_until_end > 0:
-                        print(f"DEBUG: Series {series_id} (with UNTIL) needs more instances before end date")
                         return True
                     else:
-                        print(f"DEBUG: Series {series_id} (with UNTIL) has enough instances until end date")
                         return False
                         
                 except ValueError as e:
-                    print(f"DEBUG: Failed to parse UNTIL time {until_str}: {e}")
-                    # 如果解析失败，按无截止时间处理
+                    pass  # 如果解析失败，按无截止时间处理
                     pass
             
             # 如果有UNTIL但解析失败，保守地不生成更多实例
             return False
         else:
-            print(f"DEBUG: Series {series_id} (no UNTIL) has {future_instances} future instances, latest is {days_ahead} days ahead")
             # 检查是否需要更多实例（没有截止时间的系列）
             if future_instances < self.min_future_instances:
-                print(f"DEBUG: Series {series_id} (no UNTIL) needs new instances, latest is {days_ahead} days ahead")
                 return True
             else:
-                print(f"DEBUG: Series {series_id} (no UNTIL) is good, latest is {days_ahead} days ahead")
                 return False
     
     def _generate_instances_for_series(self, series_info: Dict[str, Any], 
@@ -1088,10 +1013,6 @@ class IntegratedReminderManager:
             series_id, start_from, end_date, estimated_instances
         )
         
-        logger.debug(f"Generated {len(instance_times)} instance times for series {series_id}. {series_info=}")
-        for i, dt in enumerate(instance_times[:5]):  # 只打印前5个
-            print(f"  {i+1}. {dt.strftime('%Y-%m-%d %H:%M')}")
-        
         # 创建实例数据
         new_instances = []
         existing_times = set()
@@ -1133,14 +1054,12 @@ class IntegratedReminderManager:
                         until_str = until_str[:13] + '00'  # 只取到分钟，秒数设为00
                     
                     until_time = datetime.strptime(until_str, '%Y%m%dT%H%M%S')
-                    logger.debug(f"Parsed UNTIL time for series {series_id}: {until_time}")
                 except Exception as e:
                     logger.warning(f"Failed to parse UNTIL time {until_str}: {e}")
         
         for instance_time in instance_times:
             # 检查是否超出UNTIL限制
             if until_time and instance_time > until_time:
-                logger.debug(f"Skipping instance {instance_time} as it exceeds UNTIL {until_time}")
                 continue
                 
             if instance_time not in existing_times:

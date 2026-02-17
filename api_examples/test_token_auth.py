@@ -9,7 +9,7 @@ import json
 # 配置
 BASE_URL = "http://localhost:8000"  # 修改为你的服务器地址
 USERNAME = "MoMoJee"  # 修改为你的用户名
-PASSWORD = "yzh11621@411314"  # 修改为你的密码
+PASSWORD = "xxxxxx"  # 修改为你的密码
 
 class Colors:
     """终端颜色"""

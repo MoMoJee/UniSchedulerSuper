@@ -37,7 +37,7 @@ class CacheManager:
             session = AgentSession.objects.filter(session_id=session_id).first()
             if session:
                 deleted_count, _ = SearchResultCache.objects.filter(session=session).delete()
-                logger.info(f"[Cache] 已清除会话 {session_id} 的 {deleted_count} 条搜索缓存")
+                logger.debug(f"[Cache] 已清除会话 {session_id} 的 {deleted_count} 条搜索缓存")
                 return deleted_count
             else:
                 logger.warning(f"[Cache] 未找到会话 {session_id}")
@@ -172,7 +172,6 @@ class CacheManager:
                 'item_to_index': item_to_index
             }
             
-            logger.info(f"[Cache] 智能缓存: 复用 {reused_count} 个编号, 新增 {new_count} 个, 总计 {len(cache.index_mapping)} 个")
             return True, stats
             
         except Exception as e:

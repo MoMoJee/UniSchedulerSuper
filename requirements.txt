@@ -5,14 +5,15 @@ django-cors-headers>=4.6.0
 djangorestframework>=3.14.0
 django-reversion
 
-openai==1.75.0
+openai
 
 anthropic>=0.36.0
 langchain-openai
-langgraph
-langchain-anthropic>=0.2.0
+
+langchain-anthropic
 langgraph-checkpoint-sqlite
 langchain-mcp-adapters
+langgraph==1.0.4
 
 # 联网搜索服务
 tavily-python
@@ -27,3 +28,8 @@ cryptography>=41.0.0
 concurrent_log_handler
 daphne
 channels
+
+# 附件系统 - OCR & 图片处理
+Pillow
+pytesseract  # 需要系统安装 Tesseract-OCR
+easyocr  # 可选，约 1GB，更高精度的 OCR

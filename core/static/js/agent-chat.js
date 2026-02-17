@@ -62,7 +62,15 @@ class AgentChat {
         this.attachmentPanelTitle = document.getElementById('attachmentPanelTitle');
         this.selectedAttachmentsContainer = document.getElementById('selectedAttachments');
         this.closeAttachmentPanelBtn = document.getElementById('closeAttachmentPanel');
-        this.selectedAttachments = [];  // 已选择的附件列表（单选，最多一个）
+        // 文件上传元素
+        this.attachmentUploadZone = document.getElementById('attachmentUploadZone');
+        this.attachmentUploadBackBtn = document.getElementById('attachmentUploadBackBtn');
+        this.uploadDropzone = document.getElementById('uploadDropzone');
+        this.fileUploadInput = document.getElementById('fileUploadInput');
+        this.uploadProgress = document.getElementById('uploadProgress');
+        this.uploadProgressText = document.getElementById('uploadProgressText');
+        // 附件状态（多选）
+        this.selectedAttachments = [];  // [{type, id, name, sa_id?}] 支持多个
         this.attachmentPanelVisible = false;
         this.currentAttachmentType = null;  // 当前选择的附件类型
         
@@ -389,6 +397,82 @@ class AgentChat {
             });
         }
         
+        // 文件上传区返回按钮
+        if (this.attachmentUploadBackBtn) {
+            this.attachmentUploadBackBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.showAttachmentTypeList();
+            });
+        }
+        
+        // 文件上传 - 点击选择
+        if (this.uploadDropzone) {
+            this.uploadDropzone.addEventListener('click', () => {
+                if (this.fileUploadInput) this.fileUploadInput.click();
+            });
+            // 拖拽支持
+            this.uploadDropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                this.uploadDropzone.classList.add('dragover');
+            });
+            this.uploadDropzone.addEventListener('dragleave', () => {
+                this.uploadDropzone.classList.remove('dragover');
+            });
+            this.uploadDropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                this.uploadDropzone.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) this.handleFileUpload(files[0]);
+            });
+        }
+        if (this.fileUploadInput) {
+            this.fileUploadInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    this.handleFileUpload(e.target.files[0]);
+                    e.target.value = ''; // 允许重复选择同一文件
+                }
+            });
+        }
+        
+        // 全局文件拖拽支持 - 整个 Agent 面板区域
+        const agentPanelEl = document.querySelector('.agent-panel-content');
+        if (agentPanelEl) {
+            let dragCounter = 0;
+            agentPanelEl.addEventListener('dragenter', (e) => {
+                // 只处理文件拖拽（不处理内部元素拖拽如 FullCalendar）
+                if (!e.dataTransfer || !e.dataTransfer.types.includes('Files')) return;
+                e.preventDefault();
+                dragCounter++;
+                if (dragCounter === 1) {
+                    agentPanelEl.classList.add('file-drag-over');
+                }
+            });
+            agentPanelEl.addEventListener('dragover', (e) => {
+                if (!e.dataTransfer || !e.dataTransfer.types.includes('Files')) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+            });
+            agentPanelEl.addEventListener('dragleave', (e) => {
+                if (!e.dataTransfer || !e.dataTransfer.types.includes('Files')) return;
+                dragCounter--;
+                if (dragCounter <= 0) {
+                    dragCounter = 0;
+                    agentPanelEl.classList.remove('file-drag-over');
+                }
+            });
+            agentPanelEl.addEventListener('drop', (e) => {
+                if (!e.dataTransfer || !e.dataTransfer.types.includes('Files')) return;
+                e.preventDefault();
+                e.stopPropagation();
+                dragCounter = 0;
+                agentPanelEl.classList.remove('file-drag-over');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    this.handleFileUpload(files[0]);
+                }
+            });
+        }
+
         // 附件类型选择
         this.bindAttachmentTypeEvents();
         
@@ -453,9 +537,8 @@ class AgentChat {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         // 构建 WebSocket URL，包含 session_id 和 active_tools
         let wsUrl = `${protocol}//${window.location.host}/ws/agent/?session_id=${this.sessionId}`;
-        if (this.activeTools.length > 0) {
-            wsUrl += `&active_tools=${encodeURIComponent(this.activeTools.join(','))}`;
-        }
+        // 始终传递 active_tools 参数，即使为空（空字符串表示不启用任何工具）
+        wsUrl += `&active_tools=${encodeURIComponent(this.activeTools.join(','))}`;
         
         console.log('🔌 WebSocket 连接:');
         console.log('   - URL:', wsUrl);
@@ -867,12 +950,23 @@ class AgentChat {
         if (welcome) welcome.style.display = 'none';
         
         // 获取附件内容（如果有）
-        let fullMessage = message;
+        let attachmentIds = [];
+        let attachmentsList = [];  // 用于前端显示磁贴
         if (this.selectedAttachments.length > 0) {
-            const attachmentContent = await this.getFormattedAttachmentContent();
-            if (attachmentContent) {
-                fullMessage = `${attachmentContent}\n\n${message}`;
-            }
+            const attachmentResult = await this.getFormattedAttachmentContent();
+            attachmentIds = attachmentResult.sa_ids || [];
+            // 保存附件列表供前端渲染磁贴
+            attachmentsList = this.selectedAttachments.map(att => ({
+                sa_id: att.sa_id,
+                type: att.type,
+                id: att.id || att.internal_id,
+                name: att.name,
+                filename: att.filename || att.name,
+                thumbnail_url: att.thumbnail_url,
+                file_url: att.file_url || (att._full_data && att._full_data.file_url),
+                mime_type: att.mime_type,
+                internal_type: att.internal_type
+            }));
             // 清空已选附件
             this.clearSelectedAttachments();
         }
@@ -880,8 +974,8 @@ class AgentChat {
         // 添加用户消息（带消息索引 - 这是后端 LangGraph 中的索引）
         // messageCount 在发送前表示后端消息列表的当前长度，也就是新消息的索引
         const currentIndex = this.messageCount;
-        // 显示给用户的是原始消息，但发送的包含附件
-        this.addMessage(message, 'user', {}, currentIndex);
+        // 显示纯用户文本 + 附件磁贴，前端立即渲染
+        this.addMessage(message, 'user', {attachments: attachmentsList}, currentIndex);
         // 注意: 不在这里增加 messageCount，等 'finished' 事件从服务器同步
         // 但为了回滚功能，需要临时增加1表示用户消息已发送
         this.messageCount += 1;
@@ -899,11 +993,15 @@ class AgentChat {
         // 显示打字指示器
         this.showTyping();
         
-        // 发送到 WebSocket
-        this.socket.send(JSON.stringify({
+        // 发送到 WebSocket（包含 attachment_ids 用于多模态消息）
+        const wsPayload = {
             type: 'message',
-            content: fullMessage
-        }));
+            content: message  // 只发送纯用户文本，附件上下文由后端从 SessionAttachment 重新构建
+        };
+        if (attachmentIds.length > 0) {
+            wsPayload.attachment_ids = attachmentIds;
+        }
+        this.socket.send(JSON.stringify(wsPayload));
         
         // 更新会话最后消息预览
         this.updateSessionPreview(message);
@@ -968,6 +1066,11 @@ class AgentChat {
             messageDiv.dataset.messageIndex = messageIndex;
         }
         
+        // 存储附件数据（用于回滚恢复）
+        if (metadata.attachments && metadata.attachments.length > 0) {
+            messageDiv.dataset.attachments = JSON.stringify(metadata.attachments);
+        }
+        
         const avatar = type === 'user' ? 'user' : (type === 'error' ? 'exclamation-triangle' : 'robot');
         const avatarClass = type === 'error' ? 'error-avatar' : '';
         
@@ -992,12 +1095,16 @@ class AgentChat {
             `;
         }
         
+        // 渲染附件磁贴（如果有）
+        const attachmentsHtml = metadata.attachments ? this.renderAttachmentTiles(metadata.attachments) : '';
+        
         messageDiv.innerHTML = `
             <div class="message-avatar ${avatarClass}">
                 <i class="fas fa-${avatar}"></i>
             </div>
             <div class="message-body">
-                <div class="message-content">${this.formatContent(content)}</div>
+                <div class="message-content">${this.formatContent(content, metadata.attachments && metadata.attachments.length > 0)}</div>
+                ${attachmentsHtml}
                 ${metadataHtml ? `<div class="message-meta">${metadataHtml}</div>` : ''}
                 ${rollbackInfo}
             </div>
@@ -1013,12 +1120,101 @@ class AgentChat {
     }
 
     /**
+     * 构建包含附件的显示内容（多模态格式）
+     * 用于发送时立即显示，格式与后端返回的一致
+     */
+    buildDisplayContentWithAttachments(message, attachments) {
+        const imageAtts = attachments.filter(a => a.type === 'image' && a.thumbnail_url);
+        
+        if (imageAtts.length === 0) {
+            // 无图片附件，返回纯文本
+            return message;
+        }
+        
+        // 构建多模态数组（与后端格式一致）
+        const content = [];
+        
+        // 添加文本块
+        if (message && message.trim()) {
+            content.push({
+                type: 'text',
+                text: message
+            });
+        }
+        
+        // 添加图片块（使用缩略图 URL）
+        imageAtts.forEach(att => {
+            content.push({
+                type: 'image_url',
+                image_url: {
+                    url: att.thumbnail_url,
+                    detail: 'auto'
+                }
+            });
+        });
+        
+        return content;
+    }
+
+    /**
+     * 从多模态 content（array）中提取纯文本部分
+     */
+    extractTextFromContent(content) {
+        if (!content) return '';
+        if (typeof content === 'string') return content;
+        if (Array.isArray(content)) {
+            return content
+                .filter(b => b && b.type === 'text')
+                .map(b => b.text || '')
+                .join('\n');
+        }
+        return String(content);
+    }
+
+    /**
+     * 从多模态 content（array）中提取图片 URL 列表
+     */
+    extractImagesFromContent(content) {
+        if (!Array.isArray(content)) return [];
+        return content
+            .filter(b => b && b.type === 'image_url' && b.image_url)
+            .map(b => b.image_url.url || '');
+    }
+
+    /**
      * 格式化消息内容（完整 Markdown 解析）
      * 支持：标题、列表、表格、代码块、行内代码、粗体、斜体、链接、引用、分隔线、脚注、数学公式等
+     * 支持：多模态消息中的图片内联预览
+     * @param {string|Array} content - 消息内容（string 或多模态 array）
+     * @param {boolean} skipImages - 如果为 true，则不从多模态 content 中提取图片（避免与 attachments tiles 重复）
      */
-    formatContent(content) {
+    formatContent(content, skipImages = false) {
         if (!content) return '';
-        
+
+        // 多模态消息处理（content 为 array）
+        let imageHtml = '';
+        if (Array.isArray(content)) {
+            if (!skipImages) {
+                const images = this.extractImagesFromContent(content);
+                if (images.length > 0) {
+                    imageHtml = '<div class="message-images">' +
+                        images.map(url =>
+                            `<div class="message-image-wrapper">` +
+                            `<img src="${this.escapeHtml(url)}" class="message-image" ` +
+                            `alt="附件图片" loading="lazy" ` +
+                            `onclick="agentChat.showImagePreview(this.src)" />` +
+                            `</div>`
+                        ).join('') + '</div>';
+                }
+            }
+            // 无论是否跳过图片，都需要将数组转换为纯文本
+            content = this.extractTextFromContent(content);
+        }
+
+        if (typeof content !== 'string') {
+            content = String(content);
+        }
+
         let html = content;
         const footnotes = {}; // 存储脚注
         
@@ -1167,9 +1363,157 @@ class AgentChat {
             }
         }, 100);
         
+        // 24. 附加多模态图片预览
+        if (imageHtml) {
+            html = imageHtml + html;
+        }
+        
         return html;
     }
     
+    /**
+     * 渲染附件磁贴
+     * @param {Array} attachments - 附件列表
+     * @returns {string} HTML 字符串
+     */
+    renderAttachmentTiles(attachments) {
+        if (!attachments || attachments.length === 0) {
+            return '';
+        }
+        
+        // 内部元素类型集合
+        const internalTypes = ['event', 'todo', 'reminder', 'workflow'];
+        
+        const tiles = attachments.map(att => {
+            // 统一获取内部类型：
+            // - 后端 history 返回: type='internal', internal_type='event'/'todo'/..., internal_id=123
+            // - 前端发送时: type='event'/'todo'/... (直接就是元素类型), id=123
+            const isInternal = att.type === 'internal' || internalTypes.includes(att.type);
+            const elementType = att.internal_type || (internalTypes.includes(att.type) ? att.type : null);
+            const elementId = att.internal_id || att.id;
+            
+            // 图片类型：显示缩略图
+            if (att.type === 'image') {
+                const thumbUrl = att.thumbnail_url;
+                if (!thumbUrl) {
+                    // 没有缩略图 URL（不使用 filename 作为 img src，避免 404）
+                    return `
+                        <div class="attachment-tile attachment-tile-file" data-sa-id="${att.sa_id || ''}">
+                            <div class="attachment-tile-icon" style="color: #17a2b8;">
+                                <i class="fas fa-image"></i>
+                            </div>
+                            <div class="attachment-tile-name">${att.filename || '图片'}</div>
+                        </div>
+                    `;
+                }
+                const previewUrl = att.file_url || thumbUrl;
+                return `
+                    <div class="attachment-tile attachment-tile-image" data-sa-id="${att.sa_id || ''}">
+                        <img src="${this.escapeHtml(thumbUrl)}" alt="${att.filename || '图片'}" 
+                             class="attachment-thumbnail" 
+                             data-preview-url="${this.escapeHtml(previewUrl)}"
+                             onclick="agentChat.showImagePreview(this.dataset.previewUrl)" />
+                        <div class="attachment-tile-name">${att.filename || '图片'}</div>
+                    </div>
+                `;
+            }
+            
+            // 内部元素类型：显示图标+名称
+            if (isInternal && elementType) {
+                let icon = 'file';
+                let color = '#6c757d';
+                
+                switch (elementType) {
+                    case 'event':
+                        icon = 'calendar-alt';
+                        color = '#007bff';
+                        break;
+                    case 'todo':
+                        icon = 'tasks';
+                        color = '#28a745';
+                        break;
+                    case 'reminder':
+                        icon = 'bell';
+                        color = '#ffc107';
+                        break;
+                    case 'workflow':
+                        icon = 'project-diagram';
+                        color = '#6f42c1';
+                        break;
+                }
+                
+                return `
+                    <div class="attachment-tile attachment-tile-internal" 
+                         data-sa-id="${att.sa_id || ''}" 
+                         data-internal-type="${elementType}" 
+                         data-internal-id="${this.escapeHtml(String(elementId))}">
+                        <div class="attachment-tile-icon" style="color: ${color};">
+                            <i class="fas fa-${icon}"></i>
+                        </div>
+                        <div class="attachment-tile-name">${att.name || att.filename || '未命名'}</div>
+                    </div>
+                `;
+            }
+            
+            // 其他文件类型：根据类型显示不同图标
+            const fileIcons = {
+                'pdf': { icon: 'file-pdf', color: '#dc3545' },
+                'word': { icon: 'file-word', color: '#2b579a' },
+                'excel': { icon: 'file-excel', color: '#217346' },
+            };
+            const fileInfo = fileIcons[att.type] || { icon: 'file', color: '#6c757d' };
+            
+            return `
+                <div class="attachment-tile attachment-tile-file" data-sa-id="${att.sa_id || ''}">
+                    <div class="attachment-tile-icon" style="color: ${fileInfo.color};">
+                        <i class="fas fa-${fileInfo.icon}"></i>
+                    </div>
+                    <div class="attachment-tile-name">${att.filename || att.name || '文件'}</div>
+                </div>
+            `;
+        }).join('');
+        
+        const html = `<div class="message-attachment-tiles">${tiles}</div>`;
+        
+        // 使用 setTimeout 确保 DOM 已渲染后绑定事件委托
+        setTimeout(() => {
+            document.querySelectorAll('.attachment-tile-internal').forEach(tile => {
+                if (tile.dataset._bound) return;
+                tile.dataset._bound = '1';
+                tile.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const type = tile.dataset.internalType;
+                    const id = tile.dataset.internalId;
+                    this.previewAttachment(type, id);
+                });
+            });
+        }, 0);
+        
+        return html;
+    }
+    
+    /**
+     * 全屏预览图片
+     */
+    showImagePreview(src) {
+        const overlay = document.createElement('div');
+        overlay.className = 'image-preview-overlay';
+        overlay.innerHTML = `
+            <div class="image-preview-container">
+                <img src="${src}" class="image-preview-full" alt="图片预览" />
+                <button class="image-preview-close" title="关闭">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay || e.target.closest('.image-preview-close')) {
+                overlay.remove();
+            }
+        });
+        document.body.appendChild(overlay);
+    }
+
     /**
      * HTML 转义辅助函数
      */
@@ -1813,15 +2157,28 @@ class AgentChat {
                             summaryDividerInserted = true;
                         }
                         
+                        // 检查消息是否有有效内容（兼容多模态 array 和普通 string）
+                        const hasContent = (c) => {
+                            if (!c) return false;
+                            if (typeof c === 'string') return c.trim().length > 0;
+                            if (Array.isArray(c)) return c.length > 0;
+                            return true;
+                        };
+                        
                         if (msg.role === 'user') {
                             // 用户消息
-                            if (msg.content && msg.content.trim()) {
-                                this.addMessage(msg.content, 'user', {}, index);
+                            if (hasContent(msg.content)) {
+                                const metadata = {};
+                                // 如果消息包含附件列表，传递给 addMessage 渲染磁贴
+                                if (msg.attachments && msg.attachments.length > 0) {
+                                    metadata.attachments = msg.attachments;
+                                }
+                                this.addMessage(msg.content, 'user', metadata, index);
                             }
                         } else if (msg.role === 'assistant') {
                             // AI消息
                             // 第一步：显示AI的思考内容（如果有）
-                            if (msg.content && msg.content.trim()) {
+                            if (hasContent(msg.content)) {
                                 this.addMessage(msg.content, 'agent', {}, index);
                             }
                             
@@ -1833,7 +2190,7 @@ class AgentChat {
                             }
                         } else if (msg.role === 'tool') {
                             // 工具执行结果
-                            if (msg.content && msg.content.trim()) {
+                            if (hasContent(msg.content)) {
                                 this.showToolResultFromHistory(msg.content, msg.name);
                             }
                         }
@@ -2394,6 +2751,10 @@ class AgentChat {
     renderToolPanel() {
         if (!this.toolSelectPanel) return;
         
+        // 保存当前滚动位置（如果面板已存在）
+        const existingBody = this.toolSelectPanel.querySelector('.tool-panel-body');
+        const scrollTop = existingBody ? existingBody.scrollTop : 0;
+        
         let html = `
             <div class="tool-panel-header">
                 <span class="fw-bold"><i class="fas fa-tools me-2"></i>选择工具</span>
@@ -2464,6 +2825,17 @@ class AgentChat {
                 checkbox.indeterminate = true;
             }
         });
+        
+        // 恢复滚动位置
+        if (scrollTop > 0) {
+            const newBody = this.toolSelectPanel.querySelector('.tool-panel-body');
+            if (newBody) {
+                // 使用 setTimeout 确保 DOM 渲染完成后再恢复滚动
+                setTimeout(() => {
+                    newBody.scrollTop = scrollTop;
+                }, 0);
+            }
+        }
     }
 
     /**
@@ -2483,7 +2855,7 @@ class AgentChat {
             }
         });
         
-        // 更新UI
+        // 更新UI（滚动位置会在 renderToolPanel 内部自动保持）
         this.renderToolPanel();
     }
 
@@ -2569,6 +2941,197 @@ class AgentChat {
     }
 
     // ==========================================
+    // 附件详情 Modal
+    // ==========================================
+
+    /**
+     * 显示日程详情 Modal
+     * @param {string|number} eventId - 日程 ID
+     */
+    showEventDetailModal(eventId) {
+        try {
+            if (!window.eventManager) {
+                this.showNotification('日程管理器未初始化', 'error');
+                return;
+            }
+            
+            // 从 eventManager 缓存中查找
+            const event = window.eventManager.events?.find(
+                e => String(e.id) === String(eventId)
+            );
+            
+            if (!event) {
+                this.showNotification('日程不存在或已被删除', 'warning');
+                return;
+            }
+            
+            // 转换为 openEventDetailModal 期望的格式
+            const eventInfo = {
+                id: event.id,
+                title: event.title,
+                start: event.start,
+                end: event.end,
+                allDay: event.allDay,
+                extendedProps: {
+                    location: event.location,
+                    description: event.description,
+                    color: event.color,
+                    series_id: event.series_id,
+                    rec_type: event.rec_type
+                }
+            };
+            
+            window.eventManager.openEventDetailModal(eventInfo);
+        } catch (error) {
+            console.error('打开日程详情失败:', error);
+            this.showNotification('打开日程详情失败', 'error');
+        }
+    }
+
+    /**
+     * 显示待办详情 Modal
+     * @param {string|number} todoId - 待办 ID
+     */
+    showTodoDetailModal(todoId) {
+        try {
+            if (!window.todoManager) {
+                this.showNotification('待办管理器未初始化', 'error');
+                return;
+            }
+            
+            const todo = window.todoManager.todos?.find(
+                t => String(t.id) === String(todoId)
+            );
+            
+            if (!todo) {
+                this.showNotification('待办不存在或已被删除', 'warning');
+                return;
+            }
+            
+            window.todoManager.openTodoDetailModal(todo);
+        } catch (error) {
+            console.error('打开待办详情失败:', error);
+            this.showNotification('打开待办详情失败', 'error');
+        }
+    }
+
+    /**
+     * 显示提醒详情 Modal
+     * @param {string|number} reminderId - 提醒 ID
+     */
+    showReminderDetailModal(reminderId) {
+        try {
+            if (!window.reminderManager) {
+                this.showNotification('提醒管理器未初始化', 'error');
+                return;
+            }
+            
+            const reminder = window.reminderManager.reminders?.find(
+                r => String(r.id) === String(reminderId)
+            );
+            
+            if (!reminder) {
+                this.showNotification('提醒不存在或已被删除', 'warning');
+                return;
+            }
+            
+            window.reminderManager.openReminderDetailModal(reminder);
+        } catch (error) {
+            console.error('打开提醒详情失败:', error);
+            this.showNotification('打开提醒详情失败', 'error');
+        }
+    }
+
+    /**
+     * 显示工作流详情 Modal
+     * @param {string|number} workflowId - 工作流 ID
+     */
+    async showWorkflowDetailModal(workflowId) {
+        try {
+            // 从列表接口获取所有工作流，再按 ID 过滤
+            const response = await fetch('/api/agent/memory/workflow-rules/', {
+                headers: {
+                    'X-CSRFToken': this.csrfToken
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('获取工作流列表失败');
+            }
+            
+            const data = await response.json();
+            const workflow = (data.items || []).find(
+                w => String(w.id) === String(workflowId)
+            );
+            
+            if (!workflow) {
+                this.showNotification('工作流不存在或已被删除', 'warning');
+                return;
+            }
+            
+            // 构建工作流详情 HTML
+            const modalHtml = `
+                <div class="modal fade" id="workflowDetailModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-project-diagram me-2" style="color: #6f42c1;"></i>工作流详情
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <strong>名称：</strong>${this.escapeHtml(workflow.name)}
+                                </div>
+                                <div class="mb-3">
+                                    <strong>状态：</strong>
+                                    <span class="badge ${workflow.is_active ? 'bg-success' : 'bg-secondary'}">
+                                        ${workflow.is_active ? '启用' : '禁用'}
+                                    </span>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>触发条件：</strong>
+                                    <div class="mt-1 p-2 bg-light rounded" style="white-space: pre-wrap;">${this.escapeHtml(workflow.trigger || '无')}</div>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>执行步骤：</strong>
+                                    <div class="mt-1 p-2 bg-light rounded" style="white-space: pre-wrap;">${this.escapeHtml(workflow.steps || '无')}</div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 移除已存在的 modal
+            const existingModal = document.getElementById('workflowDetailModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // 添加新 modal
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // 显示 modal
+            const modal = new bootstrap.Modal(document.getElementById('workflowDetailModal'));
+            modal.show();
+            
+            // 监听关闭事件，移除 DOM
+            document.getElementById('workflowDetailModal').addEventListener('hidden.bs.modal', function() {
+                this.remove();
+            });
+            
+        } catch (error) {
+            console.error('打开工作流详情失败:', error);
+            this.showNotification('打开工作流详情失败', 'error');
+        }
+    }
+
+    // ==========================================
     // 回滚功能
     // ==========================================
 
@@ -2579,14 +3142,24 @@ class AgentChat {
         const messageDiv = buttonElement.closest('.agent-message');
         const content = messageDiv.querySelector('.message-content').textContent;
         
+        // 提取消息中的附件数据（用于回滚后恢复到待发送栏）
+        let attachments = [];
+        if (messageDiv.dataset.attachments) {
+            try {
+                attachments = JSON.parse(messageDiv.dataset.attachments);
+            } catch (e) {
+                console.warn('解析附件数据失败:', e);
+            }
+        }
+        
         // 直接执行回滚
-        this.rollbackToMessage(messageIndex, content);
+        this.rollbackToMessage(messageIndex, content, attachments);
     }
 
     /**
      * 回滚到指定消息
      */
-    async rollbackToMessage(messageIndex, messageContent) {
+    async rollbackToMessage(messageIndex, messageContent, attachments = []) {
         try {
             this.showNotification('正在回滚...', 'info');
             
@@ -2664,6 +3237,35 @@ class AgentChat {
                     this.inputField.value = messageContent;
                     this.updateSendButton();
                     this.inputField.focus();
+                }
+                
+                // 恢复附件到待发送栏
+                if (attachments && attachments.length > 0) {
+                    // 将附件数据转换为 selectedAttachments 格式
+                    this.selectedAttachments = attachments.map(att => {
+                        const internalTypes = ['event', 'todo', 'reminder', 'workflow'];
+                        const isInternal = att.type === 'internal' || internalTypes.includes(att.type);
+                        // 统一为原始选择格式: {type, id, name}
+                        if (isInternal) {
+                            return {
+                                type: att.internal_type || att.type,
+                                id: att.internal_id || att.id,
+                                name: att.name || att.filename || '未命名'
+                            };
+                        }
+                        // 文件类型：保留完整信息
+                        return {
+                            type: att.type,
+                            id: att.id,
+                            name: att.name || att.filename,
+                            sa_id: att.sa_id,
+                            thumbnail_url: att.thumbnail_url,
+                            mime_type: att.mime_type,
+                            filename: att.filename
+                        };
+                    });
+                    this.updateAttachmentBadge();
+                    this.renderSelectedAttachments();
                 }
                 
                 // 刷新数据
@@ -3246,7 +3848,11 @@ class AgentChat {
                 item.addEventListener('click', (e) => {
                     e.stopPropagation();
                     const type = item.dataset.type;
-                    this.selectAttachmentType(type);
+                    if (type === 'file-upload') {
+                        this.showUploadZone();
+                    } else {
+                        this.selectAttachmentType(type);
+                    }
                 });
             });
         }
@@ -3314,10 +3920,107 @@ class AgentChat {
         if (this.attachmentContentList) {
             this.attachmentContentList.style.display = 'none';
         }
+        if (this.attachmentUploadZone) {
+            this.attachmentUploadZone.style.display = 'none';
+        }
         if (this.attachmentPanelTitle) {
             this.attachmentPanelTitle.innerHTML = '<i class="fas fa-paperclip me-1"></i>选择附件类型';
         }
         this.currentAttachmentType = null;
+    }
+
+    /**
+     * 显示文件上传区域
+     */
+    showUploadZone() {
+        if (this.attachmentTypeList) {
+            this.attachmentTypeList.style.display = 'none';
+        }
+        if (this.attachmentContentList) {
+            this.attachmentContentList.style.display = 'none';
+        }
+        if (this.attachmentUploadZone) {
+            this.attachmentUploadZone.style.display = 'block';
+        }
+        if (this.attachmentPanelTitle) {
+            this.attachmentPanelTitle.innerHTML = '<i class="fas fa-cloud-upload-alt me-1"></i>上传文件';
+        }
+        this.currentAttachmentType = 'file-upload';
+    }
+
+    /**
+     * 处理文件上传
+     */
+    async handleFileUpload(file) {
+        if (!file) return;
+
+        // 客户端校验
+        const maxSize = 20 * 1024 * 1024; // 20MB
+        if (file.size > maxSize) {
+            this.showNotification('文件过大，最大支持 20MB', 'warning');
+            return;
+        }
+
+        const allowedTypes = [
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ];
+        if (!allowedTypes.includes(file.type)) {
+            this.showNotification('不支持的文件类型', 'warning');
+            return;
+        }
+
+        // 显示上传进度
+        if (this.uploadProgress) this.uploadProgress.style.display = 'block';
+        if (this.uploadDropzone) this.uploadDropzone.style.display = 'none';
+        if (this.uploadProgressText) this.uploadProgressText.textContent = `上传中: ${file.name}`;
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('session_id', this.sessionId || `user_${this.userId}_default`);
+
+            const response = await fetch('/api/agent/attachments/upload/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.csrfToken,
+                },
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.attachment) {
+                const att = data.attachment;
+                this.selectedAttachments.push({
+                    type: att.type,
+                    id: att.internal_id || att.id,
+                    name: att.filename,
+                    sa_id: att.id,  // SessionAttachment ID
+                    thumbnail_url: att.thumbnail_url,  // 缩略图 URL（用于前端显示）
+                    mime_type: att.mime_type,
+                    _full_data: att  // 存储完整数据
+                });
+                this.updateAttachmentBadge();
+                this.renderSelectedAttachments();
+                this.showNotification(`已添加: ${att.filename}`, 'success');
+                // 回到类型列表
+                this.showAttachmentTypeList();
+            } else {
+                this.showNotification(data.error || '上传失败', 'error');
+            }
+        } catch (error) {
+            console.error('文件上传失败:', error);
+            this.showNotification('文件上传失败', 'error');
+        } finally {
+            // 恢复上传区
+            if (this.uploadProgress) this.uploadProgress.style.display = 'none';
+            if (this.uploadDropzone) this.uploadDropzone.style.display = 'flex';
+        }
     }
 
     /**
@@ -3328,15 +4031,28 @@ class AgentChat {
         
         // 更新标题
         const typeLabels = {
-            'workflow': '工作流规则'
+            'workflow': '工作流规则',
+            'event': '日程事件',
+            'todo': '待办事项',
+            'reminder': '提醒',
+        };
+        const typeIcons = {
+            'workflow': 'fa-project-diagram',
+            'event': 'fa-calendar-alt',
+            'todo': 'fa-tasks',
+            'reminder': 'fa-bell',
         };
         if (this.attachmentPanelTitle) {
-            this.attachmentPanelTitle.innerHTML = `<i class="fas fa-project-diagram me-1"></i>${typeLabels[type] || type}`;
+            const icon = typeIcons[type] || 'fa-paperclip';
+            this.attachmentPanelTitle.innerHTML = `<i class="fas ${icon} me-1"></i>${typeLabels[type] || type}`;
         }
         
         // 切换视图
         if (this.attachmentTypeList) {
             this.attachmentTypeList.style.display = 'none';
+        }
+        if (this.attachmentUploadZone) {
+            this.attachmentUploadZone.style.display = 'none';
         }
         if (this.attachmentContentList) {
             this.attachmentContentList.style.display = 'block';
@@ -3369,7 +4085,7 @@ class AgentChat {
             }
             
             const data = await response.json();
-            this.renderAttachmentContentList(data.items);
+            this.renderAttachmentContentList(data.items, type);
         } catch (error) {
             console.error('加载附件内容失败:', error);
             this.attachmentContentItems.innerHTML = `
@@ -3382,43 +4098,46 @@ class AgentChat {
     }
 
     /**
-     * 渲染附件内容列表（单选模式）
+     * 渲染附件内容列表（多选模式）
      */
-    renderAttachmentContentList(items) {
+    renderAttachmentContentList(items, type) {
         if (!this.attachmentContentItems) return;
         
+        const emptyHints = {
+            'workflow': '在"记忆设置"中添加工作流规则',
+            'event': '在日历中创建日程事件',
+            'todo': '在待办中添加任务',
+            'reminder': '创建新的提醒',
+        };
+
         if (!items || items.length === 0) {
             this.attachmentContentItems.innerHTML = `
                 <div class="attachment-empty">
                     <i class="fas fa-folder-open"></i>
                     <p>暂无可用内容</p>
-                    <small class="text-muted">在"记忆设置"中添加工作流规则</small>
+                    <small class="text-muted">${emptyHints[type] || ''}</small>
                 </div>
             `;
             return;
         }
 
-        // 检查当前是否有选中项
-        const selectedItem = this.selectedAttachments.length > 0 ? this.selectedAttachments[0] : null;
-        
         let html = '';
         items.forEach(item => {
-            const isSelected = selectedItem && 
-                               selectedItem.type === item.type && 
-                               selectedItem.id === item.id;
-            const isDisabled = selectedItem && !isSelected;
+            // 判断是否已选中（多选，对比 type + id）
+            const isSelected = this.selectedAttachments.some(
+                a => a.type === item.type && String(a.id) === String(item.id)
+            );
             
             html += `
-                <div class="attachment-item ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}" 
+                <div class="attachment-item ${isSelected ? 'selected' : ''}" 
                      data-type="${item.type}" 
                      data-id="${item.id}"
-                     data-name="${this.escapeHtml(item.name)}">
+                     data-name="${this.escapeHtml(item.title || item.name || '')}">
                     <input type="checkbox" class="attachment-item-checkbox" 
-                           ${isSelected ? 'checked' : ''} 
-                           ${isDisabled ? 'disabled' : ''}>
+                           ${isSelected ? 'checked' : ''}>
                     <div class="attachment-item-content">
-                        <div class="attachment-item-name">${this.escapeHtml(item.name)}</div>
-                        <div class="attachment-item-preview">${this.escapeHtml(item.preview)}</div>
+                        <div class="attachment-item-name">${this.escapeHtml(item.title || item.name || '')}</div>
+                        <div class="attachment-item-preview">${this.escapeHtml(item.subtitle || item.preview || '')}</div>
                     </div>
                 </div>
             `;
@@ -3427,37 +4146,47 @@ class AgentChat {
         this.attachmentContentItems.innerHTML = html;
 
         // 绑定点击事件
-        this.attachmentContentItems.querySelectorAll('.attachment-item:not(.disabled)').forEach(el => {
+        this.attachmentContentItems.querySelectorAll('.attachment-item').forEach(el => {
             el.addEventListener('click', () => {
-                const type = el.dataset.type;
-                const id = parseInt(el.dataset.id);
-                const name = el.dataset.name;
-                this.toggleAttachmentSingle(type, id, name);
+                const elType = el.dataset.type;
+                const elId = el.dataset.id;
+                const elName = el.dataset.name;
+                this.toggleAttachmentMulti(elType, elId, elName);
             });
         });
     }
 
     /**
-     * 切换附件选择状态（单选模式）
+     * 切换附件选择状态（多选模式）
      */
-    toggleAttachmentSingle(type, id, name) {
-        const isCurrentlySelected = this.selectedAttachments.length > 0 &&
-                                     this.selectedAttachments[0].type === type &&
-                                     this.selectedAttachments[0].id === id;
+    toggleAttachmentMulti(type, id, name) {
+        const idx = this.selectedAttachments.findIndex(
+            a => a.type === type && String(a.id) === String(id)
+        );
 
-        if (isCurrentlySelected) {
+        if (idx >= 0) {
             // 取消选择
-            this.selectedAttachments = [];
+            this.selectedAttachments.splice(idx, 1);
         } else {
-            // 选择新项（替换旧项）
-            this.selectedAttachments = [{ type, id, name }];
+            // 添加选择
+            this.selectedAttachments.push({ type, id, name });
         }
 
         this.updateAttachmentBadge();
         this.renderSelectedAttachments();
         
-        // 重新渲染列表以更新禁用状态
-        this.loadAttachmentContent(this.currentAttachmentType);
+        // 就地更新列表项的选中状态（不重新加载）
+        if (this.attachmentContentItems) {
+            const item = this.attachmentContentItems.querySelector(
+                `.attachment-item[data-type="${type}"][data-id="${id}"]`
+            );
+            if (item) {
+                const checkbox = item.querySelector('.attachment-item-checkbox');
+                const isNowSelected = idx < 0; // 之前不存在，现在添加了
+                if (checkbox) checkbox.checked = isNowSelected;
+                item.classList.toggle('selected', isNowSelected);
+            }
+        }
     }
 
     /**
@@ -3486,7 +4215,14 @@ class AgentChat {
         this.selectedAttachmentsContainer.style.display = 'flex';
         
         const typeIcons = {
-            'workflow': 'fa-project-diagram'
+            'workflow': 'fa-project-diagram',
+            'event': 'fa-calendar-alt',
+            'todo': 'fa-tasks',
+            'reminder': 'fa-bell',
+            'image': 'fa-image',
+            'pdf': 'fa-file-pdf',
+            'word': 'fa-file-word',
+            'excel': 'fa-file-excel',
         };
 
         this.selectedAttachmentsContainer.innerHTML = this.selectedAttachments.map(att => `
@@ -3497,28 +4233,73 @@ class AgentChat {
             </span>
         `).join('');
 
-        // 绑定移除事件
-        this.selectedAttachmentsContainer.querySelectorAll('.remove-attachment').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const tag = btn.closest('.selected-attachment-tag');
+        // 绑定移除事件和预览事件
+        this.selectedAttachmentsContainer.querySelectorAll('.selected-attachment-tag').forEach(tag => {
+            // 点击标签本身预览附件
+            tag.addEventListener('click', (e) => {
+                // 如果点击的是移除按钮，不触发预览
+                if (e.target.closest('.remove-attachment')) return;
                 const type = tag.dataset.type;
-                const id = parseInt(tag.dataset.id);
-                this.removeAttachment(type, id);
+                const id = tag.dataset.id;
+                this.previewAttachment(type, id);
             });
+            
+            // 移除按钮
+            const removeBtn = tag.querySelector('.remove-attachment');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const type = tag.dataset.type;
+                    const id = tag.dataset.id;
+                    this.removeAttachment(type, id);
+                });
+            }
         });
+    }
+
+    /**
+     * 预览待发送附件
+     */
+    previewAttachment(type, id) {
+        const internalTypes = ['event', 'todo', 'reminder', 'workflow'];
+        if (internalTypes.includes(type)) {
+            // 内部元素：调用对应的详情 modal（ID 保持原始类型，不强制 parseInt）
+            switch (type) {
+                case 'event':
+                    this.showEventDetailModal(id);
+                    break;
+                case 'todo':
+                    this.showTodoDetailModal(id);
+                    break;
+                case 'reminder':
+                    this.showReminderDetailModal(id);
+                    break;
+                case 'workflow':
+                    this.showWorkflowDetailModal(id);
+                    break;
+            }
+        } else if (type === 'image') {
+            // 图片：找到缩略图 URL 并全屏预览
+            const att = this.selectedAttachments.find(a => a.type === type && String(a.id) === String(id));
+            if (att && att.thumbnail_url) {
+                this.showImagePreview(att.thumbnail_url);
+            }
+        }
+        // 其他文件类型暂不支持预览
     }
 
     /**
      * 移除附件
      */
     removeAttachment(type, id) {
-        this.selectedAttachments = [];
+        this.selectedAttachments = this.selectedAttachments.filter(
+            a => !(a.type === type && String(a.id) === String(id))
+        );
         this.updateAttachmentBadge();
         this.renderSelectedAttachments();
         
         // 如果面板打开，重新渲染内容列表
-        if (this.attachmentPanelVisible && this.currentAttachmentType) {
+        if (this.attachmentPanelVisible && this.currentAttachmentType && this.currentAttachmentType !== 'file-upload') {
             this.loadAttachmentContent(this.currentAttachmentType);
         }
     }
@@ -3534,33 +4315,76 @@ class AgentChat {
 
     /**
      * 获取附件格式化内容（发送消息时调用）
+     * 新逻辑：
+     *   - 有 sa_id 的附件（文件上传）→ 用 attachment_ids
+     *   - 无 sa_id 的内部元素 → 先调 attach-internal 创建 SA 再用 attachment_ids
+     *   - 旧格式 workflow（兼容）→ 走旧 API
      */
     async getFormattedAttachmentContent() {
         if (this.selectedAttachments.length === 0) {
-            return '';
+            return { sa_ids: [], formatted_content: '' };
         }
 
         try {
-            const response = await fetch('/api/agent/attachments/format/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.csrfToken
-                },
-                body: JSON.stringify({
-                    attachments: this.selectedAttachments
-                })
-            });
+            const sessionId = this.sessionId || `user_${this.userId}_default`;
+            const saIds = [];
 
-            if (!response.ok) {
-                throw new Error('格式化附件失败');
+            // 1. 收集已有 sa_id 的附件（文件上传的）
+            for (const att of this.selectedAttachments) {
+                if (att.sa_id) {
+                    saIds.push(att.sa_id);
+                }
             }
 
-            const data = await response.json();
-            return data.formatted_content;
+            // 2. 没有 sa_id 的内部元素，创建 SessionAttachment
+            const internalAtts = this.selectedAttachments.filter(a => !a.sa_id);
+            for (const att of internalAtts) {
+                try {
+                    const resp = await fetch('/api/agent/attachments/internal/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.csrfToken,
+                        },
+                        body: JSON.stringify({
+                            session_id: sessionId,
+                            element_type: att.type,
+                            element_id: String(att.id),
+                        }),
+                    });
+                    const data = await resp.json();
+                    if (data.success && data.attachment) {
+                        saIds.push(data.attachment.id);
+                    }
+                } catch (e) {
+                    console.warn('创建内部附件失败:', att, e);
+                }
+            }
+
+            // 3. 用 attachment_ids 获取格式化文本（用于用户侧显示）
+            let displayText = '';
+            if (saIds.length > 0) {
+                try {
+                    const resp = await fetch('/api/agent/attachments/format/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.csrfToken,
+                        },
+                        body: JSON.stringify({ attachment_ids: saIds }),
+                    });
+                    const data = await resp.json();
+                    displayText = data.formatted_content || '';
+                } catch (e) {
+                    console.warn('获取附件格式化内容失败:', e);
+                }
+            }
+
+            return { sa_ids: saIds, formatted_content: displayText };
+
         } catch (error) {
             console.error('获取附件内容失败:', error);
-            return '';
+            return { sa_ids: [], formatted_content: '' };
         }
     }
 

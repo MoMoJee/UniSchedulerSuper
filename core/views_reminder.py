@@ -108,7 +108,6 @@ def auto_generate_missing_instances(reminders):
                 if truly_new_instances:
                     reminders.extend(truly_new_instances)
                     new_instances_count += len(truly_new_instances)
-                    # logger.debug(f"Added {len(truly_new_instances)} new instances for unlimited series {series_id}")
             # 系列已有足够的未来实例，无需日志输出
     
     return new_instances_count
@@ -385,7 +384,7 @@ def generate_reminder_instances(base_reminder, days_ahead=90, min_instances=10):
         # 可以添加更多重复规则支持
         
     except Exception as e:
-        print(f"Error generating reminder instances: {e}")
+        logger.error(f"Error generating reminder instances: {e}")
     
     return instances
 
@@ -412,7 +411,6 @@ def get_reminders(request):
         if new_instances_generated > 0:
             # 如果生成了新实例，保存更新后的数据
             user_reminders_data.set_value(reminders)
-            logger.debug(f"Auto-generated {new_instances_generated} new reminder instances")
         
         # 返回提醒数据
         return JsonResponse({'reminders': reminders})
@@ -476,7 +474,6 @@ def create_reminder(request):
                 
                 if rrule and 'FREQ=' in rrule:
                     # 创建重复提醒
-                    print(f"DEBUG: Creating recurring reminder with rrule: {rrule}")
                     reminder_mgr = get_reminder_manager(django_request)
                     recurring_reminder = reminder_mgr.create_recurring_reminder(reminder_data, rrule)
                     reminders.append(recurring_reminder)
@@ -513,14 +510,13 @@ def create_reminder(request):
                             action_type="create_reminder",
                             description=f"Created reminder: {title}"
                         )
-                        logger.debug(f"Recorded AgentTransaction for session {session_id}")
                     except Exception as e:
                         logger.error(f"Failed to record AgentTransaction: {e}")
                         
                 return JsonResponse(response_data)
                 
         except Exception as e:
-            print(f"ERROR in create_reminder: {e}")
+            logger.error(f"ERROR in create_reminder: {e}")
             return JsonResponse({'status': 'error', 'message': f'创建提醒失败: {str(e)}'}, status=500)
     
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
@@ -566,7 +562,6 @@ def update_reminder(request):
             
             if rrule_change_scope == 'all' and not target_reminder.get('series_id') and data.get('rrule'):
                 # 普通提醒转重复提醒（唯一使用重复规则变化的场景）
-                logger.debug(f"Converting single reminder {reminder_id} to recurring with rrule: {data.get('rrule')}")
                 
                 manager = IntegratedReminderManager(django_request)
                 
@@ -802,7 +797,6 @@ def bulk_edit_reminders(request):
         
         # 使用 validate_body 处理后的数据
         data = request.validated_data
-        logger.debug(f"{data=}")
 
         reminder_id = data.get('reminder_id')
         operation = data.get('operation', 'edit')  # edit, delete
@@ -833,9 +827,6 @@ def bulk_edit_reminders(request):
         }
         # 过滤掉None值
         updates = {k: v for k, v in updates.items() if v is not None}
-        
-        logger.debug(f"Received updates: {updates}")
-        # logger.debug(f"{data=}")
         
         if not reminder_id:
             return JsonResponse({'status': 'error', 'message': '提醒ID是必填项'}, status=400)
@@ -871,7 +862,6 @@ def bulk_edit_reminders(request):
                         # 完全删除系列
                         if series_id:
                             reminder_mgr.rrule_engine.delete_series(series_id)
-                            logger.info(f"Completely deleted series {series_id}")
                         
                         # 处理重复提醒数据以防止自动补回
                         final_reminders = reminder_mgr.process_reminder_data(updated_reminders)
@@ -900,8 +890,7 @@ def bulk_edit_reminders(request):
                                 
                             reminder_id = target_reminder_id
                         
-                        # 使用新的截断方法，它会同时更新RRule引擎和提醒数据
-                        logger.info(f"使用新的截断方法，它会同时更新RRule引擎和提醒数据")
+                        # 使用新的截断方法
                         updated_reminders = reminder_mgr.delete_reminder_this_and_after(
                             reminders, reminder_id, series_id or ''
                         )
@@ -978,8 +967,6 @@ def bulk_edit_reminders(request):
                             
                             # 如果RRule没有变化，按非RRule修改处理
                             if original_rrule and original_rrule == new_rrule:
-                                logger.info(f"RRule unchanged for series {series_id}, treating as non-RRule modification")
-                                logger.info(f"Original updates dict before filtering: {updates}")
                                 
                                 updated_count = 0
                                 for reminder in reminders:
@@ -990,8 +977,6 @@ def bulk_edit_reminders(request):
                                             if trigger_time >= cutoff_time:
                                                 # 对于非RRule修改，只更新非时间字段，保持原有的trigger_time
                                                 update_data = {k: v for k, v in updates.items() if k not in ['rrule', 'trigger_time']}
-                                                logger.info(f"After filtering out rrule and trigger_time: {update_data}")
-                                                logger.info(f"Updating reminder {reminder.get('id', 'unknown')} with data: {update_data}")
                                                 reminder.update(update_data)
                                                 reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                                                 updated_count += 1
@@ -1002,7 +987,6 @@ def bulk_edit_reminders(request):
                                 return JsonResponse({'status': 'success', 'updated_count': updated_count})
                             
                             # RRule确实发生了变化 - 需要创建新序列
-                            logger.info(f"Modifying recurring rule from {cutoff_time} for series {series_id}")
                             
                             # 检查是否有新的trigger_time，如果有，使用它作为新系列的起始时间
                             new_start_time = cutoff_time
@@ -1011,7 +995,6 @@ def bulk_edit_reminders(request):
                                     requested_time = datetime.datetime.fromisoformat(updates['trigger_time'])
                                     # 使用用户指定的新时间作为起始时间
                                     new_start_time = requested_time
-                                    logger.info(f"Using requested trigger_time {requested_time} as new series start time")
                                 except:
                                     logger.warning(f"Invalid trigger_time format: {updates.get('trigger_time')}, using cutoff_time")
                             
@@ -1027,12 +1010,10 @@ def bulk_edit_reminders(request):
                             final_reminders = reminder_mgr.process_reminder_data(updated_reminders)
                             user_reminders_data.set_value(final_reminders)
                             
-                            logger.info(f"Successfully modified recurring rule for series {series_id}")
                             return JsonResponse({'status': 'success'})
                         
                         else:
                             # 只修改其他字段，不涉及RRule - 直接更新
-                            logger.info(f"Modifying non-RRule fields from {cutoff_time} for series {series_id}")
                             
                             updated_count = 0
                             for reminder in reminders:
@@ -1137,7 +1118,6 @@ def convert_recurring_to_single_impl(request):
             return JsonResponse({'status': 'error', 'message': '未找到目标提醒'}, status=400)
             
         target_time = datetime.datetime.fromisoformat(target_reminder['trigger_time'])
-        logger.info(f"Target time: {target_time}")
         
         # 步骤1：将目标提醒转换为单次提醒
         target_reminder.update(update_data)
@@ -1156,7 +1136,6 @@ def convert_recurring_to_single_impl(request):
                     if reminder_time > target_time:
                         # 这是未来的提醒，删除它
                         deleted_count += 1
-                        logger.info(f"Deleting future reminder: {reminder.get('id')} at {reminder_time}")
                         continue
                 except:
                     pass
@@ -1188,17 +1167,11 @@ def convert_recurring_to_single_impl(request):
                             reminder['rrule'] = new_rrule
                             reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             past_reminders_updated += 1
-                            logger.info(f"Updated past reminder {reminder.get('id')} with UNTIL={until_str}")
                 except:
                     pass
         
         # 保存更新后的数据
         user_reminders_data.set_value(reminders_to_keep)
-        
-        logger.info(f"Conversion completed:")
-        logger.info(f"- Target reminder converted to single")
-        logger.info(f"- {deleted_count} future reminders deleted")
-        logger.info(f"- {past_reminders_updated} past reminders updated with UNTIL")
         
         return JsonResponse({
             'status': 'success',

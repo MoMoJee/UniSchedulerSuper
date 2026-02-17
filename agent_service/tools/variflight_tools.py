@@ -161,7 +161,6 @@ class VariFlightMCPClient:
         
         # 过滤掉 None 值的参数
         filtered_args = {k: v for k, v in args.items() if v is not None}
-        logger.debug(f"[VariFlight] 调用工具 {tool.name}, 参数: {filtered_args}")
         
         # MCP 工具的 coroutine 是异步函数，需要用关键字参数调用
         if tool.coroutine:
@@ -479,8 +478,6 @@ def query_flight_by_number(flight_number: str, date: str) -> str:
     - 获取登机信息
     """
     try:
-        logger.info(f"[VariFlight] 查询航班动态: {flight_number}, 日期: {date}")
-        
         # 调用 MCP 工具
         result = VariFlightMCPClient.invoke_tool(
             "mcp_variflight_searchFlightsByNumber",
@@ -493,9 +490,6 @@ def query_flight_by_number(flight_number: str, date: str) -> str:
         )
         
         # 解析结果
-        logger.info(f"[VariFlight] searchFlightsByNumber 返回类型: {type(result)}")
-        logger.debug(f"[VariFlight] searchFlightsByNumber 返回内容: {str(result)[:1000]}")
-        
         result = parse_mcp_result(result)
         
         if 'error' in result:
@@ -557,9 +551,6 @@ def query_flights_by_route(
     - 查看特定航空公司的航班
     """
     try:
-        logger.info(f"[VariFlight] 查询航线: {dep_city}->{arr_city}, 日期: {date}, "
-                   f"航司: {airline}, 时间: {time_range}, 状态: {status}")
-        
         # 调用 MCP 工具
         result = VariFlightMCPClient.invoke_tool(
             "mcp_variflight_searchFlightsByDepArr",
@@ -573,9 +564,6 @@ def query_flights_by_route(
         )
         
         # 解析结果
-        logger.info(f"[VariFlight] searchFlightsByDepArr 返回类型: {type(result)}")
-        logger.debug(f"[VariFlight] searchFlightsByDepArr 返回内容: {str(result)[:1000]}")
-        
         result = parse_mcp_result(result)
         
         if 'error' in result:
@@ -692,8 +680,6 @@ def query_flight_itineraries(dep_city: str, arr_city: str, date: str) -> str:
     - 规划出行预算
     """
     try:
-        logger.info(f"[VariFlight] 查询行程价格: {dep_city}->{arr_city}, 日期: {date}")
-        
         # 调用 MCP 工具
         result = VariFlightMCPClient.invoke_tool(
             "mcp_variflight_searchFlightItineraries",
@@ -705,9 +691,6 @@ def query_flight_itineraries(dep_city: str, arr_city: str, date: str) -> str:
         )
         
         # 解析结果
-        logger.info(f"[VariFlight] searchFlightItineraries 返回类型: {type(result)}")
-        logger.debug(f"[VariFlight] searchFlightItineraries 返回内容: {str(result)[:1000]}")
-        
         result = parse_mcp_result(result)
         
         if 'error' in result:
@@ -752,8 +735,6 @@ def query_flight_transfer(dep_city: str, arr_city: str, date: str) -> str:
     - 比较不同中转方案的价格和时间
     """
     try:
-        logger.info(f"[VariFlight] 查询中转方案: {dep_city}->{arr_city}, 日期: {date}")
-        
         # 调用 MCP 工具
         result = VariFlightMCPClient.invoke_tool(
             "mcp_variflight_getFlightTransferInfo",
@@ -765,9 +746,6 @@ def query_flight_transfer(dep_city: str, arr_city: str, date: str) -> str:
         )
         
         # 解析结果
-        logger.info(f"[VariFlight] getFlightTransferInfo 返回类型: {type(result)}")
-        logger.debug(f"[VariFlight] getFlightTransferInfo 返回内容: {str(result)[:1000]}")
-        
         result = parse_mcp_result(result)
         
         if 'error' in result:
