@@ -579,11 +579,63 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
                     exclude_prefixes=['mcp_12306']  # 排除所有 12306 MCP 工具（前缀匹配）
                 ) if opt_config.get('compress_tool_output', True) else None
                 
-                # 计算原始消息的 token 总数
-                original_tokens = sum(calculator.calculate_message(m) for m in messages)
+                # ====== 计算原始消息的 token 总数 ======
+                # 优先策略：
+                # - 如果会话有历史真实 token 数（上一轮 LLM 返回的 input_tokens），
+                #   用它来代替"历史消息"的估算，只对最后一条新消息（用户当前输入）做预估。
+                # - 否则退回逐条估算。
+                #
+                # 为什么这么做：
+                # - 多模态消息（包含图片 base64）的逐条估算非常不准确，即使修复了 calculate_message
+                #   也只是粗略 512 tokens/图片；而历史数据是 LLM 服务商返回的真实值。
+                # - 最后一条用户消息是本次新增内容，必须预估，因为还没发送过。
                 
-                logger.debug(f"[Agent] 上下文优化:")
-                logger.debug(f"[Agent]   - 原始消息: {len(messages)} 条, {original_tokens} tokens")
+                original_tokens = None  # None 表示尚未计算
+                
+                if session and session.last_input_tokens > 0 and len(messages) > 1:
+                    # 方案 A：历史真实 token 数 + 新增最后一条消息的预估
+                    last_msg = messages[-1]
+                    last_msg_tokens = calculator.calculate_message(last_msg)
+                    
+                    # 如果最后一条是多模态消息，记录更详细的调试信息
+                    if hasattr(last_msg, 'content') and isinstance(last_msg.content, list):
+                        img_count = sum(1 for b in last_msg.content if isinstance(b, dict) and b.get("type") in ("image_url", "image"))
+                        text_parts = [b.get("text", "") for b in last_msg.content if isinstance(b, dict) and b.get("type") == "text"]
+                        text_len = sum(len(t) for t in text_parts)
+                        logger.debug(
+                            f"[Token预估] 最后一条消息: 多模态, {img_count} 张图片 + {text_len} 字符文本 → 预估 {last_msg_tokens}t"
+                        )
+                    
+                    # 历史 token 数（上一轮真实值）已经包含了除最新用户消息之外的所有上下文
+                    # 所以：本次预估 ≈ 上轮真实 input_tokens + 最后一条新消息
+                    original_tokens = session.last_input_tokens + last_msg_tokens
+                    logger.debug(
+                        f"[Agent] 上下文优化（基于历史真实 token）:"
+                        f"\n[Agent]   - 历史真实 input_tokens: {session.last_input_tokens}t (source={session.last_input_tokens_source})"
+                        f"\n[Agent]   - 新消息预估: {last_msg_tokens}t"
+                        f"\n[Agent]   - 原始消息: {len(messages)} 条, 预估共 {original_tokens} tokens"
+                    )
+                else:
+                    # 方案 B：无历史数据，退回逐条估算（首次对话或无快照）
+                    original_tokens = sum(calculator.calculate_message(m) for m in messages)
+                    
+                    # 检查是否有多模态消息，若有则发出警告
+                    multimodal_msgs = []
+                    for i, m in enumerate(messages):
+                        if hasattr(m, 'content') and isinstance(m.content, list):
+                            img_count = sum(1 for b in m.content if isinstance(b, dict) and b.get("type") in ("image_url", "image"))
+                            if img_count > 0:
+                                multimodal_msgs.append((i, img_count))
+                    
+                    if multimodal_msgs:
+                        logger.debug(
+                            f"[Token预估-降级] 无历史真实 token 数据，对含图片消息使用估算（精度较低）。"
+                            f" 含图片消息索引: {multimodal_msgs}，每张图片估算 512t。"
+                            f" 原始消息: {len(messages)} 条, {original_tokens} tokens"
+                        )
+                    else:
+                        logger.debug(f"[Agent] 上下文优化(无历史数据，退回逐条估算):")
+                        logger.debug(f"[Agent]   - 原始消息: {len(messages)} 条, {original_tokens} tokens")
                 
                 # 使用优化上下文（使用已有总结，不再截断）
                 optimized_messages = build_optimized_context(
@@ -605,7 +657,7 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
                 
                 logger.debug(f"[Agent] 上下文优化完成:")
                 logger.debug(f"[Agent]   - 优化后消息: {len(optimized_messages)} 条, {optimized_tokens} tokens")
-                if original_tokens > 0:
+                if original_tokens and original_tokens > 0:
                     logger.debug(f"[Agent]   - 削减率: {(1 - optimized_tokens/original_tokens)*100:.1f}%")
                 
         except Exception as e:
@@ -723,7 +775,16 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
             
             # 如果无法从 API 获取，使用估算值
             if input_tokens == 0 or output_tokens == 0:
-                logger.warning(f"[Agent] 无法从 API 获取 Token 用量，降级为估算值。详情 {response.response_metadata}, {response.usage_metadata=}")
+                # 准备降级日志信息
+                usage_metadata_str = str(response.usage_metadata) if hasattr(response, 'usage_metadata') else 'None'
+                response_metadata_keys = list(response.response_metadata.keys()) if hasattr(response, 'response_metadata') else []
+                
+                logger.warning(
+                    f"⚠️ [Token统计降级] 无法从API获取Token用量，使用估算值（将用于计费，可能存在偏差）。"
+                    f"模型={current_model_id}, "
+                    f"usage_metadata={usage_metadata_str[:200]}, "
+                    f"response_metadata 可用字段={response_metadata_keys}"
+                )
 
                 
                 if input_tokens == 0:
@@ -733,16 +794,49 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
                         for msg in full_messages
                     )
                     input_tokens = int(total_input_chars / 2.5)
+                    logger.debug(f"[Token统计] 输入Token估算: {total_input_chars} 字符 → {input_tokens} tokens")
                 
                 if output_tokens == 0:
                     # 估算输出 token：响应内容长度 / 2.5
                     response_content = response.content if hasattr(response, 'content') and isinstance(response.content, str) else ""
                     output_tokens = int(len(response_content) / 2.5) or 10  # 至少 10 tokens
+                    logger.debug(f"[Token统计] 输出Token估算: {len(response_content)} 字符 → {output_tokens} tokens")
             
             if input_tokens > 0 or output_tokens > 0:
+                # 判断数据来源
+                has_usage_metadata = hasattr(response, 'usage_metadata') and response.usage_metadata
+                has_response_metadata_usage = False
+                if not has_usage_metadata and hasattr(response, 'response_metadata'):
+                    metadata = response.response_metadata
+                    usage = metadata.get('token_usage') or metadata.get('usage') or {}
+                    has_response_metadata_usage = bool(usage.get('prompt_tokens') or usage.get('input_tokens'))
+                
+                source = "actual" if (has_usage_metadata or has_response_metadata_usage) else "estimated"
+                
                 # 成本由 update_token_usage 自动计算（基于 CNY）
                 update_token_usage(user, input_tokens, output_tokens, current_model_id)
-                logger.debug(f"[Agent] Token 统计已更新: in={input_tokens}, out={output_tokens}, model={current_model_id}")
+                logger.debug(f"[Agent] Token 统计已更新: in={input_tokens}, out={output_tokens}, model={current_model_id}, source={source}")
+                
+                # ========== 保存上下文 Token 数到会话（用于前端显示）==========
+                try:
+                    from agent_service.models import AgentSession
+                    session_id = configurable.get("thread_id")
+                    if session_id:
+                        session = AgentSession.objects.filter(session_id=session_id).first()
+                        if session:
+                            # 更新最新的 input_tokens（用于实时显示）
+                            session.update_context_tokens(input_tokens, source)
+                            
+                            # 保存当前消息的 Token 快照（用于回滚时恢复显示）
+                            # AI 响应的索引 = 当前消息列表长度（因为返回后会追加到列表）
+                            current_message_index = len(state["messages"])
+                            session.save_token_snapshot(current_message_index, input_tokens, source)
+                            
+                            logger.debug(f"[Token快照] 已保存: session={session_id}, message_index={current_message_index}, input_tokens={input_tokens}, source={source}")
+                        else:
+                            logger.warning(f"[上下文显示] 未找到会话: session_id={session_id}")
+                except Exception as e:
+                    logger.error(f"[上下文显示] 保存 Token 失败: {e}", exc_info=True)
         except Exception as e:
             logger.error(f"[Agent] Token 统计失败: {e}", exc_info=True)
     

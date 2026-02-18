@@ -38,6 +38,7 @@ class ImageParser(BaseParser):
             skip_ocr (bool): 当前模型支持 vision 时传 True，跳过耗时的 OCR 流程。
         """
         skip_ocr = kwargs.get('skip_ocr', False)
+        filename = os.path.basename(file_path)
         
         try:
             from PIL import Image
@@ -62,12 +63,23 @@ class ImageParser(BaseParser):
             
             # 2. 生成压缩后的 base64（限制尺寸以节省 token）
             base64_str = self._generate_base64(file_path)
+            base64_len = len(base64_str)
             
             # 3. OCR 文字提取（仅在模型不支持 vision 时执行）
             if skip_ocr:
                 ocr_text = ""
+                logger.debug(
+                    f"[图片解析-Vision模式] 文件={filename}, "
+                    f"原始尺寸={metadata['width']}x{metadata['height']}, "
+                    f"Base64长度={base64_len:,} 字符, 跳过OCR"
+                )
             else:
                 ocr_text = self._extract_text_ocr(file_path)
+                logger.debug(
+                    f"[图片解析-OCR模式] 文件={filename}, "
+                    f"原始尺寸={metadata['width']}x{metadata['height']}, "
+                    f"提取文字={len(ocr_text)} 字符, Base64长度={base64_len:,} 字符"
+                )
             
             return {
                 "success": True,

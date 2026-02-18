@@ -822,6 +822,35 @@ def rollback_to_message(request):
         except Exception as e:
             logger.warning(f"总结回滚失败: {e}")
         
+        # ====== 同步回滚 Token 快照 ======
+        token_snapshot = None
+        try:
+            from agent_service.models import AgentSession
+            session = AgentSession.objects.filter(session_id=session_id).first()
+            if session:
+                # 清理 >= message_index 的 token 快照
+                session.cleanup_token_snapshots(message_index)
+                
+                # 读取回滚后的 token 数据（message_index - 1 的快照）
+                # 如果 message_index = 0，则没有快照
+                if message_index > 0:
+                    token_snapshot = session.get_token_snapshot(message_index - 1)
+                    if token_snapshot:
+                        # 更新会话的 last_input_tokens（保持显示一致）
+                        session.update_context_tokens(
+                            token_snapshot['input_tokens'],
+                            token_snapshot['source']
+                        )
+                        logger.debug(f"[回滚] Token 快照已恢复: message_index={message_index-1}, input_tokens={token_snapshot['input_tokens']}")
+                    else:
+                        logger.warning(f"[回滚] 未找到 message_index={message_index-1} 的 token 快照")
+                else:
+                    # 回滚到初始状态，重置 token 数据
+                    session.update_context_tokens(0, 'estimated')
+                    logger.debug(f"[回滚] 已重置 Token 数据（清空会话）")
+        except Exception as e:
+            logger.warning(f"Token 快照回滚失败: {e}")
+        
         return Response({
             "success": True,
             "rolled_back_messages": rolled_back_messages,
@@ -829,6 +858,7 @@ def rollback_to_message(request):
             "rolled_back_details": rolled_back_details,
             "todo_rolled_back": todo_rolled_back,
             "summary_rolled_back": summary_rolled_back,
+            "token_snapshot": token_snapshot,  # 返回 token 快照数据（前端可直接使用）
             "remaining_messages": len(new_messages),
             "message": f"成功回滚，删除了 {rolled_back_messages} 条消息，撤销了 {rolled_back_transactions} 个操作"
         })
@@ -1847,75 +1877,126 @@ def get_context_usage(request):
         target_max_tokens = int(context_window * target_usage_ratio)
         trigger_tokens = int(target_max_tokens * summary_trigger_ratio)
         
-        # 获取会话的总结信息
+        # 获取会话的总结信息和真实 Token 数据
         session = AgentSession.objects.filter(session_id=session_id).first()
+        
+        # ========== 使用 LLM 真实返回的 Token 数据 ==========
         summary_tokens = 0
+        summary_input_tokens = 0
         has_summary = False
         summary_until_index = 0
+        summary_tokens_source = 'estimated'
         
-        if session and session.summary_text:
-            has_summary = True
-            summary_tokens = session.summary_tokens or 0
-            summary_until_index = session.summary_until_index or 0
+        # 最近一次请求的真实 input_tokens（包含所有上下文）
+        total_tokens = 0
+        total_tokens_source = 'estimated'
         
-        # 获取当前消息并计算 token
-        config = {"configurable": {"thread_id": session_id}}
-        state = app.get_state(config)
-        
-        recent_tokens = 0
-        total_message_tokens = 0
-        
-        if state and state.values:
-            messages = state.values.get("messages", [])
+        if session:
+            # 读取总结的真实 Token 数据
+            if session.summary_text:
+                has_summary = True
+                summary_tokens = session.summary_tokens or 0
+                summary_input_tokens = session.summary_input_tokens or 0  # 新增：总结时的 input_tokens
+                summary_until_index = session.summary_until_index or 0
+                summary_tokens_source = session.summary_tokens_source or 'estimated'
             
-            # 使用简单的 token 估算（每个字符约 0.5 token 中文，英文约 0.25）
-            def estimate_tokens(text):
-                if not text:
-                    return 0
-                # 多模态消息的 content 是 list[dict]，需要提取文本部分
-                if isinstance(text, list):
-                    total = 0
-                    for block in text:
-                        if isinstance(block, dict):
-                            if block.get('type') == 'text':
-                                total += estimate_tokens(block.get('text', ''))
-                            elif block.get('type') == 'image_url':
-                                total += 85  # 图片 token 估算（low detail ~85）
-                        elif isinstance(block, str):
-                            total += estimate_tokens(block)
-                    return total
-                if not isinstance(text, str):
-                    text = str(text)
-                # 简单估算：中文字符多的情况
-                chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
-                other_chars = len(text) - chinese_chars
-                return int(chinese_chars * 0.7 + other_chars * 0.3) + 4  # +4 是消息开销
+            # 读取最近一次请求的真实 input_tokens
+            total_tokens = session.last_input_tokens or 0
+            total_tokens_source = session.last_input_tokens_source or 'estimated'
             
-            for idx, msg in enumerate(messages):
-                content = getattr(msg, 'content', '') or ''
-                msg_tokens = estimate_tokens(content)
-                
-                # 如果有工具调用，也计算
-                if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                    for tc in msg.tool_calls:
-                        msg_tokens += estimate_tokens(str(tc.get('args', {})))
-                
-                total_message_tokens += msg_tokens
-                
-                # 只计算总结之后的消息作为"新聊天历史"
-                if idx >= summary_until_index:
-                    recent_tokens += msg_tokens
+            # 日志记录
+            logger.debug(
+                f"[上下文显示] 读取会话Token数据: session={session_id}, "
+                f"total={total_tokens} (source={total_tokens_source}), "
+                f"summary_input={summary_input_tokens} (source={summary_tokens_source})"
+            )
         
-        # 如果有总结，总使用量 = 总结 + 新消息
-        # 如果没有总结，总使用量 = 全部消息
-        if has_summary:
-            total_tokens = summary_tokens + recent_tokens
+        # ========== 降级处理：如果没有真实数据，使用估算 ==========
+        if total_tokens == 0:
+            logger.warning(
+                f"⚠️ [上下文显示-降级] 会话 {session_id} 无真实Token数据，使用估算值。"
+                f"可能原因：1) 新会话尚未请求LLM  2) 数据库未迁移"
+            )
+            
+            # 降级：使用旧的估算方式
+            config = {"configurable": {"thread_id": session_id}}
+            state = app.get_state(config)
+            
+            if state and state.values:
+                messages = state.values.get("messages", [])
+                
+                # 使用简单的 token 估算
+                def estimate_tokens(text):
+                    if not text:
+                        return 0
+                    # 多模态消息的 content 是 list[dict]，需要提取文本部分
+                    if isinstance(text, list):
+                        total = 0
+                        for block in text:
+                            if isinstance(block, dict):
+                                if block.get('type') == 'text':
+                                    total += estimate_tokens(block.get('text', ''))
+                                elif block.get('type') == 'image_url':
+                                    total += 85  # 图片 token 估算（low detail ~85）
+                            elif isinstance(block, str):
+                                total += estimate_tokens(block)
+                        return total
+                    if not isinstance(text, str):
+                        text = str(text)
+                    # 简单估算：中文字符多的情况
+                    chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+                    other_chars = len(text) - chinese_chars
+                    return int(chinese_chars * 0.7 + other_chars * 0.3) + 4  # +4 是消息开销
+                
+                for idx, msg in enumerate(messages):
+                    content = getattr(msg, 'content', '') or ''
+                    msg_tokens = estimate_tokens(content)
+                    
+                    # 如果有工具调用，也计算
+                    if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                        for tc in msg.tool_calls:
+                            msg_tokens += estimate_tokens(str(tc.get('args', {})))
+                    
+                    total_tokens += msg_tokens
+                
+                total_tokens_source = 'estimated'
+                logger.debug(f"[上下文显示-降级] 估算total_tokens={total_tokens}")
+        
+        # ========== 计算 recent_tokens ==========
+        # recent_tokens = 最近一次请求的 input_tokens - 总结时的 input_tokens
+        # 这样可以准确反映总结之后的新消息消耗
+        if has_summary and summary_input_tokens > 0:
+            recent_tokens = max(0, total_tokens - summary_input_tokens)
+            logger.debug(
+                f"[上下文显示] 计算recent_tokens: total={total_tokens} - summary_input={summary_input_tokens} = {recent_tokens}"
+            )
         else:
-            total_tokens = total_message_tokens
-            recent_tokens = total_message_tokens
+            # 没有总结，或者总结没有 input_tokens 数据，recent_tokens 就是 total_tokens
+            recent_tokens = total_tokens
+            logger.debug(f"[上下文显示] 无有效总结，recent_tokens=total_tokens={recent_tokens}")
         
         # 计算余量
         remaining_tokens = max(0, target_max_tokens - total_tokens)
+        
+        # 如果使用了估算值，发出 WARNING（仅在影响计算准确性时）
+        should_warn = False
+        warn_reason = []
+        
+        if total_tokens_source == 'estimated':
+            should_warn = True
+            warn_reason.append('total_tokens使用估算')
+        
+        if has_summary and summary_tokens_source == 'estimated':
+            should_warn = True
+            warn_reason.append('summary_tokens使用估算')
+        
+        if should_warn:
+            logger.warning(
+                f"⚠️ [上下文显示-使用估算] session={session_id}, "
+                f"原因: {', '.join(warn_reason)}, "
+                f"total_source={total_tokens_source}, summary_source={summary_tokens_source}, "
+                f"显示值可能不准确（不包含工具定义约4k tokens）"
+            )
         
         return Response({
             "session_id": session_id,
@@ -1928,7 +2009,9 @@ def get_context_usage(request):
             "total_tokens": total_tokens,
             "target_usage_ratio": target_usage_ratio,
             "summary_trigger_ratio": summary_trigger_ratio,
-            "has_summary": has_summary
+            "has_summary": has_summary,
+            "tokens_source": total_tokens_source,  # 新增：标识数据来源
+            "summary_tokens_source": summary_tokens_source  # 新增：总结数据来源
         })
         
     except Exception as e:

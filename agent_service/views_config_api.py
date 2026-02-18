@@ -470,30 +470,35 @@ def reset_token_stats(request):
     """
     from datetime import datetime, timezone
     from config.api_keys_manager import get_default_monthly_credit
-    
+
     try:
         user = request.user
         data = request.data
         reset_type = data.get('reset_type', 'current')
-        
+
         # 获取当前统计
         token_usage = get_user_data_value(user, 'agent_token_usage', {})
         current_month = datetime.now(timezone.utc).strftime('%Y-%m')
         default_credit = get_default_monthly_credit()
-        
+
+        # 检查当前时间是否为每月1日的8点
+        now = datetime.now(timezone.utc)
+        is_system_reset = now.day == 1 and now.hour == 8
+
         if reset_type == 'all':
             # 完全重置，包括历史
             token_usage = {
                 'current_month': current_month,
                 'monthly_credit': default_credit,
-                'monthly_used': 0.0,
+                'monthly_used': 0.0 if is_system_reset else token_usage.get('monthly_used', 0.0),
                 'models': {},
                 'history': {},
                 'last_reset': datetime.now(timezone.utc).isoformat()
             }
         elif reset_type == 'current':
             # 仅重置当月数据
-            token_usage['monthly_used'] = 0.0
+            if is_system_reset:
+                token_usage['monthly_used'] = 0.0
             token_usage['models'] = {}
             token_usage['last_reset'] = datetime.now(timezone.utc).isoformat()
         else:
@@ -501,15 +506,15 @@ def reset_token_stats(request):
                 "success": False,
                 "error": f"无效的 reset_type: {reset_type}"
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         set_user_data_value(user, 'agent_token_usage', token_usage)
         logger.info(f"用户 {user.username} 重置 Token 统计 (type={reset_type})")
-        
+
         return Response({
             "success": True,
             "message": f"已重置{('当月' if reset_type == 'current' else '所有')}统计"
         })
-        
+
     except Exception as e:
         logger.error(f"重置 Token 统计失败: {e}", exc_info=True)
         return Response({

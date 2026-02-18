@@ -364,7 +364,17 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 # 提取纯文本附件的描述（给 LLM 的上下文）
                 attachments_context = '\n\n'.join(b.get('text', '') for b in text_blocks)
                 
-                logger.info(f"[多模态] 构建多模态消息: {len(image_blocks)} 张图片, 附件上下文 {len(attachments_context)} 字符")
+                # 估算图片 token 数（OpenAI 视觉模型的粗略估算）
+                # 参考: 低细节图片约 85 tokens, 高细节图片约 170-765 tokens (取决于分块数)
+                # 这里假设使用 detail="auto" 配置，平均约 85-100 tokens/图
+                estimated_tokens_per_image = 85
+                estimated_image_tokens = len(image_blocks) * estimated_tokens_per_image
+                
+                logger.debug(
+                    f"[多模态] 构建多模态消息: {len(image_blocks)} 张图片, "
+                    f"附件上下文 {len(attachments_context)} 字符, "
+                    f"预估图片Token≈{estimated_image_tokens} (按{estimated_tokens_per_image}token/图)"
+                )
                 
                 return HumanMessage(
                     content=multimodal_content,
@@ -1224,14 +1234,23 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 )
                 
                 if new_summary_metadata:
-                    # 保存总结
+                    # 保存总结（包含真实的 input_tokens 和 tokens_source）
                     await database_sync_to_async(session.save_summary)(
                         summary_text=new_summary_metadata['summary'],
                         summarized_until=end_idx,
-                        summary_tokens=new_summary_metadata['summary_tokens']
+                        summary_tokens=new_summary_metadata['summary_tokens'],
+                        summary_input_tokens=new_summary_metadata.get('summary_input_tokens', 0),
+                        tokens_source=new_summary_metadata.get('tokens_source', 'estimated')
                     )
                     
-                    logger.info(f"[总结] 完成: 总结了 {end_idx} 条消息, {new_summary_metadata['summary_tokens']} tokens")
+                    tokens_source = new_summary_metadata.get('tokens_source', 'estimated')
+                    summary_input_tokens = new_summary_metadata.get('summary_input_tokens', 0)
+                    
+                    logger.debug(
+                        f"[总结] 完成: 总结了 {end_idx} 条消息, "
+                        f"output={new_summary_metadata['summary_tokens']}t, "
+                        f"input={summary_input_tokens}t, source={tokens_source}"
+                    )
                     
                     # 通知前端总结完成
                     await self.send_json({

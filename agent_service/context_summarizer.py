@@ -266,6 +266,7 @@ class ConversationSummarizer:
                     # 尝试从 response 获取实际 token 使用
                     input_tokens = 0
                     output_tokens = 0
+                    tokens_source = 'estimated'  # 默认为估算
                     
                     # 优先检查 usage_metadata
                     if hasattr(response, 'usage_metadata') and response.usage_metadata:
@@ -276,6 +277,9 @@ class ConversationSummarizer:
                         else:
                             input_tokens = getattr(usage_metadata, 'input_tokens', 0) or getattr(usage_metadata, 'prompt_tokens', 0)
                             output_tokens = getattr(usage_metadata, 'output_tokens', 0) or getattr(usage_metadata, 'completion_tokens', 0)
+                        
+                        if input_tokens > 0 and output_tokens > 0:
+                            tokens_source = 'actual'
                     
                     # 回退：检查 response_metadata
                     if not input_tokens and hasattr(response, 'response_metadata'):
@@ -283,32 +287,42 @@ class ConversationSummarizer:
                         usage = metadata.get('token_usage') or metadata.get('usage') or {}
                         input_tokens = usage.get('prompt_tokens', 0) or usage.get('input_tokens', 0)
                         output_tokens = usage.get('completion_tokens', 0) or usage.get('output_tokens', 0)
+                        
+                        if input_tokens > 0 and output_tokens > 0:
+                            tokens_source = 'actual'
                     
                     # 如果无法获取实际值，使用估算值
                     if input_tokens == 0 or output_tokens == 0:
-                        logger.warning(f"[总结] 无法从 API 获取 Token 用量，降级为估算值")
+                        logger.warning(f"⚠️ [总结-Token降级] 无法从API获取Token用量，使用估算值（将用于上下文显示）")
+                        tokens_source = 'estimated'
                         if input_tokens == 0:
                             input_tokens = self.token_calculator.calculate_text(prompt)
                         if output_tokens == 0:
                             output_tokens = summary_tokens
                     
                     update_token_usage(user, input_tokens, output_tokens, model_id)
-                    logger.info(f"[总结] Token 统计已更新: in={input_tokens}, out={output_tokens}")
+                    logger.debug(f"[总结-计费] Token 统计已更新: in={input_tokens}, out={output_tokens}, source={tokens_source}")
                 except Exception as e:
                     logger.warning(f"[总结] Token 统计失败: {e}")
+                    tokens_source = 'estimated'
+                    input_tokens = self.token_calculator.calculate_text(prompt)
+                    output_tokens = summary_tokens
 
             # 记录压缩率
             compression_rate = 1 - (summary_tokens / original_tokens) if original_tokens > 0 else 0
             logger.info(
                 f"[总结] 完成: {len(messages)}条消息, "
                 f"{original_tokens}t → {summary_tokens}t, "
-                f"压缩率={compression_rate:.1%}"
+                f"压缩率={compression_rate:.1%}, "
+                f"input_tokens={input_tokens}, source={tokens_source}"
             )
 
             return {
                 "summary": summary_text,
                 "summarized_until": len(messages),
                 "summary_tokens": summary_tokens,
+                "summary_input_tokens": input_tokens,  # 新增：总结时的真实 input_tokens
+                "tokens_source": tokens_source,  # 新增：Token 数据来源
                 "created_at": datetime.now().isoformat(),
                 "message_count": len(messages),
                 "original_tokens": original_tokens,
@@ -328,7 +342,25 @@ class ConversationSummarizer:
                 continue  # 跳过系统消息
 
             role = self._get_role_name(msg)
-            content = msg.content if isinstance(msg.content, str) else str(msg.content)
+            
+            # 处理多模态消息内容：提取文本部分，图片显示占位符
+            raw_content = msg.content
+            if isinstance(raw_content, list):
+                text_parts = []
+                image_count = 0
+                for block in raw_content:
+                    if isinstance(block, dict):
+                        if block.get("type") == "text":
+                            text_parts.append(block.get("text", ""))
+                        elif block.get("type") in ("image_url", "image"):
+                            image_count += 1
+                    elif isinstance(block, str):
+                        text_parts.append(block)
+                content = " ".join(text_parts)
+                if image_count > 0:
+                    content = f"[包含 {image_count} 张图片] " + content
+            else:
+                content = raw_content if isinstance(raw_content, str) else str(raw_content)
 
             # 截断过长的内容
             if len(content) > 500:
@@ -550,7 +582,7 @@ def build_optimized_context(
         f"System={system_tokens}t, "
         f"Summary={summary_tokens}t, "
         f"Recent={recent_tokens}t ({len(recent_messages)}条), "
-        f"Total={total_tokens}t"
+        f"Total={total_tokens}t (优化前预估，不用于计费)"
     )
 
     return optimized

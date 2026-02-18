@@ -46,12 +46,23 @@ class AgentSession(models.Model):
     # ========== 历史总结相关字段 ==========
     summary_text = models.TextField(blank=True, default="", help_text="对话历史总结文本")
     summary_until_index = models.IntegerField(default=0, help_text="总结覆盖到的消息索引（不包含）")
-    summary_tokens = models.IntegerField(default=0, help_text="总结文本的 token 数")
+    summary_tokens = models.IntegerField(default=0, help_text="总结文本的 token 数（LLM 真实返回值）")
+    summary_input_tokens = models.IntegerField(default=0, help_text="总结时的 input_tokens（LLM 真实返回值，用于上下文计算）")
+    summary_tokens_source = models.CharField(max_length=20, default='estimated', help_text="Token 数据来源: actual/estimated")
     summary_created_at = models.DateTimeField(null=True, blank=True, help_text="总结创建时间")
     is_summarizing = models.BooleanField(default=False, help_text="是否正在进行总结")
     # 总结历史版本，用于回滚时恢复之前的总结
     # 格式: [{"summary": "...", "until_index": 80, "tokens": 500, "created_at": "..."}, ...]
     summary_history = models.JSONField(default=list, blank=True, help_text="总结历史版本")
+    
+    # ========== 上下文使用量追踪字段（LLM 真实返回值）==========
+    last_input_tokens = models.IntegerField(default=0, help_text="最近一次请求的 input_tokens（LLM 真实返回值）")
+    last_input_tokens_source = models.CharField(max_length=20, default='estimated', help_text="Token 数据来源: actual/estimated")
+    last_input_tokens_updated_at = models.DateTimeField(null=True, blank=True, help_text="最近一次更新时间")
+    # 每轮对话的 Token 快照，用于回滚时恢复上下文使用量显示
+    # 格式: {"0": {"input_tokens": 3949, "source": "actual", "timestamp": "2024-..."}, "1": {...}, ...}
+    # 键为消息索引（字符串），值为该轮对话的 input_tokens 数据
+    token_snapshots = models.JSONField(default=dict, blank=True, help_text="每轮对话的 Token 快照")
     
     class Meta:
         ordering = ['-updated_at']
@@ -110,13 +121,15 @@ class AgentSession(models.Model):
             "created_at": self.summary_created_at.isoformat() if self.summary_created_at else None,
         }
     
-    def save_summary(self, summary_text: str, summarized_until: int, summary_tokens: int):
+    def save_summary(self, summary_text: str, summarized_until: int, summary_tokens: int, summary_input_tokens: int = 0, tokens_source: str = 'estimated'):
         """
         保存总结，并将旧总结存入历史版本
         Args:
             summary_text: 总结文本
             summarized_until: 总结覆盖到的消息索引
-            summary_tokens: 总结 token 数
+            summary_tokens: 总结输出 token 数（output_tokens）
+            summary_input_tokens: 总结时的 input_tokens（用于上下文计算）
+            tokens_source: Token 数据来源 ('actual' 或 'estimated')
         """
         from django.utils import timezone
         
@@ -127,6 +140,8 @@ class AgentSession(models.Model):
                 "summary": self.summary_text,
                 "until_index": self.summary_until_index,
                 "tokens": self.summary_tokens,
+                "input_tokens": self.summary_input_tokens,
+                "tokens_source": self.summary_tokens_source,
                 "created_at": self.summary_created_at.isoformat() if self.summary_created_at else None,
             })
             # 只保留最近 10 个历史版本，避免数据过大
@@ -138,14 +153,107 @@ class AgentSession(models.Model):
         self.summary_text = summary_text
         self.summary_until_index = summarized_until
         self.summary_tokens = summary_tokens
+        self.summary_input_tokens = summary_input_tokens
+        self.summary_tokens_source = tokens_source
         self.summary_created_at = timezone.now()
         self.is_summarizing = False
-        self.save(update_fields=['summary_text', 'summary_until_index', 'summary_tokens', 'summary_created_at', 'is_summarizing', 'summary_history'])
+        self.save(update_fields=[
+            'summary_text', 'summary_until_index', 'summary_tokens', 
+            'summary_input_tokens', 'summary_tokens_source',
+            'summary_created_at', 'is_summarizing', 'summary_history'
+        ])
     
     def set_summarizing(self, is_summarizing: bool):
         """设置正在总结状态"""
         self.is_summarizing = is_summarizing
         self.save(update_fields=['is_summarizing'])
+    
+    def update_context_tokens(self, input_tokens: int, tokens_source: str = 'actual'):
+        """
+        更新最近一次请求的上下文 Token 数（LLM 真实返回值）
+        
+        Args:
+            input_tokens: LLM 返回的 input_tokens（包含所有上下文）
+            tokens_source: Token 数据来源 ('actual' 或 'estimated')
+        """
+        from django.utils import timezone
+        
+        self.last_input_tokens = input_tokens
+        self.last_input_tokens_source = tokens_source
+        self.last_input_tokens_updated_at = timezone.now()
+        self.save(update_fields=['last_input_tokens', 'last_input_tokens_source', 'last_input_tokens_updated_at'])
+    
+    def save_token_snapshot(self, message_index: int, input_tokens: int, tokens_source: str = 'actual'):
+        """
+        保存某轮对话的 Token 快照（用于回滚时恢复显示）
+        
+        Args:
+            message_index: 消息索引（0-based）
+            input_tokens: LLM 返回的 input_tokens
+            tokens_source: Token 数据来源 ('actual' 或 'estimated')
+        """
+        from django.utils import timezone
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        if self.token_snapshots is None:
+            self.token_snapshots = {}
+        
+        # 使用字符串作为键（JSON 要求）
+        snapshot_key = str(message_index)
+        self.token_snapshots[snapshot_key] = {
+            "input_tokens": input_tokens,
+            "source": tokens_source,
+            "timestamp": timezone.now().isoformat()
+        }
+        
+        self.save(update_fields=['token_snapshots'])
+        logger.debug(f"[Token快照存储] session={self.session_id}, index={message_index}, tokens={input_tokens}, 当前快照数={len(self.token_snapshots)}")
+    
+    def get_token_snapshot(self, message_index: int) -> dict:
+        """
+        获取某个消息索引的 Token 快照
+        
+        Args:
+            message_index: 消息索引（0-based）
+            
+        Returns:
+            包含 input_tokens, source, timestamp 的字典，如果不存在则返回 None
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        if not self.token_snapshots:
+            logger.debug(f"[Token快照读取] session={self.session_id}, index={message_index}: token_snapshots 为空")
+            return None
+        
+        snapshot_key = str(message_index)
+        snapshot = self.token_snapshots.get(snapshot_key)
+        
+        if snapshot:
+            logger.debug(f"[Token快照读取] session={self.session_id}, index={message_index}: 找到快照 tokens={snapshot.get('input_tokens')}")
+        else:
+            available_keys = list(self.token_snapshots.keys())
+            logger.debug(f"[Token快照读取] session={self.session_id}, index={message_index}: 未找到，可用索引={available_keys}")
+        
+        return snapshot
+    
+    def cleanup_token_snapshots(self, keep_until_index: int):
+        """
+        清理指定索引之后的 Token 快照（回滚时调用）
+        
+        Args:
+            keep_until_index: 保留到这个索引之前的快照（不包含此索引）
+        """
+        if not self.token_snapshots:
+            return
+        
+        # 删除 >= keep_until_index 的快照
+        keys_to_delete = [k for k in self.token_snapshots.keys() if int(k) >= keep_until_index]
+        for key in keys_to_delete:
+            del self.token_snapshots[key]
+        
+        self.save(update_fields=['token_snapshots'])
     
     def rollback_summary(self, target_message_index: int) -> bool:
         """

@@ -3271,6 +3271,9 @@ class AgentChat {
                 // 刷新数据
                 this.refreshData(['events', 'todos', 'reminders']);
                 
+                // 【新增】更新上下文使用量条形图（回滚后的 token 数据）
+                this.updateContextUsageBar();
+                
                 // 显示成功提示
                 let msg = `已回滚，删除了 ${data.rolled_back_messages} 条消息`;
                 if (data.rolled_back_transactions > 0) {

@@ -88,8 +88,37 @@ class TokenCalculator:
         Returns:
             token 数量
         """
-        content = message.content if isinstance(message.content, str) else str(message.content)
-        tokens = self.calculate_text(content)
+        content = message.content
+
+        if isinstance(content, str):
+            tokens = self.calculate_text(content)
+        elif isinstance(content, list):
+            # 多模态消息：content 是块列表，需要按块类型分别处理
+            # 格式: [{"type": "text", "text": "..."}, {"type": "image_url", "image_url": {"url": "data:...;base64,..."}}]
+            tokens = 0
+            for block in content:
+                if isinstance(block, dict):
+                    block_type = block.get("type", "")
+                    if block_type == "text":
+                        tokens += self.calculate_text(block.get("text", ""))
+                    elif block_type == "image_url":
+                        # 图片 token 开销：不能直接计算 base64 字符数
+                        # OpenAI: 85 tokens (low detail) ~ 765 tokens (high detail, 512x512 tile)
+                        # 保守估算：使用 512 tokens（中等图片，高细节）
+                        # base64 数据本身不是 token，不参与计算
+                        tokens += 512
+                    elif block_type == "image":
+                        # LangChain 另一种图片格式
+                        tokens += 512
+                    else:
+                        # 其他未知类型：仅计算文本类字段，跳过 data/url 字段
+                        for k, v in block.items():
+                            if k not in ("data", "url", "image_url") and isinstance(v, str):
+                                tokens += self.calculate_text(v)
+                elif isinstance(block, str):
+                    tokens += self.calculate_text(block)
+        else:
+            tokens = self.calculate_text(str(content))
 
         # 消息元数据开销 (role, name 等)
         tokens += 4  # 每条消息大约 4 tokens 开销
@@ -604,7 +633,7 @@ def update_token_usage(user, input_tokens: int, output_tokens: int, model_id: st
         get_model_cost_config, is_system_model, calculate_cost
     )
     
-    logger.debug(f"[Token统计] 开始更新: user={user.username}, model={model_id}, in={input_tokens}, out={output_tokens}")
+    logger.debug(f"[Token统计-计费] 开始更新: user={user.username}, model={model_id}, in={input_tokens}, out={output_tokens}")
     
     try:
         # 使用 get_or_initialize 获取或创建统计记录
@@ -652,7 +681,7 @@ def update_token_usage(user, input_tokens: int, output_tokens: int, model_id: st
         usage_data.set_value(stats)
         
         logger.debug(
-            f"[Token统计] 已保存: user={user.username}, model={model_id}, "
+            f"[Token统计-计费] 已保存: user={user.username}, model={model_id}, "
             f"input={input_tokens}, output={output_tokens}, cost=¥{cost:.4f}"
         )
         return True
