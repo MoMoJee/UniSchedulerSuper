@@ -1,0 +1,55 @@
+{% comment %}
+CDN 竞速初始化片段 v3
+在每个页面 <head> 起始处 include 一次，之后用 __cdnCSS 替代 CDN <link> 标签。
+JS 资源请使用静态 <script src> 标签（BootCDN 主 + jsDelivr onerror 备），
+不要使用 __cdnJS，原因：Chrome 在慢网低速下会静默丢弃 document.write 注入
+的跨域 <script>（不抛错，不触发 onerror），导致 Bootstrap 完全无法加载。
+
+变更说明（v3）：
+  - 移除 __cdnJS，JS 改为模板内静态 <script src> 标签，彻底规避 document.write 问题
+  - 新增版本号（CDN_VER）机制，版本变更时自动清除旧 localStorage 偏好，
+    防止历史 'intl' 设置导致国内用户仍指向 jsDelivr
+  - 默认保持 cn（BootCDN），所有 localStorage 操作包裹 try-catch
+  - CSS 使用 DOM API + 3 秒超时切换，无需 document.write
+  - 后台竞速每小时一次，将胜者写入 localStorage 供后续访问使用
+{% endcomment %}
+<script>
+!function(){
+  var I='https://cdn.jsdelivr.net/npm/',C='https://cdn.bootcdn.net/ajax/libs/';
+  /* 版本号：修改默认 CDN 策略时递增，自动清除用户旧偏好 */
+  var VER='3';
+  var p='cn';
+  try{
+    if(localStorage.getItem('cdn_ver')!==VER){
+      localStorage.removeItem('cdn_pref');
+      localStorage.removeItem('cdn_t');
+      localStorage.setItem('cdn_ver',VER);
+    }
+    p=localStorage.getItem('cdn_pref')||'cn';
+  }catch(e){}
+
+  /* ── CSS：DOM API + 3 秒超时切换备用 CDN ──────────────────────────── */
+  window.__cdnCSS=function(iPath,cPath){
+    var a=p==='cn'?C+cPath:I+iPath, b=p==='cn'?I+iPath:C+cPath;
+    var el=document.createElement('link');
+    el.rel='stylesheet'; el.href=a;
+    var done=false;
+    var t=setTimeout(function(){if(!done){done=true;el.href=b;}},3000);
+    el.onload=function(){done=true;clearTimeout(t);};
+    el.onerror=function(){if(!done){done=true;clearTimeout(t);el.href=b;}};
+    document.head.appendChild(el);
+  };
+
+  /* ── 后台竞速（每小时一次，结果存 localStorage 供下次使用）─────────── */
+  try{
+    if(Date.now()-parseInt(localStorage.getItem('cdn_t')||'0',10)>3600000){
+      Promise.race([
+        fetch(I+'bootstrap@5.3.2/dist/css/bootstrap.min.css',{method:'HEAD',cache:'no-store',mode:'no-cors'}).then(function(){return'intl';}),
+        fetch(C+'bootstrap/5.3.2/css/bootstrap.min.css',{method:'HEAD',cache:'no-store',mode:'no-cors'}).then(function(){return'cn';})
+      ]).then(function(w){
+        try{localStorage.setItem('cdn_pref',w);localStorage.setItem('cdn_t',''+Date.now());}catch(e){}
+      }).catch(function(){});
+    }
+  }catch(e){}
+}();
+</script>
