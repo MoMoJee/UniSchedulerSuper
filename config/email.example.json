@@ -1,4 +1,5 @@
 {
+  "_description": "邮件服务（注册验证、找回密码），如果有的话，将下方的 enabled 改为 true，填入信息并将后缀中的 .example 去除",
   "enabled": false,
   "smtp_host": "smtp.examplemail.com",
   "smtp_port": 465,

@@ -1,4 +1,5 @@
 {
+  "_description": "备案信息，展示在网页底部，如果有的话，将下方的 enabled 改为 true，填入信息并将后缀中的 .example 去除",
   "enabled": false,
   "icp_number": "",
   "icp_link": "https://beian.miit.gov.cn",

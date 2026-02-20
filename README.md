@@ -188,8 +188,8 @@ markdown
 #### 1. 克隆项目
 
 ```bash
-git clone https://github.com/MoMoJee/UniSchedulerSuper2.git
-cd UniSchedulerSuper2
+git clone https://github.com/MoMoJee/UniSchedulerSuper.git
+cd UniSchedulerSuper
 ```
 
 #### 2. 创建虚拟环境（推荐）
@@ -254,13 +254,26 @@ Password (again): ******
 Superuser created successfully.
 ```
 
-#### 7. 启动开发服务器
+#### 7. 收集静态文件（仅在使用 daphne 的情况下需要）
+
+```bash
+python manage.py collectstatic --noinput
+```
+
+#### 8. 启动服务器
+注意，使用 manage.py runserver 的时候，部分功能可能会不可用
 
 ```bash
 python manage.py runserver
 ```
 
-**自定义地址和端口**:
+或使用 daphne（推荐） :
+
+```bash
+daphne -b 0.0.0.0 -p 8080 UniSchedulerSuper.asgi:application
+```
+
+**自定义地址和端口（默认开发服务器，daphne 同理不赘述）**:
 ```bash
 # 本地访问（默认）
 python manage.py runserver 127.0.0.1:8000
@@ -272,7 +285,7 @@ python manage.py runserver 0.0.0.0:8000
 python manage.py runserver x.x.x.x:xxxx
 ```
 
-#### 7. 访问应用
+#### 9. 访问应用
 
 - **Web 界面**: http://127.0.0.1:8000/
 - **管理后台**: http://127.0.0.1:8000/admin/

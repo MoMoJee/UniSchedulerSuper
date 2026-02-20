@@ -1,17 +1,19 @@
 {
-    "_comment": "API 密钥配置文件 - 请勿将此文件提交到版本控制系统",
-    "_注意": "此文件包含敏感信息，请妥善保管",
+    "_comment": "API 密钥配置文件，将后缀中的 .example 去除后使用",
+    "_注意": "此文件包含敏感信息，请妥善保管。必须有此文件才能启动服务",
 
     "system_models": {
-        "_description": "系统提供的大语言模型配置（统一参数源），至少得写一个",
+        "_description": "系统提供的大语言模型配置（统一参数源）",
         "system_deepseek": {
             "name": "DeepSeek V3（系统提供）",
             "provider": "deepseek",
-            "api_key": "your-deepseek-api-key-here",
+            "api_key": "sk-xxx",
             "base_url": "https://api.deepseek.com",
             "model_name": "deepseek-chat",
             "context_window": 131072,
             "supports_tools": true,
+            "supports_vision": false,
+            "supports_multimodal": false,
             "cost_per_1k_input": 0.002,
             "cost_per_1k_output": 0.003,
             "cost_currency": "CNY",
@@ -19,66 +21,90 @@
             "enabled": true
         },
         "system_moonshot": {
-            "name": "kimi-k2-0905-preview（系统提供）",
+            "name": "kimi-k2.5（系统提供）",
             "provider": "moonshot",
-            "api_key": "your-moonshot-api-key-here",
+            "api_key": "sk-xxx",
             "base_url": "https://api.moonshot.cn/v1",
-            "model_name": "kimi-k2-0905-preview",
+            "model_name": "kimi-k2.5",
             "context_window": 262144,
             "supports_tools": true,
+            "supports_vision": true,
+            "supports_multimodal": true,
             "cost_per_1k_input": 0.004,
-            "cost_per_1k_output": 0.016,
+            "cost_per_1k_output": 0.021,
+            "cost_currency": "CNY",
+            "readonly": true,
+            "enabled": true
+        },
+        "system_minimax": {
+            "name": "MiniMax-M2.1（系统提供）",
+            "provider": "minimax",
+            "api_key": "sk-api-xxx",
+            "base_url": "https://api.minimaxi.com/v1",
+            "model_name": "MiniMax-M2.1",
+            "context_window": 204800,
+            "supports_tools": true,
+            "supports_vision": false,
+            "supports_multimodal": false,
+            "cost_per_1k_input": 0.0021,
+            "cost_per_1k_output": 0.0084,
             "cost_currency": "CNY",
             "readonly": true,
             "enabled": true
         }
     },
 
-    "llm": {
-        "_description": "（旧配置，保留兼容性）大语言模型 API 密钥",
-        "_deprecated": "请使用 system_models 配置，此配置将在未来版本移除",
-        "deepseek": {
-            "api_key": "your-deepseek-api-key-here",
-            "base_url": "https://api.deepseek.com",
-            "default_model": "deepseek-chat"
-        },
-        "moonshot": {
-            "api_key": "your-moonshot-api-key-here",
-            "base_url": "https://api.moonshot.cn/v1",
-            "default_model": "kimi-latest"
-        },
-        "openai": {
-            "api_key": "your-openai-api-key-here",
-            "base_url": "https://api.openai.com/v1",
-            "default_model": "gpt-4-turbo"
-        }
-    },
-
-    "map_services": {
-        "_description": "地图服务 API 密钥，不配置也不影响其他功能使用",
-        "amap": {
-            "api_key": "your-amap-key-here",
-            "mcp_url": "https://mcp.amap.com/sse"
-        }
-    },
-
     "search_services": {
-        "_description": "搜索服务 API 密钥，不配置也不影响其他功能使用",
+        "_description": "搜索服务 API 密钥，当前仅支持 tavily",
         "tavily": {
-            "api_key": "your-tavily-api-key-here"
-        },
-        "serper": {
-            "api_key": "your-serper-api-key-here"
+            "api_key": "tvly-dev-xxx"
         }
+    },
+
+    "ocr_services": {
+        "_description": "OCR 图片识别服务配置（用于不支持多模态的LLM降级方案）",
+        "baidu": {
+            "enabled": false,
+            "app_id": "",
+            "api_key": "",
+            "secret_key": "",
+            "description": "百度OCR服务，支持通用文字识别、表格识别等"
+        },
+        "aliyun": {
+            "enabled": false,
+            "access_key_id": "",
+            "access_key_secret": "",
+            "description": "阿里云OCR服务"
+        },
+        "tesseract": {
+            "enabled": true,
+            "local": true,
+            "description": "Tesseract本地OCR，免费但准确率较低，适合测试环境"
+        },
+        "_fallback_strategy": "如果图片无法直接发送给LLM（不支持多模态），则按优先级尝试：baidu → aliyun → tesseract → 返回错误提示"
     },
 
     "mcp_services": {
-        "_description": "MCP 服务配置，不配置也不影响其他功能使用",
+        "_description": "MCP 服务配置",
+        "amap": {
+            "enabled": true,
+            "mcp_url": "https://mcp.amap.com/sse",
+            "transport": "sse",
+            "api_key": "xxx",
+            "description": "高德地图 MCP 服务，支持地点搜索、路线规划、周边搜索"
+        },
         "12306": {
             "enabled": true,
             "mcp_url": "http://localhost:8001/mcp",
             "transport": "streamable_http",
-            "description": "12306 火车票查询服务，不配置也不影响其他功能使用"
+            "description": "12306 火车票查询服务"
+        },
+        "VariFlight": {
+            "enabled": true,
+            "mcp_url": "https://ai.variflight.com/servers/aviation/mcp",
+            "transport": "streamable_http",
+            "description": "VariFlight 飞常准的航班查询 MCP 服务",
+            "api_key": "sk-xxx"
         }
     },
 
@@ -88,7 +114,7 @@
         "credit_currency": "CNY",
         "billing_description": "每月抵用金额度"
     },
-    
+
     "other_services": {
         "_description": "其他服务 API 密钥"
     }
