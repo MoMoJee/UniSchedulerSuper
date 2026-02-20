@@ -145,7 +145,6 @@ def user_login(request):
     
     beian_info = get_beian_info()
     return render(request, 'user_login.html', {'form': form, 'beian_info': beian_info})
-    return render(request, 'user_login.html', {'form': form})
 
 # 找回密码页面
 def password_reset_page(request):
@@ -372,13 +371,9 @@ def add_8_hours_to_time_string(time_str):
     except Exception as e:
         logger.error(f"时区转换错误: {e}, 时间字符串: {time_str}")
         return time_str
-        data['now_view']['start'] = process_time(start_time)
-        data['now_view']['end'] = process_time(end_time)
 
     else:
         raise ValueError("输入的字典格式不正确，缺少必要的字段")
-
-    return data
 
 
 
@@ -512,7 +507,6 @@ def create_event(request):
 def delete_event(request):
     """删除事件 - 委托给views_events中的实现"""
     return ValueError("delete_event  方法已弃用")
-    return delete_event_impl(request)
 
 @csrf_exempt
 @api_view(['POST'])

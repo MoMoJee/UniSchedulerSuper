@@ -282,8 +282,6 @@ class IdentifierResolver:
             logger.error(f"按编号解析失败: {e}")
         
         return None
-        
-        return None
     
     @classmethod
     def _verify_uuid_type(cls, uuid_str: str, expected_type: str, user) -> bool:

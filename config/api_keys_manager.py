@@ -187,10 +187,7 @@ class APIKeyManager:
             # 高德地图使用 key 参数
             return f"{base_url}?key={api_key}"
         return base_url
-        
-        if api_key:
-            return f"{base_url}?key={api_key}"
-        return base_url
+
     
     # ==================== 搜索服务相关 ====================
     
@@ -290,6 +287,57 @@ class APIKeyManager:
         other_config = config.get('other_services', {}).get(service_name, {})
         return other_config.get('api_key', '') if other_config else ''
     
+    # ==================== OCR 服务相关 ====================
+
+    @classmethod
+    def get_ocr_service_config(cls, provider: str) -> Optional[Dict[str, Any]]:
+        """
+        获取 OCR 服务的完整配置
+        
+        Args:
+            provider: 提供商名称，如 'baidu', 'aliyun', 'tesseract', 'easyocr'
+        
+        Returns:
+            配置字典，未找到或未启用返回 None
+        """
+        config = cls._load_config()
+        ocr_config = config.get('ocr_services', {}).get(provider, {})
+        
+        if not ocr_config or not ocr_config.get('enabled', False):
+            return None
+        
+        # 环境变量覆盖（百度 OCR）
+        if provider == 'baidu':
+            result = ocr_config.copy()
+            if os.environ.get('BAIDU_OCR_API_KEY'):
+                result['api_key'] = os.environ['BAIDU_OCR_API_KEY']
+            if os.environ.get('BAIDU_OCR_SECRET_KEY'):
+                result['secret_key'] = os.environ['BAIDU_OCR_SECRET_KEY']
+            return result
+        
+        return ocr_config
+    
+    @classmethod
+    def get_ocr_fallback_chain(cls) -> list:
+        """
+        获取 OCR 降级链（按配置中启用的服务排序）
+        
+        Returns:
+            已启用的 OCR 服务名称列表，如 ['baidu', 'easyocr', 'tesseract']
+        """
+        # 固定优先级顺序：云端优先，本地兜底
+        priority_order = ['baidu', 'aliyun', 'easyocr', 'tesseract']
+        config = cls._load_config()
+        ocr_services = config.get('ocr_services', {})
+        
+        chain = []
+        for provider in priority_order:
+            svc = ocr_services.get(provider, {})
+            if isinstance(svc, dict) and svc.get('enabled', False):
+                chain.append(provider)
+        
+        return chain
+
     # ==================== 通用方法 ====================
     
     @classmethod

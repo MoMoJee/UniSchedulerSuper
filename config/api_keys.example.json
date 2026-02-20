@@ -65,10 +65,11 @@
         "_description": "OCR 图片识别服务配置（用于不支持多模态的LLM降级方案）",
         "baidu": {
             "enabled": false,
-            "app_id": "",
-            "api_key": "",
-            "secret_key": "",
-            "description": "百度OCR服务，支持通用文字识别、表格识别等"
+            "api_key": "your-baidu-ocr-api-key",
+            "secret_key": "your-baidu-ocr-secret-key",
+            "api_url": "https://aip.baidubce.com/rest/2.0/ocr/v1/general_basic",
+            "token_url": "https://aip.baidubce.com/oauth/2.0/token",
+            "description": "百度云通用文字识别（标准版），按调用次数计费"
         },
         "aliyun": {
             "enabled": false,
@@ -81,7 +82,12 @@
             "local": true,
             "description": "Tesseract本地OCR，免费但准确率较低，适合测试环境"
         },
-        "_fallback_strategy": "如果图片无法直接发送给LLM（不支持多模态），则按优先级尝试：baidu → aliyun → tesseract → 返回错误提示"
+        "easyocr": {
+            "enabled": true,
+            "local": true,
+            "description": "EasyOCR 本地OCR，精度较高但首次加载较慢（约1GB模型）"
+        },
+        "_fallback_strategy": "按优先级尝试：baidu（云端） → easyocr（本地） → tesseract（本地） → 返回空"
     },
 
     "mcp_services": {

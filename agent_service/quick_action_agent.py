@@ -51,35 +51,6 @@ class TaskCancelledException(Exception):
     pass
 
 
-# 全局取消标志（线程安全）
-import threading
-_cancellation_flags = {}  # task_id -> bool
-_cancellation_lock = threading.Lock()
-
-
-def set_task_cancelled(task_id: str):
-    """设置任务为取消状态"""
-    with _cancellation_lock:
-        _cancellation_flags[task_id] = True
-        logger.info(f"[QuickAction] Task {task_id} marked as cancelled")
-
-
-def is_task_cancelled(task_id: str) -> bool:
-    """检查任务是否已取消"""
-    with _cancellation_lock:
-        return _cancellation_flags.get(task_id, False)
-
-
-def clear_task_cancellation(task_id: str):
-    """清除任务取消标志"""
-    with _cancellation_lock:
-        _cancellation_flags.pop(task_id, None)
-
-
-class TaskCancelledException(Exception):
-    """任务被取消异常"""
-    pass
-
 
 class QuickActionState(TypedDict):
     """Quick Action 状态"""

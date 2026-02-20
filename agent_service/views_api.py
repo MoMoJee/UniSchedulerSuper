@@ -1070,7 +1070,7 @@ def optimize_memory(request):
     记忆优化端点 (支持分批处理和上下文精简)
     POST /api/agent/optimize-memory/
     """
-    from agent_service.agent_graph import app, llm
+    from agent_service.agent_graph import app, get_user_llm, DisabledLLM
     from agent_service.models import UserPersonalInfo, WorkflowRule, DialogStyle
     from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
     import json
@@ -1082,6 +1082,11 @@ def optimize_memory(request):
 
     if not session_id.startswith(f"user_{user.id}_"):
         return Response({"error": "无权访问此会话"}, status=status.HTTP_403_FORBIDDEN)
+
+    # 获取用户对应的 LLM，并检查是否可用
+    active_llm = get_user_llm(user)
+    if isinstance(active_llm, DisabledLLM):
+        return Response({"error": f"LLM 未配置，无法执行记忆优化：{active_llm.reason}"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     try:
         # 1. 获取配置
@@ -1183,7 +1188,7 @@ def optimize_memory(request):
 """
             # 调用 LLM
             llm_msgs = [SystemMessage(content="你是一个记忆优化助手。"), HumanMessage(content=optimize_prompt)]
-            result = llm.invoke(llm_msgs, config)
+            result = active_llm.invoke(llm_msgs)
             text = getattr(result, 'content', '') if result else ''
 
             # 解析与执行
