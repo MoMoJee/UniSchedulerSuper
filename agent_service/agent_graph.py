@@ -70,14 +70,6 @@ from logger import logger
 # ==========================================
 from config.api_keys_manager import APIKeyManager
 
-# 设置环境变量（兼容其他库的使用方式）
-_deepseek_key = APIKeyManager.get_llm_key('deepseek')
-_deepseek_url = APIKeyManager.get_llm_base_url('deepseek')
-if _deepseek_key:
-    os.environ.setdefault("OPENAI_API_KEY", _deepseek_key)
-if _deepseek_url:
-    os.environ.setdefault("OPENAI_API_BASE", _deepseek_url)
-
 # ==========================================
 # 工具注册表
 # ==========================================
@@ -262,12 +254,85 @@ class AgentState(TypedDict):
 # ==========================================
 # 模型初始化
 # ==========================================
-llm = ChatOpenAI(
-    model="deepseek-chat",
-    # temperature=0,
-    streaming=False,  # 关闭流式传输（项目只需节点级别流式，不需要 LLM 级别流式）
-    base_url=os.environ.get("OPENAI_API_BASE"),
-)
+class DisabledLLM:
+    """无可用 LLM 配置时的降级占位符。"""
+
+    def __init__(self, reason: str):
+        self.reason = reason
+
+    def bind_tools(self, tools):
+        return self
+
+    def invoke(self, *args, **kwargs):
+        raise RuntimeError(self.reason)
+
+    async def ainvoke(self, *args, **kwargs):
+        raise RuntimeError(self.reason)
+
+
+def _normalize_base_url(base_url: str) -> str:
+    """统一处理 base_url 格式，去掉 /chat/completions 并移除末尾斜杠。"""
+    if not base_url:
+        return ""
+    if base_url.endswith('/chat/completions'):
+        base_url = base_url.rsplit('/chat/completions', 1)[0]
+    return base_url.rstrip('/')
+
+
+def _build_chat_llm(model_name: str, base_url: str, api_key: str) -> Optional[ChatOpenAI]:
+    """构建 ChatOpenAI 实例，不满足条件时返回 None。"""
+    if not model_name or not base_url or not api_key:
+        return None
+    return ChatOpenAI(
+        model=model_name,
+        base_url=base_url,
+        api_key=api_key,  # type: ignore
+        # temperature=0,
+        streaming=False,  # 关闭流式传输（项目只需节点级别流式，不需要 LLM 级别流式）
+    )
+
+
+_default_llm: Optional[object] = None
+
+
+def get_default_llm():
+    """
+    获取默认 LLM 实例（系统模型 > 环境变量 > 降级占位符）。
+    """
+    global _default_llm
+    if _default_llm is not None:
+        return _default_llm
+
+    system_models = APIKeyManager.get_system_models()
+
+    for model_id, model_config in system_models.items():
+        if not model_config:
+            continue
+        api_key = model_config.get('api_key', '')
+        base_url = _normalize_base_url(model_config.get('base_url', ''))
+        model_name = model_config.get('model_name', '')
+        llm = _build_chat_llm(model_name, base_url, api_key)
+        if llm:
+            logger.info(f"[LLM] 使用默认系统模型: {model_name} ({model_id})")
+            _default_llm = llm
+            return _default_llm
+
+    env_api_key = os.environ.get("OPENAI_API_KEY", "")
+    env_base_url = _normalize_base_url(
+        os.environ.get("OPENAI_API_BASE", "") or os.environ.get("OPENAI_BASE_URL", "")
+    )
+    env_model = os.environ.get("OPENAI_MODEL", "")
+    env_llm = _build_chat_llm(env_model, env_base_url, env_api_key)
+    if env_llm:
+        logger.info("[LLM] 使用环境变量配置的默认模型")
+        _default_llm = env_llm
+        return _default_llm
+
+    _default_llm = DisabledLLM(
+        "LLM 未配置。请在 config/api_keys.json 的 system_models 中配置，或设置 OPENAI_API_KEY/OPENAI_API_BASE/OPENAI_MODEL 环境变量。"
+    )
+    logger.warning("[LLM] 未检测到可用模型配置，已进入降级模式")
+    return _default_llm
 
 
 def get_user_llm(user):
@@ -284,7 +349,7 @@ def get_user_llm(user):
         ChatOpenAI 实例
     """
     if not user or not user.is_authenticated:
-        return llm
+        return get_default_llm()
     
     try:
         current_model_id, model_config = get_current_model_config(user)
@@ -306,53 +371,35 @@ def get_user_llm(user):
                 logger.debug(f"[LLM] api_key(前8位): {api_key[:8] if api_key else 'None'}...")
                 
                 # 统一处理 base_url（与自定义模型保持一致）
-                if base_url:
-                    if base_url.endswith('/chat/completions'):
-                        base_url = base_url.rsplit('/chat/completions', 1)[0]
-                    base_url = base_url.rstrip('/')
+                base_url = _normalize_base_url(base_url)
                 
                 logger.debug(f"[LLM] base_url(处理后): {base_url}")
                 
-                if api_key and base_url:
-                    user_llm = ChatOpenAI(
-                        model=model_name,
-                        base_url=base_url,
-                        api_key=api_key,  # type: ignore
-                        # temperature=1,
-                        streaming=False,  # 关闭流式传输（项目只需节点级别流式）
-                    )
+                user_llm = _build_chat_llm(model_name, base_url, api_key)
+                if user_llm:
                     logger.debug(f"[LLM] 使用系统模型: {model_name} ({current_model_id}) @ {base_url}")
                     return user_llm
             
             # 系统模型配置不存在，使用默认
             logger.warning(f"[LLM] 系统模型 {current_model_id} 配置不存在，使用默认")
-            return llm
+            return get_default_llm()
         
         # 自定义模型：使用用户配置
         api_url = model_config.get('api_url', '') or model_config.get('base_url', '')
-        if api_url:
-            if api_url.endswith('/chat/completions'):
-                api_url = api_url.rsplit('/chat/completions', 1)[0]
-            api_url = api_url.rstrip('/')
+        api_url = _normalize_base_url(api_url)
         
         api_key = model_config.get('api_key', '')
         model_name = model_config.get('model_name', model_config.get('model', ''))
         
-        if api_url and model_name and api_key:
-            user_llm = ChatOpenAI(
-                model=model_name,
-                base_url=api_url,
-                api_key=api_key,  # type: ignore
-                # temperature=0.7,
-                streaming=False,  # 关闭流式传输（项目只需节点级别流式）
-            )
+        user_llm = _build_chat_llm(model_name, api_url, api_key)
+        if user_llm:
             logger.debug(f"[LLM] 使用自定义模型: {model_name} @ {api_url}")
             return user_llm
         
     except Exception as e:
         logger.warning(f"[LLM] 创建用户 LLM 失败，使用默认: {e}")
-    
-    return llm
+
+    return get_default_llm()
 
 
 # ==========================================
@@ -531,6 +578,18 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     # ========== 动态创建 LLM 实例 ==========
     # 使用统一的 get_user_llm() 函数，正确处理系统模型和自定义模型
     active_llm = get_user_llm(user)
+
+    if isinstance(active_llm, DisabledLLM):
+        return {
+            "messages": [
+                AIMessage(
+                    content=(
+                        "当前未配置可用的 LLM。请在 config/api_keys.json 的 system_models 中配置，"
+                        "或设置 OPENAI_API_KEY/OPENAI_API_BASE/OPENAI_MODEL 环境变量。"
+                    )
+                )
+            ]
+        }
     
     if tools:
         llm_with_tools = active_llm.bind_tools(tools)

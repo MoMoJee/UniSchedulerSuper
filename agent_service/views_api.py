@@ -1913,7 +1913,7 @@ def get_context_usage(request):
         
         # ========== 降级处理：如果没有真实数据，使用估算 ==========
         if total_tokens == 0:
-            logger.warning(
+            logger.debug(
                 f"⚠️ [上下文显示-降级] 会话 {session_id} 无真实Token数据，使用估算值。"
                 f"可能原因：1) 新会话尚未请求LLM  2) 数据库未迁移"
             )
@@ -1991,7 +1991,7 @@ def get_context_usage(request):
             warn_reason.append('summary_tokens使用估算')
         
         if should_warn:
-            logger.warning(
+            logger.debug(
                 f"⚠️ [上下文显示-使用估算] session={session_id}, "
                 f"原因: {', '.join(warn_reason)}, "
                 f"total_source={total_tokens_source}, summary_source={summary_tokens_source}, "
