@@ -372,7 +372,7 @@ class BaiduDocumentParser(BaseParser):
             return {"success": False, "text": "", "metadata": {},
                     "error": f"返回的任务 ID 为空: {submit_data}"}
 
-        logger.info(f"[文档解析-百度云] 任务已提交: {task_id}, 文件: {filename}")
+        logger.debug(f"[文档解析-百度云] 任务已提交: {task_id}, 文件: {filename}")
 
         # 4. 轮询任务状态
         query_url = config.get('query_url',
@@ -442,7 +442,7 @@ class BaiduDocumentParser(BaseParser):
             logger.warning(f"[文档解析-百度云] {err}，将尝试本地解析器。")
             return {"success": False, "text": "", "metadata": {}, "error": err}
 
-        logger.info(
+        logger.debug(
             f"[文档解析-百度云] 解析完成: {filename}, "
             f"{len(markdown_text)} 字符"
         )

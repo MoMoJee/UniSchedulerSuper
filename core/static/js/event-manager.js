@@ -262,6 +262,41 @@ class EventManager {
                 }
                 this.handleEventDragDrop(info, 'resize');
             },
+
+            // 拖拽开始：记录当前拖拽的事件，供拖入 Agent 面板时使用；同时显示 Agent 面板视觉提示
+            eventDragStart: (info) => {
+                const isReminder = info.event.extendedProps.isReminder;
+                // 保留原始字符串 ID，不做 parseInt（事件 ID 可能是 UUID）
+                const rawId = info.event.id;
+                const elementId = isReminder ? rawId.replace('reminder_', '') : rawId;
+                window._fcDraggedEvent = {
+                    type: isReminder ? 'reminder' : 'event',
+                    id: elementId,
+                    title: info.event.title,
+                };
+                // 直接给 Agent 面板加 element-drag-over class，提供视觉反馈
+                const agentPanel = document.querySelector('.agent-panel-content');
+                if (agentPanel) agentPanel.classList.add('element-drag-over');
+            },
+
+            // 拖拽结束：检测是否落在 Agent 面板上，并清除视觉提示
+            eventDragStop: (info) => {
+                const agentPanel = document.querySelector('.agent-panel-content');
+                if (agentPanel) agentPanel.classList.remove('element-drag-over');
+                if (!window._fcDraggedEvent) return;
+                const jsEvent = info.jsEvent;
+                if (agentPanel && jsEvent) {
+                    const rect = agentPanel.getBoundingClientRect();
+                    const x = jsEvent.clientX;
+                    const y = jsEvent.clientY;
+                    if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                        agentPanel.dispatchEvent(new CustomEvent('fcEventDropped', {
+                            detail: { ...window._fcDraggedEvent }
+                        }));
+                    }
+                }
+                window._fcDraggedEvent = null;
+            },
             
             // 视图变化
             datesSet: (viewInfo) => {

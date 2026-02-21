@@ -223,6 +223,23 @@ class ReminderManager {
             reminderContent.style.cursor = 'pointer';
         }
 
+        // 拖拽支持：将提醒拖入 Agent 面板作为附件
+        div.draggable = true;
+        div.addEventListener('dragstart', (e) => {
+            e.dataTransfer.effectAllowed = 'copyMove';
+            // 自定义类型标记，供 Agent 面板识别为内部元素
+            e.dataTransfer.setData('application/x-unischeduler-element', 'true');
+            e.dataTransfer.setData('text/plain', JSON.stringify({
+                type: 'reminder',
+                id: reminder.id,
+                title: reminder.title,
+            }));
+            e.target.style.opacity = '0.5';
+        });
+        div.addEventListener('dragend', (e) => {
+            e.target.style.opacity = '1';
+        });
+
         return div;
     }
 

@@ -388,7 +388,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 # 纯文本附件：content 只包含用户输入，附件描述存到 attachments_context
                 attachments_context = '\n\n'.join(b.get('text', '') for b in text_blocks)
                 
-                logger.info(f"[附件] 纯文本附件: {len(attachments)} 个, 上下文 {len(attachments_context)} 字符")
+                logger.debug(f"[附件] 纯文本附件: {len(attachments)} 个, 上下文 {len(attachments_context)} 字符")
                 
                 return HumanMessage(
                     content=content,
@@ -497,13 +497,13 @@ class AgentConsumer(AsyncWebsocketConsumer):
             # 【重构】使用异步 astream 替代同步 stream + 后台线程
             # 这样 asyncio.CancelledError 可以传播到底层 HTTP 客户端并中断请求
             try:
-                logger.info(f"[Stream] 开始异步流式处理")
+                logger.debug(f"[Stream] 开始异步流式处理")
                 chunk_count = 0
                 
                 async for output in app.astream(input_state, config):
                     # 检查停止标志
                     if self.should_stop:
-                        logger.info(f"[Stream] 检测到停止信号，中断处理")
+                        logger.debug(f"[Stream] 检测到停止信号，中断处理")
                         break
                     
                     chunk_count += 1
@@ -511,14 +511,14 @@ class AgentConsumer(AsyncWebsocketConsumer):
                     # output 是一个字典，key 是节点名称，value 是该节点的输出
                     for node_name, node_output in output.items():
                         if self.should_stop:
-                            logger.info(f"[Stream] 检测到停止信号，中断节点处理")
+                            logger.debug(f"[Stream] 检测到停止信号，中断节点处理")
                             break
                         
                         # 检查是否有 messages
                         if isinstance(node_output, dict) and 'messages' in node_output:
                             for msg in node_output['messages']:
                                 if self.should_stop:
-                                    logger.info(f"[Stream] 检测到停止信号，中断消息处理")
+                                    logger.debug(f"[Stream] 检测到停止信号，中断消息处理")
                                     break
                                 
                                 # 处理 AIMessage 的内容
@@ -1155,9 +1155,9 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 return
             
             # 获取优化配置（添加详细日志）
-            logger.info(f"[总结] 开始获取优化配置, user={self.user}, user_id={self.user.id if self.user else 'None'}")
+            logger.debug(f"[总结] 开始获取优化配置, user={self.user}, user_id={self.user.id if self.user else 'None'}")
             opt_config = await database_sync_to_async(get_optimization_config)(self.user)
-            logger.info(f"[总结] 获取到的配置: {opt_config}")
+            logger.debug(f"[总结] 获取到的配置: {opt_config}")
             
             # 获取用户配置的 LLM（用于总结）
             user_llm = await database_sync_to_async(get_user_llm)(self.user)

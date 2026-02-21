@@ -439,36 +439,67 @@ class AgentChat {
         if (agentPanelEl) {
             let dragCounter = 0;
             agentPanelEl.addEventListener('dragenter', (e) => {
-                // 只处理文件拖拽（不处理内部元素拖拽如 FullCalendar）
-                if (!e.dataTransfer || !e.dataTransfer.types.includes('Files')) return;
+                const hasFiles = e.dataTransfer && e.dataTransfer.types.includes('Files');
+                const hasInternal = e.dataTransfer && e.dataTransfer.types.includes('application/x-unischeduler-element');
+                if (!hasFiles && !hasInternal) return;
                 e.preventDefault();
                 dragCounter++;
                 if (dragCounter === 1) {
-                    agentPanelEl.classList.add('file-drag-over');
+                    agentPanelEl.classList.add(hasInternal ? 'element-drag-over' : 'file-drag-over');
                 }
             });
             agentPanelEl.addEventListener('dragover', (e) => {
-                if (!e.dataTransfer || !e.dataTransfer.types.includes('Files')) return;
+                const hasFiles = e.dataTransfer && e.dataTransfer.types.includes('Files');
+                const hasInternal = e.dataTransfer && e.dataTransfer.types.includes('application/x-unischeduler-element');
+                if (!hasFiles && !hasInternal) return;
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'copy';
             });
             agentPanelEl.addEventListener('dragleave', (e) => {
-                if (!e.dataTransfer || !e.dataTransfer.types.includes('Files')) return;
+                const hasFiles = e.dataTransfer && e.dataTransfer.types.includes('Files');
+                const hasInternal = e.dataTransfer && e.dataTransfer.types.includes('application/x-unischeduler-element');
+                if (!hasFiles && !hasInternal) return;
                 dragCounter--;
                 if (dragCounter <= 0) {
                     dragCounter = 0;
-                    agentPanelEl.classList.remove('file-drag-over');
+                    agentPanelEl.classList.remove('file-drag-over', 'element-drag-over');
                 }
             });
             agentPanelEl.addEventListener('drop', (e) => {
-                if (!e.dataTransfer || !e.dataTransfer.types.includes('Files')) return;
+                const hasFiles = e.dataTransfer && e.dataTransfer.types.includes('Files');
+                const hasInternal = e.dataTransfer && e.dataTransfer.types.includes('application/x-unischeduler-element');
+                if (!hasFiles && !hasInternal) return;
                 e.preventDefault();
                 e.stopPropagation();
                 dragCounter = 0;
-                agentPanelEl.classList.remove('file-drag-over');
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    this.handleFileUpload(files[0]);
+                agentPanelEl.classList.remove('file-drag-over', 'element-drag-over');
+                if (hasFiles) {
+                    // 文件拖拽：先打开附件面板进入上传区（显示进度），再上传
+                    this.showAttachmentPanel();
+                    this.showUploadZone();
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) this.handleFileUpload(files[0]);
+                } else if (hasInternal) {
+                    // 内部元素（Todo/Reminder）拖入附加到对话
+                    try {
+                        const rawData = e.dataTransfer.getData('text/plain');
+                        const data = JSON.parse(rawData);
+                        if (data.type && data.id !== undefined && data.title !== undefined) {
+                            this.toggleAttachmentMulti(data.type, String(data.id), data.title);
+                            this.showNotification(`已附加${data.type === 'todo' ? '待办' : '提醒'}: ${data.title}`, 'success');
+                        }
+                    } catch (err) {
+                        console.error('[AgentPanel] 解析内部元素拖拽数据失败:', err);
+                    }
+                }
+            });
+
+            // 监听 FullCalendar 事件拖入（通过 eventDragStop 分发的自定义事件）
+            agentPanelEl.addEventListener('fcEventDropped', (e) => {
+                const data = e.detail;
+                if (data && data.type && data.id !== undefined && data.title !== undefined) {
+                    this.toggleAttachmentMulti(data.type, String(data.id), data.title);
+                    this.showNotification(`已附加${data.type === 'reminder' ? '提醒' : '日程'}: ${data.title}`, 'success');
                 }
             });
         }
