@@ -161,6 +161,8 @@ cp config/api_keys.example.json config/api_keys.json
 
 > 支持任何 OpenAI Compatible 接口。用户也可以在账户设置中绑定自己的 API Key，优先于系统模型。未配置任何模型时项目仍可正常启动，仅 AI 对话功能不可用。
 
+如果要使用更多丰富的功能，可以参照 config/api_keys.example.json 配置其他服务，如百度云 OCR 和文档解析，以及更多 MCP 服务等
+
 ### 初始化数据库
 
 ```bash
