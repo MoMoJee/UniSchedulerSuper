@@ -338,6 +338,56 @@ class APIKeyManager:
         
         return chain
 
+    # ==================== 文档解析服务相关 ====================
+
+    @classmethod
+    def get_document_service_config(cls, provider: str) -> Optional[Dict[str, Any]]:
+        """
+        获取文档解析服务的完整配置
+
+        Args:
+            provider: 提供商名称，目前支持 'baidu'
+
+        Returns:
+            配置字典，未找到或未启用返回 None
+        """
+        config = cls._load_config()
+        svc = config.get('document_services', {}).get(provider, {})
+
+        if not svc or not svc.get('enabled', False):
+            return None
+
+        # 环境变量覆盖（百度）
+        if provider == 'baidu':
+            result = svc.copy()
+            if os.environ.get('BAIDU_DOC_API_KEY'):
+                result['api_key'] = os.environ['BAIDU_DOC_API_KEY']
+            if os.environ.get('BAIDU_DOC_SECRET_KEY'):
+                result['secret_key'] = os.environ['BAIDU_DOC_SECRET_KEY']
+            return result
+
+        return svc.copy()
+
+    @classmethod
+    def get_document_fallback_chain(cls) -> list:
+        """
+        获取文档解析降级链
+
+        Returns:
+            已启用的文档解析服务名称列表，如 ['baidu']；为空时仅用本地解析器
+        """
+        priority_order = ['baidu']
+        config = cls._load_config()
+        doc_services = config.get('document_services', {})
+
+        chain = []
+        for provider in priority_order:
+            svc = doc_services.get(provider, {})
+            if isinstance(svc, dict) and svc.get('enabled', False):
+                chain.append(provider)
+
+        return chain
+
     # ==================== 通用方法 ====================
     
     @classmethod

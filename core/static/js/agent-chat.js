@@ -1462,13 +1462,21 @@ class AgentChat {
                 'excel': { icon: 'file-excel', color: '#217346' },
             };
             const fileInfo = fileIcons[att.type] || { icon: 'file', color: '#6c757d' };
-            
+            const safeFileUrl = this.escapeHtml(att.file_url || '');
+            const safeMime = this.escapeHtml(att.mime_type || '');
+            const safeName = this.escapeHtml(att.filename || att.name || '文件');
+
             return `
-                <div class="attachment-tile attachment-tile-file" data-sa-id="${att.sa_id || ''}">
+                <div class="attachment-tile attachment-tile-file"
+                     data-sa-id="${att.sa_id || ''}"
+                     data-file-url="${safeFileUrl}"
+                     data-mime-type="${safeMime}"
+                     data-filename="${safeName}"
+                     data-att-type="${att.type || 'file'}">
                     <div class="attachment-tile-icon" style="color: ${fileInfo.color};">
                         <i class="fas fa-${fileInfo.icon}"></i>
                     </div>
-                    <div class="attachment-tile-name">${att.filename || att.name || '文件'}</div>
+                    <div class="attachment-tile-name">${safeName}</div>
                 </div>
             `;
         }).join('');
@@ -1487,11 +1495,157 @@ class AgentChat {
                     this.previewAttachment(type, id);
                 });
             });
+            // 文件类型瓦片（pdf/word/excel）点击预览
+            document.querySelectorAll('.attachment-tile-file[data-file-url]').forEach(tile => {
+                if (tile.dataset._bound) return;
+                tile.dataset._bound = '1';
+                tile.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const fileUrl = tile.dataset.fileUrl;
+                    const mimeType = tile.dataset.mimeType;
+                    const filename = tile.dataset.filename;
+                    const attType = tile.dataset.attType;
+                    if (fileUrl) {
+                        this.showDocumentPreview(fileUrl, mimeType, filename, attType);
+                    }
+                });
+            });
         }, 0);
         
         return html;
     }
     
+    /**
+     * 文档预览（PDF 内嵌 / Word·Excel 信息面板）
+     *
+     * @param {string} fileUrl  - 文件 URL（如 /media/attachments/…/foo.pdf）
+     * @param {string} mimeType - MIME 类型
+     * @param {string} filename - 文件名（仅用于显示）
+     * @param {string} attType  - 附件类型字符串：'pdf'|'word'|'excel'
+     */
+    showDocumentPreview(fileUrl, mimeType, filename, attType) {
+        const overlay = document.createElement('div');
+        overlay.className = 'doc-preview-overlay';
+
+        const isPdf = attType === 'pdf' || mimeType === 'application/pdf';
+
+        const fileIcons = {
+            'pdf':   { icon: 'file-pdf',   color: '#dc3545', label: 'PDF 文档' },
+            'word':  { icon: 'file-word',  color: '#2b579a', label: 'Word 文档' },
+            'excel': { icon: 'file-excel', color: '#217346', label: 'Excel 表格' },
+        };
+        const fi = fileIcons[attType] || { icon: 'file', color: '#6c757d', label: '文件' };
+
+        if (isPdf) {
+            // PDF：先构建带 loading 状态的外壳，再 fetch 成 blob URL 嵌入 iframe
+            // 用 blob: URL 规避 Django 默认的 X-Frame-Options: DENY 限制
+            overlay.innerHTML = `
+                <div class="doc-preview-container doc-preview-pdf">
+                    <div class="doc-preview-toolbar">
+                        <span class="doc-preview-title">
+                            <i class="fas fa-${fi.icon}" style="color:${fi.color}"></i>
+                            ${this.escapeHtml(filename)}
+                        </span>
+                        <div class="doc-preview-actions">
+                            <a href="${this.escapeHtml(fileUrl)}" download="${this.escapeHtml(filename)}"
+                               class="doc-preview-btn" title="下载">
+                                <i class="fas fa-download"></i> 下载
+                            </a>
+                            <button class="doc-preview-close" title="关闭">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="doc-preview-loading" id="docPreviewLoading">
+                        <i class="fas fa-spinner fa-spin"></i> 正在加载…
+                    </div>
+                    <iframe class="doc-preview-iframe" id="docPreviewIframe"
+                            style="display:none" type="application/pdf"></iframe>
+                </div>
+            `;
+
+            // 关闭逻辑（需先挂载再设 blob 以便 cleanup）
+            let blobUrl = null;
+            const cleanup = () => {
+                if (blobUrl) { URL.revokeObjectURL(blobUrl); blobUrl = null; }
+                overlay.remove();
+            };
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay || e.target.closest('.doc-preview-close')) cleanup();
+            });
+            const onKeyDown = (e) => {
+                if (e.key === 'Escape') { cleanup(); document.removeEventListener('keydown', onKeyDown); }
+            };
+            document.addEventListener('keydown', onKeyDown);
+            document.body.appendChild(overlay);
+
+            // 异步 fetch → blob URL → 注入 iframe
+            fetch(fileUrl, { credentials: 'same-origin' })
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    return r.blob();
+                })
+                .then(blob => {
+                    blobUrl = URL.createObjectURL(blob);
+                    const iframe = overlay.querySelector('#docPreviewIframe');
+                    const loading = overlay.querySelector('#docPreviewLoading');
+                    iframe.src = blobUrl;
+                    iframe.style.display = '';
+                    if (loading) loading.style.display = 'none';
+                })
+                .catch(err => {
+                    const loading = overlay.querySelector('#docPreviewLoading');
+                    if (loading) loading.innerHTML =
+                        `<i class="fas fa-exclamation-circle" style="color:#dc3545"></i> 加载失败，请直接下载查看`;
+                    console.error('[PDF预览] 加载失败:', err);
+                });
+
+            return; // 已自行挂载，跳过下方统一 appendChild
+        } else {
+            // Word / Excel：浏览器无法直接渲染，显示信息面板+下载
+            overlay.innerHTML = `
+                <div class="doc-preview-container doc-preview-info">
+                    <div class="doc-preview-toolbar">
+                        <span class="doc-preview-title">
+                            <i class="fas fa-${fi.icon}" style="color:${fi.color}"></i>
+                            ${this.escapeHtml(filename)}
+                        </span>
+                        <button class="doc-preview-close" title="关闭">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="doc-preview-body">
+                        <div class="doc-preview-icon-large">
+                            <i class="fas fa-${fi.icon}" style="color:${fi.color}"></i>
+                        </div>
+                        <p class="doc-preview-label">${fi.label}</p>
+                        <p class="doc-preview-name">${this.escapeHtml(filename)}</p>
+                        <p class="doc-preview-hint">此格式无法在浏览器中直接预览</p>
+                        <a href="${this.escapeHtml(fileUrl)}" download="${this.escapeHtml(filename)}"
+                           class="doc-preview-btn doc-preview-download">
+                            <i class="fas fa-download"></i> 下载文件
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 关闭逻辑
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay || e.target.closest('.doc-preview-close')) {
+                overlay.remove();
+            }
+        });
+        // Esc 也可关闭
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKeyDown); }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        overlay.addEventListener('remove', () => document.removeEventListener('keydown', onKeyDown));
+
+        document.body.appendChild(overlay);
+    }
+
     /**
      * 全屏预览图片
      */
@@ -4287,8 +4441,16 @@ class AgentChat {
             if (att && att.thumbnail_url) {
                 this.showImagePreview(att.thumbnail_url);
             }
+        } else if (['pdf', 'word', 'excel'].includes(type)) {
+            // 文档：找到文件 URL 并打开文档预览
+            const att = this.selectedAttachments.find(a => a.type === type && String(a.sa_id) === String(id));
+            const fileUrl = att && att._full_data && att._full_data.file_url;
+            const mimeType = att && att.mime_type || '';
+            const filename = att && (att.name || att.filename || '文件');
+            if (fileUrl) {
+                this.showDocumentPreview(fileUrl, mimeType, filename, type);
+            }
         }
-        // 其他文件类型暂不支持预览
     }
 
     /**

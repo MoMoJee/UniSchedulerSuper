@@ -3,14 +3,14 @@
 
 提供统一的文件解析接口，支持：
 - 图片解析 (OCR + Base64)
-- PDF 解析 (文字提取 + 表格)
-- Word/Excel 文档解析
+- 百度云智能文档解析（PDF/Word/Excel → Markdown，云端优先）
+- PDF / Word / Excel 本地解析（pdfplumber / python-docx / openpyxl，云端失败时降级）
 - 内部元素解析 (events/todos/reminders/workflows)
 """
 
 from .base import BaseParser
 from .image_parser import ImageParser
-from .document_parser import PDFParser, WordParser, ExcelParser
+from .document_parser import BaiduDocumentParser, PDFParser, WordParser, ExcelParser
 from .internal_parser import InternalElementParser
 
 
@@ -24,6 +24,10 @@ class ParserFactory:
             cls._instance = super().__new__(cls)
             cls._instance._parsers = [
                 ImageParser(),
+                # 文档类：BaiduDocumentParser 在 can_parse() 中检查云端是否启用
+                # 启用时接管 PDF/Word/Excel 并内置云→本地降级
+                # 未启用时 can_parse() 返回 False，退后由各本地解析器接管
+                BaiduDocumentParser(),
                 PDFParser(),
                 WordParser(),
                 ExcelParser(),
@@ -49,6 +53,7 @@ parser_factory = ParserFactory()
 __all__ = [
     'BaseParser',
     'ImageParser',
+    'BaiduDocumentParser',
     'PDFParser',
     'WordParser',
     'ExcelParser',

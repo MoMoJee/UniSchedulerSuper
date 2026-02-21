@@ -111,7 +111,7 @@ class AttachmentHandler:
             return
 
         # 如果当前模型支持 vision 且是图片，跳过耗时的 OCR
-        parse_kwargs = {}
+        parse_kwargs = {'mime_type': mime_type}
         if attachment.type == 'image':
             try:
                 from agent_service.model_capabilities import ModelCapabilities

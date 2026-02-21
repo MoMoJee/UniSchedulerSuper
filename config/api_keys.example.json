@@ -90,6 +90,22 @@
         "_fallback_strategy": "按优先级尝试：baidu（云端） → easyocr（本地） → tesseract（本地） → 返回空"
     },
 
+    "document_services": {
+        "_description": "文档解析服务配置（支持 PDF/Word/Excel，转换为 Markdown 文本）",
+        "baidu": {
+            "enabled": false,
+            "api_key": "your-baidu-api-key",
+            "secret_key": "your-baidu-secret-key",
+            "submit_url": "https://aip.baidubce.com/rest/2.0/brain/online/v2/parser/task",
+            "query_url": "https://aip.baidubce.com/rest/2.0/brain/online/v2/parser/task/query",
+            "token_url": "https://aip.baidubce.com/oauth/2.0/token",
+            "poll_interval_seconds": 2,
+            "poll_max_attempts": 30,
+            "description": "百度云智能文档解析，异步提交任务并转为 Markdown，支持 PDF/Word/Excel"
+        },
+        "_fallback_strategy": "按优先级尝试：baidu（云端） → pdfplumber/python-docx/openpyxl（本地） → 返回错误"
+    },
+
     "mcp_services": {
         "_description": "MCP 服务配置",
         "amap": {

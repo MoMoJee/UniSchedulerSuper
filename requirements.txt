@@ -29,7 +29,11 @@ concurrent_log_handler
 daphne
 channels
 
-# 附件系统 - OCR & 图片处理
+# 附件系统 - OCR & 图片处理  & 文档解析 可以选择性安装
 Pillow
 pytesseract  # 需要系统安装 Tesseract-OCR
 easyocr  # 可选，约 1GB，更高精度的 OCR
+
+pdfplumber      # PDF 解析
+python-docx     # Word 解析
+openpyxl        # Excel 解析
