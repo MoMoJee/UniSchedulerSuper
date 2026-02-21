@@ -5,6 +5,9 @@
 class SettingsManager {
     constructor() {
         this.debounceTimers = new Map();
+        this.isInitializing = true;  // 初始化期间屏蔽服务器保存
+        this.isSaving = false;       // 防止并发请求
+        this.pendingSave = false;    // 保存进行中时有新变化，完成后补发一次
         this.settings = {
             todoFilters: {
                 priorities: ['important-urgent', 'important-not-urgent', 'not-important-urgent', 'not-important-not-urgent', 'unspecified'],
@@ -46,6 +49,8 @@ class SettingsManager {
     async init() {
         await this.loadSettings();
         this.setupAutoSave();
+        // 初始化完成，允许后续变化触发服务器保存
+        this.isInitializing = false;
         // console.log('设置管理器已初始化，当前设置:', this.settings);
     }
 
@@ -149,6 +154,9 @@ class SettingsManager {
 
     // 防抖保存到服务器
     debouncedSaveToServer() {
+        // 初始化期间不保存（刚从服务器加载的设置无需写回）
+        if (this.isInitializing) return;
+
         const timerId = 'serverSave';
         
         // 清除之前的定时器
@@ -167,6 +175,18 @@ class SettingsManager {
 
     // 保存设置到服务器
     async saveToServer() {
+        // 初始化期间不保存
+        if (this.isInitializing) return;
+
+        // 已有请求进行中：标记需要补发，直接返回
+        if (this.isSaving) {
+            this.pendingSave = true;
+            return;
+        }
+
+        this.isSaving = true;
+        this.pendingSave = false;
+
         try {
             // console.log('开始保存设置到服务器:', this.settings);
             // console.log('CSRF Token:', this.getCSRFToken());
@@ -188,11 +208,21 @@ class SettingsManager {
             }
         } catch (error) {
             console.error('保存设置到服务器时出错:', error);
+        } finally {
+            this.isSaving = false;
+            // 保存期间有新变化，补发一次
+            if (this.pendingSave) {
+                this.pendingSave = false;
+                this.saveToServer();
+            }
         }
     }
 
     // 立即保存设置
     saveSettingsImmediate() {
+        // 初始化期间不保存
+        if (this.isInitializing) return;
+
         // 立即保存到localStorage
         localStorage.setItem('userInterfaceSettings', JSON.stringify(this.settings));
         

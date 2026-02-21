@@ -138,10 +138,12 @@ class ThemeManager {
             window.userSettings.use_gold_theme = this.useGoldTheme;
         }
         
-        // 通过设置管理器保存
+        // 通过设置管理器保存（合并为一次请求）
         if (window.settingsManager) {
-            window.settingsManager.updateSetting('userPreferences', 'theme', theme);
-            window.settingsManager.updateSetting('userPreferences', 'use_gold_theme', this.useGoldTheme);
+            window.settingsManager.updateCategorySettings('userPreferences', {
+                theme: theme,
+                use_gold_theme: this.useGoldTheme
+            });
         }
         
         console.log('主题已保存:', theme, '金色主题:', this.useGoldTheme);

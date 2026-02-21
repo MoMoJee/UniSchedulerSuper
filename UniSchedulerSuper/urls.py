@@ -26,6 +26,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('core.urls')),
     path('api/agent/', include('agent_service.urls')),  # Agent Service API
+    path('.well-known/appspecific/com.chrome.devtools.json', lambda request: __import__('django.http').http.HttpResponse(status=204)),
 ]
 
 # 在开发环境和使用 daphne 时服务静态文件
