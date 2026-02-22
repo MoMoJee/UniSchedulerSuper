@@ -388,6 +388,61 @@ class APIKeyManager:
 
         return chain
 
+    # ==================== 语音识别服务相关 ====================
+
+    @classmethod
+    def get_speech_service_config(cls, provider: str) -> Optional[Dict[str, Any]]:
+        """
+        获取语音识别服务的完整配置
+
+        Args:
+            provider: 提供商名称，目前支持 'baidu'
+
+        Returns:
+            配置字典，未找到或未启用返回 None
+        """
+        config = cls._load_config()
+        svc = config.get('speech_services', {}).get(provider, {})
+
+        if not svc or not svc.get('enabled', False):
+            return None
+
+        if provider == 'baidu':
+            result = svc.copy()
+            if os.environ.get('BAIDU_SPEECH_API_KEY'):
+                result['api_key'] = os.environ['BAIDU_SPEECH_API_KEY']
+            if os.environ.get('BAIDU_SPEECH_SECRET_KEY'):
+                result['secret_key'] = os.environ['BAIDU_SPEECH_SECRET_KEY']
+            return result
+
+        return svc.copy()
+
+    @classmethod
+    def get_speech_fallback_chain(cls) -> list:
+        """
+        获取语音识别降级链。
+
+        优先级固定：baidu（云端） → faster_whisper（本地轻量级）
+
+        Returns:
+            已启用的服务名称列表，如 ['baidu', 'faster_whisper']
+        """
+        priority_order = ['baidu', 'faster_whisper']
+        config = cls._load_config()
+        speech_services = config.get('speech_services', {})
+
+        chain = []
+        for provider in priority_order:
+            svc = speech_services.get(provider, {})
+            if isinstance(svc, dict) and svc.get('enabled', False):
+                chain.append(provider)
+
+        # 保证至少有本地兜底（即使配置文件中没有 faster_whisper 条目）
+        if not chain:
+            chain = ['faster_whisper']
+
+        return chain
+
     # ==================== 通用方法 ====================
     
     @classmethod

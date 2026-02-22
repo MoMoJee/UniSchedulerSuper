@@ -137,6 +137,30 @@
         "billing_description": "每月抵用金额度"
     },
 
+    "speech_services": {
+        "_description": "语音识别服务配置（用于语音转文字，支持百度云 VOP + 本地 faster-whisper 兜底）",
+        "baidu": {
+            "enabled": false,
+            "auth_type": "bearer",
+            "_auth_note": "推荐使用 bearer 认证（BCE IAM）：将 auth_type 设为 bearer，填写 bearer_token。",
+            "_auth_note2": "也可使用 oauth2 认证：将 auth_type 设为 oauth2，填写 api_key 和 secret_key，但需确保该 App 已在百度云控制台开通语音识别权限。",
+            "api_key": "your-baidu-speech-api-key",
+            "secret_key": "your-baidu-speech-secret-key",
+            "bearer_token": "bce-v3/ALTAK-xxxx/your-signature",
+            "api_url": "https://vop.baidu.com/pro_api",
+            "token_url": "https://aip.baidubce.com/oauth/2.0/token",
+            "dev_pid": 80001,
+            "description": "百度云语音识别极速版（pro_api），支持普通话+英语，按调用次数计费"
+        },
+        "faster_whisper": {
+            "enabled": true,
+            "local": true,
+            "model_size": "tiny",
+            "description": "faster-whisper tiny 模型本地推理，免费但首次需下载约 72MB 模型"
+        },
+        "_fallback_strategy": "按优先级尝试：baidu（云端） → faster_whisper（本地） → 返回错误"
+    },
+
     "other_services": {
         "_description": "其他服务 API 密钥"
     }

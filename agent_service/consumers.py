@@ -984,7 +984,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
             if session.is_auto_named:
                 return
             
-            logger.info(f"[自动命名] 开始为会话命名: {self.session_id}")
+            logger.debug(f"[自动命名] 开始为会话命名: {self.session_id}")
             
             # 设置正在命名状态
             session.is_naming = True
@@ -1050,7 +1050,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
                         await database_sync_to_async(update_token_usage)(
                             self.user, input_tokens, output_tokens, current_model_id
                         )
-                        logger.info(f"[自动命名] Token 统计已更新: in={input_tokens}, out={output_tokens}")
+                        logger.debug(f"[自动命名] Token 统计已更新: in={input_tokens}, out={output_tokens}")
                     except Exception as e:
                         logger.warning(f"[自动命名] Token 统计失败: {e}")
                 
@@ -1066,7 +1066,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 if not generated_name or len(generated_name) < 2:
                     generated_name = first_message[:20] + ("..." if len(first_message) > 20 else "")
                 
-                logger.info(f"[自动命名] 生成名称: {generated_name}")
+                logger.debug(f"[自动命名] 生成名称: {generated_name}")
                 
                 # 更新会话名称
                 session.name = generated_name

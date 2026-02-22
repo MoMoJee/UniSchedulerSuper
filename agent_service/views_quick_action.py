@@ -10,14 +10,18 @@ Quick Action API Views
 Author: Quick Action System
 """
 
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
 from django.db.models import Q
 import threading
 import time
+import os
+import tempfile
+import mimetypes
 from datetime import datetime, timedelta
 
 from agent_service.models import QuickActionTask
@@ -31,51 +35,94 @@ from logger import logger
 # ============================================
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def create_quick_action(request):
     """
     创建快速操作任务
-    
-    POST /api/quick-action/
-    
-    Request Body:
-    {
-        "text": "2月8日的会议改到晚上8点",
-        "sync": false,       // 可选，是否同步执行（默认异步）
-        "timeout": 30        // 可选，同步执行超时时间（秒）
-    }
-    
+
+    支持两种输入方式（二选一，不可同时提供）：
+
+    方式一：JSON Body（纯文本）
+        Content-Type: application/json
+        {
+            "text": "2月8日的会议改到晚上8点",
+            "sync": false,    // 可选，是否同步执行（默认异步）
+            "timeout": 30     // 可选，同步执行超时时间（秒）
+        }
+
+    方式二：multipart/form-data（语音输入）
+        Content-Type: multipart/form-data
+        字段：
+            audio (File): 音频文件，≤ 60s，支持 wav/mp3/ogg/flac/webm/aac/m4a/amr
+            sync  (str):  可选，"true" 表示同步执行
+            timeout (int): 可选，同步超时秒数
+
+    两种方式不可同时提供 text 与 audio，否则返回 400。
+
     Response (async):
     {
         "task_id": "uuid",
         "status": "pending",
         "status_url": "/api/quick-action/<uuid>/",
-        "created_at": "2024-02-08T10:00:00"
+        "created_at": "2024-02-08T10:00:00",
+        "input_type": "text | audio"   // 标注本次输入类型
     }
-    
-    Response (sync):
-    {
-        "task_id": "uuid",
-        "status": "success",
-        "result_type": "action_completed",
-        "result": {...},
-        ...
-    }
+
+    Response (sync): 同步返回完整任务结果
     """
-    text = request.data.get('text', '').strip()
-    sync_mode = request.data.get('sync', False)
-    timeout = request.data.get('timeout', 30)
-    
-    if not text:
+    has_text = bool(request.data.get('text', '').strip())
+    has_audio = 'audio' in request.FILES
+
+    # ——— 互斥检查 ———
+    if has_text and has_audio:
         return Response(
-            {"error": "输入文本不能为空", "code": "EMPTY_TEXT"},
-            status=status.HTTP_400_BAD_REQUEST
+            {
+                "error": "text 与 audio 不能同时提供，请二选一",
+                "code": "AMBIGUOUS_INPUT",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
         )
-    
-    # 限制文本长度
+
+    if not has_text and not has_audio:
+        return Response(
+            {"error": "必须提供 text 或 audio 之一", "code": "EMPTY_INPUT"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    sync_mode = request.data.get('sync', False)
+    # multipart 中 sync 是字符串
+    if isinstance(sync_mode, str):
+        sync_mode = sync_mode.lower() in ('true', '1', 'yes')
+    timeout = int(request.data.get('timeout', 30))
+
+    input_type = 'text'
+
+    # ——— 语音输入路径 ———
+    if has_audio:
+        audio_result = _transcribe_audio(request.FILES['audio'])
+        if not audio_result['success']:
+            return Response(
+                {
+                    "error": f"语音识别失败：{audio_result['error']}",
+                    "code": "SPEECH_RECOGNITION_FAILED",
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        text = audio_result['text'].strip()
+        input_type = 'audio'
+        if not text:
+            return Response(
+                {"error": "语音识别结果为空", "code": "EMPTY_SPEECH_RESULT"},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+    else:
+        text = request.data.get('text', '').strip()
+
+    # ——— 文本校验 ———
     if len(text) > 1000:
         return Response(
             {"error": "输入文本过长，最多1000字符", "code": "TEXT_TOO_LONG"},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
     
     user = request.user
@@ -86,7 +133,7 @@ def create_quick_action(request):
         input_text=text
     )
     
-    logger.info(f"[QuickAction] Created task {task.task_id} for user {user.username}: {text[:50]}...")
+    logger.debug(f"[QuickAction] Created task {task.task_id} for user {user.username} (input_type={input_type}): {text[:50]}...")
     
     if sync_mode:
         # 同步执行
@@ -100,7 +147,8 @@ def create_quick_action(request):
             "task_id": str(task.task_id),
             "status": "pending",
             "status_url": f"/api/agent/quick-action/{task.task_id}/",
-            "created_at": task.created_at.isoformat()
+            "created_at": task.created_at.isoformat(),
+            "input_type": input_type,
         }, status=status.HTTP_201_CREATED)
 
 
@@ -201,7 +249,7 @@ def _execute_async(task_id, user_id: int, text: str):
             model_used=model_id
         )
         
-        logger.info(f"[QuickAction] Task {task_id} completed: {result.get('type')}")
+        logger.debug(f"[QuickAction] Task {task_id} completed: {result.get('type')}")
         
     except Exception as e:
         logger.exception(f"[QuickAction] Async execution failed: {e}")
@@ -387,6 +435,88 @@ def cancel_quick_action(request, task_id):
     task.completed_at = timezone.now()
     task.save()
     
-    logger.info(f"[QuickAction] Task {task_id} cancelled by user")
+    logger.debug(f"[QuickAction] Task {task_id} cancelled by user")
     
     return Response({"message": "任务已取消"}, status=status.HTTP_200_OK)
+
+
+# ============================================
+# 音频转写辅助函数
+# ============================================
+
+def _transcribe_audio(audio_file) -> dict:
+    """
+    将上传的音频文件转写为文字。
+
+    Args:
+        audio_file: Django InMemoryUploadedFile 或 TemporaryUploadedFile
+
+    Returns:
+        {
+            "success": bool,
+            "text": str,
+            "duration_seconds": float | None,
+            "error": str
+        }
+    """
+    from agent_service.parsers.audio_parser import AudioParser, SUPPORTED_AUDIO_MIMES, _MIME_TO_EXT
+
+    # 大小限制：15 MB
+    MAX_AUDIO_SIZE = 15 * 1024 * 1024
+    if audio_file.size > MAX_AUDIO_SIZE:
+        return {
+            "success": False,
+            "text": "",
+            "error": (
+                f"音频文件过大（{audio_file.size / 1024 / 1024:.1f} MB），"
+                f"最大允许 {MAX_AUDIO_SIZE // 1024 // 1024} MB"
+            ),
+        }
+
+    # MIME 检测：优先 Content-Type，其次按文件名猜
+    content_type = getattr(audio_file, 'content_type', '') or ''
+    mime_type = content_type.split(';')[0].strip().lower()
+    if not mime_type.startswith('audio/'):
+        guessed, _ = mimetypes.guess_type(audio_file.name or '')
+        if guessed:
+            mime_type = guessed.lower()
+
+    if mime_type not in SUPPORTED_AUDIO_MIMES:
+        return {
+            "success": False,
+            "text": "",
+            "error": (
+                f"不支持的音频格式：{mime_type or '未知'}。"
+                "支持：wav、mp3、ogg、flac、webm、aac、m4a、amr"
+            ),
+        }
+
+    # 写入临时文件
+    ext = _MIME_TO_EXT.get(mime_type, 'audio')
+    if not ext.startswith('.'):
+        ext = f'.{ext}'
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False, prefix='qa_audio_') as tmp:
+            for chunk in audio_file.chunks():
+                tmp.write(chunk)
+            tmp_path = tmp.name
+
+        parser = AudioParser()
+        result = parser.parse(tmp_path, mime_type=mime_type)
+        return {
+            "success": result["success"],
+            "text": result.get("text", ""),
+            "duration_seconds": result.get("metadata", {}).get("duration_seconds"),
+            "error": result.get("error", ""),
+        }
+    except Exception as e:
+        logger.exception(f"[QuickAction] 音频转写异常: {e}")
+        return {"success": False, "text": "", "error": str(e)}
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass

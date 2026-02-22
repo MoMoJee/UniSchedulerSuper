@@ -6,6 +6,7 @@ from . import views_api
 from . import views_memory_api
 from . import views_config_api
 from . import views_quick_action
+from . import views_speech
 
 app_name = 'agent_service'
 
@@ -104,4 +105,9 @@ urlpatterns = [
     path('quick-action/list/', views_quick_action.list_quick_actions, name='list_quick_actions'),
     path('quick-action/<uuid:task_id>/', views_quick_action.get_quick_action_status, name='get_quick_action_status'),
     path('quick-action/<uuid:task_id>/cancel/', views_quick_action.cancel_quick_action, name='cancel_quick_action'),
+
+    # ==========================================
+    # 语音识别 API（公开，无需登录）
+    # ==========================================
+    path('speech-to-text/', views_speech.speech_to_text, name='speech_to_text'),
 ]

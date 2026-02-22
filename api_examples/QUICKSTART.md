@@ -47,6 +47,12 @@ python api_examples/example_todos_api.py
 
 # Reminders 示例 - 提醒功能
 python api_examples/example_reminders_api.py
+
+# Quick Action 示例 - AI 智能操作（需要配置 LLM）
+python api_examples/example_quick_action_api.py
+
+# 语音转文字 示例（无需登录）
+python api_examples/example_parser_api.py
 ```
 
 ## 💻 第四步：编写你的第一个 API 调用
@@ -109,12 +115,52 @@ python my_first_api_call.py
 - ✅ 获取了认证 Token
 - ✅ 创建了第一个日程
 
+## 🎙️ 快速体验语音转文字（无需登录）
+
+语音转文字接口对外开放，不需要任何 Token：
+
+```python
+import requests
+
+with open("your_audio.wav", "rb") as f:
+    response = requests.post(
+        "http://127.0.0.1:8000/api/agent/speech-to-text/",
+        files={"audio": ("audio.wav", f, "audio/wav")}
+    )
+
+print(response.json())
+# {’success’: True, ’text’: ’识别到的文字’, ’duration_seconds’: 3.2, ’provider’: ’baidu’}
+```
+
+也可以直接运行脿乾包含的示例脚本（自动生成很短的合成音频）：
+
+```bash
+python api_examples/example_parser_api.py
+```
+
+## 🤖 快速体验 Quick Action（需要 Token）
+
+AI 接受自然语言，自动创建/修改日程和待办：
+
+```python
+import requests
+
+token = "..."  # 充填你的 Token
+response = requests.post(
+    "http://127.0.0.1:8000/api/agent/quick-action/",
+    headers={"Authorization": f"Token {token}"},
+    json={"text": "明天下午三点开会，讨论项目进度", "sync": True}
+)
+print(response.json()["result"]["message"])
+# ✅ 已创建新日程：明日 15:00-16:00「开会」
+```
+
 ## 📚 下一步
 
-1. **浏览更多示例**：查看 `examples/` 目录下的完整示例
-2. **阅读文档**：查看 `examples/README.md` 了解所有功能
-3. **了解URL功能**： 查看 `docs/升级与开发文档/URL路由功能说明文档.md`
-3. **API 参考**：查看 `docs/Token认证全面支持综合总结.md`
+1. **浏览更多示例**：查看 `api_examples/` 目录下的完整示例
+2. **阅读文档**：查看 `api_examples/README.md` 了解所有功能
+3. **Quick Action 详细说明**：查看 `api_examples/README_QUICK_ACTION.md`
+4. **完整 API 参考**：查看 `api_examples/API_REFERENCE.md`
 
 ## 🔥 常用代码片段
 
@@ -205,6 +251,7 @@ response = requests.post(
 ### Token 获取失败
 - 检查用户名密码是否正确
 - 确认用户已创建
+- **注意**：语音转文字接口 `/api/agent/speech-to-text/` 无需 Token，可直接调用
 
 ### 连接失败
 - 确认 Django 服务已启动
@@ -213,6 +260,11 @@ response = requests.post(
 ### API 返回 404
 - 确认 URL 路径正确
 - 查看 Django 控制台日志
+
+### 语音识别失败（422）
+- 确认 `config/api_keys.json` 中语音服务配置正确且 `enabled: true`
+- 修改配置后需**重启 Django 服务**（配置仅启动时读取一次）
+- 如果只用本地模型，确认已安装：`pip install faster-whisper`
 
 ---
 

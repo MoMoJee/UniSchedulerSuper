@@ -5,12 +5,14 @@
 - 图片解析 (OCR + Base64)
 - 百度云智能文档解析（PDF/Word/Excel → Markdown，云端优先）
 - PDF / Word / Excel 本地解析（pdfplumber / python-docx / openpyxl，云端失败时降级）
+- 音频解析（语音转文字，百度云 VOP → faster-whisper 本地兜底）
 - 内部元素解析 (events/todos/reminders/workflows)
 """
 
 from .base import BaseParser
 from .image_parser import ImageParser
 from .document_parser import BaiduDocumentParser, PDFParser, WordParser, ExcelParser
+from .audio_parser import AudioParser
 from .internal_parser import InternalElementParser
 
 
@@ -31,6 +33,8 @@ class ParserFactory:
                 PDFParser(),
                 WordParser(),
                 ExcelParser(),
+                # 音频类：统一由 AudioParser 负责（云端+本地降级）
+                AudioParser(),
             ]
             cls._instance._internal_parser = InternalElementParser()
         return cls._instance
@@ -57,6 +61,7 @@ __all__ = [
     'PDFParser',
     'WordParser',
     'ExcelParser',
+    'AudioParser',
     'InternalElementParser',
     'ParserFactory',
     'parser_factory',
