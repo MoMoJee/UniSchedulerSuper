@@ -5,6 +5,7 @@ from . import views_token
 from . import views_share_groups
 from . import views_rollback
 from . import views_import_events
+from . import views_calendar_subscription
 
 urlpatterns = [
     path('', views.index, name='index'),
@@ -70,6 +71,9 @@ urlpatterns = [
     
     # Agent Rollback API
     path('api/agent/rollback/', views_rollback.rollback_transaction_impl, name='rollback_transaction'),
+
+    # ===== 日历订阅 Feed =====
+    path('api/calendar/feed/', views_calendar_subscription.calendar_feed, name='calendar_feed'),
 
     # Reminders API
     path('api/reminders/', views.get_reminders, name='get_reminders'),
