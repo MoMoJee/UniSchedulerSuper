@@ -473,7 +473,7 @@ def search_items(
     # 保存到缓存（所有可编辑的结果）- 使用智能去重
     item_to_index: Dict[str, str] = {}
     if session_id and results:
-        success, stats = CacheManager.save_mixed_search_cache(session_id, results, result_types)
+        success, stats = CacheManager.save_mixed_search_cache(session_id, results, result_types, user=user)
         if success:
             item_to_index = stats.get('item_to_index', {})
     

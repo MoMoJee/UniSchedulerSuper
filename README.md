@@ -16,7 +16,7 @@
 - **群组协作** — 多人共享日程，版本号增量同步，三级权限管理
 - **AI Agent 助手** — LangGraph 驱动，WebSocket 实时对话，支持自然语言创建/查询日程、附件理解（OCR）、联网搜索
 - **多模型支持** — 用户可绑定自有 API Key，系统级模型兜底，运行时切换
-- **iCalendar 导入** — 兼容 Google Calendar / Outlook / Apple Calendar 导出格式
+- **iCalendar 导入/订阅** — 导入兼容标准格式；订阅 Feed 可直接添加到 Apple Calendar / Google Calendar，支持日程/待办/提醒，完整 RRULE 直通
 - **双认证** — Session（网页端）+ Token（API 端），提供详细 API 文档接口
 - **附件系统** — 支持图片/文档上传，OCR 文字识别（Tesseract / EasyOCR）
 
@@ -231,6 +231,34 @@ token = res.json()["token"]
 
 ---
 
+## 日历订阅
+
+提供符合 RFC 5545 标准的只读 iCalendar Feed，可直接添加到 Apple Calendar、Google Calendar 等客户端。
+
+**订阅地址**：
+```
+https://yourserver.com/api/calendar/feed/?token=<YOUR_TOKEN>&type=all
+```
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `token` | 必填 | 用户 API Token（URL 参数鉴权，Apple Calendar 不支持自定义 Header）|
+| `type` | `all` | `all` / `events` / `todos` / `reminders` |
+
+**数据映射**：
+
+| 项目类型 | iCalendar 组件 | 说明 |
+|---------|--------------|------|
+| 日程 | `VEVENT` | 完整映射，RRULE 直通，含 STATUS / PRIORITY |
+| 待办 | `VEVENT` + `VALARM` | 仅含 due_date 的待办，标题前缀 `[待办]`|
+| 提醒 | `VEVENT` + `VALARM` | 标题前缀 `[提醒]`，RRULE 直通 |
+
+> **注意**：Apple Calendar 的 HTTP 订阅只解析 VEVENT，忽略 VTODO，因此待办和提醒均转为带 VALARM 的 VEVENT。iOS 14+ 要求 HTTPS，使用 HTTP 会触发安全警告（已测试在IOS18，IOS26下不影响使用）。
+
+**Apple Calendar 添加步骤**：「设置 → 日历 → 账户 → 添加账户 → 其他 → 添加已订阅的日历」，输入上述 URL 即可。账号密码无需填写
+
+---
+
 ## AI Agent
 
 Agent 基于 LangGraph 实现，通过 WebSocket 提供实时流式对话。
@@ -244,6 +272,66 @@ Agent 基于 LangGraph 实现，通过 WebSocket 提供实时流式对话。
 **模型选择优先级**：用户自有 Key > 系统配置模型 > `DisabledLLM`（降级占位，返回提示信息）
 
 **上下文管理**：自动压缩长对话，超出窗口时触发摘要，保持上下文连贯。
+
+---
+
+## MCP 服务器
+
+`mcp_server.py` 将日程管理工具暴露为标准 MCP 服务，可接入 Claude Desktop、VS Code Copilot 等支持 MCP 协议的客户端。
+
+### stdio 模式（Claude Desktop 本地）
+
+> **前提**：需先完整部署本项目（数据库初始化、服务启动），MCP Server 本质上是本项目的一个进程，须能访问 Django ORM 和数据库。
+
+**推荐方式（命令行参数）**：
+```bash
+python mcp_server.py --token <YOUR_API_TOKEN>
+```
+
+**备选方式（环境变量）**：
+```bash
+set MCP_USER_TOKEN=<YOUR_API_TOKEN>
+python mcp_server.py
+```
+
+或在 Claude Desktop 中配置：（`claude_desktop_config.json`）：
+```json
+{
+  "mcpServers": {
+    "unischeduler": {
+      "command": "python",  // 要使用部署了该项目的环境的 python 解释器
+      "args": ["D:/PROJECTS/UniSchedulerSuper/mcp_server.py", "--token", "YOUR_TOKEN"]
+    }
+  }
+}
+```
+
+### HTTP 模式（远程客户端 / VS Code）
+
+对于服务端：
+```bash
+python mcp_server.py --http --port 8100
+```
+
+如果仅体验功能不部署，那么仅使用客户端即可：
+客户端使用 `http://yourserver:8100/mcp?api_key=<YOUR_TOKEN>` 连接，支持 URL 参数（`api_key=` / `token=`）和 `Authorization: Bearer` Header 两种鉴权方式。
+
+VS Code `settings.json` 配置示例：
+```json
+{
+  "mcp": {
+    "servers": {
+      "unischeduler": {
+        "url": "http://127.0.0.1:8100/mcp?api_key=YOUR_TOKEN",
+        // "url": "http://unischedulersuper.online:8100/mcp?api_key=YOUR_TOKEN", 适用于使用我们官方服务器的场景
+        "type": "http"
+      }
+    }
+  }
+}
+```
+
+**暴露的工具**：`search_items` / `create_item` / `update_item` / `delete_item` / `complete_todo` / `get_event_groups` / `get_share_groups` / `check_schedule_conflicts`
 
 ---
 

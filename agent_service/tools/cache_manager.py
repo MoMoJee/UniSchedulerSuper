@@ -85,8 +85,17 @@ class CacheManager:
             if isinstance(session_or_id, str):
                 session = AgentSession.objects.filter(session_id=session_or_id).first()
                 if not session:
-                    logger.warning(f"[Cache] 未找到会话 {session_or_id}")
-                    return False, {}
+                    if user:
+                        # 自动创建 AgentSession（MCP / 无会话场景下的首次缓存）
+                        session = AgentSession.objects.create(
+                            session_id=session_or_id,
+                            user=user,
+                            name="MCP 会话"
+                        )
+                        logger.debug(f"[Cache] 自动创建会话 {session_or_id}")
+                    else:
+                        logger.warning(f"[Cache] 未找到会话 {session_or_id}，且无 user 参数，跳过缓存")
+                        return False, {}
                 if not user:
                     user = session.user
             else:
