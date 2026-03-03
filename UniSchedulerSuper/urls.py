@@ -21,8 +21,23 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import HttpResponse
+
+def robots_txt(request):
+    content = (
+        "User-agent: *\n"
+        "Disallow: /admin/\n"
+        "Disallow: /api/\n"
+        "Disallow: /agent/\n"
+        "Disallow: /media/\n"
+        "Disallow: /static/\n"
+        "Allow: /$\n"
+        "Allow: /about/\n"
+    )
+    return HttpResponse(content, content_type="text/plain")
 
 urlpatterns = [
+    path('robots.txt', robots_txt),
     path('admin/', admin.site.urls),
     path('', include('core.urls')),
     path('api/agent/', include('agent_service.urls')),  # Agent Service API
