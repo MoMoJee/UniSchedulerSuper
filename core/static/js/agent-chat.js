@@ -62,6 +62,7 @@ class AgentChat {
         this.attachmentPanelTitle = document.getElementById('attachmentPanelTitle');
         this.selectedAttachmentsContainer = document.getElementById('selectedAttachments');
         this.closeAttachmentPanelBtn = document.getElementById('closeAttachmentPanel');
+        this.clearBtn = document.getElementById('agentClearBtn');
         // 文件上传元素
         this.attachmentUploadZone = document.getElementById('attachmentUploadZone');
         this.attachmentUploadBackBtn = document.getElementById('attachmentUploadBackBtn');
@@ -143,6 +144,9 @@ class AgentChat {
         
         // 绑定事件
         this.bindEvents();
+        
+        // 加载草稿
+        this.loadDraft();
         
         // 加载可用工具列表（必须等待完成，因为后续 WebSocket 连接需要工具列表）
         await this.loadAvailableTools();
@@ -298,6 +302,76 @@ class AgentChat {
     }
 
     // ==========================================
+    // 本地持久化 (Draft)
+    // ==========================================
+
+    /**
+     * 保存草稿到 localStorage
+     */
+    saveDraft() {
+        if (!this.userId) return;
+        const draft = {
+            text: this.inputField ? this.inputField.value : '',
+            attachments: this.selectedAttachments || [],
+            timestamp: Date.now()
+        };
+        try {
+            localStorage.setItem(`agent_draft_${this.userId}`, JSON.stringify(draft));
+        } catch (e) {
+            console.warn('保存草稿失败:', e);
+        }
+    }
+
+    /**
+     * 加载草稿
+     */
+    loadDraft() {
+        if (!this.userId) return;
+        try {
+            const draftJson = localStorage.getItem(`agent_draft_${this.userId}`);
+            if (!draftJson) return;
+
+            const draft = JSON.parse(draftJson);
+            
+            // 恢复文本
+            if (draft.text && this.inputField) {
+                this.inputField.value = draft.text;
+                this.autoResize();
+                this.updateSendButton();
+            }
+
+            // 恢复附件
+            if (draft.attachments && Array.isArray(draft.attachments) && draft.attachments.length > 0) {
+                this.selectedAttachments = draft.attachments;
+                this.updateAttachmentBadge();
+                this.renderSelectedAttachments();
+                this.updateSendButton();
+            }
+        } catch (e) {
+            console.warn('加载草稿失败:', e);
+        }
+    }
+
+    /**
+     * 清除草稿
+     */
+    clearDraft() {
+        if (!this.userId) return;
+        
+        // 清除 localStorage
+        localStorage.removeItem(`agent_draft_${this.userId}`);
+        
+        // 清除 UI
+        if (this.inputField) {
+            this.inputField.value = '';
+            this.autoResize();
+        }
+        this.clearSelectedAttachments();
+        this.updateSendButton();
+        this.showNotification('内容已清除', 'info');
+    }
+
+    // ==========================================
     // 事件绑定
     // ==========================================
 
@@ -305,6 +379,11 @@ class AgentChat {
      * 绑定所有事件
      */
     bindEvents() {
+        // 清除按钮
+        if (this.clearBtn) {
+            this.clearBtn.addEventListener('click', () => this.clearDraft());
+        }
+
         // 发送/终止按钮
         this.sendBtn.addEventListener('click', () => this.handleSendButtonClick());
         
@@ -318,6 +397,7 @@ class AgentChat {
         this.inputField.addEventListener('input', () => {
             this.autoResize();
             this.updateSendButton();
+            this.saveDraft();
         });
         
         this.inputField.addEventListener('keydown', (e) => {
@@ -973,6 +1053,7 @@ class AgentChat {
         
         // 清空输入
         this.inputField.value = '';
+        this.saveDraft();
         this.autoResize();
         this.updateSendButton();
         
@@ -3465,6 +3546,9 @@ class AgentChat {
                     msg += `，撤销了 ${data.rolled_back_transactions} 个操作`;
                 }
                 this.showNotification(msg, 'success');
+                
+                // Save the restored content as a draft
+                this.saveDraft();
             } else {
                 this.showNotification(data.message || '回滚失败', 'error');
             }
@@ -4195,6 +4279,7 @@ class AgentChat {
                 });
                 this.updateAttachmentBadge();
                 this.renderSelectedAttachments();
+                this.saveDraft();
                 this.showNotification(`已添加: ${att.filename}`, 'success');
                 // 回到类型列表
                 this.showAttachmentTypeList();
@@ -4362,6 +4447,7 @@ class AgentChat {
 
         this.updateAttachmentBadge();
         this.renderSelectedAttachments();
+        this.saveDraft();
         
         // 就地更新列表项的选中状态（不重新加载）
         if (this.attachmentContentItems) {
@@ -4507,6 +4593,7 @@ class AgentChat {
         this.selectedAttachments = [];
         this.updateAttachmentBadge();
         this.renderSelectedAttachments();
+        this.saveDraft();
     }
 
     /**
