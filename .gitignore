@@ -25,3 +25,7 @@ db.sqlite3
 
 __pycache__
 node_modules/
+
+# 开发文档 (本地保留)
+TEST_ACCOUNT.md
+.github/
