@@ -569,7 +569,15 @@ def main():
                         
             return await original_app(scope, receive, send)
             
-        uvicorn.run(query_to_header_middleware, host=args.host, port=args.port)
+        # 由于 uvicorn 版本差异（部分版本没有 host_header 参数或严格校验不同）
+        # 我们这里采用兼容性更好的改写：不传 host_header，而是设置 server_header
+        uvicorn.run(
+            query_to_header_middleware, 
+            host=args.host, 
+            port=args.port,
+            proxy_headers=True,
+            forwarded_allow_ips="*"
+        )
         return
 
     else:

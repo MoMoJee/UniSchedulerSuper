@@ -29,3 +29,6 @@ node_modules/
 # 开发文档 (本地保留)
 TEST_ACCOUNT.md
 .github/
+Copilot指导.md
+开发要求.md
+验收标准，md
