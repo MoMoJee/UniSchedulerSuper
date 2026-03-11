@@ -391,7 +391,7 @@ def generate_reminder_instances(base_reminder, days_ahead=90, min_instances=10):
 
 @csrf_exempt
 def get_reminders(request):
-    """获取所有提醒"""
+    """获取所有提醒 - 支持服务端筛选参数"""
     if request.method == 'GET':
         # 获取原生 Django request
         django_request = get_django_request(request)
@@ -411,6 +411,49 @@ def get_reminders(request):
         if new_instances_generated > 0:
             # 如果生成了新实例，保存更新后的数据
             user_reminders_data.set_value(reminders)
+        
+        # ===== 服务端筛选 =====
+        status_filter = request.GET.get('status')
+        priority_filter = request.GET.get('priority')
+        type_filter = request.GET.get('type')  # single / recurring / detached
+        range_start_str = request.GET.get('start')
+        range_end_str = request.GET.get('end')
+        
+        if status_filter and status_filter != 'all':
+            if status_filter == 'snoozed':
+                reminders = [r for r in reminders if r.get('status', '').startswith('snoozed_')]
+            else:
+                reminders = [r for r in reminders if r.get('status') == status_filter]
+        
+        if priority_filter and priority_filter != 'all':
+            reminders = [r for r in reminders if r.get('priority') == priority_filter]
+        
+        if type_filter and type_filter != 'all':
+            if type_filter == 'recurring':
+                reminders = [r for r in reminders if r.get('rrule') and 'FREQ=' in r.get('rrule', '')]
+            elif type_filter == 'single':
+                reminders = [r for r in reminders if not (r.get('rrule') and 'FREQ=' in r.get('rrule', ''))]
+            elif type_filter == 'detached':
+                reminders = [r for r in reminders if r.get('is_detached')]
+        
+        if range_start_str and range_end_str:
+            try:
+                range_start = datetime.datetime.fromisoformat(range_start_str.replace('Z', ''))
+                range_end = datetime.datetime.fromisoformat(range_end_str.replace('Z', ''))
+                
+                def reminder_in_range(r):
+                    trigger_str = r.get('snooze_until') or r.get('trigger_time', '')
+                    if not trigger_str:
+                        return True
+                    try:
+                        trigger_time = datetime.datetime.fromisoformat(trigger_str.replace('Z', ''))
+                        return range_start <= trigger_time <= range_end
+                    except (ValueError, TypeError):
+                        return True
+                
+                reminders = [r for r in reminders if reminder_in_range(r)]
+            except (ValueError, TypeError):
+                pass  # 参数格式错误时不过滤
         
         # 返回提醒数据
         return JsonResponse({'reminders': reminders})
@@ -499,7 +542,7 @@ def create_reminder(request):
                     reminders.append(reminder_data)
                     user_reminders_data.set_value(reminders)
                     
-                    response_data = {'status': 'success', 'message': '提醒已创建'}
+                    response_data = {'status': 'success', 'message': '提醒已创建', 'reminder': reminder_data}
                 
                 # 如果提供了 session_id，记录 AgentTransaction
                 if session_id:
@@ -619,7 +662,7 @@ def update_reminder(request):
                     
                     user_reminders_data.set_value(reminders)
                 
-                return JsonResponse({'status': 'success'})
+                return JsonResponse({'status': 'success', 'reminder': target_reminder})
                 
         except Exception as e:
             logger.error(f"Error updating reminder: {e}")

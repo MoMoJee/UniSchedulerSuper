@@ -51,6 +51,7 @@ urlpatterns = [
     path('get_calendar/update_events/', views.update_events, name='update_events'),
     # path('get_calendar/delete_event/', views.delete_event, name='delete_event'),  # 已弃用
     path('events/create_event/', views.create_event, name='create_event'),
+    path('api/events/groups/', views.get_events_groups, name='get_events_groups'),
     path('get_calendar/create_events_group/', views.create_events_group, name='create_events_group'),
     path('get_calendar/update_events_group/', views.update_event_group, name='update_events_group'),
     path('get_calendar/delete_event_groups/', views.delete_event_groups, name='delete_event_groups'),

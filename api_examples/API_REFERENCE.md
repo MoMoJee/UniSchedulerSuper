@@ -1,8 +1,8 @@
 # UniScheduler API 接口文档
 
-> **版本**: 1.6.3  
+> **版本**: 1.6.4  
 > **基础地址**: `http://127.0.0.1:8000`（开发环境）  
-> **更新日期**: 2026-02-22
+> **更新日期**: 2026-03-12
 
 ---
 
@@ -107,6 +107,15 @@ headers = {
 
 **请求头：** `Authorization: Token <token>`
 
+**可选查询参数：**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `start` | string | 日期范围起始（ISO 8601），仅返回此时间之后结束的日程 |
+| `end` | string | 日期范围结束（ISO 8601），与 `start` 配合使用 |
+
+> `events_groups` 始终完整返回，不受日期过滤影响。
+
 **响应（200）：**
 ```json
 {
@@ -128,7 +137,7 @@ headers = {
 }
 ```
 
-> 注意：日程组列表（`events_groups`）与日程列表（`events`）在同一响应中返回，无需单独请求。
+> 注意：日程组列表（`events_groups`）与日程列表（`events`）在同一响应中返回。如只需获取日程组数据，也可调用 `GET /api/events/groups/` 轻量接口。
 
 ---
 
@@ -264,9 +273,23 @@ headers = {
 
 ## Event Groups API - 日程分组
 
-### 获取日程组列表
+### 获取日程组列表（轻量接口）
 
-日程组通过 **GET** `/get_calendar/events/` 接口返回，日程组数据在响应的 `events_groups` 字段中，与日程列表一同返回，无单独的列表接口。
+**GET** `/api/events/groups/`
+
+**请求头：** `Authorization: Token <token>`
+
+**响应（200）：**
+```json
+{
+  "events_groups": [
+    { "id": "1", "name": "工作", "color": "#3498db", "description": "" },
+    { "id": "2", "name": "学习", "color": "#2ecc71", "description": "" }
+  ]
+}
+```
+
+> 此接口只返回日程组列表，不包含日程数据，适合只需更新分组显示的场景。完整数据（日程 + 日程组）请使用 `GET /get_calendar/events/`。
 
 ---
 
@@ -345,6 +368,15 @@ headers = {
 
 **GET** `/api/todos/`
 
+**可选查询参数：**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `status` | string | 按状态过滤：`pending` / `completed` / `converted`；不传或传 `all` 返回全部 |
+| `importance` | string | 按重要性：`important` / `not-important`；不传或传 `all` 返回全部 |
+| `urgency` | string | 按紧急度：`urgent` / `not-urgent`；不传或传 `all` 返回全部 |
+| `group_id` | string | 按日程组 ID 过滤；`none` 表示无日程组；不传或传 `all` 返回全部 |
+
 **响应（200）：**
 ```json
 {
@@ -395,9 +427,24 @@ headers = {
 **成功响应（200）：**
 ```json
 {
-  "todo": { "id": 10 }
+  "status": "success",
+  "todo": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "title": "完成报告",
+    "description": "月度工作报告",
+    "due_date": "2026-02-15",
+    "estimated_duration": 30,
+    "importance": "important",
+    "urgency": "urgent",
+    "groupID": "1",
+    "status": "pending",
+    "created_at": "2026-03-12 10:00:00",
+    "last_modified": "2026-03-12 10:00:00"
+  }
 }
 ```
+
+> 响应中返回完整的待办对象，前端可直接用于本地更新，无需再次请求列表。
 
 ---
 
@@ -408,13 +455,23 @@ headers = {
 **请求体：**
 ```json
 {
-  "id": 10,
+  "id": "550e8400-e29b-41d4-a716-446655440000",
   "title": "新标题",
   "importance": "not-important"
 }
 ```
 
 所有字段中 `id` 为必填，其余字段均为可选，与创建时字段相同。
+
+**成功响应（200）：**
+```json
+{
+  "status": "success",
+  "todo": { "id": "...", "title": "新标题", "..." : "..." }
+}
+```
+
+> 返回更新后的完整待办对象，前端可直接应用本地更新。
 
 ---
 
@@ -461,6 +518,16 @@ headers = {
 
 **GET** `/api/reminders/`
 
+**可选查询参数：**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `status` | string | `active` / `completed` / `dismissed` / `snoozed`（匹配所有 `snoozed_*` 变体）；不传或传 `all` 返回全部 |
+| `priority` | string | `low` / `normal` / `high` / `critical`；不传或传 `all` 返回全部 |
+| `type` | string | `single`（单次）/ `recurring`（重复）/ `detached`（独立编辑实例）；不传或传 `all` 返回全部 |
+| `start` | string | 时间范围起始（ISO 8601），按 `trigger_time` 过滤，须与 `end` 同时提供 |
+| `end` | string | 时间范围结束（ISO 8601），须与 `start` 同时提供 |
+
 **响应（200）：**
 ```json
 {
@@ -504,6 +571,26 @@ headers = {
 | `priority` | string | ❌ | 优先级：`low` / `medium` / `high` / `critical` |
 | `rrule` | string | ❌ | 重复规则（RFC 5545），空字符串表示单次提醒 |
 
+**成功响应（200）：**
+```json
+{
+  "status": "success",
+  "message": "提醒已创建",
+  "reminder": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "title": "会议提醒",
+    "trigger_time": "2026-02-10T13:30:00",
+    "content": "30分钟后有团队会议",
+    "priority": "normal",
+    "status": "active",
+    "rrule": "",
+    "is_detached": false
+  }
+}
+```
+
+> 返回完整的提醒对象，前端可直接用于本地更新。
+
 ---
 
 ### 更新提醒（单次或将单次转为重复）
@@ -525,6 +612,22 @@ headers = {
 | `id` | integer | ✅ | 提醒 ID |
 | `title` / `content` / `trigger_time` / `priority` / `status` / `rrule` | - | ❌ | 要更新的字段 |
 | `rrule_change_scope` | string | ❌ | 将单次提醒转为重复提醒时填 `"all"` |
+
+**成功响应（200，简单更新）：**
+```json
+{
+  "status": "success",
+  "reminder": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "title": "新标题",
+    "priority": "high",
+    "status": "completed",
+    "...": "..."
+  }
+}
+```
+
+> 简单字段更新时返回完整的更新后的提醒对象；当涉及 `rrule_change_scope` 的系列修改时，返回 `{"status": "success"}`（不含 reminder 对象）。
 
 > ⚠️ 此接口仅适用于**单次提醒**的更新，或将单次提醒转为重复提醒。**复杂的重复提醒编辑**请使用 `/api/reminders/bulk-edit/`。对重复提醒单例使用此接口会导致未知后果。
 

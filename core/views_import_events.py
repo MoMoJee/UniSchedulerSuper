@@ -17,9 +17,31 @@ API 设计：
 import json
 import datetime
 import re
+import ssl
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.ssl_ import create_urllib3_context
 from collections import defaultdict
 from typing import List, Dict, Any, Optional, Tuple
+
+
+class _LegacySSLAdapter(HTTPAdapter):
+    """兼容旧式弱 DH 密钥服务器（如部分高校教务系统）的 HTTPS 适配器。
+    
+    urllib3 2.x 将默认 SSL 安全级别提高到 SECLEVEL=2，要求 DH 密钥 ≥2048 位。
+    部分老旧服务器（如 jwxs.muc.edu.cn）使用 <1024 位 DH 密钥，会产生
+    [SSL: DH_KEY_TOO_SMALL] 错误。此适配器将 SECLEVEL 降至 1
+    （允许 ≥1024 位 DH 密钥），在保持基本安全性的同时兼容这类遗留服务器。
+    """
+    def init_poolmanager(self, *args, **kwargs):
+        ctx = create_urllib3_context(ciphers='DEFAULT@SECLEVEL=1')
+        kwargs['ssl_context'] = ctx
+        return super().init_poolmanager(*args, **kwargs)
+
+    def proxy_manager_for(self, proxy, **proxy_kwargs):
+        ctx = create_urllib3_context(ciphers='DEFAULT@SECLEVEL=1')
+        proxy_kwargs['ssl_context'] = ctx
+        return super().proxy_manager_for(proxy, **proxy_kwargs)
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -257,7 +279,9 @@ def fetch_schedule_from_jwxs(cookie: str, plan_code: str) -> Tuple[bool, Any]:
     data = f"&planCode={plan_code}"
     
     try:
-        response = requests.post(url, headers=headers, data=data, timeout=30)
+        session = requests.Session()
+        session.mount('https://', _LegacySSLAdapter())
+        response = session.post(url, headers=headers, data=data, timeout=30)
         
         if response.status_code != 200:
             return False, f"请求失败，状态码: {response.status_code}"

@@ -266,7 +266,17 @@ class TodoManager {
     // 加载待办事项
     async loadTodos() {
         try {
-            const response = await fetch('/api/todos/');
+            // 构建带筛选参数的URL，在服务端进行过滤
+            const params = new URLSearchParams();
+            
+            // 从筛选器读取当前状态
+            const statusFilter = document.getElementById('todoStatusFilter')?.value;
+            if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
+            
+            const queryString = params.toString();
+            const url = '/api/todos/' + (queryString ? `?${queryString}` : '');
+            
+            const response = await fetch(url);
             const data = await response.json();
             this.todos = data.todos || [];
             console.log('=== 加载的 TODOs 数据 ===');
@@ -471,7 +481,15 @@ class TodoManager {
             });
             
             if (response.ok) {
-                await this.loadTodos();
+                const result = await response.json();
+                // 本地更新：将服务端返回的新todo直接push到本地数组
+                if (result.todo) {
+                    this.todos.push(result.todo);
+                    this.loadGroupOptions();
+                    this.applyFilters();
+                } else {
+                    await this.loadTodos();
+                }
                 return true;
             }
         } catch (error) {
@@ -493,7 +511,17 @@ class TodoManager {
             });
             
             if (response.ok) {
-                await this.loadTodos();
+                const result = await response.json();
+                // 本地更新：替换本地数组中对应的todo
+                if (result.todo) {
+                    const index = this.todos.findIndex(t => t.id === todoId);
+                    if (index !== -1) {
+                        this.todos[index] = result.todo;
+                    }
+                    this.applyFilters();
+                } else {
+                    await this.loadTodos();
+                }
                 return true;
             }
         } catch (error) {
@@ -519,7 +547,9 @@ class TodoManager {
             });
             
             if (response.ok) {
-                await this.loadTodos();
+                // 本地更新：从本地数组中移除
+                this.todos = this.todos.filter(t => t.id !== todoId);
+                this.applyFilters();
                 return true;
             }
         } catch (error) {

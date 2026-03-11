@@ -67,6 +67,7 @@ from core.utils.validators import validate_body
 # 导入 events 相关视图函数  
 from .views_events import (
     get_events_impl,
+    get_events_groups_impl,
     create_event_impl,
     # delete_event_impl,
     update_events_impl,
@@ -488,6 +489,13 @@ def user_settings(request):
 def get_events(request):
     """获取events数据 - 委托给views_events中的实现"""
     return get_events_impl(request)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_events_groups(request):
+    """获取日程组数据（轻量级） - 委托给views_events中的实现"""
+    return get_events_groups_impl(request)
 
 
 @api_view(['POST'])
@@ -930,13 +938,34 @@ def get_pending_reminders(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_todos(request):
-    """获取所有待办事项"""
+    """获取所有待办事项 - 支持服务端筛选参数"""
     if request.method == 'GET':
         # 获取原生 Django request
         django_request = get_django_request(request)
         
         user_todos_data, created, result = UserData.get_or_initialize(django_request, new_key="todos")
         todos = user_todos_data.get_value()
+        
+        # ===== 服务端筛选 =====
+        status_filter = request.GET.get('status')  # pending / completed / converted
+        importance_filter = request.GET.get('importance')  # important / not-important
+        urgency_filter = request.GET.get('urgency')  # urgent / not-urgent
+        group_id_filter = request.GET.get('group_id')  # 日程组ID，'none'表示无日程组
+        
+        if status_filter and status_filter != 'all':
+            todos = [t for t in todos if t.get('status') == status_filter]
+        
+        if importance_filter and importance_filter != 'all':
+            todos = [t for t in todos if t.get('importance') == importance_filter]
+        
+        if urgency_filter and urgency_filter != 'all':
+            todos = [t for t in todos if t.get('urgency') == urgency_filter]
+        
+        if group_id_filter:
+            if group_id_filter == 'none':
+                todos = [t for t in todos if not t.get('groupID')]
+            elif group_id_filter != 'all':
+                todos = [t for t in todos if t.get('groupID') == group_id_filter]
         
         return JsonResponse({'todos': todos})
     
@@ -1061,7 +1090,7 @@ def update_todo(request):
             reversion.set_comment(f"Update todo: {todo_id}")
             user_todos_data.set_value(todos)
         
-        return JsonResponse({'status': 'success'})
+        return JsonResponse({'status': 'success', 'todo': todo})
     
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 

@@ -220,10 +220,10 @@ token = res.json()["token"]
 
 | 模块 | 端点前缀 |
 |------|----------|
-| 日程 | `/api/events/` |
+| 日程 | `/get_calendar/events/`（读取），`/events/`（创建），`/get_calendar/`（更新/删除/批量编辑） |
 | 提醒 | `/api/reminders/` |
 | 待办 | `/api/todos/` |
-| 日程组 | `/api/eventgroups/` |
+| 日程组 | `/get_calendar/`（CRUD），`/api/events/groups/`（轻量列表接口） |
 | 群组协作 | `/api/share-groups/` |
 | Token 管理 | `/api/token/` |
 

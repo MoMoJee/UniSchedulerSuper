@@ -1285,10 +1285,55 @@ def get_events_impl(request):
                 if gid in group_info_map
             ]
         
-        # 返回事件和日程组数据
+        # ===== 日期范围过滤 =====
+        # 读取前端传递的 start/end 参数（ISO 字符串），用于只返回与当前视图重叠的事件
+        range_start_str = request.GET.get('start')
+        range_end_str = request.GET.get('end')
+        if range_start_str and range_end_str:
+            try:
+                range_start = datetime.datetime.fromisoformat(range_start_str.replace('Z', '+00:00').replace('+00:00', ''))
+                range_end = datetime.datetime.fromisoformat(range_end_str.replace('Z', '+00:00').replace('+00:00', ''))
+                
+                def event_overlaps(ev):
+                    """判断事件是否与查询范围重叠：event.start < range_end AND event.end > range_start"""
+                    ev_start_str = ev.get('start', '')
+                    ev_end_str = ev.get('end', '')
+                    if not ev_start_str:
+                        return False
+                    try:
+                        ev_start = datetime.datetime.fromisoformat(ev_start_str.replace('Z', ''))
+                        ev_end = datetime.datetime.fromisoformat(ev_end_str.replace('Z', '')) if ev_end_str else ev_start
+                        return ev_start < range_end and ev_end > range_start
+                    except (ValueError, TypeError):
+                        return True  # 解析失败的事件保留，不丢弃
+                
+                processed_events = [ev for ev in processed_events if event_overlaps(ev)]
+                logger.debug(f"Date range filter: {range_start_str} ~ {range_end_str}, {len(processed_events)} events after filter")
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Invalid date range params: start={range_start_str}, end={range_end_str}, error={e}")
+                # 参数格式错误时不过滤，返回全量
+        
+        # 返回事件和日程组数据（events_groups 始终返回完整列表，不受日期过滤影响）
         return JsonResponse({"events": processed_events, "events_groups": events_groups})
     
     # 处理非GET请求
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+
+
+def   get_events_groups_impl(request):
+    """获取所有日程组（轻量级接口，不返回events数据）"""
+    if request.method == 'GET':
+        django_request = get_django_request(request)
+        
+        user_data_groups, created = UserData.objects.get_or_create(
+            user=django_request.user, 
+            key="events_groups", 
+            defaults={"value": json.dumps([])}
+        )
+        events_groups = json.loads(user_data_groups.value)
+        
+        return JsonResponse({"events_groups": events_groups or []})
+    
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 
 

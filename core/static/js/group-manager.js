@@ -322,13 +322,8 @@ class GroupManager {
      */
     async reloadGroups() {
         try {
-            const response = await fetch('/get_calendar/events/', {
-                method: 'GET',
-                headers: {
-                    'X-CSRFToken': window.CSRF_TOKEN
-                }
-            });
-
+            // 使用轻量级接口只获取日程组数据，避免拉取全部events
+            const response = await fetch('/api/events/groups/');
             const data = await response.json();
             
             if (data.events_groups) {

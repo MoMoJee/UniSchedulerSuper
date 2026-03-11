@@ -225,36 +225,27 @@ const shareGroupManager = {
         // 3. 等待一下确保清理完成
         await new Promise(resolve => setTimeout(resolve, 50));
         
-        // 4. 获取我的日程数据
-        console.log('[ShareGroupManager] 开始获取我的日程数据');
-        try {
-            const events = await window.eventManager.fetchEvents();
-            console.log(`[ShareGroupManager] 获取到 ${events.length} 个事件`);
-            
-            // 5. 添加为新的事件源（使用函数回调，支持动态刷新）
-            calendar.addEventSource({
-                events: async (info, successCallback, failureCallback) => {
-                    try {
-                        // 如果切换到群组视图，不加载
-                        if (window.eventManager.isGroupView) {
-                            successCallback([]);
-                            return;
-                        }
-                        
-                        const events = await window.eventManager.fetchEvents(info.start, info.end);
-                        successCallback(events);
-                    } catch (error) {
-                        console.error('[MyCalendar] 加载事件失败:', error);
-                        failureCallback(error);
+        // 4. 添加为新的事件源（使用函数回调，支持动态刷新；FullCalendar 会立即以当前日期范围调用回调）
+        calendar.addEventSource({
+            events: async (info, successCallback, failureCallback) => {
+                try {
+                    // 如果切换到群组视图，不加载
+                    if (window.eventManager.isGroupView) {
+                        successCallback([]);
+                        return;
                     }
-                },
-                id: 'my-calendar'
-            });
-            
-            console.log('[ShareGroupManager] 我的日程加载完成');
-        } catch (error) {
-            console.error('[ShareGroupManager] 获取日程数据失败:', error);
-        }
+                    
+                    const events = await window.eventManager.fetchEvents(info.start, info.end);
+                    successCallback(events);
+                } catch (error) {
+                    console.error('[MyCalendar] 加载事件失败:', error);
+                    failureCallback(error);
+                }
+            },
+            id: 'my-calendar'
+        });
+        
+        console.log('[ShareGroupManager] 我的日程加载完成');
     },
 
     /**

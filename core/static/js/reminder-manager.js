@@ -62,9 +62,23 @@ class ReminderManager {
     // 加载提醒列表
     async loadReminders() {
         try {
-            const response = await fetch('/api/reminders/');
+            // 构建带筛选参数的URL，在服务端进行过滤
+            const params = new URLSearchParams();
+            const statusFilter = document.getElementById('reminderStatusFilter')?.value;
+            const priorityFilter = document.getElementById('reminderPriorityFilter')?.value;
+            const typeFilter = document.getElementById('reminderTypeFilter')?.value;
+            
+            if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
+            if (priorityFilter && priorityFilter !== 'all') params.set('priority', priorityFilter);
+            if (typeFilter && typeFilter !== 'all') params.set('type', typeFilter);
+            
+            const queryString = params.toString();
+            const url = '/api/reminders/' + (queryString ? `?${queryString}` : '');
+            
+            const response = await fetch(url);
             const data = await response.json();
             this.reminders = data.reminders || [];
+            this._lastFetched = Date.now();  // 记录获取时间戳，用于缓存判断
             
             console.log('提醒数据加载完成，应用筛选');
             // 【关键修复】调用 applyFilters() 以保持筛选参数并渲染
@@ -392,8 +406,14 @@ class ReminderManager {
             });
             
             if (response.ok) {
-                await this.loadReminders();
-                // 重新应用当前筛选器设置
+                // 本地更新状态
+                const reminder = this.reminders.find(r => r.id === reminderId);
+                if (reminder) {
+                    reminder.status = newStatus;
+                    if (newStatus === 'active') {
+                        reminder.snooze_until = '';
+                    }
+                }
                 this.applyFilters();
                 return true;
             }
@@ -784,9 +804,16 @@ class ReminderManager {
             });
             
             if (response.ok) {
-                await this.loadReminders();
-                // 重新应用当前筛选器设置
-                this.applyFilters();
+                const result = await response.json();
+                // 单次提醒且服务端返回了reminder对象 -> 本地更新
+                if (result.reminder && !reminderData.rrule) {
+                    this.reminders.push(result.reminder);
+                    this._lastFetched = Date.now();
+                    this.applyFilters();
+                } else {
+                    // 重复提醒或无返回对象 -> 从服务端重新加载
+                    await this.loadReminders();
+                }
                 return true;
             }
         } catch (error) {
@@ -862,9 +889,19 @@ class ReminderManager {
             });
             
             if (response.ok) {
-                await this.loadReminders();
-                // 重新应用当前筛选器设置
-                this.applyFilters();
+                const result = await response.json();
+                // 简单更新且服务端返回了reminder对象 -> 本地替换
+                if (result.reminder && !reminderData.rrule_change_scope) {
+                    const index = this.reminders.findIndex(r => r.id === reminderId);
+                    if (index !== -1) {
+                        this.reminders[index] = result.reminder;
+                    }
+                    this._lastFetched = Date.now();
+                    this.applyFilters();
+                } else {
+                    // 涉及重复规则变化 -> 从服务端重新加载
+                    await this.loadReminders();
+                }
                 
                 // 确保日历视图刷新
                 if (window.eventManager && window.eventManager.calendar) {
@@ -1179,8 +1216,11 @@ class ReminderManager {
             });
             
             if (response.ok) {
-                await this.loadReminders();
-                // 重新应用当前筛选器设置
+                // 本地更新状态
+                const reminder = this.reminders.find(r => r.id === reminderId);
+                if (reminder) {
+                    reminder.status = 'dismissed';
+                }
                 this.applyFilters();
                 
                 // 确保日历视图刷新
@@ -1210,8 +1250,11 @@ class ReminderManager {
             });
             
             if (response.ok) {
-                await this.loadReminders();
-                // 重新应用当前筛选器设置
+                // 本地更新状态
+                const reminder = this.reminders.find(r => r.id === reminderId);
+                if (reminder) {
+                    reminder.status = 'completed';
+                }
                 this.applyFilters();
                 
                 // 确保日历视图刷新
@@ -1574,8 +1617,9 @@ class ReminderManager {
             });
             
             if (response.ok) {
-                await this.loadReminders();
-                // 重新应用当前筛选器设置
+                // 本地更新：从本地数组中移除
+                this.reminders = this.reminders.filter(r => r.id !== reminderId);
+                this._lastFetched = Date.now();
                 this.applyFilters();
                 return true;
             }
@@ -1629,8 +1673,15 @@ class ReminderManager {
             });
             
             if (response.ok) {
-                await this.loadReminders();
-                // 重新应用当前筛选器设置
+                // 本地更新状态
+                const reminder = this.reminders.find(r => r.id === reminderId);
+                if (reminder) {
+                    reminder.status = status;
+                    reminder.snooze_until = snoozeUntil;
+                    if (status === 'active') {
+                        reminder.snooze_until = '';
+                    }
+                }
                 this.applyFilters();
                 
                 // 确保日历视图刷新

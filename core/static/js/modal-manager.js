@@ -7,6 +7,7 @@ class ModalManager {
         this.currentReminderId = null;
         this.forceUntilRequired = false; // 强制要求设置截止时间标记
         this.isSubmittingEvent = false; // 防重复提交标志
+        this._formListenersSetup = false; // 防止表单监听器重复添加
         this.init();
     }
 
@@ -71,6 +72,9 @@ class ModalManager {
 
     // 设置表单提交监听器
     setupFormSubmitListeners() {
+        // 防止表单监听器被重复添加（构造器和 DOMContentLoaded 各调用一次 init）
+        if (this._formListenersSetup) return;
+        this._formListenersSetup = true;
         // 创建事件表单
         const createEventForm = document.getElementById('createEventForm');
         if (createEventForm) {
@@ -95,6 +99,33 @@ class ModalManager {
             createReminderForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 this.handleCreateReminder();
+            });
+        }
+
+        // 编辑事件表单
+        const editEventForm = document.getElementById('editEventForm');
+        if (editEventForm) {
+            editEventForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleUpdateEvent();
+            });
+        }
+
+        // 编辑待办表单
+        const editTodoForm = document.getElementById('editTodoForm');
+        if (editTodoForm) {
+            editTodoForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleUpdateTodo();
+            });
+        }
+
+        // 编辑提醒表单
+        const editReminderForm = document.getElementById('editReminderForm');
+        if (editReminderForm) {
+            editReminderForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleUpdateReminder();
             });
         }
     }

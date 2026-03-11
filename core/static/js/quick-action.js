@@ -824,12 +824,13 @@ class QuickActionManager {
     
     refreshCalendar() {
         try {
-            // 刷新日历 - 尝试多种可能的方法
-            if (window.calendar) {
+            // 刷新日历事件（通过eventManager统一入口，避免重复请求）
+            if (window.eventManager && typeof window.eventManager.loadEvents === 'function') {
+                window.eventManager.loadEvents();
+                console.log('📆 事件管理器已刷新');
+            } else if (window.calendar) {
                 if (typeof window.calendar.refetchEvents === 'function') {
                     window.calendar.refetchEvents();
-                } else if (typeof window.calendar.render === 'function') {
-                    window.calendar.render();
                 }
                 console.log('📅 日历已刷新');
             }
@@ -837,29 +838,18 @@ class QuickActionManager {
             // 刷新待办列表
             if (window.todoManager) {
                 if (typeof window.todoManager.loadTodos === 'function') {
-                    // loadTodos() 内部会调用 applyFilters()，保持筛选参数
                     window.todoManager.loadTodos();
-                } else if (typeof window.todoManager.refreshTodoList === 'function') {
-                    window.todoManager.refreshTodoList();
                 }
                 console.log('✅ 待办列表已刷新');
             }
             
             // 刷新提醒列表
             if (window.reminderManager && typeof window.reminderManager.loadReminders === 'function') {
-                // loadReminders() 后由 settingsManager 应用筛选
                 window.reminderManager.loadReminders();
                 console.log('🔔 提醒列表已刷新');
             }
-            
-            // 刷新事件管理器
-            if (window.eventManager && typeof window.eventManager.loadEvents === 'function') {
-                window.eventManager.loadEvents();
-                console.log('📆 事件管理器已刷新');
-            }
         } catch (error) {
             console.warn('刷新界面时出错:', error);
-            // 不影响用户体验，只记录警告
         }
     }
 }

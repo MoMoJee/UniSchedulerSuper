@@ -5,6 +5,7 @@ class EventManager {
         this.events = [];
         this.groups = [];
         this.isGroupView = false;  // 新增：标记当前是否是群组视图
+        this._inFlightFetchKey = null;  // 防止同一日期范围并发重复请求，格式 "startISO|endISO"
     }
 
     // 初始化事件管理器
@@ -377,6 +378,15 @@ class EventManager {
                     return;
                 }
                 
+                // 防止同一日期范围的并发重复请求（FullCalendar 多次渲染时会触发多次回调）
+                const fetchKey = `${info.start?.toISOString()}|${info.end?.toISOString()}`;
+                if (this._inFlightFetchKey === fetchKey) {
+                    console.log('[EventManager] 相同范围已在加载中，跳过重复调用');
+                    successCallback([]);
+                    return;
+                }
+                this._inFlightFetchKey = fetchKey;
+                
                 // 初始加载
                 console.log('[EventManager] 执行初始事件加载');
                 this.fetchEvents(info.start, info.end)
@@ -387,6 +397,11 @@ class EventManager {
                     .catch(error => {
                         console.error('[EventManager] 初始加载失败:', error);
                         failureCallback(error);
+                    })
+                    .finally(() => {
+                        if (this._inFlightFetchKey === fetchKey) {
+                            this._inFlightFetchKey = null;
+                        }
                     });
             },
             
@@ -614,8 +629,16 @@ class EventManager {
     async fetchEvents(start, end) {
         console.log('[EventManager] fetchEvents 开始执行');
         try {
+            // 构建带日期范围参数的URL，只获取当前视图范围内的事件
+            let eventsUrl = '/get_calendar/events/';
+            if (start && end) {
+                const startISO = (start instanceof Date) ? start.toISOString() : start;
+                const endISO = (end instanceof Date) ? end.toISOString() : end;
+                eventsUrl += `?start=${encodeURIComponent(startISO)}&end=${encodeURIComponent(endISO)}`;
+            }
+            
             // 获取日程数据
-            const response = await fetch('/get_calendar/events/');
+            const response = await fetch(eventsUrl);
             const data = await response.json();
             
             this.events = data.events;
@@ -624,51 +647,44 @@ class EventManager {
             
             console.log(`[EventManager] 获取到 ${data.events.length} 个日程`);
             
-            // 获取提醒数据
-            const reminderResponse = await fetch('/api/reminders/');
-            const reminderData = await reminderResponse.json();
-            const reminders = reminderData.reminders || [];
+            // 获取提醒数据（带服务端筛选参数）
+            // 如果 reminderManager 最近已加载过数据（30秒内），复用缓存
+            let reminders;
+            const CACHE_TTL = 30000; // 30秒缓存有效期
+            const canUseCachedReminders = window.reminderManager 
+                && window.reminderManager._lastFetched 
+                && (Date.now() - window.reminderManager._lastFetched < CACHE_TTL)
+                && window.reminderManager.reminders.length > 0;
+            
+            if (canUseCachedReminders) {
+                console.log('[EventManager] 使用 reminderManager 缓存的提醒数据');
+                reminders = window.reminderManager.reminders;
+            } else {
+                const reminderParams = new URLSearchParams();
+                const statusFilter = document.getElementById('reminderStatusFilter')?.value || 'active';
+                const priorityFilter = document.getElementById('reminderPriorityFilter')?.value || 'all';
+                const typeFilter = document.getElementById('reminderTypeFilter')?.value || 'all';
+                
+                if (statusFilter && statusFilter !== 'all') reminderParams.set('status', statusFilter);
+                if (priorityFilter && priorityFilter !== 'all') reminderParams.set('priority', priorityFilter);
+                if (typeFilter && typeFilter !== 'all') reminderParams.set('type', typeFilter);
+                // 传入当前视图的日期范围，只获取视图内的提醒
+                if (start && end) {
+                    reminderParams.set('start', (start instanceof Date) ? start.toISOString() : start);
+                    reminderParams.set('end', (end instanceof Date) ? end.toISOString() : end);
+                }
+                
+                const reminderQuery = reminderParams.toString();
+                const reminderUrl = '/api/reminders/' + (reminderQuery ? `?${reminderQuery}` : '');
+                const reminderResponse = await fetch(reminderUrl);
+                const reminderData = await reminderResponse.json();
+                reminders = reminderData.reminders || [];
+            }
             
             console.log(`[EventManager] 获取到 ${reminders.length} 个提醒`);
             
-            // 获取左下角提醒框的所有筛选器设置
-            const statusFilter = document.getElementById('reminderStatusFilter')?.value || 'active';
-            const priorityFilter = document.getElementById('reminderPriorityFilter')?.value || 'all';
-            const typeFilter = document.getElementById('reminderTypeFilter')?.value || 'all';
-            
-            console.log('日历fetchEvents - 筛选器设置:', {
-                status: statusFilter,
-                priority: priorityFilter,
-                type: typeFilter
-            });
-            
-            // 根据筛选器过滤提醒（与左下角提醒框保持一致，不包括时间筛选）
-            const filteredReminders = reminders.filter(reminder => {
-                // 状态筛选
-                if (statusFilter && statusFilter !== 'all') {
-                    if (statusFilter === 'snoozed') {
-                        // 检查是否是延后状态
-                        if (!reminder.status.startsWith('snoozed_')) return false;
-                    } else {
-                        if (reminder.status !== statusFilter) return false;
-                    }
-                }
-                
-                // 优先级筛选
-                if (priorityFilter && priorityFilter !== 'all') {
-                    if (reminder.priority !== priorityFilter) return false;
-                }
-                
-                // 类型筛选（单次/重复）
-                if (typeFilter && typeFilter !== 'all') {
-                    const hasRRule = reminder.rrule && reminder.rrule.includes('FREQ=');
-                    if (typeFilter === 'recurring' && !hasRRule) return false;
-                    if (typeFilter === 'single' && hasRRule) return false;
-                    if (typeFilter === 'detached' && !reminder.is_detached) return false;
-                }
-                
-                return true;
-            });
+            // 服务端已经过滤，直接使用返回的结果
+            const filteredReminders = reminders;
             
             // 将提醒转换为日历事件格式
             const reminderEvents = filteredReminders
@@ -1068,7 +1084,12 @@ class EventManager {
             
             if (response.ok && result.status === 'success') {
                 console.log('事件更新成功');
-                this.refreshCalendar();
+                // 拖拽更新：FullCalendar已在UI上移动了事件，无需刷新
+                // 仅同步本地数据
+                const idx = this.events.findIndex(e => e.id === eventData.eventId);
+                if (idx !== -1) {
+                    this.events[idx] = { ...this.events[idx], ...eventData };
+                }
                 return true;
             } else {
                 console.error('更新事件失败:', result.message || result.error);
@@ -1116,7 +1137,40 @@ class EventManager {
             
             if (response.ok && result.status === 'success') {
                 console.log('Event updated successfully');
-                this.refreshCalendar();
+                // 非重复事件：尝试本地更新日历
+                if (!rrule && this.calendar) {
+                    const calEvent = this.calendar.getEventById(eventId);
+                    if (calEvent) {
+                        calEvent.remove();
+                    }
+                    // 添加更新后的事件
+                    this.calendar.addEvent({
+                        id: eventId,
+                        title: title,
+                        start: newStart,
+                        end: newEnd,
+                        description: description,
+                        importance: importance,
+                        urgency: urgency,
+                        groupID: groupID,
+                        ddl: ddl,
+                        rrule: rrule,
+                        shared_to_groups: shared_to_groups,
+                        backgroundColor: this.getEventColor(groupID),
+                        borderColor: this.getEventColor(groupID),
+                        extendedProps: {
+                            shared_groups: []
+                        }
+                    });
+                    // 同步本地数据
+                    const idx = this.events.findIndex(e => e.id === eventId);
+                    if (idx !== -1) {
+                        this.events[idx] = { ...this.events[idx], title, start: newStart, end: newEnd, description, importance, urgency, groupID, ddl, rrule, shared_to_groups };
+                    }
+                } else {
+                    // 有重复规则或找不到本地事件：刷新（已有日期过滤）
+                    this.refreshCalendar();
+                }
                 return true;
             } else {
                 console.error('Error updating event:', result.message || result.error);
@@ -1147,7 +1201,26 @@ class EventManager {
             
             if (response.ok && result.status === 'success') {
                 console.log('Event created successfully');
-                this.refreshCalendar();
+                // 判断是否为重复事件
+                if (eventData.rrule) {
+                    // 重复事件：服务端会生成多个实例，需要从服务端获取（已有日期范围过滤，量小）
+                    this.refreshCalendar();
+                } else if (result.event && this.calendar) {
+                    // 非重复事件：直接添加到本地日历
+                    const newEvent = result.event;
+                    this.events.push(newEvent);
+                    this.calendar.addEvent({
+                        ...newEvent,
+                        backgroundColor: this.getEventColor(newEvent.groupID),
+                        borderColor: this.getEventColor(newEvent.groupID),
+                        extendedProps: {
+                            ...(newEvent.extendedProps || {}),
+                            shared_groups: newEvent.shared_groups || []
+                        }
+                    });
+                } else {
+                    this.refreshCalendar();
+                }
                 return true;
             } else {
                 console.error('Error creating event:', result.message || result.error);
@@ -1175,7 +1248,7 @@ class EventManager {
                     operation: 'delete',
                     event_id: eventId,
                     edit_scope: scope,
-                    series_id: seriesId || eventId  // 如果没有提供seriesId，使用eventId
+                    series_id: seriesId || eventId
                 })
             });
             
@@ -1183,7 +1256,20 @@ class EventManager {
             
             if (response.ok && result.status === 'success') {
                 console.log('Event deleted successfully');
-                this.refreshCalendar();
+                // 单个非重复事件删除：本地移除
+                if (scope === 'single' && this.calendar) {
+                    const calEvent = this.calendar.getEventById(eventId);
+                    if (calEvent) {
+                        calEvent.remove();
+                    } else {
+                        this.refreshCalendar();
+                    }
+                    // 同步本地数据
+                    this.events = this.events.filter(e => e.id !== eventId);
+                } else {
+                    // 批量删除（all/future）需要刷新
+                    this.refreshCalendar();
+                }
                 return true;
             } else {
                 console.error('Error deleting event:', result.message || result.error);
