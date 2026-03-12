@@ -999,36 +999,37 @@ class EventManager {
             }
         }
         
-        // 如果是重复事件，显示确认对话框
+        // 如果是重复事件，显示范围选择对话框
         if (isRecurring && seriesId) {
-            const actionText = actionType === 'drop' ? '移动' : '调整大小';
-            const formatDate = (date) => {
-                return date.toLocaleString('zh-CN', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-            };
-            
-            const confirmed = confirm(
-                `您正在${actionText}一个重复日程中的单个实例。\n\n` +
-                `日程标题：${event.title}\n` +
-                `原始时间：${formatDate(info.oldEvent.start)}\n` +
-                `新时间：${formatDate(event.start)}\n\n` +
-                `此操作将把这个实例从重复序列中独立出去，成为一个单独的例外日程。\n\n` +
-                `是否确认此操作？`
-            );
-            
-            if (!confirmed) {
-                // 用户取消，恢复事件
+            const scope = await this.showDragScopeModal(info, actionType);
+            if (scope === null) {
                 info.revert();
+                window.modalManager?.reEnableCalendarInteraction();
                 return;
             }
+            const success = await this.updateEventDrag(
+                event.id,
+                event.start.toISOString(),
+                event.end ? event.end.toISOString() : null,
+                event.title,
+                event.extendedProps.description,
+                event.extendedProps.importance,
+                event.extendedProps.urgency,
+                event.extendedProps.groupID,
+                event.extendedProps.ddl,
+                event.extendedProps.shared_to_groups || [],
+                scope
+            );
+            if (!success) {
+                info.revert();
+            } else if (scope !== 'single') {
+                // future/all 影响多条记录，刷新日历以同步所有变化
+                this.refreshCalendar();
+            }
+            return;
         }
         
-        // 执行更新
+        // 执行更新（非重复事件，直接更新）
         const success = await this.updateEventDrag(
             event.id,
             event.start.toISOString(),
@@ -1039,14 +1040,125 @@ class EventManager {
             event.extendedProps.urgency,
             event.extendedProps.groupID,
             event.extendedProps.ddl,
-            event.extendedProps.shared_to_groups || [],  // 【修复】传递群组信息
-            isRecurring && seriesId ? 'single' : undefined
+            event.extendedProps.shared_to_groups || [],
+            undefined
         );
         
         if (!success) {
             // 更新失败，恢复事件
             info.revert();
         }
+    }
+
+    /**
+     * 显示拖拽/调整大小范围选择 Modal，返回 Promise<'single'|'future'|'all'|null>
+     * null 表示用户取消
+     */
+    showDragScopeModal(info, actionType) {
+        return new Promise((resolve) => {
+            const event = info.event;
+            const actionText = actionType === 'drop' ? '移动' : '调整大小';
+            const formatDate = (date) => {
+                if (!date) return '—';
+                return date.toLocaleString('zh-CN', {
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit'
+                });
+            };
+
+            const existing = document.getElementById('dragScopeModal');
+            if (existing) existing.remove();
+
+            const html = `
+                <div class="modal fade" id="dragScopeModal" tabindex="-1">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-arrows-alt me-2"></i>${actionText}重复日程
+                                </h5>
+                            </div>
+                            <div class="modal-body">
+                                <p class="mb-2">
+                                    <strong>${event.title}</strong><br>
+                                    <small class="text-muted">
+                                        原时间：${formatDate(info.oldEvent.start)} &rarr; 新时间：${formatDate(event.start)}
+                                    </small>
+                                </p>
+                                <p class="mb-2">请选择${actionText}范围：</p>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="dragScope" id="dragScopeSingle" value="single" checked>
+                                    <label class="form-check-label" for="dragScopeSingle">
+                                        <strong>仅此次</strong>
+                                        <small class="text-muted d-block">只${actionText}当前这个实例，将其从序列中独立出去</small>
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="dragScope" id="dragScopeFuture" value="future">
+                                    <label class="form-check-label" for="dragScopeFuture">
+                                        <strong>此及以后</strong>
+                                        <small class="text-muted d-block">${actionText}当前实例及之后的所有实例（等比偏移时间）</small>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="dragScope" id="dragScopeAll" value="all">
+                                    <label class="form-check-label" for="dragScopeAll">
+                                        <strong>全部</strong>
+                                        <small class="text-muted d-block">${actionText}整个重复序列的所有实例（等比偏移时间）</small>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" id="dragScopeCancelBtn">取消</button>
+                                <button type="button" class="btn btn-primary" id="dragScopeConfirmBtn">确认${actionText}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', html);
+            const modalEl = document.getElementById('dragScopeModal');
+
+            let resolved = false;
+            const doResolve = (val) => {
+                if (!resolved) { resolved = true; resolve(val); }
+            };
+
+            const hideModal = () => {
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    const m = bootstrap.Modal.getInstance(modalEl);
+                    if (m) { m.hide(); return; }
+                }
+                modalEl.remove();
+            };
+
+            document.getElementById('dragScopeCancelBtn').addEventListener('click', () => {
+                hideModal();
+                doResolve(null);
+            });
+
+            document.getElementById('dragScopeConfirmBtn').addEventListener('click', () => {
+                const selected = modalEl.querySelector('input[name="dragScope"]:checked');
+                const scope = selected ? selected.value : 'single';
+                hideModal();
+                doResolve(scope);
+            });
+
+            // modal 完全隐藏后清理 DOM，并捕获所有未处理的关闭（兜底）
+            modalEl.addEventListener('hidden.bs.modal', () => {
+                modalEl.remove();
+                doResolve(null);
+            }, { once: true });
+
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                new bootstrap.Modal(modalEl).show();
+            } else {
+                modalEl.style.display = 'block';
+                modalEl.classList.add('show');
+                document.body.classList.add('modal-open');
+            }
+        });
     }
 
     /**
