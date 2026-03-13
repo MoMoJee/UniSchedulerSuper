@@ -5,6 +5,7 @@ from django.urls import path
 from . import views_api
 from . import views_memory_api
 from . import views_config_api
+from . import views_skills_api
 from . import views_quick_action
 from . import views_speech
 
@@ -81,6 +82,16 @@ urlpatterns = [
     path('memory/workflow-rules/<int:pk>/', views_memory_api.update_workflow_rule, name='update_workflow_rule'),
     path('memory/workflow-rules/<int:pk>/delete/', views_memory_api.delete_workflow_rule, name='delete_workflow_rule'),
     path('memory/workflow-rules/<int:pk>/toggle/', views_memory_api.toggle_workflow_rule, name='toggle_workflow_rule'),
+    
+    # ==========================================
+    # 技能管理 API
+    # ==========================================
+    path('skills/', views_skills_api.list_skills, name='list_skills'),
+    path('skills/create/', views_skills_api.create_skill, name='create_skill'),
+    path('skills/<int:pk>/', views_skills_api.skill_detail, name='skill_detail'),
+    path('skills/<int:pk>/delete/', views_skills_api.delete_skill, name='delete_skill'),
+    path('skills/<int:pk>/toggle/', views_skills_api.toggle_skill, name='toggle_skill'),
+    path('skills/import/', views_skills_api.import_skill, name='import_skill'),
     
     # 附件系统
     path('attachments/', views_api.get_attachable_items, name='get_attachable_items'),

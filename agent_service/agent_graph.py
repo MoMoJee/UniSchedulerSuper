@@ -53,6 +53,11 @@ from agent_service.tools.variflight_tools import (
     VARIFLIGHT_TOOLS_MAP, VARIFLIGHT_TOOL_DESCRIPTIONS,
     is_variflight_available
 )
+# 导入 Skill 工具
+from agent_service.tools.skill_tools import (
+    save_skill, list_skills as list_skills_tool,
+    SKILL_TOOLS
+)
 from agent_service.mcp_tools import get_mcp_tools_sync
 
 # 导入上下文优化模块
@@ -138,6 +143,9 @@ TODO_TOOLS_MAP = {
     "clear_completed_tasks": clear_completed_tasks,
 }
 
+# Skill 工具（技能管理 - Agent 可创建/列举用户技能）
+SKILL_TOOLS_MAP = SKILL_TOOLS
+
 # MCP 工具 (动态加载)
 MCP_TOOLS = {}
 try:
@@ -221,11 +229,20 @@ TOOL_CATEGORIES = {
         "description": "飞常准航班查询：航班动态、票价、中转方案",
         "tools": list(VARIFLIGHT_TOOLS_MAP.keys()) if is_variflight_available() else [],
         "tool_descriptions": VARIFLIGHT_TOOL_DESCRIPTIONS
+    },
+    "skill": {
+        "display_name": "技能管理",
+        "description": "创建和管理 Agent 技能（可复用的行为指令）",
+        "tools": list(SKILL_TOOLS_MAP.keys()),
+        "tool_descriptions": {
+            "save_skill": "保存/更新一个技能",
+            "list_skills": "列出所有已保存的技能",
+        }
     }
 }
 
 # 所有工具合集（包含新旧版本）
-ALL_TOOLS = {**PLANNER_TOOLS, **PLANNER_TOOLS_LEGACY, **MEMORY_TOOLS, **TODO_TOOLS_MAP, **MCP_TOOLS, **SEARCH_TOOLS_MAP, **VARIFLIGHT_TOOLS_MAP}
+ALL_TOOLS = {**PLANNER_TOOLS, **PLANNER_TOOLS_LEGACY, **MEMORY_TOOLS, **TODO_TOOLS_MAP, **SKILL_TOOLS_MAP, **MCP_TOOLS, **SEARCH_TOOLS_MAP, **VARIFLIGHT_TOOLS_MAP}
 
 def get_tools_by_names(tool_names: List[str]) -> list:
     """根据工具名称列表获取工具对象"""
@@ -241,15 +258,20 @@ def get_all_tool_names() -> List[str]:
 
 def get_default_tools() -> List[str]:
     """获取默认启用的工具"""
-    # 默认启用所有 planner、memory 和 todo 工具
-    return list(PLANNER_TOOLS.keys()) + list(MEMORY_TOOLS.keys()) + list(TODO_TOOLS_MAP.keys())
+    # 默认启用所有 planner、memory、todo 和 skill 工具
+    return list(PLANNER_TOOLS.keys()) + list(MEMORY_TOOLS.keys()) + list(TODO_TOOLS_MAP.keys()) + list(SKILL_TOOLS_MAP.keys())
 
 # ==========================================
 # 状态定义
 # ==========================================
+def _replace_list(existing: List[int], new: List[int]) -> List[int]:
+    """用于 AgentState 中 selected_skill_ids 的 reducer：直接替换（不累加）"""
+    return new
+
 class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], add_messages]
     active_tools: List[str]  # 当前启用的工具名称列表
+    selected_skill_ids: Annotated[List[int], _replace_list]  # 筛选器选出的 skill ID
 
 # ==========================================
 # 模型初始化
@@ -405,12 +427,13 @@ def get_user_llm(user):
 # ==========================================
 # System Prompt 构建
 # ==========================================
-def build_system_prompt(user, active_tool_names: List[str], current_time: str) -> str:
+def build_system_prompt(user, active_tool_names: List[str], current_time: str, selected_skill_ids: List[int] = None) -> str:
     """
     构建 System Prompt
     - 加载用户的对话风格模板（如果有），否则使用默认模板
     - 添加工作流规则查询提示
     - 可选加载少量个人信息
+    - 注入被 Skill Selector 选中的技能完整内容
     """
     from agent_service.models import DialogStyle, UserPersonalInfo
     
@@ -445,6 +468,8 @@ def build_system_prompt(user, active_tool_names: List[str], current_time: str) -
         capabilities.append("- 记忆管理: 保存用户个人信息、偏好、工作流规则")
     if any(t in active_tool_names for t in TODO_TOOLS_MAP.keys()):
         capabilities.append("- 任务追踪: 创建和管理会话级任务列表")
+    if any(t in active_tool_names for t in SKILL_TOOLS_MAP.keys()):
+        capabilities.append("- 技能管理: 保存和列举可复用的行为指令（skill）")
     
     # 检查 MCP 工具 - 分类处理
     # 注意：排除包含 'train' 的工具，避免与火车票查询工具冲突
@@ -519,9 +544,114 @@ def build_system_prompt(user, active_tool_names: List[str], current_time: str) -
 2. 如果用户请求的功能不在你当前的能力范围内，请友好地告知用户
 3. 如果用户没有提供完整信息，请礼貌询问
 4. 工具调用后，请根据返回结果给用户一个清晰的回复
-5. 如果用户提到重要的个人信息或偏好，请使用 save_personal_info 保存{workflow_hint}{todo_hint}{info_hint}"""
+5. 如果用户提到重要的个人信息或偏好，请使用 save_personal_info 保存
+6. 如果用户要求将某段流程或知识沉淀为可复用的指令，使用 save_skill 保存为技能{workflow_hint}{todo_hint}{info_hint}"""
+
+    # 7. 注入被 Skill Selector 选中的技能完整内容
+    skill_hint = ""
+    if selected_skill_ids:
+        try:
+            from agent_service.models import AgentSkill
+            selected_skills = AgentSkill.objects.filter(
+                id__in=selected_skill_ids,
+                user=user,
+                is_active=True
+            )
+            if selected_skills.exists():
+                skill_sections = []
+                for s in selected_skills:
+                    skill_sections.append(f"### {s.name}\n{s.content}")
+                skill_hint = "\n\n## 用户自定义技能\n以下是与当前任务相关的技能指令，请参考执行：\n\n" + "\n\n".join(skill_sections)
+                logger.debug(f"[Agent] 注入 {selected_skills.count()} 个技能到 System Prompt")
+        except Exception as e:
+            logger.warning(f"[Agent] 加载技能失败: {e}")
+
+    system_prompt += skill_hint
     
     return system_prompt
+
+
+# ==========================================
+# Skill Selector Node（技能预筛选节点）
+# ==========================================
+def skill_selector_node(state: AgentState, config: RunnableConfig) -> dict:
+    """
+    技能预筛选节点。
+    在每轮用户消息进入主 Agent 之前执行，从用户激活的 Skill 池中
+    选出与本轮任务相关的 Skill ID，后续注入 System Prompt。
+    
+    - 若无激活 skill → 直接返回空列表，跳过 LLM 调用
+    - LLM 解析失败 → 兜底返回空列表，不阻断主流程
+    """
+    user = config.get("configurable", {}).get("user")
+    if not user or not user.is_authenticated:
+        return {"selected_skill_ids": []}
+
+    try:
+        from agent_service.models import AgentSkill
+        active_skills = list(AgentSkill.objects.filter(user=user, is_active=True).values('id', 'name', 'description'))
+    except Exception as e:
+        logger.warning(f"[SkillSelector] 查询技能失败: {e}")
+        return {"selected_skill_ids": []}
+
+    if not active_skills:
+        return {"selected_skill_ids": []}
+
+    # 取最后一条 HumanMessage 作为上下文
+    messages = state.get('messages', [])
+    last_human_msg = ""
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            if isinstance(msg.content, str):
+                last_human_msg = msg.content[:500]
+            elif isinstance(msg.content, list):
+                text_parts = [b.get("text", "") for b in msg.content if isinstance(b, dict) and b.get("type") == "text"]
+                last_human_msg = " ".join(text_parts)[:500]
+            break
+
+    if not last_human_msg:
+        return {"selected_skill_ids": []}
+
+    # 构建技能摘要列表
+    skill_list_str = json.dumps(
+        [{"id": s["id"], "name": s["name"], "description": s["description"]} for s in active_skills],
+        ensure_ascii=False
+    )
+
+    selector_prompt = f"""你是一个技能选择器。根据用户的消息，从下列技能中选出相关的技能编号。
+只返回 JSON 数组（如 [1, 3]），不要解释。如果没有相关技能则返回空数组 []。
+
+技能列表：
+{skill_list_str}
+
+用户消息：{last_human_msg}"""
+
+    try:
+        llm = get_user_llm(user)
+        response = llm.invoke(
+            [SystemMessage(content=selector_prompt)],
+            config={**config, "max_tokens": 200}
+        )
+
+        # 解析返回的 JSON 数组
+        response_text = response.content.strip()
+        # 尝试提取 JSON 数组（兼容 LLM 可能包裹在 ```json ... ``` 中）
+        import re
+        json_match = re.search(r'\[[\d\s,]*\]', response_text)
+        if json_match:
+            selected_ids = json.loads(json_match.group())
+            # 验证：只允许存在于 active_skills 中的 ID
+            valid_ids = {s["id"] for s in active_skills}
+            selected_ids = [sid for sid in selected_ids if isinstance(sid, int) and sid in valid_ids]
+            logger.info(f"[SkillSelector] 从 {len(active_skills)} 个技能中选出 {len(selected_ids)} 个: {selected_ids}")
+            return {"selected_skill_ids": selected_ids}
+        else:
+            logger.warning(f"[SkillSelector] 无法从 LLM 响应中解析 JSON 数组: {response_text[:200]}")
+            return {"selected_skill_ids": []}
+
+    except Exception as e:
+        logger.warning(f"[SkillSelector] LLM 调用失败，跳过技能选择: {e}")
+        return {"selected_skill_ids": []}
 
 
 # ==========================================
@@ -556,8 +686,9 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     now = datetime.datetime.now()
     current_time = now.strftime("%Y-%m-%d %H:%M:%S")
     
-    # 构建 system prompt
-    system_prompt = build_system_prompt(user, active_tool_names, current_time)
+    # 构建 system prompt（含筛选器选出的技能）
+    selected_skill_ids = state.get('selected_skill_ids') or []
+    system_prompt = build_system_prompt(user, active_tool_names, current_time, selected_skill_ids=selected_skill_ids)
     system_message = SystemMessage(content=system_prompt)
     
     # 动态获取工具
@@ -1022,13 +1153,17 @@ def create_workflow():
     workflow = StateGraph(AgentState)
     
     # 添加节点
+    workflow.add_node("skill_selector", skill_selector_node)
     workflow.add_node("agent", agent_node)
     
     # 使用带权限检查的工具节点
     workflow.add_node("tools", create_tool_node_with_permission_check())
     
-    # 设置入口点
-    workflow.set_entry_point("agent")
+    # 设置入口点 → 先经过技能筛选器
+    workflow.set_entry_point("skill_selector")
+    
+    # skill_selector → agent
+    workflow.add_edge("skill_selector", "agent")
     
     # Agent 后的路由
     workflow.add_conditional_edges(
@@ -1040,7 +1175,7 @@ def create_workflow():
         }
     )
     
-    # 工具调用后返回 Agent
+    # 工具调用后直接返回 Agent（不再经过 skill_selector）
     workflow.add_edge("tools", "agent")
     
     return workflow
@@ -1153,7 +1288,8 @@ def create_initial_state(user, active_tools=None):
     
     return {
         "messages": [],
-        "active_tools": active_tools
+        "active_tools": active_tools,
+        "selected_skill_ids": []
     }
 
 def get_config(user, thread_id=None):

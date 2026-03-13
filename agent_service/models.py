@@ -539,6 +539,38 @@ class WorkflowRule(models.Model):
         return f"[{status}] {self.user.username}: {self.name}"
 
 
+class AgentSkill(models.Model):
+    """
+    Agent 技能
+    用户定义的纯文本指令片段，描述 Agent 在特定场景下的行为。
+    通过 Skill Selector Node 进行预筛选，仅将相关 skill 的完整内容注入 System Prompt。
+    """
+    SOURCE_CHOICES = [
+        ('manual', '手动创建'),
+        ('ai', 'AI 生成'),
+        ('imported', '外部导入'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='agent_skills')
+    name = models.CharField(max_length=100, help_text="技能名称")
+    description = models.CharField(max_length=500, help_text="简短描述，供筛选器阅读以决定是否选用")
+    content = models.TextField(help_text="完整的技能内容，仅在被筛选器选中后注入 System Prompt")
+    is_active = models.BooleanField(default=True, help_text="是否进入筛选池")
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='manual', help_text="来源")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = [('user', 'name')]
+        verbose_name = "Agent 技能"
+        verbose_name_plural = "Agent 技能"
+
+    def __str__(self):
+        status = "✓" if self.is_active else "✗"
+        return f"[{status}] {self.user.username}: {self.name}"
+
+
 class SessionTodoItem(models.Model):
     """
     会话级 TODO 列表

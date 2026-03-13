@@ -3043,6 +3043,12 @@
                                         <i class="fas fa-chart-bar me-1"></i>Token 统计
                                     </button>
                                 </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="ai-skills-tab" data-bs-toggle="pill" 
+                                        data-bs-target="#ai-skills" type="button" role="tab">
+                                        <i class="fas fa-bolt me-1"></i>技能
+                                    </button>
+                                </li>
                             </ul>
                             
                             <div class="tab-content" id="aiMemoryTabsContent">
@@ -3444,6 +3450,112 @@
                                             <li>自定义模型无限额限制，仅做统计</li>
                                             <li>建议在"模型配置"中添加您自己的 API Key 以获得无限使用</li>
                                         </ul>
+                                    </div>
+                                </div>
+
+                                <!-- 技能管理 -->
+                                <div class="tab-pane fade" id="ai-skills" role="tabpanel">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <small class="text-muted">管理 Agent 技能 — 启用的技能会在对话前由筛选器自动匹配</small>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" onclick="agentSkills.showCreateForm()">
+                                                <i class="fas fa-plus me-1"></i>新建
+                                            </button>
+                                            <button class="btn btn-outline-secondary" onclick="agentSkills.showImportForm()">
+                                                <i class="fas fa-file-import me-1"></i>导入
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- 新建/编辑表单（默认隐藏） -->
+                                    <div id="skillFormContainer" style="display: none;" class="card mb-3 border-primary">
+                                        <div class="card-body">
+                                            <h6 class="card-title" id="skillFormTitle">新建技能</h6>
+                                            <input type="hidden" id="skillFormId" value="">
+                                            <div class="mb-2">
+                                                <label class="form-label small">名称</label>
+                                                <input type="text" class="form-control form-control-sm" id="skillFormName" 
+                                                       placeholder="如：会议纪要生成、日报撰写流程" maxlength="100">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label small">描述 <span class="text-muted">（供筛选器判断是否选用）</span></label>
+                                                <input type="text" class="form-control form-control-sm" id="skillFormDescription" 
+                                                       placeholder="简要说明该技能适用于什么场景" maxlength="500">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label small">内容</label>
+                                                <textarea class="form-control form-control-sm" id="skillFormContent" rows="6" 
+                                                          placeholder="技能的完整指令内容（纯文本）"></textarea>
+                                            </div>
+                                            <div class="d-flex justify-content-end gap-2">
+                                                <button class="btn btn-sm btn-outline-secondary" onclick="agentSkills.hideForm()">取消</button>
+                                                <button class="btn btn-sm btn-primary" onclick="agentSkills.submitForm()">保存</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 导入表单（默认隐藏） -->
+                                    <div id="skillImportContainer" style="display: none;" class="card mb-3 border-secondary">
+                                        <div class="card-body">
+                                            <h6 class="card-title">导入技能</h6>
+                                            <ul class="nav nav-pills nav-fill mb-3" id="importModeTabs">
+                                                <li class="nav-item">
+                                                    <button class="nav-link active" data-import-mode="file" onclick="agentSkills.switchImportMode('file')">
+                                                        <i class="fas fa-file-upload me-1"></i>文件上传
+                                                    </button>
+                                                </li>
+                                                <li class="nav-item">
+                                                    <button class="nav-link" data-import-mode="text" onclick="agentSkills.switchImportMode('text')">
+                                                        <i class="fas fa-paste me-1"></i>粘贴文本
+                                                    </button>
+                                                </li>
+                                            </ul>
+                                            <!-- 文件上传模式 -->
+                                            <div id="importFileMode">
+                                                <div class="mb-2">
+                                                    <label class="form-label small">选择文件（.txt 或 .md，最大 1MB）</label>
+                                                    <input type="file" class="form-control form-control-sm" id="skillImportFile" 
+                                                           accept=".txt,.md,text/plain,text/markdown">
+                                                </div>
+                                                <div class="mb-2">
+                                                    <label class="form-label small">名称（可选，默认使用文件名）</label>
+                                                    <input type="text" class="form-control form-control-sm" id="skillImportFileName" maxlength="100">
+                                                </div>
+                                                <div class="mb-2">
+                                                    <label class="form-label small">描述</label>
+                                                    <input type="text" class="form-control form-control-sm" id="skillImportFileDesc" 
+                                                           placeholder="简要说明该技能适用于什么场景" maxlength="500">
+                                                </div>
+                                            </div>
+                                            <!-- 粘贴文本模式 -->
+                                            <div id="importTextMode" style="display: none;">
+                                                <div class="mb-2">
+                                                    <label class="form-label small">名称</label>
+                                                    <input type="text" class="form-control form-control-sm" id="skillImportTextName" maxlength="100">
+                                                </div>
+                                                <div class="mb-2">
+                                                    <label class="form-label small">描述</label>
+                                                    <input type="text" class="form-control form-control-sm" id="skillImportTextDesc" 
+                                                           placeholder="简要说明该技能适用于什么场景" maxlength="500">
+                                                </div>
+                                                <div class="mb-2">
+                                                    <label class="form-label small">内容</label>
+                                                    <textarea class="form-control form-control-sm" id="skillImportTextContent" rows="6" 
+                                                              placeholder="粘贴技能内容（纯文本）"></textarea>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex justify-content-end gap-2">
+                                                <button class="btn btn-sm btn-outline-secondary" onclick="agentSkills.hideImportForm()">取消</button>
+                                                <button class="btn btn-sm btn-primary" onclick="agentSkills.submitImport()">导入</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 技能列表 -->
+                                    <div id="skillsList" class="memory-list" style="max-height: 400px; overflow-y: auto;">
+                                        <div class="text-center text-muted py-4">
+                                            <i class="fas fa-spinner fa-spin me-2"></i>加载中...
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -4853,6 +4965,7 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
     <!-- AI Agent 模块 -->
     <script src="{% static 'js/agent-chat.js' %}?v=20251222-001"></script>
     <script src="{% static 'js/agent-config.js' %}?v=20260102-001"></script>
+    <script src="{% static 'js/agent-skills.js' %}?v=20260312-001"></script>
     <!-- Quick Action 快速操作模块 -->
     <script src="{% static 'js/quick-action.js' %}?v=20260204-001"></script>
     <script>
@@ -4869,6 +4982,7 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
         window.reminderManager = new ReminderManager();
         window.rruleManager = new RRuleManager();
         window.panelResizer = new PanelResizer(); // 添加面板调节器
+        window.agentSkills = new AgentSkillsManager(window.CSRF_TOKEN);
     </script>
 
     <!-- 页面初始化 -->
@@ -6053,6 +6167,7 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                     loadPersonalInfo();
                     loadDialogStyle();
                     loadWorkflowRules();
+                    if (window.agentSkills) agentSkills.loadSkills();
                 });
             }
         });

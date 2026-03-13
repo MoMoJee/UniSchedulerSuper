@@ -28,6 +28,11 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://unischedulersuper.online',
+    'https://www.unischedulersuper.online',
+]
+
 # 设定
 CORS_ORIGIN_ALLOW_ALL = True
 
