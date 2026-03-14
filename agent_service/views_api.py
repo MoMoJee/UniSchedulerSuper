@@ -2003,6 +2003,43 @@ def get_context_usage(request):
                 f"显示值可能不准确（不包含工具定义约4k tokens）"
             )
         
+        # 获取检查点信息
+        checkpoint_count = 0
+        latest_checkpoint = None
+        try:
+            from agent_service.models import AgentStateSnapshot
+            snapshot_count = AgentStateSnapshot.objects.filter(session=session).count()
+            checkpoint_count = snapshot_count
+            latest_snapshot = AgentStateSnapshot.objects.filter(
+                session=session
+            ).order_by('-created_at').first()
+            if latest_snapshot:
+                latest_checkpoint = {
+                    "checkpoint_id": latest_snapshot.checkpoint_id,
+                    "phase": latest_snapshot.phase,
+                    "active_skills": latest_snapshot.active_skills,
+                    "focus_files": latest_snapshot.focus_files,
+                    "created_at": latest_snapshot.created_at.isoformat()
+                }
+        except Exception as e:
+            logger.warning(f"[上下文] 获取检查点信息失败: {e}")
+
+        # 获取事务统计
+        transaction_count = 0
+        reversible_count = 0
+        try:
+            from agent_service.models import AgentTransaction
+            transaction_count = AgentTransaction.objects.filter(
+                session_id=session_id
+            ).count()
+            reversible_count = AgentTransaction.objects.filter(
+                session_id=session_id,
+                reversible=True,
+                is_rolled_back=False
+            ).count()
+        except Exception as e:
+            logger.warning(f"[上下文] 获取事务统计失败: {e}")
+
         return Response({
             "session_id": session_id,
             "context_window": context_window,
@@ -2016,12 +2053,293 @@ def get_context_usage(request):
             "summary_trigger_ratio": summary_trigger_ratio,
             "has_summary": has_summary,
             "tokens_source": total_tokens_source,  # 新增：标识数据来源
-            "summary_tokens_source": summary_tokens_source  # 新增：总结数据来源
+            "summary_tokens_source": summary_tokens_source,  # 新增：总结数据来源
+            # 新增：检查点信息
+            "checkpoint_count": checkpoint_count,
+            "latest_checkpoint": latest_checkpoint,
+            # 新增：事务统计
+            "transaction_count": transaction_count,
+            "reversible_count": reversible_count,
+            # 新增：状态快照信息
+            "state_snapshot": latest_checkpoint
         })
         
     except Exception as e:
         logger.exception(f"获取上下文使用情况失败: {e}")
         return Response(
             {"error": f"获取上下文使用情况失败: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+# ==========================================
+# 检查点管理 API（新增）
+# ==========================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_checkpoints(request):
+    """
+    列出会话的检查点
+    GET /api/agent/checkpoints/?session_id=xxx
+
+    返回:
+    {
+        "session_id": "xxx",
+        "checkpoints": [
+            {
+                "checkpoint_id": "ckpt_xxx",
+                "created_at": "2026-03-13T10:00:00",
+                "description": "...",
+                "is_named": true,
+                "message_count": 10
+            },
+            ...
+        ]
+    }
+    """
+    from agent_service.models import AgentSession, AgentStateSnapshot
+    from agent_service.checkpoint_manager import CheckpointManager
+
+    user = request.user
+    session_id = request.query_params.get("session_id", f"user_{user.id}_default")
+
+    # 验证 session_id 归属
+    if not session_id.startswith(f"user_{user.id}_"):
+        return Response(
+            {"error": "无权访问此会话"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    try:
+        session = AgentSession.objects.filter(session_id=session_id).first()
+        if not session:
+            return Response(
+                {"error": "会话不存在"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # 使用 CheckpointManager 列出检查点
+        manager = CheckpointManager(session, user)
+        checkpoints = manager.list_checkpoints()
+
+        # 格式化返回
+        checkpoint_list = []
+        for ckpt in checkpoints:
+            checkpoint_list.append({
+                "checkpoint_id": ckpt.checkpoint_id,
+                "created_at": ckpt.created_at.isoformat(),
+                "description": ckpt.description,
+                "is_named": ckpt.is_named,
+                "message_count": ckpt.message_count
+            })
+
+        return Response({
+            "session_id": session_id,
+            "checkpoints": checkpoint_list,
+            "count": len(checkpoint_list)
+        })
+
+    except Exception as e:
+        logger.exception(f"列出检查点失败: {e}")
+        return Response(
+            {"error": f"列出检查点失败: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_checkpoint(request):
+    """
+    创建检查点
+    POST /api/agent/checkpoints/create/
+
+    Body:
+    {
+        "session_id": "xxx",
+        "description": "检查点描述",
+        "is_named": false
+    }
+
+    返回:
+    {
+        "success": true,
+        "checkpoint_id": "ckpt_xxx",
+        "message": "检查点创建成功"
+    }
+    """
+    from agent_service.models import AgentSession
+    from agent_service.checkpoint_manager import CheckpointManager
+
+    user = request.user
+    data = request.data
+    session_id = data.get("session_id", f"user_{user.id}_default")
+    description = data.get("description", "")
+    is_named = data.get("is_named", False)
+
+    # 验证 session_id 归属
+    if not session_id.startswith(f"user_{user.id}_"):
+        return Response(
+            {"error": "无权访问此会话"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    try:
+        session = AgentSession.objects.filter(session_id=session_id).first()
+        if not session:
+            return Response(
+                {"error": "会话不存在"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # 创建检查点
+        manager = CheckpointManager(session, user)
+        checkpoint_id = manager.create_checkpoint(
+            description=description,
+            is_named=is_named
+        )
+
+        if checkpoint_id:
+            return Response({
+                "success": True,
+                "checkpoint_id": checkpoint_id,
+                "message": "检查点创建成功"
+            })
+        else:
+            return Response(
+                {"error": "检查点创建失败"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    except Exception as e:
+        logger.exception(f"创建检查点失败: {e}")
+        return Response(
+            {"error": f"创建检查点失败: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def restore_checkpoint(request):
+    """
+    恢复到指定检查点
+    POST /api/agent/checkpoints/restore/
+
+    Body:
+    {
+        "session_id": "xxx",
+        "checkpoint_id": "ckpt_xxx"
+    }
+
+    返回:
+    {
+        "success": true,
+        "message": "成功恢复到检查点 xxx"
+    }
+    """
+    from agent_service.models import AgentSession
+    from agent_service.checkpoint_manager import CheckpointManager
+
+    user = request.user
+    data = request.data
+    session_id = data.get("session_id", f"user_{user.id}_default")
+    checkpoint_id = data.get("checkpoint_id", "")
+
+    # 验证 session_id 归属
+    if not session_id.startswith(f"user_{user.id}_"):
+        return Response(
+            {"error": "无权访问此会话"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    if not checkpoint_id:
+        return Response(
+            {"error": "checkpoint_id 不能为空"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        session = AgentSession.objects.filter(session_id=session_id).first()
+        if not session:
+            return Response(
+                {"error": "会话不存在"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # 恢复检查点
+        manager = CheckpointManager(session, user)
+        success = manager.restore_checkpoint(checkpoint_id)
+
+        if success:
+            return Response({
+                "success": True,
+                "message": f"成功恢复到检查点 {checkpoint_id}"
+            })
+        else:
+            return Response(
+                {"error": "恢复检查点失败"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    except Exception as e:
+        logger.exception(f"恢复检查点失败: {e}")
+        return Response(
+            {"error": f"恢复检查点失败: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_checkpoint(request, checkpoint_id):
+    """
+    删除指定检查点
+    DELETE /api/agent/checkpoints/{checkpoint_id}/
+
+    Query:
+    - session_id: 会话 ID
+    """
+    from agent_service.models import AgentSession
+    from agent_service.checkpoint_manager import CheckpointManager
+
+    user = request.user
+    session_id = request.query_params.get("session_id", f"user_{user.id}_default")
+
+    # 验证 session_id 归属
+    if not session_id.startswith(f"user_{user.id}_"):
+        return Response(
+            {"error": "无权访问此会话"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    try:
+        session = AgentSession.objects.filter(session_id=session_id).first()
+        if not session:
+            return Response(
+                {"error": "会话不存在"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # 删除检查点
+        manager = CheckpointManager(session, user)
+        success = manager.delete_checkpoint(checkpoint_id)
+
+        if success:
+            return Response({
+                "success": True,
+                "message": f"检查点 {checkpoint_id} 已删除"
+            })
+        else:
+            return Response(
+                {"error": "删除检查点失败"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    except Exception as e:
+        logger.exception(f"删除检查点失败: {e}")
+        return Response(
+            {"error": f"删除检查点失败: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
