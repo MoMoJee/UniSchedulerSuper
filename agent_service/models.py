@@ -316,134 +316,6 @@ class AgentSession(models.Model):
         return True
 
 
-# ==========================================
-# 结构化消息存储模型（OpenCode 风格）
-# ==========================================
-
-class MessagePartType:
-    """消息分片类型常量"""
-    TEXT = 'text'
-    TOOL = 'tool'
-    FILE = 'file'
-    REASONING = 'reasoning'
-
-
-class MessagePart(models.Model):
-    """
-    消息分片 - 结构化存储消息内容
-
-    参考 OpenCode 设计，将消息拆分为不同类型的分片：
-    - TextPart: 文本内容
-    - ToolPart: 工具调用记录（含输入/输出/状态）
-    - FilePart: 文件附件引用
-    - ReasoningPart: 推理过程
-    """
-    session = models.ForeignKey(AgentSession, on_delete=models.CASCADE, related_name='message_parts')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='message_parts')
-
-    # 消息在会话中的索引
-    message_index = models.IntegerField(db_index=True)
-
-    # 分片类型
-    part_type = models.CharField(max_length=20, db_index=True, choices=[
-        (MessagePartType.TEXT, '文本'),
-        (MessagePartType.TOOL, '工具调用'),
-        (MessagePartType.FILE, '文件'),
-        (MessagePartType.REASONING, '推理过程'),
-    ])
-
-    # 内容
-    content = models.TextField(blank=True, default="")
-
-    # 工具相关字段（part_type = tool 时使用）
-    tool_name = models.CharField(max_length=100, blank=True, default="")
-    tool_input = models.JSONField(default=dict, blank=True)
-    tool_output = models.TextField(blank=True, default="")
-    tool_status = models.CharField(max_length=20, blank=True, default="", choices=[
-        ('pending', '等待中'),
-        ('success', '成功'),
-        ('error', '失败'),
-    ])
-
-    # 文件引用（part_type = file 时使用）
-    file_ref = models.CharField(max_length=500, blank=True, default="")
-    file_type = models.CharField(max_length=50, blank=True, default="")
-
-    # 消息角色（user/assistant/system）
-    role = models.CharField(max_length=20, default="")
-
-    # 关联的检查点 ID
-    checkpoint_id = models.CharField(max_length=100, blank=True, default="", db_index=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['session', 'message_index', 'part_type']
-        indexes = [
-            models.Index(fields=['session', 'message_index']),
-            models.Index(fields=['session', 'checkpoint_id']),
-        ]
-        verbose_name = "消息分片"
-        verbose_name_plural = "消息分片"
-
-    def __str__(self):
-        return f"[{self.session.session_id}] #{self.message_index} {self.part_type}"
-
-
-class AgentStateSnapshot(models.Model):
-    """
-    Agent 状态快照 - 跨轮显式传递
-
-    参考 OpenCode 的状态快照设计，显式存储：
-    - 当前任务阶段
-    - 激活的技能
-    - 关注的文件
-    - 累积发现
-    - 待处理任务
-    - 工具结果摘要
-    """
-    session = models.ForeignKey(AgentSession, on_delete=models.CASCADE, related_name='state_snapshots')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='agent_state_snapshots')
-
-    # 检查点 ID
-    checkpoint_id = models.CharField(max_length=100, unique=True, db_index=True)
-
-    # 当前任务阶段
-    phase = models.CharField(max_length=50, default='idle', help_text="当前任务阶段")
-
-    # 激活的技能列表
-    active_skills = models.JSONField(default=list, help_text="激活的技能 ID 列表")
-
-    # 关注的文件列表
-    focus_files = models.JSONField(default=list, help_text="关注的文件路径列表")
-
-    # 累积发现
-    accumulated_findings = models.JSONField(default=list, help_text="累积发现列表")
-
-    # 待处理任务
-    pending_tasks = models.JSONField(default=list, help_text="待处理任务列表")
-
-    # 工具结果摘要
-    tool_results_summary = models.JSONField(default=list, help_text="工具结果摘要列表")
-
-    # 上一轮用户消息摘要
-    last_user_message = models.TextField(blank=True, default="", help_text="上一轮用户消息摘要")
-
-    # 元数据
-    metadata = models.JSONField(default=dict, blank=True, help_text="额外元数据")
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['-created_at']
-        verbose_name = "Agent 状态快照"
-        verbose_name_plural = "Agent 状态快照"
-
-    def __str__(self):
-        return f"[{self.session.session_id}] {self.phase} @ {self.checkpoint_id}"
-
-
 class UserMemory(models.Model):
     """
     用户核心画像 (Core Profile)
@@ -785,73 +657,23 @@ class AgentTransaction(models.Model):
     """
     Agent 事务记录
     用于追踪 Agent 执行的操作，支持回滚功能。
-
-    统一管理所有工具调用（包括原生工具、MCP 工具、外部服务）。
     """
-
-    # 工具类型常量
-    TOOL_TYPE_NATIVE = 'native'
-    TOOL_TYPE_MCP = 'mcp'
-    TOOL_TYPE_EXTERNAL = 'external'
-
-    TOOL_TYPE_CHOICES = [
-        (TOOL_TYPE_NATIVE, '原生工具'),
-        (TOOL_TYPE_MCP, 'MCP 工具'),
-        (TOOL_TYPE_EXTERNAL, '外部服务'),
-    ]
-
     session_id = models.CharField(max_length=200, db_index=True, help_text="会话 ID")
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='agent_transactions', null=True, blank=True)
-
-    # 工具类型和来源
-    tool_type = models.CharField(max_length=20, choices=TOOL_TYPE_CHOICES, default=TOOL_TYPE_NATIVE, help_text="工具类型")
-    tool_source = models.CharField(max_length=100, blank=True, default="", help_text="工具来源标识")
-
     action_type = models.CharField(max_length=100, help_text="操作类型 (create_event, delete_todo, etc.)")
     description = models.TextField(blank=True, default="", help_text="操作描述")
-
-    # 关联的消息索引
-    message_index = models.IntegerField(null=True, blank=True, db_index=True, help_text="关联的消息索引")
-
-    # 关联的检查点 ID
-    checkpoint_id = models.CharField(max_length=100, blank=True, default="", db_index=True, help_text="检查点 ID")
-
-    # 输入哈希（用于去重）
-    tool_input_hash = models.CharField(max_length=64, blank=True, default="", help_text="输入哈希")
-
-    # 是否可回滚
-    reversible = models.BooleanField(default=True, help_text="是否可回滚")
-
-    # 回滚元数据
-    rollback_metadata = models.JSONField(default=dict, blank=True, help_text="回滚所需的元数据")
-
     revision_id = models.IntegerField(null=True, blank=True, help_text="django-reversion 的 Revision ID")
     metadata = models.JSONField(default=dict, help_text="额外的元数据")
     is_rolled_back = models.BooleanField(default=False, help_text="是否已回滚")
-
-    # 执行状态
-    status = models.CharField(max_length=20, blank=True, default="", choices=[
-        ('pending', '等待中'),
-        ('success', '成功'),
-        ('error', '失败'),
-    ], help_text="执行状态")
-
-    # 执行时长（毫秒）
-    duration_ms = models.IntegerField(null=True, blank=True, help_text="执行时长（毫秒）")
-
     created_at = models.DateTimeField(auto_now_add=True)
-
+    
     class Meta:
         ordering = ['-created_at']
         verbose_name = "Agent 事务"
         verbose_name_plural = "Agent 事务"
-        indexes = [
-            models.Index(fields=['session_id', 'checkpoint_id']),
-            models.Index(fields=['session_id', 'tool_type']),
-        ]
 
     def __str__(self):
-        return f"[{self.session_id}] {self.action_type} ({self.tool_type}) at {self.created_at}"
+        return f"[{self.session_id}] {self.action_type} at {self.created_at}"
 
 
 # ==========================================

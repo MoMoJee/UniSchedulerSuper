@@ -28,12 +28,6 @@ urlpatterns = [
     path('rollback/preview/', views_api.rollback_preview, name='rollback_preview'),
     path('rollback/', views_api.execute_rollback, name='execute_rollback'),
     path('rollback/to-message/', views_api.rollback_to_message, name='rollback_to_message'),
-
-    # 检查点管理（新增）
-    path('checkpoints/', views_api.list_checkpoints, name='list_checkpoints'),
-    path('checkpoints/create/', views_api.create_checkpoint, name='create_checkpoint'),
-    path('checkpoints/restore/', views_api.restore_checkpoint, name='restore_checkpoint'),
-    path('checkpoints/<str:checkpoint_id>/', views_api.delete_checkpoint, name='delete_checkpoint'),
     
     # 记忆优化
     path('optimize-memory/', views_api.optimize_memory, name='optimize_memory'),
