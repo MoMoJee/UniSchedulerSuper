@@ -185,6 +185,9 @@ class AgentChat {
         
         // 加载当前会话的 TOD O 列表
         this.loadSessionTodos();
+
+        // 初始化上下文可视化功能
+        this.initContextVisualization();
     }
 
     /**
@@ -900,6 +903,13 @@ class AgentChat {
                 // 更新上下文使用量条形图
                 this.updateContextUsageBar();
                 
+                // 总结分割线延迟插入：此时页面所有消息已渲染完毕，可精确定位
+                if (this.pendingSummaryDivider) {
+                    const pd = this.pendingSummaryDivider;
+                    this.pendingSummaryDivider = null;
+                    this.showSummaryDivider(pd.summary, pd.summarizedUntil, pd.summaryTokens);
+                }
+                
                 console.log('Agent 处理完成');
                 break;
                 
@@ -1014,7 +1024,13 @@ class AgentChat {
                 console.log('📝 历史总结完成:', data);
                 this.hideSummarizingIndicator();
                 if (data.success) {
-                    this.showSummaryDivider(data.summary, data.summarized_until, data.summary_tokens);
+                    // 不立即插入 DOM——此时 AI 回复尚未渲染，insertBefore 无法定位正确位置。
+                    // 缓存数据，等 finished 事件后（页面消息已全部渲染）再精确插入。
+                    this.pendingSummaryDivider = {
+                        summary: data.summary,
+                        summarizedUntil: data.summarized_until,
+                        summaryTokens: data.summary_tokens
+                    };
                     // 总结完成后更新上下文使用量条形图
                     this.updateContextUsageBar();
                 } else {
@@ -1039,6 +1055,11 @@ class AgentChat {
                 this.showTyping();
                 break;
                 
+            case 'llm_request_snapshot':
+                this.saveContextSnapshot(data.snapshot);
+                console.log('📸 已保存上下文快照:', data.snapshot?.messages?.length, '条消息');
+                break;
+
             default:
                 console.log('未知消息类型:', data.type);
         }
@@ -1329,6 +1350,9 @@ class AgentChat {
 
         let html = content;
         const footnotes = {}; // 存储脚注
+
+        // 0. 剥离 [AGENT_STATE] 内部状态块（不展示给用户）
+        html = html.replace(/\[AGENT_STATE\][\s\S]*?\[\/AGENT_STATE\]/g, '');
         
         // 1. 转义 HTML 特殊字符（避免 XSS）
         html = html
@@ -2176,8 +2200,22 @@ class AgentChat {
             <div class="summary-divider-line"></div>
         `;
         
-        // 将分割线追加到消息容器末尾（因为是在消息渲染过程中按正确顺序调用的）
-        this.messagesContainer.appendChild(divider);
+        // 精确定位：插入到 summarized_until 对应的消息元素之前
+        // summarized_until = K 表示已总结了 messages[0..K-1]，分割线应在 messages[K] 之前
+        let inserted = false;
+        const allMessages = this.messagesContainer.querySelectorAll('.agent-message[data-message-index]');
+        for (const msgEl of allMessages) {
+            const idx = parseInt(msgEl.dataset.messageIndex);
+            if (!isNaN(idx) && idx >= summarizedUntil) {
+                this.messagesContainer.insertBefore(divider, msgEl);
+                inserted = true;
+                break;
+            }
+        }
+        // 兜底：如果找不到对应消息（极端情况），追加到末尾
+        if (!inserted) {
+            this.messagesContainer.appendChild(divider);
+        }
         
         // 保存总结信息到 localStorage
         localStorage.setItem(`summary_${this.sessionId}`, JSON.stringify({
@@ -3445,58 +3483,12 @@ class AgentChat {
             console.log('回滚响应:', data);
             
             if (data.success) {
-                // 【修复】收集该消息及之后的所有元素（包括消息、工具指示器、工具结果）
-                const allChildren = Array.from(this.messagesContainer.children);
-                const elementsToRemove = [];
+                // 清除本地缓存的总结信息（由 loadHistory 重新读取）
+                localStorage.removeItem(`summary_${this.sessionId}`);
+                localStorage.removeItem(`summarizing_${this.sessionId}`);
                 
-                // 找到目标消息的位置
-                let targetMessageElement = null;
-                const allMessages = this.messagesContainer.querySelectorAll('.agent-message');
-                
-                allMessages.forEach((msgDiv) => {
-                    const msgIndex = parseInt(msgDiv.dataset.messageIndex);
-                    if (msgIndex === messageIndex) {
-                        targetMessageElement = msgDiv;
-                    }
-                });
-                
-                // 如果找到目标消息，删除它及其之后的所有元素
-                if (targetMessageElement) {
-                    let shouldDelete = false;
-                    
-                    allChildren.forEach((element) => {
-                        // 当遇到目标消息时，开始标记删除
-                        if (element === targetMessageElement) {
-                            shouldDelete = true;
-                        }
-                        
-                        // 删除目标消息及其之后的所有元素
-                        if (shouldDelete) {
-                            elementsToRemove.push(element);
-                        }
-                    });
-                } else {
-                    // 如果没找到目标消息（不应该发生），回退到旧逻辑
-                    console.warn('未找到目标消息元素，使用备用删除逻辑');
-                    allMessages.forEach((msgDiv) => {
-                        const msgIndex = parseInt(msgDiv.dataset.messageIndex);
-                        if (!isNaN(msgIndex) && msgIndex >= messageIndex) {
-                            elementsToRemove.push(msgDiv);
-                        }
-                    });
-                }
-                
-                console.log(`准备删除 ${elementsToRemove.length} 个元素（消息+工具指示器+工具结果）`);
-                elementsToRemove.forEach(el => el.remove());
-                
-                // 更新消息计数
-                this.messageCount = messageIndex;
-                
-                // 如果删除了所有消息，显示欢迎界面
-                const remainingMessages = this.messagesContainer.querySelectorAll('.agent-message');
-                if (remainingMessages.length === 0) {
-                    this.showWelcomeMessage();
-                }
+                // 重新加载历史消息（包含正确的总结状态、消息列表）
+                await this.loadHistory();
                 
                 // 把原消息内容填入输入框
                 if (messageContent) {
@@ -5315,6 +5307,245 @@ class AgentChat {
         } catch (e) {
             console.warn('恢复上下文使用数据失败:', e);
         }
+    }
+    // ==================== 上下文可视化 ====================
+
+    initContextVisualization() {
+        const barContainer = document.getElementById('contextUsageBarContainer');
+        if (barContainer) {
+            barContainer.style.cursor = 'pointer';
+            barContainer.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.openContextVisualization();
+            });
+        }
+        document.getElementById('contextVizClose')?.addEventListener('click', () => this.closeContextVisualization());
+        document.getElementById('contextVizOverlay')?.addEventListener('click', (e) => {
+            if (e.target.id === 'contextVizOverlay') this.closeContextVisualization();
+        });
+        document.querySelectorAll('.viz-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.viz-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                this._currentVizTab = tab.dataset.tab;
+                this._renderContextVizDetail();
+            });
+        });
+        document.getElementById('clearContextHistory')?.addEventListener('click', () => this._clearContextSnapshots());
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && document.getElementById('contextVizOverlay')?.style.display !== 'none') {
+                this.closeContextVisualization();
+            }
+        });
+        this._currentVizTab = 'ui';
+        this._selectedSnapshotIndex = null;
+    }
+
+    openContextVisualization() {
+        const overlay = document.getElementById('contextVizOverlay');
+        if (!overlay) return;
+        overlay.style.display = 'flex';
+        this._loadContextSnapshots();
+    }
+
+    closeContextVisualization() {
+        const overlay = document.getElementById('contextVizOverlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    saveContextSnapshot(snapshot) {
+        if (!snapshot || !this.sessionId) return;
+        const key = `context_snapshots_${this.sessionId}`;
+        try {
+            let snapshots = JSON.parse(localStorage.getItem(key) || '[]');
+            snapshots.push(snapshot);
+            if (snapshots.length > 50) snapshots = snapshots.slice(-50);
+            localStorage.setItem(key, JSON.stringify(snapshots));
+        } catch (e) {
+            console.warn('保存上下文快照失败:', e);
+        }
+    }
+
+    _loadContextSnapshots() {
+        const listEl = document.getElementById('contextVizList');
+        if (!listEl) return;
+        const key = `context_snapshots_${this.sessionId}`;
+        let snapshots = [];
+        try { snapshots = JSON.parse(localStorage.getItem(key) || '[]'); } catch { snapshots = []; }
+
+        if (snapshots.length === 0) {
+            listEl.innerHTML = '<div class="text-muted text-center py-4" style="font-size:12px;">暂无请求记录<br><small>发送消息后将自动记录</small></div>';
+            return;
+        }
+
+        listEl.innerHTML = snapshots.slice().reverse().map((s, revIdx) => {
+            const idx = snapshots.length - 1 - revIdx;
+            const time = s.timestamp ? new Date(s.timestamp).toLocaleTimeString('zh-CN') : '未知';
+            const msgCount = s.messages?.length || 0;
+            const model = s.model_name || s.model_id || '未知模型';
+            let preview = '';
+            if (s.messages) {
+                for (let j = s.messages.length - 1; j >= 0; j--) {
+                    if (s.messages[j].role === 'human') {
+                        const content = s.messages[j].content;
+                        preview = typeof content === 'string' ? content : '[\u591a\u6a21\u6001\u6d88\u606f]';
+                        break;
+                    }
+                }
+            }
+            preview = (preview || '(\u7a7a)').substring(0, 40);
+            const isActive = idx === this._selectedSnapshotIndex;
+            return `<div class="context-viz-item ${isActive ? 'active' : ''}" data-index="${idx}" onclick="agentChat._selectSnapshot(${idx})">
+                <div class="viz-item-time">${time} · ${this._escapeVizHtml(model)}</div>
+                <div class="viz-item-preview">${this._escapeVizHtml(preview)}</div>
+                <div class="viz-item-stats">
+                    <span><i class="fas fa-comment"></i> ${msgCount} 条</span>
+                    <span><i class="fas fa-tools"></i> ${s.tool_names?.length || 0} 工具</span>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    _selectSnapshot(index) {
+        this._selectedSnapshotIndex = index;
+        document.querySelectorAll('.context-viz-item').forEach(el => {
+            el.classList.toggle('active', parseInt(el.dataset.index) === index);
+        });
+        this._renderContextVizDetail();
+    }
+
+    _renderContextVizDetail() {
+        const detailEl = document.getElementById('contextVizDetail');
+        if (!detailEl || this._selectedSnapshotIndex === null) return;
+        const key = `context_snapshots_${this.sessionId}`;
+        let snapshots = [];
+        try { snapshots = JSON.parse(localStorage.getItem(key) || '[]'); } catch { return; }
+        const snapshot = snapshots[this._selectedSnapshotIndex];
+        if (!snapshot) return;
+        if (this._currentVizTab === 'json') {
+            this._renderVizJsonMode(detailEl, snapshot);
+        } else {
+            this._renderVizUiMode(detailEl, snapshot);
+        }
+    }
+
+    _renderVizJsonMode(container, snapshot) {
+        container.innerHTML = `<div class="context-viz-json">${this._escapeVizHtml(JSON.stringify(snapshot, null, 2))}</div>`;
+    }
+
+    _renderVizUiMode(container, snapshot) {
+        const messages = snapshot.messages || [];
+        let html = `<div style="margin-bottom:16px;font-size:12px;color:var(--text-muted);">
+            <strong>模型:</strong> ${this._escapeVizHtml(snapshot.model_name || snapshot.model_id || '未知')}
+            &nbsp;|&nbsp; <strong>时间:</strong> ${snapshot.timestamp ? new Date(snapshot.timestamp).toLocaleString('zh-CN') : '未知'}
+            &nbsp;|&nbsp; <strong>消息数:</strong> ${messages.length}
+            &nbsp;|&nbsp; <strong>工具数:</strong> ${snapshot.tool_names?.length || 0}
+            ${snapshot.supports_vision ? ' &nbsp;|&nbsp; <span class="badge bg-success">支持视觉</span>' : ''}
+        </div>`;
+
+        if (snapshot.tool_definitions?.length > 0) {
+            const toolDefsHtml = snapshot.tool_definitions.map(td => {
+                const paramsHtml = td.parameters
+                    ? `<pre style="margin:4px 0 0 0;font-size:10px;">${this._escapeVizHtml(JSON.stringify(td.parameters, null, 2))}</pre>`
+                    : '';
+                return `<div style="margin-bottom:8px;padding:6px 8px;background:var(--bg-secondary,#f8f9fa);border-radius:4px;border-left:3px solid var(--primary-color,#6c757d);">
+                    <div><strong style="font-size:12px;">${this._escapeVizHtml(td.name)}</strong></div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${this._escapeVizHtml(td.description || '')}</div>
+                    ${paramsHtml}
+                </div>`;
+            }).join('');
+            html += this._buildVizSection(
+                `🔧 工具定义 (${snapshot.tool_definitions.length})`,
+                toolDefsHtml,
+                'tool-defs', false
+            );
+        } else if (snapshot.tool_names?.length > 0) {
+            html += this._buildVizSection(
+                '🔧 绑定工具',
+                `<div style="display:flex;flex-wrap:wrap;gap:4px;">${snapshot.tool_names.map(t => `<span class="badge bg-secondary">${this._escapeVizHtml(t)}</span>`).join('')}</div>`,
+                'tool-list', false
+            );
+        }
+
+        if (snapshot.token_stats) {
+            const ts = snapshot.token_stats;
+            html += this._buildVizSection(
+                '📊 Token 统计',
+                `<div style="font-size:12px;">消息数: ${ts.total_messages} | 系统提示字符: ${ts.system_prompt_chars} | 总字符: ${ts.total_chars}</div>`,
+                'token-stats', false
+            );
+        }
+
+        for (let i = 0; i < messages.length; i++) {
+            const msg = messages[i];
+            const role = msg.role || 'unknown';
+            const meta = msg._meta || {};
+            const roleLabel = {system: '系统', human: '用户', ai: 'AI', tool: '工具'}[role] || role;
+
+            let title = `<span class="context-viz-msg-role role-${role}">${roleLabel}</span>`;
+            if (meta.type === 'summary') title += '<span class="badge bg-info ms-1">历史摘要</span>';
+            else if (meta.type === 'attachment_context') title += '<span class="badge bg-warning ms-1">附件上下文</span>';
+            else if (meta.type === 'system_prompt') title += '<span class="badge bg-purple ms-1">系统提示</span>';
+            if (meta.has_attachments) title += '<span class="badge bg-info ms-1">含附件</span>';
+            if (msg.name) title += ` <code>${this._escapeVizHtml(msg.name)}</code>`;
+            if (msg.tool_calls?.length > 0) title += ` → 调用 ${msg.tool_calls.map(tc => `<code>${this._escapeVizHtml(tc.name || '')}</code>`).join(', ')}`;
+            title += ` <span style="font-size:10px;color:var(--text-muted);">#${i}</span>`;
+
+            let body = '';
+            if (typeof msg.content === 'string') {
+                body = `<pre>${this._escapeVizHtml(msg.content)}</pre>`;
+            } else if (Array.isArray(msg.content)) {
+                body = msg.content.map(block => {
+                    if (block.type === 'text') return `<pre>${this._escapeVizHtml(block.text || '')}</pre>`;
+                    if (block.type === 'image_url') return '<div class="badge bg-info">🖼️ 图片 (base64 已截断)</div>';
+                    return `<pre>${this._escapeVizHtml(JSON.stringify(block, null, 2))}</pre>`;
+                }).join('');
+            }
+            if (msg.tool_calls?.length > 0) {
+                body += '<div style="margin-top:8px;"><strong>Tool Calls:</strong></div>';
+                body += `<pre>${this._escapeVizHtml(JSON.stringify(msg.tool_calls, null, 2))}</pre>`;
+            }
+
+            html += this._buildVizSection(title, body, `msg-${i}`, i === 0);
+        }
+
+        container.innerHTML = html;
+        container.querySelectorAll('.context-viz-section-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const body = header.nextElementSibling;
+                const isHidden = body.style.display === 'none';
+                body.style.display = isHidden ? '' : 'none';
+                const icon = header.querySelector('.viz-collapse-icon');
+                if (icon) icon.classList.toggle('fa-chevron-right', !isHidden);
+                if (icon) icon.classList.toggle('fa-chevron-down', isHidden);
+            });
+        });
+    }
+
+    _buildVizSection(title, body, id, expanded = true) {
+        return `<div class="context-viz-section" id="viz-section-${id}">
+            <div class="context-viz-section-header">
+                <i class="fas fa-chevron-${expanded ? 'down' : 'right'} viz-collapse-icon" style="font-size:10px;width:12px;"></i>
+                ${title}
+            </div>
+            <div class="context-viz-section-body" style="${expanded ? '' : 'display:none;'}">${body}</div>
+        </div>`;
+    }
+
+    _clearContextSnapshots() {
+        if (!confirm('确定清除当前会话的所有上下文快照记录？')) return;
+        localStorage.removeItem(`context_snapshots_${this.sessionId}`);
+        this._selectedSnapshotIndex = null;
+        this._loadContextSnapshots();
+        const detailEl = document.getElementById('contextVizDetail');
+        if (detailEl) detailEl.innerHTML = '<div class="context-viz-placeholder"><i class="fas fa-hand-pointer fa-2x mb-3"></i><p>选择左侧的一条请求记录查看详情</p></div>';
+    }
+
+    _escapeVizHtml(str) {
+        if (str === null || str === undefined) return '';
+        const div = document.createElement('div');
+        div.textContent = String(str);
+        return div.innerHTML;
     }
 }
 

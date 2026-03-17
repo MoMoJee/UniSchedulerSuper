@@ -50,9 +50,12 @@ class AgentSession(models.Model):
     summary_input_tokens = models.IntegerField(default=0, help_text="总结时的 input_tokens（LLM 真实返回值，用于上下文计算）")
     summary_tokens_source = models.CharField(max_length=20, default='estimated', help_text="Token 数据来源: actual/estimated")
     summary_created_at = models.DateTimeField(null=True, blank=True, help_text="总结创建时间")
+    # 触发本次总结时 LangGraph state 中的消息数量（用于回滚判断）
+    # 意义：总结是在 state 有 summary_trigger_count 条消息时被触发的（"发送前"触发 = 下一条消息的索引）
+    summary_trigger_count = models.IntegerField(default=0, help_text="触发本次总结时 state 中的消息数量")
     is_summarizing = models.BooleanField(default=False, help_text="是否正在进行总结")
     # 总结历史版本，用于回滚时恢复之前的总结
-    # 格式: [{"summary": "...", "until_index": 80, "tokens": 500, "created_at": "..."}, ...]
+    # 格式: [{"summary": "...", "until_index": 80, "tokens": 500, "trigger_count": 18, "created_at": "..."}, ...]
     summary_history = models.JSONField(default=list, blank=True, help_text="总结历史版本")
     
     # ========== 上下文使用量追踪字段（LLM 真实返回值）==========
@@ -63,7 +66,20 @@ class AgentSession(models.Model):
     # 格式: {"0": {"input_tokens": 3949, "source": "actual", "timestamp": "2024-..."}, "1": {...}, ...}
     # 键为消息索引（字符串），值为该轮对话的 input_tokens 数据
     token_snapshots = models.JSONField(default=dict, blank=True, help_text="每轮对话的 Token 快照")
-    
+
+    # ========== Agent 状态快照字段（[AGENT_STATE] 机制）==========
+    # 格式: {
+    #   "latest": {"checkpoint_id": "...", "phase": "...", "active_skills": [], ...},
+    #   "history": [{...}, ...]
+    # }
+    state_snapshot = models.JSONField(default=dict, blank=True, help_text="Agent 状态快照，最多保留 10 个历史版本")
+
+    # ========== LLM 请求快照（用于上下文可视化调试）==========
+    last_llm_request_snapshot = models.JSONField(
+        default=dict, blank=True,
+        help_text="最近一次 LLM 请求的完整序列化快照（用于前端可视化调试）"
+    )
+
     class Meta:
         ordering = ['-updated_at']
         verbose_name = "Agent 会话"
@@ -121,7 +137,7 @@ class AgentSession(models.Model):
             "created_at": self.summary_created_at.isoformat() if self.summary_created_at else None,
         }
     
-    def save_summary(self, summary_text: str, summarized_until: int, summary_tokens: int, summary_input_tokens: int = 0, tokens_source: str = 'estimated'):
+    def save_summary(self, summary_text: str, summarized_until: int, summary_tokens: int, summary_input_tokens: int = 0, tokens_source: str = 'estimated', trigger_count: int = 0):
         """
         保存总结，并将旧总结存入历史版本
         Args:
@@ -130,10 +146,11 @@ class AgentSession(models.Model):
             summary_tokens: 总结输出 token 数（output_tokens）
             summary_input_tokens: 总结时的 input_tokens（用于上下文计算）
             tokens_source: Token 数据来源 ('actual' 或 'estimated')
+            trigger_count: 触发本次总结时 state 中的消息数量（用于回滚判断）
         """
         from django.utils import timezone
         
-        # 如果有旧总结，先存入历史
+        # 如果有旧总结，先存入历史（含 trigger_count 以便回滚时精确判断）
         if self.summary_text and self.summary_until_index > 0:
             history = self.summary_history or []
             history.append({
@@ -142,6 +159,7 @@ class AgentSession(models.Model):
                 "tokens": self.summary_tokens,
                 "input_tokens": self.summary_input_tokens,
                 "tokens_source": self.summary_tokens_source,
+                "trigger_count": self.summary_trigger_count,
                 "created_at": self.summary_created_at.isoformat() if self.summary_created_at else None,
             })
             # 只保留最近 10 个历史版本，避免数据过大
@@ -155,12 +173,14 @@ class AgentSession(models.Model):
         self.summary_tokens = summary_tokens
         self.summary_input_tokens = summary_input_tokens
         self.summary_tokens_source = tokens_source
+        self.summary_trigger_count = trigger_count
         self.summary_created_at = timezone.now()
         self.is_summarizing = False
         self.save(update_fields=[
             'summary_text', 'summary_until_index', 'summary_tokens', 
             'summary_input_tokens', 'summary_tokens_source',
-            'summary_created_at', 'is_summarizing', 'summary_history'
+            'summary_trigger_count', 'summary_created_at',
+            'is_summarizing', 'summary_history'
         ])
     
     def set_summarizing(self, is_summarizing: bool):
@@ -258,9 +278,15 @@ class AgentSession(models.Model):
     def rollback_summary(self, target_message_index: int) -> bool:
         """
         回滚总结到适合目标消息索引的版本
+
+        判断逻辑：
+        - summary_trigger_count = 触发本次总结时 state 的消息数量
+        - 若 summary_trigger_count >= target_message_index，说明本次总结是在处理
+          目标消息（或之后的消息）时创建的，回退该消息时必须撤销这次总结
+        - 否则：总结是在目标消息之前很早就创建的，仍然有效，不需要回滚
         
         Args:
-            target_message_index: 回滚后的消息数量
+            target_message_index: 回滚后保留的消息数量（删除 target 及之后的消息）
             
         Returns:
             是否执行了回滚
@@ -268,39 +294,56 @@ class AgentSession(models.Model):
         from django.utils import timezone
         from datetime import datetime
         
-        # 如果当前没有总结，不需要回滚
+        # 当前没有总结，不需要回滚
         if not self.summary_text and self.summary_until_index == 0:
             return False
         
-        # 如果目标位置 >= 当前总结覆盖位置，不需要回滚
-        if target_message_index >= self.summary_until_index:
+        # 【核心判断】当前总结的 trigger_count < target_message_index
+        # 说明总结是在目标消息被处理之前很早创建的，不属于本次回退范围，无需撤销
+        # 反之（trigger_count >= target_message_index）则需要撤销
+        if self.summary_trigger_count > 0 and self.summary_trigger_count < target_message_index:
+            return False
+        # 兼容旧数据：trigger_count=0 时退回旧的空间位置比较
+        if self.summary_trigger_count == 0 and target_message_index > self.summary_until_index:
             return False
         
-        # 从历史中找到适合的版本
-        # 找 until_index <= target_message_index 的最新版本
+        # 从历史中找到最近的、属于 target_message_index 之前的版本
+        # 条件：entry.trigger_count < target_message_index（该总结是在处理 target 之前创建的）
+        # 兼容无 trigger_count 的旧条目：用 until_index <= target 作为后备判断
         history = self.summary_history or []
         suitable_version = None
         
         for version in reversed(history):
-            if version.get('until_index', 0) <= target_message_index:
-                suitable_version = version
-                break
+            tc = version.get('trigger_count', None)
+            if tc is not None:
+                # 新格式：用 trigger_count 精确判断
+                if tc < target_message_index:
+                    suitable_version = version
+                    break
+            else:
+                # 旧格式兼容：用 until_index 空间比较
+                if version.get('until_index', 0) <= target_message_index:
+                    suitable_version = version
+                    break
         
         if suitable_version:
             # 恢复到历史版本
             self.summary_text = suitable_version.get('summary', '')
             self.summary_until_index = suitable_version.get('until_index', 0)
             self.summary_tokens = suitable_version.get('tokens', 0)
+            self.summary_input_tokens = suitable_version.get('input_tokens', 0)
+            self.summary_tokens_source = suitable_version.get('tokens_source', 'estimated')
+            self.summary_trigger_count = suitable_version.get('trigger_count', 0)
             created_at_str = suitable_version.get('created_at')
             if created_at_str:
                 try:
                     self.summary_created_at = datetime.fromisoformat(created_at_str)
-                except:
+                except Exception:
                     self.summary_created_at = None
             else:
                 self.summary_created_at = None
             
-            # 从历史中移除被恢复版本之后的所有版本（包括被恢复的版本）
+            # 从历史中移除被恢复版本及之后的所有版本
             version_index = history.index(suitable_version)
             self.summary_history = history[:version_index]
         else:
@@ -308,11 +351,19 @@ class AgentSession(models.Model):
             self.summary_text = ""
             self.summary_until_index = 0
             self.summary_tokens = 0
+            self.summary_input_tokens = 0
+            self.summary_tokens_source = 'estimated'
+            self.summary_trigger_count = 0
             self.summary_created_at = None
             self.summary_history = []
         
         self.is_summarizing = False
-        self.save(update_fields=['summary_text', 'summary_until_index', 'summary_tokens', 'summary_created_at', 'is_summarizing', 'summary_history'])
+        self.save(update_fields=[
+            'summary_text', 'summary_until_index', 'summary_tokens',
+            'summary_input_tokens', 'summary_tokens_source',
+            'summary_trigger_count', 'summary_created_at',
+            'is_summarizing', 'summary_history'
+        ])
         return True
 
 

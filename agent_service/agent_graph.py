@@ -6,7 +6,7 @@ import os
 import sqlite3
 import datetime
 import json
-from typing import Annotated, TypedDict, List, Literal, Optional
+from typing import Annotated, TypedDict, List, Literal, Optional, Dict
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.sqlite import SqliteSaver
@@ -427,13 +427,14 @@ def get_user_llm(user):
 # ==========================================
 # System Prompt 构建
 # ==========================================
-def build_system_prompt(user, active_tool_names: List[str], current_time: str, selected_skill_ids: List[int] = None) -> str:
+def build_system_prompt(user, active_tool_names: List[str], current_time: str, selected_skill_ids: List[int] = None, summary_metadata: Optional[Dict] = None) -> str:
     """
     构建 System Prompt
     - 加载用户的对话风格模板（如果有），否则使用默认模板
     - 添加工作流规则查询提示
     - 可选加载少量个人信息
     - 注入被 Skill Selector 选中的技能完整内容
+    - summary_metadata: 實际传入时会在系统提示中增加上下文状态声明
     """
     from agent_service.models import DialogStyle, UserPersonalInfo
     
@@ -517,7 +518,17 @@ def build_system_prompt(user, active_tool_names: List[str], current_time: str, s
 
 重要区分：
 - `add_task` 等是 Agent 的任务追踪工具，用于追踪当前对话中要执行的步骤
-- `create_todo` 等是用户的待办事项工具，用于创建用户自己的待办清单"""
+- `create_todo` 等是用户的待办事项工具，用于创建用户自己的待办清单
+
+## 状态快照（可选，供会话恢复使用）
+完成一个复杂任务周期后，可在回复末尾附加状态块（用户屏蔽，系统解析）：
+```
+[AGENT_STATE]
+phase: "planning|executing|done"
+pending: ["待处理事项1", "待处理事项2"]
+findings: ["关键发现1"]
+[/AGENT_STATE]
+```"""
     
     # 5. 加载少量关键个人信息
     info_hint = ""
@@ -528,7 +539,40 @@ def build_system_prompt(user, active_tool_names: List[str], current_time: str, s
                 info_hint = "\n\n## 用户基本信息\n" + "\n".join([f"- {i.key}: {i.value}" for i in key_infos])
     except Exception as e:
         logger.warning(f"[Agent] 加载个人信息失败: {e}")
-    
+
+    # 6a. 上下文状态提示（有历史总结时注入，让 LLM 明确感知压缩信息）
+    context_status_hint = ""
+    if summary_metadata and summary_metadata.get('summary'):
+        summarized_until = summary_metadata.get('summarized_until', 0)
+        context_status_hint = f"""
+
+## 上下文状态
+当前会话已有 {summarized_until} 条历史消息被自动压缩为摘要（详情见下方《对话历史总结》）。
+- 消息 #{summarized_until} 起为完整历史
+- 如需引用早期内容，请告知用户“早期历史已压缩”并请其重新提供相关信息"""
+        logger.info(f"[Prompt] 注入上下文状态提示: summarized_until={summarized_until}")
+
+    # 6b. 注入最新 AGENT_STATE 快照（如果存在）
+    agent_state_hint = ""
+    if summary_metadata and summary_metadata.get('state_snapshot'):
+        snapshot = summary_metadata['state_snapshot']
+        phase = snapshot.get('phase', 'idle')
+        pending = snapshot.get('pending_tasks', [])
+        findings = snapshot.get('accumulated_findings', [])
+
+        if phase != 'idle' or pending or findings:
+            parts = ["\n\n## 上次任务状态快照（由你在上轮结束时生成）"]
+            parts.append(f"- 阶段: {phase}")
+            if pending:
+                pending_str = ', '.join(pending) if isinstance(pending, list) else str(pending)
+                parts.append(f"- 待处理: {pending_str}")
+            if findings:
+                findings_str = ', '.join(findings) if isinstance(findings, list) else str(findings)
+                parts.append(f"- 关键发现: {findings_str}")
+            parts.append("请根据此状态继续任务，如已完成则忽略。")
+            agent_state_hint = '\n'.join(parts)
+            logger.info(f"[Prompt] 注入 AGENT_STATE 快照: phase={phase}")
+
     # 6. 组装完整 prompt
     system_prompt = f"""{base_prompt}
 
@@ -545,7 +589,7 @@ def build_system_prompt(user, active_tool_names: List[str], current_time: str, s
 3. 如果用户没有提供完整信息，请礼貌询问
 4. 工具调用后，请根据返回结果给用户一个清晰的回复
 5. 如果用户提到重要的个人信息或偏好，请使用 save_personal_info 保存
-6. 如果用户要求将某段流程或知识沉淀为可复用的指令，使用 save_skill 保存为技能{workflow_hint}{todo_hint}{info_hint}"""
+6. 如果用户要求将某段流程或知识沉淀为可复用的指令，使用 save_skill 保存为技能{workflow_hint}{todo_hint}{info_hint}{context_status_hint}{agent_state_hint}"""
 
     # 7. 注入被 Skill Selector 选中的技能完整内容
     skill_hint = ""
@@ -559,9 +603,19 @@ def build_system_prompt(user, active_tool_names: List[str], current_time: str, s
             )
             if selected_skills.exists():
                 skill_sections = []
+                skill_list_lines = []
                 for s in selected_skills:
                     skill_sections.append(f"### {s.name}\n{s.content}")
-                skill_hint = "\n\n## 用户自定义技能\n以下是与当前任务相关的技能指令，请参考执行：\n\n" + "\n\n".join(skill_sections)
+                    desc = s.description.strip() if s.description else "无描述"
+                    skill_list_lines.append(f"- [{s.id}] {s.name}：{desc}")
+                skill_activation_list = "\n".join(skill_list_lines)
+                skill_hint = (
+                    f"\n\n## 本轮激活技能清单\n"
+                    f"{skill_activation_list}\n\n"
+                    f"## 用户自定义技能（完整指令）\n"
+                    f"以下是与当前任务相关的技能指令，请参考执行：\n\n"
+                    + "\n\n".join(skill_sections)
+                )
                 logger.debug(f"[Agent] 注入 {selected_skills.count()} 个技能到 System Prompt")
         except Exception as e:
             logger.warning(f"[Agent] 加载技能失败: {e}")
@@ -685,10 +739,33 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     # 获取当前时间
     now = datetime.datetime.now()
     current_time = now.strftime("%Y-%m-%d %H:%M:%S")
-    
-    # 构建 system prompt（含筛选器选出的技能）
+
+    # ========== 提前加载 summary_metadata（用于系统提示上下文状态感知）==========
+    # 必须在 build_system_prompt 之前读取，以便注入"历史已压缩"声明
+    early_summary_metadata = None
+    if user and user.is_authenticated:
+        try:
+            from agent_service.models import AgentSession as _AgentSession
+            _session_id = configurable.get("thread_id", "")
+            if _session_id:
+                _session = _AgentSession.objects.filter(session_id=_session_id).first()
+                if _session:
+                    early_summary_metadata = _session.get_summary_metadata()
+                    # 注入 state_snapshot 到 summary_metadata
+                    if _session.state_snapshot:
+                        if early_summary_metadata is None:
+                            early_summary_metadata = {}
+                        early_summary_metadata['state_snapshot'] = _session.state_snapshot
+        except Exception as _e:
+            logger.debug(f"[Agent] 提前加载 summary_metadata 失败（无影响）: {_e}")
+
+    # 构建 system prompt（含筛选器选出的技能，以及历史摘要状态）
     selected_skill_ids = state.get('selected_skill_ids') or []
-    system_prompt = build_system_prompt(user, active_tool_names, current_time, selected_skill_ids=selected_skill_ids)
+    system_prompt = build_system_prompt(
+        user, active_tool_names, current_time,
+        selected_skill_ids=selected_skill_ids,
+        summary_metadata=early_summary_metadata,
+    )
     system_message = SystemMessage(content=system_prompt)
     
     # 动态获取工具
@@ -856,19 +933,49 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     
     full_messages = [system_message] + list(optimized_messages)
     
-    # ========== 注入附件上下文 ==========
-    # 检查最后一条 HumanMessage 是否有附件上下文（供 LLM 理解附件内容）
-    if optimized_messages:
-        last_msg = optimized_messages[-1]
-        if hasattr(last_msg, 'additional_kwargs') and last_msg.additional_kwargs:
-            attachments_context = last_msg.additional_kwargs.get('attachments_context', '')
-            if attachments_context:
-                # 在 system_message 后插入附件上下文说明
-                attachment_system_msg = SystemMessage(
-                    content=f"【附件内容】用户在最新消息中包含了以下附件的详细信息，请结合这些信息理解用户的问题：\n\n{attachments_context}"
+    # ========== 注入附件上下文（跟随每条 HumanMessage 位置）==========
+    # 遍历所有 HumanMessage，将附件上下文以独立 SystemMessage 注入到紧随其后的位置
+    # 对非最新消息中的文件附件，截断长文本
+    from agent_service.attachment_handler import AttachmentHandler
+
+    # 找到最后一条 HumanMessage 的原始索引
+    last_human_idx = None
+    for i in range(len(full_messages) - 1, -1, -1):
+        if isinstance(full_messages[i], HumanMessage):
+            last_human_idx = i
+            break
+
+    # 从后向前遍历，避免插入导致索引偏移
+    for i in range(len(full_messages) - 1, -1, -1):
+        msg = full_messages[i]
+        if not isinstance(msg, HumanMessage):
+            continue
+
+        kwargs = getattr(msg, 'additional_kwargs', None) or {}
+        attachments_context = kwargs.get('attachments_context', '')
+        if not attachments_context:
+            continue
+
+        is_latest = (i == last_human_idx)
+
+        # 非最新消息：对包含文件附件的上下文执行截断
+        if not is_latest:
+            meta_list = kwargs.get('attachments_metadata', [])
+            has_file_attachment = any(
+                m.get('type') in ('image', 'pdf', 'word', 'excel')
+                for m in meta_list
+            )
+            if has_file_attachment:
+                attachments_context = AttachmentHandler.truncate_attachment_text(
+                    attachments_context
                 )
-                full_messages.insert(1, attachment_system_msg)  # 插入到 system_message 之后
-                logger.debug(f"[Agent] 注入附件上下文: {len(attachments_context)} 字符")
+
+        label = "最新消息附件" if is_latest else "历史消息附件"
+        attachment_msg = SystemMessage(
+            content=f"【{label}内容】以下是用户该条消息中包含的附件信息：\n\n{attachments_context}"
+        )
+        full_messages.insert(i + 1, attachment_msg)
+        logger.debug(f"[Agent] 注入附件上下文@msg#{i}: {len(attachments_context)} 字符, latest={is_latest}")
     
     # ========== 多模态动态重建：根据当前模型能力重建历史消息中的图片内容 ==========
     current_supports_vision = model_config.get('supports_vision', False) if model_config else False
@@ -936,7 +1043,101 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     
     # 打印最终发送给 LLM 的消息
     logger.debug(f"[Agent] 发送给 LLM 的消息: {len(full_messages)} 条")
-    
+
+    # ========== 保存 LLM 请求快照（供前端上下文可视化）==========
+    try:
+        _snapshot_messages = []
+        for _msg in full_messages:
+            _role = getattr(_msg, 'type', 'unknown')
+            _serialized = {"role": _role}
+
+            # 序列化 content（多模态中 base64 截断）
+            if isinstance(_msg.content, str):
+                _serialized["content"] = _msg.content
+            elif isinstance(_msg.content, list):
+                _blocks = []
+                for _block in _msg.content:
+                    if isinstance(_block, dict) and _block.get('type') == 'image_url':
+                        _url = _block.get('image_url', {}).get('url', '')
+                        _blocks.append({
+                            "type": "image_url",
+                            "image_url": {"url": _url[:100] + '...[base64_truncated]' if len(_url) > 100 else _url}
+                        })
+                    else:
+                        _blocks.append(_block)
+                _serialized["content"] = _blocks
+            else:
+                _serialized["content"] = str(_msg.content) if _msg.content else ""
+
+            # tool_calls / tool info
+            if hasattr(_msg, 'tool_calls') and _msg.tool_calls:
+                _serialized["tool_calls"] = _msg.tool_calls
+            if hasattr(_msg, 'name') and _msg.name:
+                _serialized["name"] = _msg.name
+            if hasattr(_msg, 'tool_call_id') and _msg.tool_call_id:
+                _serialized["tool_call_id"] = _msg.tool_call_id
+
+            # 元数据标记
+            _meta = {"type": _role}
+            _content_str = _serialized.get("content", "")
+            if isinstance(_content_str, str):
+                if _content_str.startswith("【附件") or _content_str.startswith("【最新消息附件") or _content_str.startswith("【历史消息附件"):
+                    _meta["type"] = "attachment_context"
+                elif "【对话历史总结】" in _content_str:
+                    _meta["type"] = "summary"
+                elif _role == "system":
+                    _meta["type"] = "system_prompt"
+            _kwargs = getattr(_msg, 'additional_kwargs', None) or {}
+            if _kwargs.get('attachments_metadata'):
+                _meta["has_attachments"] = True
+                _meta["attachment_ids"] = _kwargs.get('attachment_ids', [])
+            _serialized["_meta"] = _meta
+
+            _snapshot_messages.append(_serialized)
+
+        _invoke_session_id = configurable.get("thread_id", "")
+        if _invoke_session_id and user and user.is_authenticated:
+            from agent_service.models import AgentSession as _SnapshotSession
+            from datetime import datetime as _dt
+            _invoke_session = _SnapshotSession.objects.filter(session_id=_invoke_session_id).first()
+            if _invoke_session:
+                # 序列化工具定义（名称 + 描述 + 参数 schema）
+                _tool_defs = []
+                for _t in tools:
+                    try:
+                        _tdef = {"name": _t.name, "description": _t.description}
+                        if hasattr(_t, 'args_schema') and _t.args_schema is not None:
+                            try:
+                                # Pydantic v2 优先，回退到 v1
+                                if hasattr(_t.args_schema, 'model_json_schema'):
+                                    _tdef["parameters"] = _t.args_schema.model_json_schema()
+                                elif hasattr(_t.args_schema, 'schema'):
+                                    _tdef["parameters"] = _t.args_schema.schema()
+                            except Exception as _schema_e:
+                                logger.debug(f"[Snapshot] 工具 {_t.name} schema 获取失败: {_schema_e}")
+                        _tool_defs.append(_tdef)
+                    except Exception:
+                        pass
+                _invoke_session.last_llm_request_snapshot = {
+                    "timestamp": _dt.now().isoformat(),
+                    "message_index": len(state.get("messages", [])),
+                    "model_id": current_model_id,
+                    "model_name": model_config.get('model_name', '') if model_config else '',
+                    "supports_vision": current_supports_vision,
+                    "tool_names": active_tool_names,
+                    "tool_definitions": _tool_defs,
+                    "messages": _snapshot_messages,
+                    "token_stats": {
+                        "total_messages": len(full_messages),
+                        "system_prompt_chars": len(str(full_messages[0].content)) if full_messages else 0,
+                        "total_chars": sum(len(str(m.content)) for m in full_messages),
+                    }
+                }
+                _invoke_session.save(update_fields=['last_llm_request_snapshot'])
+                logger.debug(f"[Agent] 保存 LLM 请求快照: {len(_snapshot_messages)} 条消息, {len(_tool_defs)} 个工具定义")
+    except Exception as _snap_e:
+        logger.warning(f"[Agent] 保存 LLM 请求快照失败: {_snap_e}")
+
     response = llm_with_tools.invoke(full_messages, config)
     
     # ========== Token 统计 ==========

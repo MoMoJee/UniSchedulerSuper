@@ -321,6 +321,30 @@ class AttachmentHandler:
 
         return content_blocks
 
+    # ================================================================
+    # 附件文本截断（用于历史消息中的长文件附件）
+    # ================================================================
+
+    # 文件附件超过此字符数时，在非最新消息中截断
+    ATTACHMENT_TRUNCATE_THRESHOLD = 2000
+    ATTACHMENT_HEAD_CHARS = 600
+    ATTACHMENT_TAIL_CHARS = 400
+
+    @staticmethod
+    def truncate_attachment_text(text: str, filename: str = '') -> str:
+        """
+        截断过长的文件附件文本（保留首尾，省略中间）。
+        仅用于非最新消息中的文件类附件。
+        """
+        if not text or len(text) <= AttachmentHandler.ATTACHMENT_TRUNCATE_THRESHOLD:
+            return text
+
+        head = text[:AttachmentHandler.ATTACHMENT_HEAD_CHARS]
+        tail = text[-AttachmentHandler.ATTACHMENT_TAIL_CHARS:]
+        omitted = len(text) - AttachmentHandler.ATTACHMENT_HEAD_CHARS - AttachmentHandler.ATTACHMENT_TAIL_CHARS
+        hint = f"\n\n... [已省略中间 {omitted} 字符，如需查看完整内容请用户重新发送附件] ...\n\n"
+        return head + hint + tail
+
     @staticmethod
     def format_single(attachment, model_supports_vision: bool = False) -> Dict[str, Any]:
         """格式化单个附件，便于预览"""

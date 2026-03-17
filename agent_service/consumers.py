@@ -13,8 +13,10 @@ Agent WebSocket Consumer
 RECURSION_LIMIT = 25  # 后备默认值
 
 import json
+import re
 import asyncio
 import logging
+from datetime import datetime
 from typing import Optional
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
@@ -598,6 +600,23 @@ class AgentConsumer(AsyncWebsocketConsumer):
             except Exception as e:
                 logger.warning(f"获取最终消息数量失败: {e}")
             
+            # 解析并保存 [AGENT_STATE] 块
+            await self._parse_and_save_agent_state(final_messages)
+
+            # 推送 LLM 请求快照给前端（供上下文可视化使用）
+            try:
+                from agent_service.models import AgentSession as _SnapSession
+                _snap_session = await database_sync_to_async(
+                    _SnapSession.objects.filter(session_id=self.session_id).first
+                )()
+                if _snap_session and _snap_session.last_llm_request_snapshot:
+                    await self.send_json({
+                        "type": "llm_request_snapshot",
+                        "snapshot": _snap_session.last_llm_request_snapshot
+                    })
+            except Exception as _ws_snap_e:
+                logger.warning(f"[WS] 推送 LLM 请求快照失败: {_ws_snap_e}")
+
             # 发送完成信号（包含消息数量）
             if not self.should_stop:
                 await self.send_json({
@@ -765,6 +784,23 @@ class AgentConsumer(AsyncWebsocketConsumer):
             except Exception as e:
                 logger.warning(f"获取最终消息数量失败: {e}")
             
+            # 解析并保存 [AGENT_STATE] 块
+            await self._parse_and_save_agent_state(final_messages)
+
+            # 推送 LLM 请求快照给前端（供上下文可视化使用）
+            try:
+                from agent_service.models import AgentSession as _SnapSession2
+                _snap_session2 = await database_sync_to_async(
+                    _SnapSession2.objects.filter(session_id=self.session_id).first
+                )()
+                if _snap_session2 and _snap_session2.last_llm_request_snapshot:
+                    await self.send_json({
+                        "type": "llm_request_snapshot",
+                        "snapshot": _snap_session2.last_llm_request_snapshot
+                    })
+            except Exception as _ws_snap2_e:
+                logger.warning(f"[WS] 推送 LLM 请求快照失败: {_ws_snap2_e}")
+
             if not self.should_stop:
                 await self.send_json({
                     "type": "finished",
@@ -796,6 +832,74 @@ class AgentConsumer(AsyncWebsocketConsumer):
             self.is_processing = False
             self.current_task = None
             self.should_stop = False
+
+    async def _parse_and_save_agent_state(self, messages):
+        """
+        解析 AI 回复中的 [AGENT_STATE]...[/AGENT_STATE] 块并保存到 session_store。
+        在每次 agent 完成一轮处理后调用。
+        """
+        if not messages:
+            return
+
+        # 找最后一条 AIMessage
+        last_ai_msg = None
+        for msg in reversed(messages):
+            if hasattr(msg, 'type') and msg.type == 'ai' and msg.content:
+                last_ai_msg = msg
+                break
+
+        if not last_ai_msg:
+            return
+
+        content = last_ai_msg.content if isinstance(last_ai_msg.content, str) else ''
+        if not content:
+            return
+
+        # 正则匹配 [AGENT_STATE] ... [/AGENT_STATE]
+        pattern = r'\[AGENT_STATE\]\s*(.*?)\s*\[/AGENT_STATE\]'
+        match = re.search(pattern, content, re.DOTALL)
+        if not match:
+            return
+
+        state_text = match.group(1).strip()
+        logger.info(f"[AGENT_STATE] 检测到状态块: {state_text[:100]}")
+
+        # 解析 YAML-like key: value 格式
+        state_data = {}
+        for line in state_text.split('\n'):
+            line = line.strip()
+            if ':' in line:
+                key, value = line.split(':', 1)
+                key = key.strip().strip('"')
+                value = value.strip().strip('"')
+                # 尝试解析列表格式 ["a", "b"]
+                if value.startswith('[') and value.endswith(']'):
+                    try:
+                        value = json.loads(value)
+                    except (json.JSONDecodeError, ValueError):
+                        pass
+                state_data[key] = value
+
+        if not state_data:
+            return
+
+        # 保存到 SessionStore
+        try:
+            from agent_service.session_store import get_or_create_session_store
+            store = await database_sync_to_async(get_or_create_session_store)(
+                self.session_id, self.user
+            )
+            if store:
+                checkpoint_id = f"agent_state_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                await database_sync_to_async(store.save_state_snapshot)(
+                    checkpoint_id=checkpoint_id,
+                    phase=state_data.get('phase', 'idle'),
+                    pending_tasks=state_data.get('pending', []),
+                    accumulated_findings=state_data.get('findings', []),
+                )
+                logger.info(f"[AGENT_STATE] 已保存状态: phase={state_data.get('phase')}, session={self.session_id}")
+        except Exception as e:
+            logger.warning(f"[AGENT_STATE] 保存状态失败: {e}")
 
     async def _cleanup_after_stop(self, config):
         """
@@ -1202,11 +1306,16 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 target_summary_tokens=opt_config.get('target_summary_tokens', 2000)
             )
             
+            # 使用会话存储的真实 token 数（LLM 返回值），避免估算误差导致总结永不触发
+            # last_input_tokens 包含系统提示 + 历史消息的真实总 token 数（上一轮 LLM 调用时的值）
+            actual_tokens = session.last_input_tokens or 0
+            logger.debug(f"[总结] 真实 token 参考值: {actual_tokens}t (source={session.last_input_tokens_source}), max_tokens={summarizer.max_tokens}")
+
             # 检查是否需要总结
-            if not summarizer.should_summarize(messages, summary_metadata):
+            if not summarizer.should_summarize(messages, summary_metadata, actual_total_tokens=actual_tokens):
                 return
             
-            logger.info(f"[总结] 触发历史总结: session={session_id}, messages={len(messages)}")
+            logger.info(f"[总结] 触发历史总结: session={session_id}, messages={len(messages)}, actual_tokens={actual_tokens}t")
             
             # 设置正在总结状态
             await database_sync_to_async(session.set_summarizing)(True)
@@ -1218,8 +1327,13 @@ class AgentConsumer(AsyncWebsocketConsumer):
             })
             
             try:
-                # 计算需要总结的范围
-                start_idx, end_idx = summarizer.calculate_summarize_range(messages, summary_metadata)
+                # 计算需要总结的范围（传入实际 token 数和快照，用于精确定位截断点）
+                token_snapshots = session.token_snapshots or {}
+                start_idx, end_idx = summarizer.calculate_summarize_range(
+                    messages, summary_metadata,
+                    actual_total_tokens=actual_tokens,
+                    token_snapshots=token_snapshots
+                )
                 messages_to_summarize = messages[start_idx:end_idx]
                 
                 # 获取之前的总结（用于增量更新）
@@ -1234,13 +1348,15 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 )
                 
                 if new_summary_metadata:
-                    # 保存总结（包含真实的 input_tokens 和 tokens_source）
+                    # 保存总结（包含真实的 input_tokens、tokens_source 和 trigger_count）
+                    # trigger_count = 触发时 state 的消息数量，用于回滚时精确判断该总结是否需要撤销
                     await database_sync_to_async(session.save_summary)(
                         summary_text=new_summary_metadata['summary'],
                         summarized_until=end_idx,
                         summary_tokens=new_summary_metadata['summary_tokens'],
                         summary_input_tokens=new_summary_metadata.get('summary_input_tokens', 0),
-                        tokens_source=new_summary_metadata.get('tokens_source', 'estimated')
+                        tokens_source=new_summary_metadata.get('tokens_source', 'estimated'),
+                        trigger_count=len(messages)
                     )
                     
                     tokens_source = new_summary_metadata.get('tokens_source', 'estimated')

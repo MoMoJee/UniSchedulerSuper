@@ -7045,5 +7045,39 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
     }
     </style>
     {% endif %}
+
+<!-- 上下文可视化弹出框 -->
+<div class="context-viz-overlay" id="contextVizOverlay" style="display: none;">
+    <div class="context-viz-modal" id="contextVizModal">
+        <div class="context-viz-header">
+            <h5><i class="fas fa-microscope me-2"></i>上下文构建详情</h5>
+            <div class="context-viz-tabs">
+                <button class="viz-tab active" data-tab="ui" title="UI 模式"><i class="fas fa-th-large"></i></button>
+                <button class="viz-tab" data-tab="json" title="JSON 模式"><i class="fas fa-code"></i></button>
+            </div>
+            <button class="btn btn-sm btn-link context-viz-close" id="contextVizClose">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="context-viz-body">
+            <div class="context-viz-sidebar">
+                <div class="context-viz-sidebar-header">
+                    <span>请求历史</span>
+                    <button class="btn btn-xs btn-link" id="clearContextHistory" title="清除历史">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+                <div class="context-viz-list" id="contextVizList"></div>
+            </div>
+            <div class="context-viz-detail" id="contextVizDetail">
+                <div class="context-viz-placeholder">
+                    <i class="fas fa-hand-pointer fa-2x mb-3"></i>
+                    <p>选择左侧的一条请求记录查看详情</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>

@@ -799,6 +799,16 @@ def rollback_to_message(request):
         except Exception as e:
             logger.warning(f"清除搜索结果缓存失败: {e}")
 
+        # ====== 软删除回滚消息对应的附件 ======
+        # 将 message_index 及之后消息的附件标记为软删除，防止附件引用悬空
+        attachments_soft_deleted = 0
+        try:
+            from agent_service.attachment_handler import AttachmentHandler
+            attachments_soft_deleted = AttachmentHandler.soft_delete_by_rollback(session_id, message_index)
+            logger.debug(f"[回滚] 附件软删除: {attachments_soft_deleted} 个 (from_msg={message_index})")
+        except Exception as e:
+            logger.warning(f"附件软删除失败: {e}")
+
         # ====== 同步回滚 TODO 列表 ======
         todo_rolled_back = False
         try:
@@ -851,6 +861,13 @@ def rollback_to_message(request):
         except Exception as e:
             logger.warning(f"Token 快照回滚失败: {e}")
         
+        logger.info(
+            f"[回滚] 完成: session={session_id}, message_index={message_index}, "
+            f"rolled_back_messages={rolled_back_messages}, rolled_back_transactions={rolled_back_transactions}, "
+            f"summary_rolled_back={summary_rolled_back}, attachments_soft_deleted={attachments_soft_deleted}, "
+            f"todo_rolled_back={todo_rolled_back}"
+        )
+
         return Response({
             "success": True,
             "rolled_back_messages": rolled_back_messages,
@@ -858,6 +875,7 @@ def rollback_to_message(request):
             "rolled_back_details": rolled_back_details,
             "todo_rolled_back": todo_rolled_back,
             "summary_rolled_back": summary_rolled_back,
+            "attachments_soft_deleted": attachments_soft_deleted,
             "token_snapshot": token_snapshot,  # 返回 token 快照数据（前端可直接使用）
             "remaining_messages": len(new_messages),
             "message": f"成功回滚，删除了 {rolled_back_messages} 条消息，撤销了 {rolled_back_transactions} 个操作"

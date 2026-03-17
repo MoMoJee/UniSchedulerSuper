@@ -8,6 +8,7 @@ from . import views_config_api
 from . import views_skills_api
 from . import views_quick_action
 from . import views_speech
+from . import views_visualization
 
 app_name = 'agent_service'
 
@@ -108,6 +109,9 @@ urlpatterns = [
     
     # 上下文使用情况
     path('context-usage/', views_api.get_context_usage, name='get_context_usage'),
+
+    # 上下文可视化（调试/透明化）
+    path('context-visualization/', views_visualization.get_context_visualization, name='get_context_visualization'),
     
     # ==========================================
     # Quick Action 快速操作 API

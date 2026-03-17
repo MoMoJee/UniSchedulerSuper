@@ -82,7 +82,8 @@ class ConversationSummarizer:
     def should_summarize(
         self,
         messages: List[BaseMessage],
-        summary_metadata: Optional[Dict]
+        summary_metadata: Optional[Dict],
+        actual_total_tokens: int = 0
     ) -> bool:
         """
         判断是否应该触发总结
@@ -90,6 +91,8 @@ class ConversationSummarizer:
         Args:
             messages: 当前所有消息
             summary_metadata: 现有的总结元数据
+            actual_total_tokens: 实际 token 数（优先使用，避免估算误差）。
+                传入时将跳过逐条估算，直接与 max_tokens 比较。
 
         Returns:
             是否应该触发总结
@@ -98,105 +101,134 @@ class ConversationSummarizer:
         if len(messages) < self.min_messages_before_summary:
             return False
 
-        # 计算总 token 数，如果还没超过目标上限，不触发
-        total_tokens = sum(self.token_calculator.calculate_message(m) for m in messages)
-        if total_tokens <= self.max_tokens:
+        # 计算总 token 数，如果还没超过触发阈值，不触发
+        # 触发阈值 = max_tokens × summary_trigger_ratio
+        # 例：context_window=131072, target_usage_ratio=0.3, summary_trigger_ratio=0.3
+        # → max_tokens = 39321t，触发阈值 = 39321 × 0.3 = 11796t
+        # 这样可以在接近上限之前提前压缩，而不是等到超过上限才触发
+        # （build_optimized_context 已保证发送的 token 不超过 max_tokens，
+        #   所以 total_tokens > max_tokens 永远不会成立，必须用更低的触发阈值）
+        if actual_total_tokens > 0:
+            total_tokens = actual_total_tokens
+        else:
+            total_tokens = sum(self.token_calculator.calculate_message(m) for m in messages)
+        summary_trigger_tokens = int(self.max_tokens * self.summary_trigger_ratio)
+        if total_tokens <= summary_trigger_tokens:
+            logger.debug(
+                f"[总结] 未触发: total_tokens={total_tokens} <= trigger_tokens={summary_trigger_tokens} "
+                f"(max_tokens={self.max_tokens}, trigger_ratio={self.summary_trigger_ratio}, "
+                f"source={'actual' if actual_total_tokens > 0 else 'estimated'})"
+            )
             return False
             
-        # 首次总结：无历史总结时触发
-        if summary_metadata is None:
-            return True
-
-        # 增量总结：计算新消息 token 与历史总结 token 的比例
-        summarized_until = summary_metadata.get('summarized_until', 0)
-        new_messages = messages[summarized_until:]
-
-        if len(new_messages) < 5:  # 新消息太少，不触发
-            return False
-
-        new_tokens = sum(self.token_calculator.calculate_message(m) for m in new_messages)
-        summary_tokens = summary_metadata.get('summary_tokens', 1)  # 避免除零
-
-        ratio = new_tokens / summary_tokens
-
-        should = ratio > self.summary_trigger_ratio
-
-        return should
+        # 触发总结（无论是首次还是增量，均基于总 token 超过触发阈值）
+        logger.debug(
+            f"[总结] 将触发: total_tokens={total_tokens} > trigger_tokens={summary_trigger_tokens}"
+        )
+        return True
 
     def calculate_summarize_range(
         self,
         messages: List[BaseMessage],
-        summary_metadata: Optional[Dict]
+        summary_metadata: Optional[Dict],
+        actual_total_tokens: int = 0,
+        token_snapshots: Optional[Dict] = None
     ) -> Tuple[int, int]:
         """
         计算需要总结的消息范围
 
-        总结后:
-        - 剩余消息 token + 新总结 token < summary_budget
-        - 至少保留 min_messages_before_summary 条最近消息
-
         Args:
             messages: 当前所有消息
             summary_metadata: 现有的总结元数据
-
-        Returns:
-            (start_index, end_index): 需要总结的消息范围 [start, end)
+            actual_total_tokens: 实际 token 数（优先使用）
+            token_snapshots: 每轮 LLM 调用快照 {消息数str: {input_tokens, source}}
+                差值公式: actual_total - snap[K] = messages[K:] 的实际 token（系统提示抵消）
         """
-        # 计算总 token 数
-        total_tokens = sum(self.token_calculator.calculate_message(m) for m in messages)
-        
-        # 如果总 token 数还没超过目标，不需要总结
-        if total_tokens <= self.max_tokens:
-
-            return 0, 0
-        
-        # 从后往前计算需要保留的消息
-        messages_to_keep = []
-        keep_tokens = 0
-        # 保留的消息 token 不超过 (max_tokens - summary_budget)
-        target_keep = self.max_tokens - self.summary_budget
-
-        for i in range(len(messages) - 1, -1, -1):
-            msg = messages[i]
-            msg_tokens = self.token_calculator.calculate_message(msg)
-
-            # 检查是否还需要继续保留
-            if keep_tokens + msg_tokens > target_keep and len(messages_to_keep) >= self.min_messages_before_summary:
-                break
-
-            messages_to_keep.insert(0, i)
-            keep_tokens += msg_tokens
-
-        # 计算需要总结的范围
-        if messages_to_keep:
-            end_index = messages_to_keep[0]  # 保留消息的第一条之前都需要总结
+        if actual_total_tokens > 0:
+            total_tokens = actual_total_tokens
         else:
-            end_index = len(messages)
+            total_tokens = sum(self.token_calculator.calculate_message(m) for m in messages)
 
-        # 【关键】确保截断点不会破坏工具调用的完整性
-        # 如果 end_index 位置的消息是 ToolMessage，说明它前面有 AIMessage 带 tool_calls
-        # 需要向后调整 end_index，将整个工具调用序列包含在保留部分中
-        # 这样可以避免 "Messages with role 'tool' must be a response to a preceding message with 'tool_calls'" 错误
+        summary_trigger_tokens = int(self.max_tokens * self.summary_trigger_ratio)
+        if total_tokens <= summary_trigger_tokens:
+            return 0, 0
+
+        # 近期消息保留预算 = trigger_tokens × (1 - summary_token_ratio)
+        target_keep = max(int(summary_trigger_tokens * (1 - self.summary_token_ratio)), 0)
+
+        end_index = 0
+        found_via_snapshots = False
+
+        # ===== 方案 A：token_snapshots 精确法 =====
+        # snap[K] = 当 state 有 K 条消息时 LLM 调用的 input_tokens = SP + tokens(msgs[0:K])
+        # actual_total - snap[K] = tokens(msgs[K:])，SP 在差值中抵消，精确无误
+        # 从大 split 往小扫，找最大 end_index（最大化压缩量），使尾部实际 token <= target_keep
+        if token_snapshots and actual_total_tokens > 0:
+            snap_map = {}
+            for k, v in token_snapshots.items():
+                try:
+                    ki = int(k)
+                    tok = v.get('input_tokens', 0) if isinstance(v, dict) else 0
+                    if tok > 0 and ki > 0:
+                        snap_map[ki] = tok
+                except (ValueError, TypeError):
+                    pass
+
+            if snap_map:
+                sorted_snap_keys = sorted(snap_map.keys())
+                max_split = len(messages) - self.min_messages_before_summary
+                for split in range(max_split, 0, -1):
+                    candidates = [k for k in sorted_snap_keys if k <= split]
+                    if not candidates:
+                        continue
+                    snap_key = max(candidates)
+                    # tail_tokens 使用最近快照边界，略高估（含 snap_key..split 段），保守安全
+                    tail_tokens = actual_total_tokens - snap_map[snap_key]
+                    if tail_tokens <= target_keep:
+                        end_index = split
+                        found_via_snapshots = True
+                        logger.debug(
+                            f"[总结] 范围(快照法): split={split}, snap_key={snap_key}, "
+                            f"tail={tail_tokens}t <= target={target_keep}t"
+                        )
+                        break
+
+        # ===== 方案 B：scale-factor 回退 =====
+        if not found_via_snapshots:
+            estimated_total = sum(self.token_calculator.calculate_message(m) for m in messages)
+            token_scale = (
+                (actual_total_tokens / estimated_total)
+                if (actual_total_tokens > 0 and estimated_total > 0)
+                else 1.0
+            )
+            messages_to_keep = []
+            keep_tokens = 0
+            for i in range(len(messages) - 1, -1, -1):
+                msg_tokens = int(self.token_calculator.calculate_message(messages[i]) * token_scale)
+                if keep_tokens + msg_tokens > target_keep and len(messages_to_keep) >= self.min_messages_before_summary:
+                    break
+                messages_to_keep.insert(0, i)
+                keep_tokens += msg_tokens
+            end_index = messages_to_keep[0] if messages_to_keep else len(messages)
+            logger.debug(
+                f"[总结] 范围(缩放法): scale={token_scale:.2f}x, end_index={end_index}, target={target_keep}t"
+            )
+
+        # 确保截断点不破坏工具调用完整性
         while end_index < len(messages) and isinstance(messages[end_index], ToolMessage):
             end_index += 1
-        
-        # 如果调整后 end_index 指向的是 AIMessage 且有 tool_calls，也需要包含后续的 ToolMessage
-        # 反向检查：如果 end_index-1 是带 tool_calls 的 AIMessage，需要把 ToolMessage 也包含进保留部分
         if end_index > 0 and end_index < len(messages):
             prev_msg = messages[end_index - 1]
             if isinstance(prev_msg, AIMessage) and hasattr(prev_msg, 'tool_calls') and prev_msg.tool_calls:
-                # 前一条是带 tool_calls 的 AI 消息，需要把这条和后续的 ToolMessage 都包含在保留部分
                 end_index -= 1
 
-        # 开始位置：从头开始（如果有之前的总结，将其内容融入新总结）
         start_index = 0
-
         logger.debug(
-            f"[总结] 范围计算: 总消息={len(messages)}, 总tokens={total_tokens}, "
+            f"[总结] 范围计算完成: 总消息={len(messages)}, 总tokens={total_tokens}, "
             f"需要总结=[0, {end_index}), 保留=[{end_index}, {len(messages)}), "
-            f"保留消息={len(messages) - end_index}条, 目标保留={target_keep}t"
+            f"保留消息={len(messages) - end_index}条, target_keep={target_keep}t, "
+            f"方法={'快照' if found_via_snapshots else '缩放'}"
         )
-
         return start_index, end_index
 
     async def summarize(
@@ -300,7 +332,8 @@ class ConversationSummarizer:
                         if output_tokens == 0:
                             output_tokens = summary_tokens
                     
-                    update_token_usage(user, input_tokens, output_tokens, model_id)
+                    from asgiref.sync import sync_to_async
+                    await sync_to_async(update_token_usage)(user, input_tokens, output_tokens, model_id)
                     logger.debug(f"[总结-计费] Token 统计已更新: in={input_tokens}, out={output_tokens}, source={tokens_source}")
                 except Exception as e:
                     logger.warning(f"[总结] Token 统计失败: {e}")
@@ -365,6 +398,14 @@ class ConversationSummarizer:
             # 截断过长的内容
             if len(content) > 500:
                 content = content[:500] + "..."
+
+            # 附件内容（文档/图片解析结果）存储在 additional_kwargs 中，需单独提取
+            if isinstance(msg, HumanMessage):
+                kwargs = getattr(msg, 'additional_kwargs', {}) or {}
+                attach_ctx = kwargs.get('attachments_context', '')
+                if attach_ctx:
+                    preview = attach_ctx[:800] + ("...[附件内容截断]" if len(attach_ctx) > 800 else "")
+                    content = content + f"\n[附件内容] {preview}"
 
             lines.append(f"[{role}] {content}")
 
@@ -528,12 +569,30 @@ def build_optimized_context(
 
     if summary_metadata and summary_metadata.get('summary'):
         summary_text = summary_metadata['summary']
-        summary_msg = SystemMessage(content=f"【对话历史总结】\n{summary_text}\n---")
+        summarized_until = summary_metadata.get('summarized_until', 0)
+        summary_tokens_count = summary_metadata.get('summary_tokens', 0)
+        created_at = summary_metadata.get('created_at', '')
+        # 截取到秒，格式如 "2026-03-15 12:30"
+        created_at_str = (created_at[:16].replace('T', ' ')) if created_at else '未知'
+
+        # 构建结构化总结头部，让 LLM 明确感知覆盖范围和压缩信息
+        summary_header = (
+            f"【对话历史总结】\n"
+            f"覆盖范围: 消息 #0–#{summarized_until - 1}（共 {summarized_until} 条）\n"
+            f"生成时间: {created_at_str}\n"
+            f"压缩规模: 约 {summary_tokens_count} tokens\n"
+            f"---\n"
+        )
+        summary_msg = SystemMessage(content=f"{summary_header}{summary_text}\n---")
         optimized.append(summary_msg)
-        summary_tokens = summary_metadata.get('summary_tokens', 0)
-        recent_start_index = summary_metadata.get('summarized_until', 0)
+        summary_tokens = summary_tokens_count
+        recent_start_index = summarized_until
 
         logger.debug(f"[上下文] 添加历史总结: {summary_tokens}t, 截止第 {recent_start_index} 条")
+        logger.info(
+            f"[上下文] 注入结构化总结头: summarized_until={summarized_until}, "
+            f"summary_tokens={summary_tokens_count}, created_at={created_at_str}"
+        )
 
     # 3. 最近对话（从总结截止点之后开始，包含所有消息）
     recent_messages = list(messages[recent_start_index:])
@@ -542,8 +601,8 @@ def build_optimized_context(
     if tool_compressor:
         # 找到压缩边界（基于 recent_messages 的相对索引）
         compress_boundary = _find_compression_boundary(
-            recent_messages, 
-            TOOL_COMPRESS_PRESERVE_RECENT_USER_MESSAGES
+            recent_messages,
+            preserve_recent_count
         )
         
         compressed_count = 0
@@ -568,7 +627,7 @@ def build_optimized_context(
         recent_messages = compressed_messages
         
         if compressed_count > 0 or preserved_count > 0:
-            logger.debug(f"[上下文] 工具压缩: 压缩 {compressed_count} 条, 保留 {preserved_count} 条 (边界索引={compress_boundary})")
+            logger.debug(f"[上下文] 工具压缩: 压缩 {compressed_count} 条, 保留 {preserved_count} 条 (边界索引={compress_boundary}, preserve_recent_count={preserve_recent_count})")
 
     optimized.extend(recent_messages)
 
