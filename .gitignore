@@ -22,6 +22,7 @@ db.sqlite3
 /tests/
 /docs/TEMP/
 /.venv/
+/linux_venv/
 
 __pycache__
 node_modules/
