@@ -1218,6 +1218,9 @@ def animation(request):
 def friendly_link(request):
     return render(request, 'memory.html')
 
+def me(request):
+    return render(request, 'me.html')
+
 
 # ===== 用户账户管理 API =====
 

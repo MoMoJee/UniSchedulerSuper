@@ -112,6 +112,7 @@ urlpatterns = [
     
     # Other
     path("friendly_link/", views.friendly_link, name="friendly_link"),
+    path("me/", views.me, name="me"),
     path("three_body/", views.three_body, name="three_body"),
     path("animation/", views.animation, name="animation"),
 ]
