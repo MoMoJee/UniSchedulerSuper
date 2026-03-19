@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'channels',  # Django Channels for WebSocket
     'core',
     'agent_service', # New Agent Service App
+    'caldav_service', # CalDAV Service
     'corsheaders',
     'rest_framework',
     'rest_framework.authtoken',
@@ -67,6 +68,7 @@ CHANNEL_LAYERS = {
 
 MIDDLEWARE = [
     'core.middleware.request_logger.RequestLogMiddleware', # Custom Request Logger - 记录所有HTTP请求到统一日志
+    'caldav_service.middleware.CalDAVRoutingMiddleware',  # CalDAV WebDAV 方法路由（必须在 CSRF 之前）
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

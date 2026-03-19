@@ -39,6 +39,12 @@ def robots_txt(request):
 urlpatterns = [
     path('robots.txt', robots_txt),
     path('admin/', admin.site.urls),
+
+    # CalDAV 服务
+    path('.well-known/caldav', include('caldav_service.wellknown_urls')),
+    path('caldav/', include('caldav_service.urls')),
+    path('caldav', include('caldav_service.urls')),  # 无尾部斜杠，避免 301 改变 PROPFIND 方法
+
     path('', include('core.urls')),
     path('api/agent/', include('agent_service.urls')),  # Agent Service API
     path('.well-known/appspecific/com.chrome.devtools.json', lambda request: __import__('django.http').http.HttpResponse(status=204)),
