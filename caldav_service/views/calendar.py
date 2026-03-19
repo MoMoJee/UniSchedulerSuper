@@ -17,7 +17,7 @@ from django.http import HttpResponse, HttpResponseForbidden
 from caldav_service.views.base import CalDAVView
 from caldav_service.etag import compute_event_etag, compute_calendar_ctag
 from caldav_service.ical_builder import (
-    build_single_event_ical, get_event_uid,
+    build_single_event_ical, build_series_ical, get_event_uid,
     build_single_reminder_ical, get_reminder_uid,
 )
 from caldav_service.xml_utils import (
@@ -58,12 +58,18 @@ class CalendarCollectionView(CalDAVView):
         # Depth:1 → 列举事件
         if depth != '0':
             is_rem = self.is_reminder_calendar(calendar_id)
+            seen_uids = set()
             for item in events:
                 if is_rem:
                     self._add_item_stub_response(multistatus, username, calendar_id, item, is_reminder=True)
                 else:
                     if not self.should_include_event(item):
                         continue
+                    uid = get_event_uid(item)
+                    # 同一 UID 只输出一次（主事件 + 脱离实例共享 UID）
+                    if uid in seen_uids:
+                        continue
+                    seen_uids.add(uid)
                     self._add_item_stub_response(multistatus, username, calendar_id, item, is_reminder=False)
 
         return self.xml_response(multistatus)
@@ -149,21 +155,23 @@ class CalendarCollectionView(CalDAVView):
     def _handle_multiget(self, request, root, user, username, calendar_id):
         """
         calendar-multiget: 客户端指定一批 href，批量返回 VEVENT 数据。
+        对于重复事件系列，返回主 VEVENT + 所有脱离实例。
         """
         events = self.get_events_for_calendar(user, calendar_id)
         is_rem = self.is_reminder_calendar(calendar_id)
 
-        # 构建 uid → item 索引
+        # 构建 uid → item 索引（主事件优先）
         item_by_uid = {}
         for item in events:
             if is_rem:
                 uid = get_reminder_uid(item)
+                item_by_uid[uid] = item
             else:
                 if self.should_include_event(item):
                     uid = get_event_uid(item)
-                else:
-                    continue
-            item_by_uid[uid] = item
+                    # 优先存主事件
+                    if uid not in item_by_uid or item.get('is_main_event'):
+                        item_by_uid[uid] = item
 
         # 提取请求的 href 列表
         requested_hrefs = set()
@@ -181,7 +189,8 @@ class CalendarCollectionView(CalDAVView):
 
             item = item_by_uid.get(uid)
             if item:
-                self._add_item_full_response(multistatus, href, item, is_reminder=is_rem)
+                self._add_item_full_response(
+                    multistatus, href, item, user, calendar_id, is_reminder=is_rem)
             else:
                 # 404 for this href
                 resp = add_response(multistatus, href)
@@ -196,6 +205,7 @@ class CalendarCollectionView(CalDAVView):
     def _handle_calendar_query(self, request, root, user, username, calendar_id):
         """
         calendar-query: 服务端据条件过滤（主要是 time-range）。
+        对于重复事件系列，返回主 VEVENT + 所有脱离实例。
         """
         events = self.get_events_for_calendar(user, calendar_id)
         is_rem = self.is_reminder_calendar(calendar_id)
@@ -204,6 +214,7 @@ class CalendarCollectionView(CalDAVView):
         time_start, time_end = self._extract_time_range(root)
 
         multistatus = make_multistatus()
+        seen_uids = set()
 
         for item in events:
             if is_rem:
@@ -212,7 +223,8 @@ class CalendarCollectionView(CalDAVView):
                         continue
                 uid = get_reminder_uid(item)
                 href = f'/caldav/{username}/{calendar_id}/{uid}.ics'
-                self._add_item_full_response(multistatus, href, item, is_reminder=True)
+                self._add_item_full_response(
+                    multistatus, href, item, user, calendar_id, is_reminder=True)
             else:
                 if not self.should_include_event(item):
                     continue
@@ -220,8 +232,12 @@ class CalendarCollectionView(CalDAVView):
                     if not self._event_in_time_range(item, time_start, time_end):
                         continue
                 uid = get_event_uid(item)
+                if uid in seen_uids:
+                    continue
+                seen_uids.add(uid)
                 href = f'/caldav/{username}/{calendar_id}/{uid}.ics'
-                self._add_item_full_response(multistatus, href, item, is_reminder=False)
+                self._add_item_full_response(
+                    multistatus, href, item, user, calendar_id, is_reminder=False)
 
         return self.xml_response(multistatus)
 
@@ -321,7 +337,8 @@ class CalendarCollectionView(CalDAVView):
         # resourcetype 为空（文件，非集合）
         ET.SubElement(prop, dav("resourcetype"))
 
-    def _add_item_full_response(self, multistatus, href, item, is_reminder=False):
+    def _add_item_full_response(self, multistatus, href, item,
+                                user=None, calendar_id=None, is_reminder=False):
         """构造事件/提醒的完整 response（含 calendar-data）。"""
         resp = add_response(multistatus, href)
         propstat = add_propstat(resp)
@@ -334,7 +351,14 @@ class CalendarCollectionView(CalDAVView):
         if is_reminder:
             ical_bytes = build_single_reminder_ical(item)
         else:
-            ical_bytes = build_single_event_ical(item)
+            # 重复事件系列：包含主 VEVENT + 脱离实例
+            detached = []
+            if user and calendar_id and item.get('series_id') and item.get('is_main_event'):
+                detached = self.find_series_detached(user, calendar_id, item)
+            if detached:
+                ical_bytes = build_series_ical(item, detached)
+            else:
+                ical_bytes = build_single_event_ical(item)
         set_text_prop(prop, caldav("calendar-data"), ical_bytes.decode('utf-8'))
 
         ET.SubElement(prop, dav("resourcetype"))

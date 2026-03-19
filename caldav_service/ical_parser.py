@@ -5,7 +5,7 @@ CalDAV iCalendar 解析器
 """
 
 import datetime
-from typing import Optional
+from typing import Optional, List, Tuple
 
 from icalendar import Calendar
 
@@ -51,6 +51,7 @@ def ical_to_event_dict(ical_text, existing_event: dict = None) -> dict:
     """
     将客户端上传的 iCalendar 文本解析为内部 event dict。
     若 existing_event 不为 None，则做 merge（保留内部专有字段）。
+    只返回第一个不含 RECURRENCE-ID 的 VEVENT（主事件）。
 
     Returns:
         event dict
@@ -66,8 +67,70 @@ def ical_to_event_dict(ical_text, existing_event: dict = None) -> dict:
     cal = Calendar.from_ical(ical_text_bytes)
     for component in cal.walk():
         if component.name == 'VEVENT':
+            if component.get('RECURRENCE-ID') is None:
+                return _vevent_to_dict(component, existing_event)
+    # 如果没找到不含 RECURRENCE-ID 的 VEVENT，取第一个
+    for component in cal.walk():
+        if component.name == 'VEVENT':
             return _vevent_to_dict(component, existing_event)
     raise ValueError("No VEVENT found in iCalendar data")
+
+
+def ical_to_all_event_dicts(
+    ical_text, existing_event: dict = None
+) -> Tuple[dict, List[dict]]:
+    """
+    解析 iCalendar 文本中的所有 VEVENT，分离主事件和例外实例。
+
+    iOS "仅此" 编辑时，PUT body 包含多个 VEVENT：
+    - 主 VEVENT（含 RRULE，无 RECURRENCE-ID）
+    - 例外 VEVENT（含 RECURRENCE-ID，表示对某个实例的修改）
+
+    Returns:
+        (main_dict, exception_dicts)
+        - main_dict: 主事件 dict
+        - exception_dicts: 例外实例 dict 列表（每个含 'recurrence_id' 字段）
+
+    Raises:
+        ValueError: 未找到主 VEVENT
+    """
+    if isinstance(ical_text, bytes):
+        ical_text_bytes = ical_text
+    else:
+        ical_text_bytes = ical_text.encode('utf-8')
+
+    cal = Calendar.from_ical(ical_text_bytes)
+
+    main_vevent = None
+    exception_vevents = []
+
+    for component in cal.walk():
+        if component.name == 'VEVENT':
+            if component.get('RECURRENCE-ID') is not None:
+                exception_vevents.append(component)
+            else:
+                main_vevent = component
+
+    if main_vevent is None:
+        raise ValueError("No main VEVENT (without RECURRENCE-ID) found")
+
+    main_dict = _vevent_to_dict(main_vevent, existing_event)
+
+    exception_dicts = []
+    for exc_vevent in exception_vevents:
+        exc_dict = _vevent_to_dict(exc_vevent, None)
+        # 解析 RECURRENCE-ID → recurrence_id
+        rec_id = exc_vevent.get('RECURRENCE-ID')
+        if rec_id:
+            dt = rec_id.dt
+            if isinstance(dt, datetime.date) and not isinstance(dt, datetime.datetime):
+                dt = datetime.datetime.combine(dt, datetime.time(0, 0))
+            if isinstance(dt, datetime.datetime) and dt.tzinfo is not None:
+                dt = dt.astimezone(_BEIJING_TZ)
+            exc_dict['recurrence_id'] = dt.strftime("%Y%m%dT%H%M%S")
+        exception_dicts.append(exc_dict)
+
+    return main_dict, exception_dicts
 
 
 def _vevent_to_dict(vevent, existing: Optional[dict]) -> dict:

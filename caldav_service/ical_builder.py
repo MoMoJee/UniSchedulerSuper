@@ -30,7 +30,7 @@ from core.views_calendar_subscription import (
 def build_single_event_ical(event: dict) -> bytes:
     """
     将单个 event dict 构建为完整的 iCalendar 文本（包含 VCALENDAR 包装）。
-    用于 CalDAV GET 响应。
+    用于 CalDAV GET 响应（非重复事件）。
     """
     cal = Calendar()
     cal.add("PRODID", CALENDAR_PRODID)
@@ -41,6 +41,32 @@ def build_single_event_ical(event: dict) -> bytes:
     ve = _build_caldav_vevent(event)
     if ve:
         cal.add_component(ve)
+
+    return cal.to_ical()
+
+
+def build_series_ical(main_event: dict, detached_instances: list = None) -> bytes:
+    """
+    将重复事件系列构建为完整的 iCalendar 文本。
+    包含主 VEVENT（带 RRULE）和所有脱离实例 VEVENT（带 RECURRENCE-ID）。
+
+    CalDAV 标准要求同一 UID 的所有 VEVENT 在一个 .ics 文件中。
+    """
+    cal = Calendar()
+    cal.add("PRODID", CALENDAR_PRODID)
+    cal.add("VERSION", "2.0")
+    cal.add("CALSCALE", "GREGORIAN")
+    cal.add_component(_build_vtimezone())
+
+    ve = _build_caldav_vevent(main_event)
+    if ve:
+        cal.add_component(ve)
+
+    if detached_instances:
+        for instance in detached_instances:
+            ve = _build_caldav_vevent(instance)
+            if ve:
+                cal.add_component(ve)
 
     return cal.to_ical()
 
@@ -118,9 +144,15 @@ def _build_caldav_vevent(event: dict) -> Optional[Event]:
 def get_event_uid(event: dict) -> str:
     """
     获取事件的文件名 UID（不含 @domain 后缀），用作 .ics 文件名。
-    对于 CalDAV 客户端创建的事件，直接使用事件 id（即客户端提供的 UID），
-    确保 UID 往返一致，避免客户端看到不同 UID 导致重复。
+    优先使用 caldav_uid（CalDAV 客户端创建时保存的原始 UID），
+    确保 PROPFIND / GET / PUT URL 与客户端一致。
     """
+    # CalDAV 客户端创建的事件：直接用客户端 UID
+    caldav_uid = event.get('caldav_uid', '')
+    if caldav_uid:
+        return caldav_uid
+
+    # 网页端创建的重复事件：用 evt-series-{series_id}
     is_detached = event.get("is_detached", False)
     series_id = event.get("series_id", "")
 

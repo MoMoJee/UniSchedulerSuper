@@ -184,3 +184,26 @@ class CalDAVView(View):
         if is_recurring and not is_main_event:
             return False
         return True
+
+    def find_series_detached(self, user, calendar_id: str, main_event: dict) -> list:
+        """
+        查找与主事件属于同一系列的所有脱离实例。
+        同时搜索 series_id 匹配和 original_series_id 匹配（兼容网页端脱离方式）。
+        """
+        series_id = main_event.get('series_id', '')
+        if not series_id:
+            return []
+        events = self.get_events_for_calendar(user, calendar_id)
+        detached = []
+        for event in events:
+            if not event.get('is_detached', False):
+                continue
+            if event.get('id') == main_event.get('id'):
+                continue
+            # CalDAV 脱离方式：保留 series_id
+            if event.get('series_id') == series_id:
+                detached.append(event)
+            # 网页端脱离方式：series_id 被清空，但 original_series_id 保留
+            elif event.get('original_series_id') == series_id:
+                detached.append(event)
+        return detached
