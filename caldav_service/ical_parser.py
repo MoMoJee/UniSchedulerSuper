@@ -74,6 +74,11 @@ def _vevent_to_dict(vevent, existing: Optional[dict]) -> dict:
     """将 VEVENT 组件转换为内部 event dict。"""
     result = existing.copy() if existing else {}
 
+    # UID → caldav_uid（保留客户端原始 UID，确保往返一致）
+    uid = vevent.get('UID')
+    if uid is not None:
+        result['caldav_uid'] = str(uid)
+
     # SUMMARY → title
     summary = vevent.get('SUMMARY')
     if summary is not None:

@@ -60,18 +60,21 @@ def _build_caldav_vevent(event: dict) -> Optional[Event]:
 
     ve = Event()
 
-    # UID
+    # UID — 如果有 caldav_uid（CalDAV 客户端写入时保存的）则原样返回
+    caldav_uid = event.get('caldav_uid')
     if is_detached and series_id:
-        ve.add("UID", f"evt-series-{series_id}@{UID_DOMAIN}")
+        ve.add("UID", caldav_uid or f"evt-series-{series_id}@{UID_DOMAIN}")
         recurrence_id = event.get("recurrence_id", "")
         if recurrence_id:
             rec_dt = _parse_rrule_datetime(recurrence_id)
             if rec_dt:
                 ve.add("RECURRENCE-ID", rec_dt, parameters={"TZID": TIMEZONE_ID})
     elif event.get("is_main_event", False) and series_id:
-        ve.add("UID", f"evt-series-{series_id}@{UID_DOMAIN}")
+        ve.add("UID", caldav_uid or f"evt-series-{series_id}@{UID_DOMAIN}")
+    elif caldav_uid:
+        ve.add("UID", caldav_uid)
     else:
-        ve.add("UID", f"evt-{event['id']}@{UID_DOMAIN}")
+        ve.add("UID", f"{event['id']}@{UID_DOMAIN}")
 
     # SUMMARY
     ve.add("SUMMARY", event.get("title", ""))
@@ -113,7 +116,11 @@ def _build_caldav_vevent(event: dict) -> Optional[Event]:
 
 
 def get_event_uid(event: dict) -> str:
-    """获取事件的 UID（不含 @domain 后缀），用作 .ics 文件名。"""
+    """
+    获取事件的文件名 UID（不含 @domain 后缀），用作 .ics 文件名。
+    对于 CalDAV 客户端创建的事件，直接使用事件 id（即客户端提供的 UID），
+    确保 UID 往返一致，避免客户端看到不同 UID 导致重复。
+    """
     is_detached = event.get("is_detached", False)
     series_id = event.get("series_id", "")
 
@@ -122,7 +129,7 @@ def get_event_uid(event: dict) -> str:
     elif event.get("is_main_event", False) and series_id:
         return f"evt-series-{series_id}"
     else:
-        return f"evt-{event['id']}"
+        return event['id']
 
 
 # =====================================================

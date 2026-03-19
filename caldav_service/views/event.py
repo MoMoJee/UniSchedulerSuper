@@ -162,6 +162,9 @@ class EventObjectView(CalDAVView):
                 if not isinstance(events, list):
                     events = []
 
+                # 防重复：如果已存在相同 id 的事件，先移除
+                events = [e for e in events if e.get('id') != internal_id]
+
                 if rrule:
                     # 使用 EventService 的 RRule 管理器处理重复事件
                     from core.views_events import EventsRRuleManager
@@ -191,6 +194,11 @@ class EventObjectView(CalDAVView):
     def _handle_update(self, user, existing, new_data, username, calendar_id, event_uid):
         """处理 PUT 更新已有事件。"""
         event_id = existing['id']
+
+        # 保存 caldav_uid（确保 CalDAV 客户端的 UID 往返一致）
+        caldav_uid = new_data.get('caldav_uid')
+        if caldav_uid and caldav_uid != existing.get('caldav_uid'):
+            self._update_event_field(user, event_id, 'caldav_uid', caldav_uid)
 
         # 构造更新参数：只传有变化的字段
         update_kwargs = {}

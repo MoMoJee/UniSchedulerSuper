@@ -60,7 +60,9 @@ class CalDAVView(View):
                 # 所有 CalDAV 响应都要带 DAV 头，让客户端识别为 CalDAV 服务器
                 resp['DAV'] = '1, 2, 3, calendar-access'
                 return resp
-        return self.http_method_not_allowed(request, *args, **kwargs)
+        resp = self.http_method_not_allowed(request, *args, **kwargs)
+        resp['DAV'] = '1, 2, 3, calendar-access'
+        return resp
 
     # =====================================================
     # 认证

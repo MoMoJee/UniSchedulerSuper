@@ -73,6 +73,50 @@ class CalendarCollectionView(CalDAVView):
         return self.propfind(request, username, calendar_id)
 
     # --------------------------------------------------
+    # MKCALENDAR — 拒绝客户端创建日历（服务端管理）
+    # --------------------------------------------------
+
+    def mkcalendar(self, request, username, calendar_id):
+        user, err = self.require_auth(request)
+        if err:
+            return err
+        return HttpResponse(
+            "Calendar creation is managed by the server.",
+            status=403,
+            content_type="text/plain",
+        )
+
+    # --------------------------------------------------
+    # PROPPATCH — 接受属性修改请求（静默成功）
+    # --------------------------------------------------
+
+    def proppatch(self, request, username, calendar_id):
+        user, err = self.require_auth(request)
+        if err:
+            return err
+        if user.username != username:
+            return HttpResponseForbidden("Access denied.")
+
+        multistatus = make_multistatus()
+        resp = add_response(multistatus, f'/caldav/{username}/{calendar_id}/')
+        propstat = add_propstat(resp)
+        prop = get_prop(propstat)
+
+        # 解析请求体，为每个请求的属性返回成功
+        body = request.body
+        if body:
+            try:
+                root = parse_xml_body(body)
+                for set_el in root.iter(dav("set")):
+                    for prop_el in set_el.iter(dav("prop")):
+                        for child in prop_el:
+                            ET.SubElement(prop, child.tag)
+            except Exception:
+                pass  # 解析失败时返回空的 200 propstat
+
+        return self.xml_response(multistatus)
+
+    # --------------------------------------------------
     # REPORT
     # --------------------------------------------------
 
