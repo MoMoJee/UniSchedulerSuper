@@ -13,6 +13,9 @@ import re
 import uuid
 import json
 import datetime
+from zoneinfo import ZoneInfo
+
+from django.conf import settings
 
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound
 
@@ -496,10 +499,16 @@ class EventObjectView(CalDAVView):
                     '%Y-%m-%d %H:%M:%S')
 
         # 如果新 RRULE 含 UNTIL，移除超出范围的预生成实例
-        until_match = re.search(r'UNTIL=(\d{8}T\d{6})', new_rrule)
+        until_match = re.search(r'UNTIL=(\d{8}T\d{6})(Z?)', new_rrule)
         if until_match:
             until_str = until_match.group(1)
+            is_utc = until_match.group(2) == 'Z'
             until_dt = datetime.datetime.strptime(until_str, '%Y%m%dT%H%M%S')
+            # 如果 UNTIL 是 UTC 时间（Z 结尾），转换为服务器本地时间
+            # 因为事件的 start 字段存储的是本地时间
+            if is_utc:
+                until_dt = until_dt.replace(tzinfo=ZoneInfo('UTC')).astimezone(
+                    ZoneInfo(settings.TIME_ZONE)).replace(tzinfo=None)
 
             before_count = len(events)
             events = [

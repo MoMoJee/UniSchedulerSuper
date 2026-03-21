@@ -11,6 +11,7 @@ import datetime
 import re
 from datetime import timedelta
 from typing import List, Dict, Any, Optional
+from zoneinfo import ZoneInfo
 
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
@@ -1291,8 +1292,21 @@ def get_events_impl(request):
         range_end_str = request.GET.get('end')
         if range_start_str and range_end_str:
             try:
-                range_start = datetime.datetime.fromisoformat(range_start_str.replace('Z', '+00:00').replace('+00:00', ''))
-                range_end = datetime.datetime.fromisoformat(range_end_str.replace('Z', '+00:00').replace('+00:00', ''))
+                def _parse_range_dt(s):
+                    """解析前端传来的日期范围参数，UTC 自动转换为服务器本地时间。"""
+                    is_utc = s.endswith('Z') or '+00:00' in s
+                    clean = s.replace('Z', '').replace('+00:00', '')
+                    if '.' in clean:
+                        clean = clean.split('.')[0]
+                    dt = datetime.datetime.fromisoformat(clean)
+                    if is_utc:
+                        from django.conf import settings as _settings
+                        dt = dt.replace(tzinfo=ZoneInfo('UTC')).astimezone(
+                            ZoneInfo(_settings.TIME_ZONE)).replace(tzinfo=None)
+                    return dt
+
+                range_start = _parse_range_dt(range_start_str)
+                range_end = _parse_range_dt(range_end_str)
                 
                 def event_overlaps(ev):
                     """判断事件是否与查询范围重叠：event.start < range_end AND event.end > range_start"""
