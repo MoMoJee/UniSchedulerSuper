@@ -162,9 +162,17 @@ class RRuleSeries:
                     until_match = re.search(r'UNTIL=([^;]+)', segment.rrule_str)
                     if until_match:
                         until_str = until_match.group(1)
-                        # 如果UNTIL是UTC格式（以Z结尾），转换为naive格式
                         if until_str.endswith('Z'):
-                            until_naive = until_str[:-1]
+                            # UTC UNTIL → 转为服务器本地时间（与 DTSTART 一致）
+                            try:
+                                from zoneinfo import ZoneInfo
+                                from django.conf import settings as _s
+                                utc_dt = datetime.strptime(until_str[:-1], '%Y%m%dT%H%M%S')
+                                local_dt = utc_dt.replace(tzinfo=ZoneInfo('UTC')).astimezone(
+                                    ZoneInfo(_s.TIME_ZONE)).replace(tzinfo=None)
+                                until_naive = local_dt.strftime('%Y%m%dT%H%M%S')
+                            except Exception:
+                                until_naive = until_str[:-1]
                             processed_rrule = segment.rrule_str.replace(f'UNTIL={until_str}', f'UNTIL={until_naive}')
                 
                 # 构建完整的rrule字符串

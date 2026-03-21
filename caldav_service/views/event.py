@@ -16,7 +16,6 @@ import datetime
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
-
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound
 
 from caldav_service.views.base import CalDAVView, MockRequest
@@ -116,15 +115,26 @@ class EventObjectView(CalDAVView):
             logger.warning(f"CalDAV PUT parse error: {e}")
             return HttpResponse(f"Invalid iCalendar data: {e}", status=400)
 
-        # 诊断日志：记录客户端发送的内容
-        logger.info(
-            f"[CalDAV PUT] uid={event_uid} "
-            f"existing={'yes' if existing else 'no'} "
-            f"exceptions={len(exceptions)} "
-            f"title={main_data.get('title', '')!r} "
-            f"rrule={main_data.get('rrule', '')!r} "
-            f"start={main_data.get('start', '')}"
-        )
+        # 诊断日志：记录客户端发送的完整内容
+        try:
+            raw_body = ical_text.decode('utf-8', errors='replace') if isinstance(ical_text, bytes) else str(ical_text)
+            # 记录完整的 iCal body（截取前2000字符），帮助诊断 iOS 行为
+            logger.info(
+                f"[CalDAV PUT] uid={event_uid} "
+                f"existing={'yes' if existing else 'no'} "
+                f"exceptions={len(exceptions)} "
+                f"title={main_data.get('title', '')!r} "
+                f"rrule={main_data.get('rrule', '')!r} "
+                f"start={main_data.get('start', '')}\n"
+                f"[CalDAV PUT RAW BODY]:\n{raw_body[:2000]}"
+            )
+        except Exception:
+            logger.info(
+                f"[CalDAV PUT] uid={event_uid} "
+                f"existing={'yes' if existing else 'no'} "
+                f"exceptions={len(exceptions)} "
+                f"title={main_data.get('title', '')!r}"
+            )
 
         # 确定 groupID
         if calendar_id != 'default':
@@ -205,6 +215,11 @@ class EventObjectView(CalDAVView):
                     events.append(main_event)
                     instances = manager.generate_event_instances(main_event, 180, 26)
                     events.extend(instances)
+                    # 诊断日志：记录创建结果
+                    inst_starts = sorted([i['start'] for i in instances])
+                    logger.info(
+                        f"[CalDAV CREATE] rrule={rrule} main_start={main_event['start']} "
+                        f"instances={len(instances)} starts={inst_starts}")
                 else:
                     events.append(new_data)
 
@@ -509,6 +524,9 @@ class EventObjectView(CalDAVView):
             if is_utc:
                 until_dt = until_dt.replace(tzinfo=ZoneInfo('UTC')).astimezone(
                     ZoneInfo(settings.TIME_ZONE)).replace(tzinfo=None)
+            logger.info(
+                f"[CalDAV] RRULE UNTIL comparison: raw={until_match.group(0)} "
+                f"is_utc={is_utc} until_local={until_dt.isoformat()}")
 
             before_count = len(events)
             events = [
@@ -546,8 +564,17 @@ class EventObjectView(CalDAVView):
                 }
                 events = [e for e in events if e.get('id') not in to_remove]
 
+        # 记录截断后剩余的实例信息
+        remaining_instances = [
+            e for e in events
+            if e.get('series_id') == series_id and not e.get('is_main_event', False)
+        ]
+        remaining_starts = sorted([e.get('start', '') for e in remaining_instances])
+        logger.info(
+            f"[CalDAV] RRULE updated for series {series_id}: {new_rrule}\n"
+            f"  Remaining instances ({len(remaining_instances)}): {remaining_starts}")
+
         user_events_data.set_value(events)
-        logger.info(f"[CalDAV] RRULE updated for series {series_id}: {new_rrule}")
 
     # --------------------------------------------------
     # DELETE

@@ -24,6 +24,24 @@ def _to_beijing_str(dt) -> str:
     return str(dt)
 
 
+def _dt_to_rrule_str(dt) -> str:
+    """将 datetime 转换为 RRULE 用的字符串。
+    事件 DTSTART/DTEND 存储为本地时间（Asia/Shanghai），
+    RRULE 中的 UNTIL 也必须用本地时间，否则 dateutil 比较会出错。
+    """
+    if isinstance(dt, datetime.datetime):
+        if dt.tzinfo is not None:
+            # 有时区 → 转为本地时间（同事件 start/end），不加 Z
+            local_dt = dt.astimezone(_BEIJING_TZ)
+            return local_dt.strftime("%Y%m%dT%H%M%S")
+        else:
+            # 无时区（浮动时间）→ 直接使用
+            return dt.strftime("%Y%m%dT%H%M%S")
+    elif isinstance(dt, datetime.date):
+        return dt.strftime("%Y%m%d")
+    return str(dt)
+
+
 def _rrule_vrecur_to_str(vrecur) -> str:
     """将 icalendar vRecur 对象转换为 RRULE 字符串。"""
     parts = []
@@ -33,15 +51,12 @@ def _rrule_vrecur_to_str(vrecur) -> str:
             str_vals = []
             for v in val:
                 if isinstance(v, (datetime.datetime, datetime.date)):
-                    str_vals.append(v.strftime("%Y%m%dT%H%M%SZ") if isinstance(v, datetime.datetime) else v.strftime("%Y%m%d"))
+                    str_vals.append(_dt_to_rrule_str(v))
                 else:
                     str_vals.append(str(v))
             parts.append(f"{key_upper}={','.join(str_vals)}")
         elif isinstance(val, (datetime.datetime, datetime.date)):
-            if isinstance(val, datetime.datetime):
-                parts.append(f"{key_upper}={val.strftime('%Y%m%dT%H%M%SZ')}")
-            else:
-                parts.append(f"{key_upper}={val.strftime('%Y%m%d')}")
+            parts.append(f"{key_upper}={_dt_to_rrule_str(val)}")
         else:
             parts.append(f"{key_upper}={val}")
     return ";".join(parts)
