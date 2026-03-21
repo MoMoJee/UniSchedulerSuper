@@ -25,6 +25,7 @@ from caldav_service.ical_builder import (
     build_single_reminder_ical, get_reminder_uid,
 )
 from caldav_service.ical_parser import ical_to_all_event_dicts
+from core.views_calendar_subscription import UID_DOMAIN
 
 from core.models import UserData
 from core.services.event_service import EventService
@@ -244,9 +245,12 @@ class EventObjectView(CalDAVView):
         event_id = existing['id']
 
         # 保存 caldav_uid（确保 CalDAV 客户端的 UID 往返一致）
+        # 注意：不保存由我们 iCal builder 生成的 UID（以 @UID_DOMAIN 结尾），
+        #       否则会改变 get_event_uid() 返回值，导致 PROPFIND href 变化
         caldav_uid = new_data.get('caldav_uid')
         if caldav_uid and caldav_uid != existing.get('caldav_uid'):
-            self._update_event_field(user, event_id, 'caldav_uid', caldav_uid)
+            if not caldav_uid.endswith(f'@{UID_DOMAIN}'):
+                self._update_event_field(user, event_id, 'caldav_uid', caldav_uid)
 
         # 检测 RRULE 变更
         new_rrule = new_data.get('rrule', '')
@@ -353,7 +357,9 @@ class EventObjectView(CalDAVView):
                             if field in main_data:
                                 event[field] = main_data[field]
                         if 'caldav_uid' in main_data:
-                            event['caldav_uid'] = main_data['caldav_uid']
+                            uid = main_data['caldav_uid']
+                            if not uid.endswith(f'@{UID_DOMAIN}'):
+                                event['caldav_uid'] = uid
                         if main_data.get('rrule'):
                             event['rrule'] = main_data['rrule']
                         event['last_modified'] = datetime.datetime.now().strftime(
@@ -499,7 +505,9 @@ class EventObjectView(CalDAVView):
                     if field in new_data:
                         event[field] = new_data[field]
                 if 'caldav_uid' in new_data:
-                    event['caldav_uid'] = new_data['caldav_uid']
+                    uid = new_data['caldav_uid']
+                    if not uid.endswith(f'@{UID_DOMAIN}'):
+                        event['caldav_uid'] = uid
                 event['last_modified'] = datetime.datetime.now().strftime(
                     '%Y-%m-%d %H:%M:%S')
                 break
