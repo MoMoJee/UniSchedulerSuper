@@ -113,6 +113,16 @@ class EventObjectView(CalDAVView):
             logger.warning(f"CalDAV PUT parse error: {e}")
             return HttpResponse(f"Invalid iCalendar data: {e}", status=400)
 
+        # 诊断日志：记录客户端发送的内容
+        logger.info(
+            f"[CalDAV PUT] uid={event_uid} "
+            f"existing={'yes' if existing else 'no'} "
+            f"exceptions={len(exceptions)} "
+            f"title={main_data.get('title', '')!r} "
+            f"rrule={main_data.get('rrule', '')!r} "
+            f"start={main_data.get('start', '')}"
+        )
+
         # 确定 groupID
         if calendar_id != 'default':
             main_data['groupID'] = calendar_id
@@ -211,6 +221,7 @@ class EventObjectView(CalDAVView):
         """
         处理 PUT 更新已有事件。
         对于重复事件主事件的 RRULE 变更（如 UNTIL 截断），同步清理超出范围的实例。
+        对于重复事件主事件的属性变更，传播到所有预生成实例（RFC 5545 语义）。
         """
         event_id = existing['id']
 
@@ -260,6 +271,10 @@ class EventObjectView(CalDAVView):
                 except Exception as e:
                     logger.error(f"CalDAV PUT update failed: {e}")
                     return HttpResponse(f"Failed to update event: {e}", status=500)
+
+        # RFC 5545：修改主 VEVENT 属性应传播到所有非脱离的预生成实例
+        if is_main and series_id:
+            self._propagate_main_event_changes(user, series_id, existing, new_data)
 
         # 重新计算 ETag
         updated_event = self._find_item(user, calendar_id, event_uid)
@@ -563,6 +578,106 @@ class EventObjectView(CalDAVView):
             return HttpResponse(f"Failed to delete event: {e}", status=500)
 
         return HttpResponse(status=204)
+
+    # --------------------------------------------------
+    # 主事件属性传播（RFC 5545 语义）
+    # --------------------------------------------------
+
+    def _propagate_main_event_changes(self, user, series_id, old_data, new_data):
+        """
+        CalDAV 规范：修改主 VEVENT 的属性应传播到所有非脱离的预生成实例。
+        因为 CalDAV 客户端按 RRULE 扩展实例，主 VEVENT 属性 = 所有实例属性。
+        而我们的数据模型是预生成实例（每个实例独立存储），需要显式同步。
+        """
+        # 计算属性变更
+        prop_changes = {}
+        for field in ('title', 'description', 'location', 'status'):
+            old_val = old_data.get(field, '')
+            new_val = new_data.get(field, '')
+            if new_val and new_val != old_val:
+                prop_changes[field] = new_val
+
+        # 计算时间偏移量（只改时刻，不改日期）
+        time_offset = None
+        new_duration = None
+        old_start_str = old_data.get('start', '')
+        new_start_str = new_data.get('start', '')
+        old_end_str = old_data.get('end', '')
+        new_end_str = new_data.get('end', '')
+
+        try:
+            if old_start_str and new_start_str and old_start_str != new_start_str:
+                old_start = datetime.datetime.fromisoformat(old_start_str)
+                new_start = datetime.datetime.fromisoformat(new_start_str)
+                # 提取时刻差异（时-分-秒偏移）
+                old_time = datetime.timedelta(
+                    hours=old_start.hour, minutes=old_start.minute, seconds=old_start.second)
+                new_time = datetime.timedelta(
+                    hours=new_start.hour, minutes=new_start.minute, seconds=new_start.second)
+                if old_time != new_time:
+                    time_offset = new_time - old_time
+
+            if new_start_str and new_end_str:
+                ns = datetime.datetime.fromisoformat(new_start_str)
+                ne = datetime.datetime.fromisoformat(new_end_str)
+                new_duration = ne - ns
+        except (ValueError, TypeError):
+            pass
+
+        if not prop_changes and time_offset is None:
+            return  # 无变更需要传播
+
+        mock_request = MockRequest(user)
+        user_events_data, _, _ = UserData.get_or_initialize(
+            mock_request, new_key="events", data=[])
+        if not user_events_data:
+            return
+
+        events = user_events_data.get_value() or []
+        now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        updated_count = 0
+
+        for event in events:
+            if (event.get('series_id') != series_id
+                    or event.get('is_main_event', False)
+                    or event.get('is_detached', False)):
+                continue
+
+            changed = False
+
+            # 传播属性
+            for field, value in prop_changes.items():
+                if event.get(field) != value:
+                    event[field] = value
+                    changed = True
+
+            # 应用时间偏移
+            if time_offset is not None and event.get('start'):
+                try:
+                    inst_start = datetime.datetime.fromisoformat(event['start'])
+                    inst_start += time_offset
+                    event['start'] = inst_start.strftime('%Y-%m-%dT%H:%M:%S')
+                    if new_duration is not None:
+                        event['end'] = (inst_start + new_duration).strftime(
+                            '%Y-%m-%dT%H:%M:%S')
+                    elif event.get('end'):
+                        inst_end = datetime.datetime.fromisoformat(event['end'])
+                        inst_end += time_offset
+                        event['end'] = inst_end.strftime('%Y-%m-%dT%H:%M:%S')
+                    changed = True
+                except (ValueError, TypeError):
+                    pass
+
+            if changed:
+                event['last_modified'] = now_str
+                updated_count += 1
+
+        if updated_count > 0:
+            user_events_data.set_value(events)
+            logger.info(
+                f"[CalDAV] Propagated main event changes to {updated_count} "
+                f"instances in series {series_id}: "
+                f"props={list(prop_changes.keys())} time_shift={time_offset}")
 
     # --------------------------------------------------
     # 查找辅助
