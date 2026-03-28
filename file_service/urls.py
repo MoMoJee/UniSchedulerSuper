@@ -8,6 +8,7 @@ urlpatterns = [
 
     # 文件上传
     path('upload/', views_api.upload_files, name='file_upload'),
+    path('upload-url/', views_api.upload_from_url, name='file_upload_url'),
 
     # 文件夹
     path('folders/', views_api.create_folder, name='folder_create'),

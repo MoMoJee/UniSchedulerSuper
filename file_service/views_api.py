@@ -146,6 +146,45 @@ def upload_files(request):
 
 
 # ============================================================
+# URL 上传
+# ============================================================
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_from_url(request):
+    """
+    POST /api/files/upload-url/
+    Body: {"url": "https://example.com/file.pdf", "folder_id": 3}
+    """
+    url = request.data.get('url', '').strip()
+    if not url:
+        return Response({"error": "请提供 URL"}, status=400)
+
+    folder_id = request.data.get('folder_id')
+    folder = None
+    if folder_id:
+        folder = get_object_or_404(UserFolder, id=folder_id, user=request.user)
+
+    from file_service.url_fetcher import fetch_url
+    result = fetch_url(url, request.user)
+    if not result['success']:
+        return Response({"error": result['error']}, status=400)
+
+    file_obj = result['file_obj']
+    upload_result = _core_upload(request.user, file_obj, folder=folder, source='url')
+
+    if not upload_result['success']:
+        return Response({"error": upload_result['error']}, status=upload_result.get('status', 400))
+
+    # 记录源 URL
+    user_file = upload_result['file']
+    user_file.source_url = url
+    user_file.save(update_fields=['source_url'])
+
+    return Response({"file": user_file.to_api_dict()}, status=201)
+
+
+# ============================================================
 # 文件列表
 # ============================================================
 

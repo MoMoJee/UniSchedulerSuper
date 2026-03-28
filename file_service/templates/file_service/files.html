@@ -1,0 +1,296 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件管理 - UniSchedulerSuper</title>
+    <link rel="icon" type="image/png" href="/static/faction.png">
+    {% include '_cdn_init.html' %}
+    <script>__cdnCSS('bootstrap@5.1.3/dist/css/bootstrap.min.css','bootstrap/5.1.3/css/bootstrap.min.css');</script>
+    <script>__cdnCSS('@fortawesome/fontawesome-free@6.0.0/css/all.min.css','font-awesome/6.0.0/css/all.min.css');</script>
+    <link rel="stylesheet" href="{% static 'file_service/files.css' %}?v=20260328-001">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="files-navbar">
+        <div class="nav-left">
+            <a href="{% url 'home' %}" class="nav-brand" title="返回主页">
+                <i class="fas fa-arrow-left"></i>
+                <span>返回主页</span>
+            </a>
+            <span class="nav-divider"></span>
+            <span class="nav-title"><i class="fas fa-cloud me-2"></i>文件管理</span>
+        </div>
+        <div class="nav-right">
+            <span class="quota-mini" id="quotaMini" title="存储配额"></span>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <div class="files-container">
+        <!-- 左侧边栏 -->
+        <aside class="files-sidebar" id="filesSidebar">
+            <div class="sidebar-section">
+                <h6 class="sidebar-label">分类</h6>
+                <button class="sidebar-item active" data-category="" onclick="fileManager.filterCategory(this, '')">
+                    <i class="fas fa-folder me-2"></i>全部文件
+                </button>
+                <button class="sidebar-item" data-category="document" onclick="fileManager.filterCategory(this, 'document')">
+                    <i class="fas fa-file-alt me-2"></i>文档
+                </button>
+                <button class="sidebar-item" data-category="image" onclick="fileManager.filterCategory(this, 'image')">
+                    <i class="fas fa-image me-2"></i>图片
+                </button>
+            </div>
+            <div class="sidebar-section sidebar-quota">
+                <h6 class="sidebar-label">存储空间</h6>
+                <div class="quota-bar-container">
+                    <div class="quota-bar" id="quotaBar"></div>
+                </div>
+                <div class="quota-text" id="quotaText">计算中...</div>
+            </div>
+        </aside>
+
+        <!-- 右侧主区域 -->
+        <main class="files-main">
+            <!-- 面包屑 + 工具栏 -->
+            <div class="files-toolbar">
+                <div class="breadcrumb-row">
+                    <nav class="breadcrumb-nav" id="breadcrumbNav">
+                        <a href="#" class="breadcrumb-item active" data-folder-id="" onclick="fileManager.navigate(null); return false;">
+                            <i class="fas fa-home"></i>
+                        </a>
+                    </nav>
+                </div>
+                <div class="toolbar-row">
+                    <div class="toolbar-left">
+                        <button class="btn-tool btn-primary-tool" onclick="fileManager.triggerUpload()">
+                            <i class="fas fa-upload me-1"></i>上传文件
+                        </button>
+                        <button class="btn-tool" onclick="fileManager.showUrlUploadDialog()">
+                            <i class="fas fa-link me-1"></i>URL上传
+                        </button>
+                        <button class="btn-tool" onclick="fileManager.showCreateFolderDialog()">
+                            <i class="fas fa-folder-plus me-1"></i>新建文件夹
+                        </button>
+                    </div>
+                    <div class="toolbar-right">
+                        <div class="search-box">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" id="searchInput" placeholder="搜索文件..." 
+                                   oninput="fileManager.handleSearch(this.value)">
+                            <button class="search-clear" id="searchClear" onclick="fileManager.clearSearch()" style="display:none;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <button class="btn-tool btn-icon" id="viewToggle" onclick="fileManager.toggleView()" title="切换视图">
+                            <i class="fas fa-th-large"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 拖拽上传覆盖层 -->
+            <div class="drop-overlay" id="dropOverlay">
+                <div class="drop-content">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>松开以上传文件</p>
+                </div>
+            </div>
+
+            <!-- 上传进度区域 -->
+            <div class="upload-progress-area" id="uploadProgressArea" style="display:none;">
+                <div id="uploadProgressList"></div>
+            </div>
+
+            <!-- 文件列表 -->
+            <div class="files-list" id="filesList">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i> 加载中...
+                </div>
+            </div>
+
+            <!-- 空状态 -->
+            <div class="empty-state" id="emptyState" style="display:none;">
+                <i class="fas fa-folder-open"></i>
+                <p>此处还没有文件</p>
+                <span>拖拽文件到此处或点击上传</span>
+            </div>
+
+            <!-- 搜索结果区域 -->
+            <div class="search-results" id="searchResults" style="display:none;">
+                <div class="search-results-header">
+                    <span id="searchResultsTitle"></span>
+                    <button class="btn-tool btn-sm" onclick="fileManager.clearSearch()">返回文件列表</button>
+                </div>
+                <div id="searchResultsList"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 隐藏的文件上传 input -->
+    <input type="file" id="fileUploadInput" multiple style="display:none;" onchange="fileManager.handleFileSelect(this.files)">
+
+    <!-- 右键菜单 -->
+    <div class="context-menu" id="contextMenu" style="display:none;">
+        <div class="context-menu-item" onclick="fileManager.ctxDownload()">
+            <i class="fas fa-download me-2"></i>下载原格式
+        </div>
+        <div class="context-menu-item" id="ctxDownloadMd" onclick="fileManager.ctxDownloadMd()">
+            <i class="fas fa-file-code me-2"></i>下载 Markdown
+        </div>
+        <div class="context-menu-item" id="ctxViewMd" onclick="fileManager.ctxViewMd()">
+            <i class="fas fa-eye me-2"></i>查看 Markdown
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" onclick="fileManager.ctxRename()">
+            <i class="fas fa-pen me-2"></i>重命名
+        </div>
+        <div class="context-menu-item" onclick="fileManager.ctxMove()">
+            <i class="fas fa-arrows-alt me-2"></i>移动到...
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item context-menu-danger" onclick="fileManager.ctxDelete()">
+            <i class="fas fa-trash me-2"></i>删除
+        </div>
+    </div>
+
+    <!-- 文件夹右键菜单 -->
+    <div class="context-menu" id="folderContextMenu" style="display:none;">
+        <div class="context-menu-item" onclick="fileManager.ctxRenameFolder()">
+            <i class="fas fa-pen me-2"></i>重命名
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item context-menu-danger" onclick="fileManager.ctxDeleteFolder()">
+            <i class="fas fa-trash me-2"></i>删除文件夹
+        </div>
+    </div>
+
+    <!-- 新建文件夹对话框 -->
+    <div class="modal-overlay" id="createFolderModal" style="display:none;">
+        <div class="modal-dialog-custom">
+            <div class="modal-header-custom">
+                <h5>新建文件夹</h5>
+                <button class="modal-close" onclick="fileManager.closeModal('createFolderModal')">&times;</button>
+            </div>
+            <div class="modal-body-custom">
+                <input type="text" id="newFolderName" class="input-field" placeholder="文件夹名称" 
+                       onkeydown="if(event.key==='Enter') fileManager.createFolder()">
+            </div>
+            <div class="modal-footer-custom">
+                <button class="btn-tool" onclick="fileManager.closeModal('createFolderModal')">取消</button>
+                <button class="btn-tool btn-primary-tool" onclick="fileManager.createFolder()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- URL 上传对话框 -->
+    <div class="modal-overlay" id="urlUploadModal" style="display:none;">
+        <div class="modal-dialog-custom">
+            <div class="modal-header-custom">
+                <h5>从 URL 导入文件</h5>
+                <button class="modal-close" onclick="fileManager.closeModal('urlUploadModal')">&times;</button>
+            </div>
+            <div class="modal-body-custom">
+                <input type="url" id="urlUploadInput" class="input-field" placeholder="https://example.com/file.pdf"
+                       onkeydown="if(event.key==='Enter') fileManager.uploadFromUrl()">
+                <p class="input-hint">支持 PDF、Word、Excel、图片文件的直链下载</p>
+                <div id="urlUploadStatus" class="upload-status" style="display:none;"></div>
+            </div>
+            <div class="modal-footer-custom">
+                <button class="btn-tool" onclick="fileManager.closeModal('urlUploadModal')">取消</button>
+                <button class="btn-tool btn-primary-tool" id="urlUploadBtn" onclick="fileManager.uploadFromUrl()">导入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 重命名对话框 -->
+    <div class="modal-overlay" id="renameModal" style="display:none;">
+        <div class="modal-dialog-custom">
+            <div class="modal-header-custom">
+                <h5 id="renameModalTitle">重命名</h5>
+                <button class="modal-close" onclick="fileManager.closeModal('renameModal')">&times;</button>
+            </div>
+            <div class="modal-body-custom">
+                <input type="text" id="renameInput" class="input-field" placeholder="输入新名称"
+                       onkeydown="if(event.key==='Enter') fileManager.confirmRename()">
+            </div>
+            <div class="modal-footer-custom">
+                <button class="btn-tool" onclick="fileManager.closeModal('renameModal')">取消</button>
+                <button class="btn-tool btn-primary-tool" onclick="fileManager.confirmRename()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 移动文件对话框 -->
+    <div class="modal-overlay" id="moveModal" style="display:none;">
+        <div class="modal-dialog-custom">
+            <div class="modal-header-custom">
+                <h5>移动到...</h5>
+                <button class="modal-close" onclick="fileManager.closeModal('moveModal')">&times;</button>
+            </div>
+            <div class="modal-body-custom">
+                <div class="folder-picker" id="folderPicker">
+                    <div class="folder-picker-item" data-folder-id="" onclick="fileManager.selectMoveTarget(this, null)">
+                        <i class="fas fa-home me-2"></i>根目录
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer-custom">
+                <button class="btn-tool" onclick="fileManager.closeModal('moveModal')">取消</button>
+                <button class="btn-tool btn-primary-tool" onclick="fileManager.confirmMove()">移动</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Markdown 预览/编辑面板 -->
+    <div class="md-panel-overlay" id="mdPanelOverlay" style="display:none;" onclick="mdEditor.close()"></div>
+    <div class="md-panel" id="mdPanel" style="display:none;">
+        <div class="md-panel-header">
+            <div class="md-panel-title">
+                <i class="fas fa-file-code me-2"></i>
+                <span id="mdPanelFilename"></span>
+                <span class="md-badge" id="mdEditedBadge" style="display:none;">已编辑</span>
+            </div>
+            <div class="md-panel-actions">
+                <button class="btn-tool btn-sm" id="mdEditBtn" onclick="mdEditor.toggleEdit()">
+                    <i class="fas fa-pen me-1"></i>编辑
+                </button>
+                <button class="btn-tool btn-sm btn-primary-tool" id="mdSaveBtn" onclick="mdEditor.save()" style="display:none;">
+                    <i class="fas fa-save me-1"></i>保存
+                </button>
+                <button class="btn-tool btn-sm" id="mdCancelBtn" onclick="mdEditor.cancelEdit()" style="display:none;">
+                    取消
+                </button>
+                <button class="btn-tool btn-sm" onclick="mdEditor.close()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="md-panel-body">
+            <!-- 预览模式 -->
+            <div class="md-preview" id="mdPreview"></div>
+            <!-- 编辑模式 (split view) -->
+            <div class="md-editor-split" id="mdEditorSplit" style="display:none;">
+                <div class="md-editor-pane">
+                    <textarea id="mdEditorTextarea" class="md-textarea" oninput="mdEditor.onInput()"></textarea>
+                </div>
+                <div class="md-preview-pane" id="mdPreviewPane"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"
+            onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js';document.head.appendChild(s)"></script>
+    <!-- marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"
+            onerror="var s=document.createElement('script');s.src='https://cdn.bootcdn.net/ajax/libs/marked/15.0.7/marked.min.js';document.head.appendChild(s)"></script>
+    <!-- 文件管理 JS -->
+    <script src="{% static 'file_service/files.js' %}?v=20260328-001"></script>
+</body>
+</html>

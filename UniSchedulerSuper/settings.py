@@ -165,6 +165,18 @@ ATTACHMENT_MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
 
+# 云盘 URL 上传白名单（可追加自定义域名）
+FILE_SERVICE_URL_WHITELIST = [
+    'aliyundrive.com',
+    'lanzou.com', 'lanzoui.com', 'lanzoux.com',
+    'weiyun.com',
+    'raw.githubusercontent.com',
+    'gist.githubusercontent.com',
+    'objects.githubusercontent.com',
+    'dl.dropboxusercontent.com',
+    'drive.google.com',
+]
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 

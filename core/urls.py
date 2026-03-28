@@ -6,6 +6,7 @@ from . import views_share_groups
 from . import views_rollback
 from . import views_import_events
 from . import views_calendar_subscription
+from file_service import views_page as file_views
 
 urlpatterns = [
     path('', views.index, name='index'),
@@ -19,6 +20,7 @@ urlpatterns = [
     path('user_data/', views.user_data, name='user_data'),
     path('user_preferences/', views.user_preferences, name='user_preferences'),
     path('help/', views.help_page, name='help_page'),
+    path('files/', file_views.files_page, name='files_page'),
 
     # ===== Token 认证 API =====
     path('api/auth/login/', views_token.api_login, name='api_login'),
