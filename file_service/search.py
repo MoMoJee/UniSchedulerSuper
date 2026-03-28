@@ -1,3 +1,6 @@
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any, Optional
+
 from file_service.models import UserFile
 
 
@@ -6,7 +9,7 @@ class FileSearchEngine:
 
     @staticmethod
     def search(user, query: str, limit: int = 10,
-               category: str = None, folder_id: int = None) -> list:
+               category: Optional[str] = None, folder_id: Optional[int] = None) -> list:
         """
         在用户云盘文件中搜索相关内容。
 
@@ -90,3 +93,94 @@ class FileSearchEngine:
             snippet = snippet + '...'
 
         return snippet
+
+
+class RAGSearchProvider(ABC):
+    """
+    RAG 检索提供者抽象接口。
+    所有实现必须提供文档索引、语义检索、文档删除三个核心能力。
+    """
+
+    @abstractmethod
+    def index_document(self, doc_id: str, text: str,
+                       metadata: Optional[Dict] = None) -> bool:
+        pass
+
+    @abstractmethod
+    def search(self, query: str, user_id: int,
+               top_k: int = 5, filters: Optional[Dict] = None) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    def delete_document(self, doc_id: str) -> bool:
+        pass
+
+    def batch_index(self, documents: List[Dict]) -> Dict[str, bool]:
+        results = {}
+        for doc in documents:
+            results[doc['doc_id']] = self.index_document(
+                doc['doc_id'], doc['text'], doc.get('metadata')
+            )
+        return results
+
+
+class LocalTextSearchProvider(RAGSearchProvider):
+    """
+    本地文本检索实现（当前默认）。
+    index_document / delete_document 为空操作（不需要显式索引，直接查库）。
+    search 委托给 FileSearchEngine。
+    """
+
+    def index_document(self, doc_id, text, metadata=None):
+        return True
+
+    def search(self, query, user_id, top_k=5, filters=None):
+        from django.contrib.auth.models import User
+        user = User.objects.get(id=user_id)
+        results = FileSearchEngine.search(
+            user=user, query=query, limit=top_k,
+            category=filters.get('category') if filters else None,
+            folder_id=filters.get('folder_id') if filters else None,
+        )
+        return [{
+            'doc_id': str(r['file'].id),
+            'score': r['score'],
+            'chunk_text': r['snippet'],
+            'metadata': {
+                'filename': r['file'].filename,
+                'category': r['file'].category,
+            }
+        } for r in results]
+
+    def delete_document(self, doc_id):
+        return True
+
+
+class AliyunKnowledgeBaseProvider(RAGSearchProvider):
+    """
+    阿里云百炼知识库服务（后期接入）。
+    此类暂为占位，所有方法抛出 NotImplementedError。
+    """
+
+    def index_document(self, doc_id, text, metadata=None):
+        raise NotImplementedError("阿里云知识库尚未接入")
+
+    def search(self, query, user_id, top_k=5, filters=None):
+        raise NotImplementedError("阿里云知识库尚未接入")
+
+    def delete_document(self, doc_id):
+        raise NotImplementedError("阿里云知识库尚未接入")
+
+
+def get_search_provider() -> RAGSearchProvider:
+    """
+    获取当前激活的检索提供者。
+    可通过 settings.FILE_SERVICE_RAG_PROVIDER 配置：
+    - 'local'（默认）
+    - 'aliyun'
+    """
+    from django.conf import settings
+    provider_name = getattr(settings, 'FILE_SERVICE_RAG_PROVIDER', 'local')
+    if provider_name == 'aliyun':
+        return AliyunKnowledgeBaseProvider()
+    return LocalTextSearchProvider()

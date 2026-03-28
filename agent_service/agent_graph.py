@@ -58,6 +58,11 @@ from agent_service.tools.skill_tools import (
     save_skill, list_skills as list_skills_tool,
     SKILL_TOOLS
 )
+# 导入云盘文件搜索工具
+from agent_service.tools.cloud_file_tools import (
+    search_cloud_files, read_cloud_file,
+    CLOUD_FILE_TOOLS_MAP
+)
 from agent_service.mcp_tools import get_mcp_tools_sync
 
 # 导入上下文优化模块
@@ -242,7 +247,7 @@ TOOL_CATEGORIES = {
 }
 
 # 所有工具合集（包含新旧版本）
-ALL_TOOLS = {**PLANNER_TOOLS, **PLANNER_TOOLS_LEGACY, **MEMORY_TOOLS, **TODO_TOOLS_MAP, **SKILL_TOOLS_MAP, **MCP_TOOLS, **SEARCH_TOOLS_MAP, **VARIFLIGHT_TOOLS_MAP}
+ALL_TOOLS = {**PLANNER_TOOLS, **PLANNER_TOOLS_LEGACY, **MEMORY_TOOLS, **TODO_TOOLS_MAP, **SKILL_TOOLS_MAP, **MCP_TOOLS, **SEARCH_TOOLS_MAP, **VARIFLIGHT_TOOLS_MAP, **CLOUD_FILE_TOOLS_MAP}
 
 def get_tools_by_names(tool_names: List[str]) -> list:
     """根据工具名称列表获取工具对象"""

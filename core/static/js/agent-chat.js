@@ -70,6 +70,14 @@ class AgentChat {
         this.fileUploadInput = document.getElementById('fileUploadInput');
         this.uploadProgress = document.getElementById('uploadProgress');
         this.uploadProgressText = document.getElementById('uploadProgressText');
+        // 云盘文件选择器元素
+        this.cloudPickZone = document.getElementById('cloudPickZone');
+        this.cloudPickBackBtn = document.getElementById('cloudPickBackBtn');
+        this.cloudPickTree = document.getElementById('cloudPickTree');
+        this.cloudPickFooter = document.getElementById('cloudPickFooter');
+        this.cloudPickConfirmBtn = document.getElementById('cloudPickConfirmBtn');
+        this.cloudPickCount = document.getElementById('cloudPickCount');
+        this.cloudPickSelected = new Map(); // file_id → {id, filename, category, mime_type}
         // 附件状态（多选）
         this.selectedAttachments = [];  // [{type, id, name, sa_id?}] 支持多个
         this.attachmentPanelVisible = false;
@@ -4114,6 +4122,8 @@ class AgentChat {
                     const type = item.dataset.type;
                     if (type === 'file-upload') {
                         this.showUploadZone();
+                    } else if (type === 'cloud-pick') {
+                        this.showCloudPickZone();
                     } else {
                         this.selectAttachmentType(type);
                     }
@@ -4187,6 +4197,9 @@ class AgentChat {
         if (this.attachmentUploadZone) {
             this.attachmentUploadZone.style.display = 'none';
         }
+        if (this.cloudPickZone) {
+            this.cloudPickZone.style.display = 'none';
+        }
         if (this.attachmentPanelTitle) {
             this.attachmentPanelTitle.innerHTML = '<i class="fas fa-paperclip me-1"></i>选择附件类型';
         }
@@ -4210,6 +4223,204 @@ class AgentChat {
             this.attachmentPanelTitle.innerHTML = '<i class="fas fa-cloud-upload-alt me-1"></i>上传文件';
         }
         this.currentAttachmentType = 'file-upload';
+    }
+
+    /**
+     * 显示云盘文件选择器
+     */
+    showCloudPickZone() {
+        if (this.attachmentTypeList) this.attachmentTypeList.style.display = 'none';
+        if (this.attachmentContentList) this.attachmentContentList.style.display = 'none';
+        if (this.attachmentUploadZone) this.attachmentUploadZone.style.display = 'none';
+        if (this.cloudPickZone) this.cloudPickZone.style.display = 'block';
+        if (this.attachmentPanelTitle) {
+            this.attachmentPanelTitle.innerHTML = '<i class="fas fa-hdd me-1"></i>从云盘选择文件';
+        }
+        this.currentAttachmentType = 'cloud-pick';
+        this.cloudPickSelected.clear();
+        this.updateCloudPickCount();
+        this.loadCloudPickFiles();
+
+        // 绑定返回和确认按钮
+        if (this.cloudPickBackBtn) {
+            this.cloudPickBackBtn.onclick = (e) => { e.stopPropagation(); this.showAttachmentTypeList(); };
+        }
+        if (this.cloudPickConfirmBtn) {
+            this.cloudPickConfirmBtn.onclick = (e) => { e.stopPropagation(); this.confirmCloudPick(); };
+        }
+    }
+
+    /**
+     * 加载云盘文件列表（使用 /api/files/pick/ 接口）
+     */
+    async loadCloudPickFiles() {
+        if (!this.cloudPickTree) return;
+        this.cloudPickTree.innerHTML = '<div class="text-center text-muted py-3"><i class="fas fa-spinner fa-spin me-1"></i>加载中...</div>';
+
+        try {
+            const resp = await fetch('/api/files/pick/', { credentials: 'same-origin' });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            this.renderCloudPickTree(data.tree || []);
+        } catch (err) {
+            this.cloudPickTree.innerHTML = `<div class="text-center text-muted py-3">加载失败: ${err.message}</div>`;
+        }
+    }
+
+    /**
+     * 渲染云盘文件树（可勾选）
+     */
+    renderCloudPickTree(tree) {
+        if (!this.cloudPickTree) return;
+        if (!tree || tree.length === 0) {
+            this.cloudPickTree.innerHTML = '<div class="text-center text-muted py-3">云盘中暂无文件</div>';
+            return;
+        }
+
+        const categoryIcons = { 'document': 'fa-file-alt', 'image': 'fa-image' };
+        const typeIcons = { 'pdf': 'fa-file-pdf', 'word': 'fa-file-word', 'excel': 'fa-file-excel' };
+
+        const getMimeIcon = (mime, cat) => {
+            if (cat === 'image') return 'fa-image';
+            if (mime?.includes('pdf')) return 'fa-file-pdf';
+            if (mime?.includes('word') || mime?.includes('msword')) return 'fa-file-word';
+            if (mime?.includes('excel') || mime?.includes('spreadsheet')) return 'fa-file-excel';
+            return 'fa-file-alt';
+        };
+
+        const formatSize = (bytes) => {
+            if (!bytes) return '';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        };
+
+        const buildNode = (node) => {
+            if (node.type === 'folder') {
+                const childrenHtml = (node.children || []).map(c => buildNode(c)).join('');
+                return `
+                    <div class="cloud-pick-folder">
+                        <div class="cloud-pick-folder-header" data-folder-id="${node.id}">
+                            <i class="fas fa-chevron-right cloud-pick-chevron"></i>
+                            <i class="fas fa-folder me-1" style="color: var(--accent-color);"></i>
+                            <span>${this.escapeHtml(node.name)}</span>
+                        </div>
+                        <div class="cloud-pick-children" style="display:none;">
+                            ${childrenHtml}
+                        </div>
+                    </div>`;
+            } else {
+                const icon = getMimeIcon(node.mime_type, node.category);
+                const checked = this.cloudPickSelected.has(node.id) ? 'checked' : '';
+                return `
+                    <div class="cloud-pick-file" data-file-id="${node.id}">
+                        <input type="checkbox" class="cloud-pick-cb" ${checked}>
+                        <i class="fas ${icon} me-1"></i>
+                        <span class="cloud-pick-filename">${this.escapeHtml(node.filename)}</span>
+                        <span class="cloud-pick-size text-muted ms-auto">${formatSize(node.file_size)}</span>
+                    </div>`;
+            }
+        };
+
+        this.cloudPickTree.innerHTML = tree.map(n => buildNode(n)).join('');
+
+        // Bind folder toggle
+        this.cloudPickTree.querySelectorAll('.cloud-pick-folder-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const children = header.nextElementSibling;
+                const chevron = header.querySelector('.cloud-pick-chevron');
+                if (children) {
+                    const open = children.style.display !== 'none';
+                    children.style.display = open ? 'none' : 'block';
+                    if (chevron) chevron.style.transform = open ? '' : 'rotate(90deg)';
+                }
+            });
+        });
+
+        // Bind file checkbox
+        this.cloudPickTree.querySelectorAll('.cloud-pick-file').forEach(el => {
+            el.addEventListener('click', (e) => {
+                if (e.target.tagName === 'INPUT') return; // let checkbox handle itself
+                const cb = el.querySelector('.cloud-pick-cb');
+                if (cb) cb.checked = !cb.checked;
+                this.toggleCloudPickFile(el, cb?.checked);
+            });
+            const cb = el.querySelector('.cloud-pick-cb');
+            if (cb) {
+                cb.addEventListener('change', () => this.toggleCloudPickFile(el, cb.checked));
+            }
+        });
+    }
+
+    /**
+     * 切换云盘文件选中状态
+     */
+    toggleCloudPickFile(el, checked) {
+        const fileId = parseInt(el.dataset.fileId);
+        if (checked) {
+            this.cloudPickSelected.set(fileId, {
+                id: fileId,
+                filename: el.querySelector('.cloud-pick-filename')?.textContent || '',
+            });
+            el.classList.add('selected');
+        } else {
+            this.cloudPickSelected.delete(fileId);
+            el.classList.remove('selected');
+        }
+        this.updateCloudPickCount();
+    }
+
+    updateCloudPickCount() {
+        const count = this.cloudPickSelected.size;
+        if (this.cloudPickCount) this.cloudPickCount.textContent = count;
+        if (this.cloudPickFooter) this.cloudPickFooter.style.display = count > 0 ? 'flex' : 'none';
+    }
+
+    /**
+     * 确认从云盘加载选中文件
+     */
+    async confirmCloudPick() {
+        if (this.cloudPickSelected.size === 0) return;
+
+        const fileIds = Array.from(this.cloudPickSelected.keys());
+        const sessionId = this.currentSessionId;
+        if (!sessionId) {
+            this.showNotification('请先开始对话', 'warning');
+            return;
+        }
+
+        try {
+            const resp = await fetch('/api/agent/attachments/from-cloud/', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken(),
+                },
+                body: JSON.stringify({ file_ids: fileIds, session_id: sessionId }),
+            });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.error || `HTTP ${resp.status}`);
+            }
+            const data = await resp.json();
+
+            // 将加载的附件加入已选列表
+            for (const att of (data.attachments || [])) {
+                this.selectedAttachments.push({
+                    type: att.type,
+                    id: att.cloud_file_id || att.id,
+                    name: att.filename,
+                    sa_id: att.id,
+                });
+            }
+            this.updateAttachmentBadge();
+            this.renderSelectedAttachments();
+            this.hideAttachmentPanel();
+            this.showNotification(`已加载 ${data.attachments?.length || 0} 个云盘文件`, 'success');
+        } catch (err) {
+            this.showNotification(`加载失败: ${err.message}`, 'error');
+        }
     }
 
     /**

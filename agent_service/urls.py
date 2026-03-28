@@ -98,6 +98,7 @@ urlpatterns = [
     path('attachments/', views_api.get_attachable_items, name='get_attachable_items'),
     path('attachments/format/', views_api.format_attachment_content, name='format_attachment_content'),
     path('attachments/upload/', views_api.upload_attachment, name='upload_attachment'),
+    path('attachments/from-cloud/', views_api.create_attachment_from_cloud, name='attachment_from_cloud'),
     path('attachments/internal/', views_api.attach_internal, name='attach_internal'),
     path('attachments/list/', views_api.list_session_attachments, name='list_session_attachments'),
     path('attachments/<int:attachment_id>/delete/', views_api.delete_attachment, name='delete_attachment'),

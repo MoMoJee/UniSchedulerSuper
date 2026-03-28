@@ -898,6 +898,12 @@
                                     <span>上传文件</span>
                                     <span class="badge bg-info ms-auto">图片/文档</span>
                                 </div>
+                                <!-- 从云盘加载 -->
+                                <div class="attachment-type-item" data-type="cloud-pick">
+                                    <i class="fas fa-hdd"></i>
+                                    <span>从云盘加载</span>
+                                    <i class="fas fa-chevron-right ms-auto"></i>
+                                </div>
                                 <hr class="my-1 mx-2" style="border-color: var(--card-border);">
                                 <!-- 内部元素 -->
                                 <div class="attachment-type-item" data-type="workflow">
@@ -947,6 +953,22 @@
                                 </div>
                                 <div class="attachment-content-items" id="attachmentContentItems">
                                     <!-- 动态加载 -->
+                                </div>
+                            </div>
+                            <!-- 云盘文件选择器 -->
+                            <div class="cloud-pick-zone" id="cloudPickZone" style="display: none;">
+                                <div class="attachment-back-btn" id="cloudPickBackBtn">
+                                    <i class="fas fa-arrow-left me-2"></i>返回
+                                </div>
+                                <div class="cloud-pick-tree" id="cloudPickTree">
+                                    <div class="text-center text-muted py-3">
+                                        <i class="fas fa-spinner fa-spin me-1"></i>加载中...
+                                    </div>
+                                </div>
+                                <div class="cloud-pick-footer" id="cloudPickFooter" style="display: none;">
+                                    <button class="btn btn-sm btn-primary" id="cloudPickConfirmBtn">
+                                        确认加载 (<span id="cloudPickCount">0</span>)
+                                    </button>
                                 </div>
                             </div>
                         </div>

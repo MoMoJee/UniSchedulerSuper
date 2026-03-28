@@ -27,6 +27,7 @@ DEFAULT_URL_DOMAIN_WHITELIST = [
     'raw.githubusercontent.com',
     'gist.githubusercontent.com',
     'objects.githubusercontent.com',
+    'github.com',
     # 文件分享
     'dl.dropboxusercontent.com',
     'drive.google.com',

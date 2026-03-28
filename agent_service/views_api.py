@@ -1534,6 +1534,13 @@ def upload_attachment(request):
     result = AttachmentHandler.handle_upload(user, session_id, uploaded_file)
 
     if result['success']:
+        # 同步到云盘（成功上传 SessionAttachment 后）
+        try:
+            from file_service.sync import sync_chat_upload_to_cloud
+            sync_chat_upload_to_cloud(request.user, request.FILES['file'], result['attachment'])
+        except Exception as e:
+            logger.warning(f"同步到云盘失败（不影响聊天功能）: {e}")
+
         return Response({
             "success": True,
             "attachment": result['attachment'].to_api_dict(),
@@ -1543,6 +1550,72 @@ def upload_attachment(request):
             {"success": False, "error": result['error']},
             status=status.HTTP_400_BAD_REQUEST
         )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_attachment_from_cloud(request):
+    """
+    从云盘文件创建 SessionAttachment（不重复上传/解析）
+
+    POST /api/agent/attachments/from-cloud/
+    Body: {
+        "file_ids": [42, 55],
+        "session_id": "user_1_xxx"
+    }
+    """
+    from file_service.models import UserFile
+
+    file_ids = request.data.get('file_ids', [])
+    session_id = request.data.get('session_id', '')
+
+    if not file_ids or not session_id:
+        return Response({"error": "缺少 file_ids 或 session_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not session_id.startswith(f"user_{request.user.id}_"):
+        return Response({"error": "无权访问此会话"}, status=status.HTTP_403_FORBIDDEN)
+
+    cloud_files = UserFile.objects.filter(
+        id__in=file_ids, user=request.user, is_deleted=False
+    )
+
+    created = []
+    for cf in cloud_files:
+        att_type = SessionAttachment.ALLOWED_MIME_TYPES.get(cf.mime_type, 'pdf')
+
+        att = SessionAttachment(
+            user=request.user,
+            session_id=session_id,
+            type=att_type,
+            filename=cf.filename,
+            mime_type=cf.mime_type,
+            file_size=cf.file_size,
+            file=cf.original_file,
+            parsed_text=cf.parsed_markdown if cf.is_document else '',
+            parse_status='completed' if cf.is_parsed else 'none',
+            cloud_file=cf,
+        )
+
+        # 图片需要按需生成 base64
+        if cf.is_image:
+            try:
+                from agent_service.parsers.image_parser import ImageParser
+                ip = ImageParser()
+                att.base64_data = ip._generate_base64(cf.original_file.path)
+                att.parse_status = 'completed'
+            except Exception as e:
+                logger.warning(f"生成图片 base64 失败: {e}")
+
+        att.save()
+        created.append({
+            "id": att.id,
+            "filename": att.filename,
+            "type": att.type,
+            "cloud_file_id": cf.id,
+        })
+
+    logger.info(f"从云盘加载 {len(created)} 个文件为附件, session={session_id}")
+    return Response({"attachments": created})
 
 
 @api_view(['POST'])
