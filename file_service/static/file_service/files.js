@@ -15,6 +15,7 @@ const state = {
     viewMode: 'list',         // 'list' | 'grid'
     folders: [],
     files: [],
+    allFolders: [],           // 完整文件夹树
     quota: null,
     breadcrumb: [],
     searchTimeout: null,
@@ -23,6 +24,7 @@ const state = {
     moveTargetFolderId: undefined,
     renameTargetType: null,    // 'file' | 'folder'
     renameTargetId: null,
+    dragItem: null,            // 当前被拖拽的文件/文件夹 { type, id, name }
 };
 
 /* ============================================
@@ -90,6 +92,7 @@ const fileManager = {
     // ---------- 初始化 ----------
     init() {
         this.loadFiles();
+        this.loadFileTree();
         this.initDragDrop();
         this.initContextMenuClose();
     },
@@ -111,9 +114,120 @@ const fileManager = {
             this.renderBreadcrumb();
             this.renderFileList();
             this.renderQuota();
+            this.highlightTreeNode();
         } catch (e) {
             showToast('加载文件失败: ' + e.message, 'error');
         }
+    },
+
+    // ---------- 文件树 ----------
+    async loadFileTree() {
+        try {
+            const res = await fetch(`${API_BASE}/pick/`, { credentials: 'same-origin' });
+            const data = await res.json();
+            state.allFolders = data.folders || [];
+            this.renderFileTree();
+        } catch (e) {
+            document.getElementById('fileTree').innerHTML = '<div class="tree-empty">加载失败</div>';
+        }
+    },
+
+    renderFileTree() {
+        const tree = document.getElementById('fileTree');
+        const folders = state.allFolders;
+
+        // 构建层级
+        const childrenMap = {};   // parent_id -> [folder]
+        folders.forEach(f => {
+            const pid = f.parent_id || 'root';
+            if (!childrenMap[pid]) childrenMap[pid] = [];
+            childrenMap[pid].push(f);
+        });
+
+        const buildNode = (parentId) => {
+            const children = childrenMap[parentId] || [];
+            if (children.length === 0) return '';
+            return children.map(f => {
+                const hasChildren = !!childrenMap[f.id];
+                const isActive = state.currentFolderId === f.id;
+                const chevron = hasChildren
+                    ? `<i class="fas fa-chevron-right tree-chevron" onclick="event.stopPropagation(); fileManager.toggleTreeNode(this)"></i>`
+                    : '<span class="tree-chevron-placeholder"></span>';
+                return `<div class="tree-node">
+                    <div class="tree-item${isActive ? ' active' : ''}" data-folder-id="${f.id}"
+                         onclick="fileManager.navigate(${f.id})"
+                         ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                         ondragleave="this.classList.remove('drag-over')"
+                         ondrop="fileManager.handleTreeDrop(event, ${f.id}); this.classList.remove('drag-over')">
+                        ${chevron}
+                        <i class="fas fa-folder me-1 tree-folder-icon"></i>
+                        <span class="tree-item-name" title="${this.escAttr(f.name)}">${this.escHtml(f.name)}</span>
+                    </div>
+                    <div class="tree-children" style="display:none;">${buildNode(f.id)}</div>
+                </div>`;
+            }).join('');
+        };
+
+        const rootActive = state.currentFolderId === null;
+        tree.innerHTML = `
+            <div class="tree-item root-tree-item${rootActive ? ' active' : ''}" data-folder-id=""
+                 onclick="fileManager.navigate(null)"
+                 ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondrop="fileManager.handleTreeDrop(event, null); this.classList.remove('drag-over')">
+                <i class="fas fa-home me-1"></i>
+                <span class="tree-item-name">全部文件</span>
+            </div>
+            ${buildNode('root')}
+        `;
+
+        this.highlightTreeNode();
+    },
+
+    toggleTreeNode(chevron) {
+        chevron.classList.toggle('expanded');
+        const children = chevron.closest('.tree-node').querySelector('.tree-children');
+        if (children) children.style.display = children.style.display === 'none' ? '' : 'none';
+    },
+
+    highlightTreeNode() {
+        document.querySelectorAll('.tree-item').forEach(el => {
+            const fid = el.dataset.folderId;
+            const isActive = fid === '' ? state.currentFolderId === null : parseInt(fid) === state.currentFolderId;
+            el.classList.toggle('active', isActive);
+        });
+        // 自动展开到当前节点的祖先
+        if (state.currentFolderId !== null) {
+            const active = document.querySelector(`.tree-item[data-folder-id="${state.currentFolderId}"]`);
+            if (active) {
+                let parent = active.closest('.tree-children');
+                while (parent) {
+                    parent.style.display = '';
+                    const chevron = parent.previousElementSibling?.querySelector('.tree-chevron');
+                    if (chevron) chevron.classList.add('expanded');
+                    parent = parent.parentElement?.closest('.tree-children');
+                }
+            }
+        }
+    },
+
+    handleTreeDrop(event, targetFolderId) {
+        event.preventDefault();
+        // 如果是从外部拖入的文件
+        if (event.dataTransfer.files.length > 0) {
+            const prevFolder = state.currentFolderId;
+            state.currentFolderId = targetFolderId;
+            this.uploadFiles(Array.from(event.dataTransfer.files));
+            state.currentFolderId = prevFolder;
+            return;
+        }
+        if (!state.dragItem) return;
+        const { type, id } = state.dragItem;
+        if (type === 'file') {
+            this.moveFileTo(id, targetFolderId);
+        }
+        state.dragItem = null;
+        this.hideDragTrash();
     },
 
     // ---------- 渲染面包屑 ----------
@@ -152,16 +266,48 @@ const fileManager = {
 
         let html = '';
 
+        // 返回上级目录按钮 (当不在根目录时)
+        if (state.currentFolderId !== null) {
+            const parentId = this.getParentFolderId();
+            if (isGrid) {
+                html += `<div class="file-item-grid parent-dir-item"
+                    ondblclick="fileManager.navigate(${parentId === null ? 'null' : parentId})"
+                    ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                    ondragleave="this.classList.remove('drag-over')"
+                    ondrop="fileManager.handleFolderItemDrop(event, ${parentId === null ? 'null' : parentId}); this.classList.remove('drag-over')">
+                    <div class="file-icon icon-parent"><i class="fas fa-level-up-alt"></i></div>
+                    <div class="file-name">返回上级</div>
+                </div>`;
+            } else {
+                html += `<div class="file-item-list parent-dir-item"
+                    ondblclick="fileManager.navigate(${parentId === null ? 'null' : parentId})"
+                    ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                    ondragleave="this.classList.remove('drag-over')"
+                    ondrop="fileManager.handleFolderItemDrop(event, ${parentId === null ? 'null' : parentId}); this.classList.remove('drag-over')">
+                    <div class="file-icon icon-parent"><i class="fas fa-level-up-alt"></i></div>
+                    <div class="file-info">
+                        <div class="file-name">返回上级</div>
+                    </div>
+                </div>`;
+            }
+        }
+
         // 文件夹
         state.folders.forEach(f => {
             if (isGrid) {
-                html += `<div class="file-item-grid" ondblclick="fileManager.navigate(${f.id})" oncontextmenu="fileManager.showFolderMenu(event, ${f.id}, '${this.escAttr(f.name)}')">
+                html += `<div class="file-item-grid" ondblclick="fileManager.navigate(${f.id})" oncontextmenu="fileManager.showFolderMenu(event, ${f.id}, '${this.escAttr(f.name)}')"
+                    ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                    ondragleave="this.classList.remove('drag-over')"
+                    ondrop="fileManager.handleFolderItemDrop(event, ${f.id}); this.classList.remove('drag-over')">
                     <div class="file-icon icon-folder"><i class="fas fa-folder"></i></div>
                     <div class="file-name" title="${this.escAttr(f.name)}">${this.escHtml(f.name)}</div>
                     <div class="file-meta">${f.file_count || 0} 个文件</div>
                 </div>`;
             } else {
-                html += `<div class="file-item-list" ondblclick="fileManager.navigate(${f.id})" oncontextmenu="fileManager.showFolderMenu(event, ${f.id}, '${this.escAttr(f.name)}')">
+                html += `<div class="file-item-list" ondblclick="fileManager.navigate(${f.id})" oncontextmenu="fileManager.showFolderMenu(event, ${f.id}, '${this.escAttr(f.name)}')"
+                    ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                    ondragleave="this.classList.remove('drag-over')"
+                    ondrop="fileManager.handleFolderItemDrop(event, ${f.id}); this.classList.remove('drag-over')">
                     <div class="file-icon icon-folder"><i class="fas fa-folder"></i></div>
                     <div class="file-info">
                         <div class="file-name">${this.escHtml(f.name)}</div>
@@ -176,15 +322,19 @@ const fileManager = {
             const [iconCls, iconBg] = getFileIconClass(f.category, f.mime_type, f.filename);
             const statusHtml = getStatusLabel(f.parse_status);
             const ctxCallArgs = `event, ${f.id}, '${this.escAttr(f.filename)}', '${f.category}', '${f.parse_status}'`;
+            const dragStart = `fileManager.startDragItem(event, 'file', ${f.id}, '${this.escAttr(f.filename)}')`;
+            const dragEnd = `fileManager.endDragItem()`;
 
             if (isGrid) {
-                html += `<div class="file-item-grid" ondblclick="fileManager.openFile(${f.id}, '${f.category}', '${f.parse_status}')" oncontextmenu="fileManager.showFileMenu(${ctxCallArgs})">
+                html += `<div class="file-item-grid" draggable="true" ondragstart="${dragStart}" ondragend="${dragEnd}"
+                    ondblclick="fileManager.openFile(${f.id}, '${f.category}', '${f.parse_status}')" oncontextmenu="fileManager.showFileMenu(${ctxCallArgs})">
                     <div class="file-icon ${iconBg}"><i class="${iconCls}"></i></div>
                     <div class="file-name" title="${this.escAttr(f.filename)}">${this.escHtml(f.filename)}</div>
                     <div class="file-meta">${formatSize(f.file_size)}</div>
                 </div>`;
             } else {
-                html += `<div class="file-item-list" ondblclick="fileManager.openFile(${f.id}, '${f.category}', '${f.parse_status}')" oncontextmenu="fileManager.showFileMenu(${ctxCallArgs})">
+                html += `<div class="file-item-list" draggable="true" ondragstart="${dragStart}" ondragend="${dragEnd}"
+                    ondblclick="fileManager.openFile(${f.id}, '${f.category}', '${f.parse_status}')" oncontextmenu="fileManager.showFileMenu(${ctxCallArgs})">
                     <div class="file-icon ${iconBg}"><i class="${iconCls}"></i></div>
                     <div class="file-info">
                         <div class="file-name">${this.escHtml(f.filename)}</div>
@@ -212,13 +362,7 @@ const fileManager = {
     // ---------- 导航 ----------
     navigate(folderId) {
         state.currentFolderId = folderId;
-        this.loadFiles();
-    },
-
-    filterCategory(el, category) {
-        state.currentCategory = category;
-        document.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
-        el.classList.add('active');
+        state.currentCategory = '';
         this.loadFiles();
     },
 
@@ -297,17 +441,30 @@ const fileManager = {
         const overlay = document.getElementById('dropOverlay');
         let dragCounter = 0;
 
-        main.addEventListener('dragenter', e => { e.preventDefault(); dragCounter++; overlay.classList.add('active'); });
+        main.addEventListener('dragenter', e => {
+            e.preventDefault();
+            dragCounter++;
+            // 仅对外部文件显示上传覆盖层
+            if (!state.dragItem) overlay.classList.add('active');
+        });
         main.addEventListener('dragleave', e => { e.preventDefault(); dragCounter--; if (dragCounter <= 0) { overlay.classList.remove('active'); dragCounter = 0; } });
         main.addEventListener('dragover', e => e.preventDefault());
         main.addEventListener('drop', e => {
             e.preventDefault();
             dragCounter = 0;
             overlay.classList.remove('active');
-            if (e.dataTransfer.files.length > 0) {
+            if (e.dataTransfer.files.length > 0 && !state.dragItem) {
                 this.uploadFiles(Array.from(e.dataTransfer.files));
             }
         });
+
+        // 垃圾桶拖拽区域
+        const trashZone = document.getElementById('dragTrashZone');
+        if (trashZone) {
+            trashZone.addEventListener('dragover', e => { e.preventDefault(); trashZone.classList.add('drag-over'); });
+            trashZone.addEventListener('dragleave', () => trashZone.classList.remove('drag-over'));
+            trashZone.addEventListener('drop', e => this.handleTrashDrop(e));
+        }
     },
 
     // ---------- URL 上传 ----------
@@ -382,6 +539,7 @@ const fileManager = {
                 showToast('文件夹已创建', 'success');
                 this.closeModal('createFolderModal');
                 this.loadFiles();
+                this.loadFileTree();
             } else {
                 showToast(data.error || '创建失败', 'error');
             }
@@ -551,6 +709,7 @@ const fileManager = {
                 showToast('已重命名', 'success');
                 this.closeModal('renameModal');
                 this.loadFiles();
+                this.loadFileTree();
             } else {
                 const data = await res.json();
                 showToast(data.error || '重命名失败', 'error');
@@ -646,6 +805,114 @@ const fileManager = {
             if (res.ok) {
                 showToast('文件夹已删除', 'success');
                 this.loadFiles();
+                this.loadFileTree();
+            } else {
+                const data = await res.json();
+                showToast(data.error || '删除失败', 'error');
+            }
+        } catch (e) {
+            showToast('删除失败', 'error');
+        }
+    },
+
+    // ---------- 拖拽移动/删除 ----------
+    getParentFolderId() {
+        if (state.breadcrumb.length >= 2) {
+            return state.breadcrumb[state.breadcrumb.length - 2].id;
+        }
+        return null;
+    },
+
+    startDragItem(event, type, id, name) {
+        state.dragItem = { type, id, name };
+        event.dataTransfer.setData('text/plain', `${type}:${id}`);
+        event.dataTransfer.effectAllowed = 'move';
+        // 显示垃圾桶
+        setTimeout(() => this.showDragTrash(), 0);
+    },
+
+    endDragItem() {
+        state.dragItem = null;
+        this.hideDragTrash();
+        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    },
+
+    showDragTrash() {
+        const zone = document.getElementById('dragTrashZone');
+        if (zone) zone.style.display = '';
+    },
+
+    hideDragTrash() {
+        const zone = document.getElementById('dragTrashZone');
+        if (zone) {
+            zone.style.display = 'none';
+            zone.classList.remove('drag-over');
+        }
+    },
+
+    handleFolderItemDrop(event, targetFolderId) {
+        event.preventDefault();
+        event.currentTarget.classList.remove('drag-over');
+        // 外部文件
+        if (event.dataTransfer.files.length > 0) {
+            const prevFolder = state.currentFolderId;
+            state.currentFolderId = targetFolderId;
+            this.uploadFiles(Array.from(event.dataTransfer.files));
+            state.currentFolderId = prevFolder;
+            return;
+        }
+        if (!state.dragItem) return;
+        const { type, id } = state.dragItem;
+        if (type === 'file') {
+            this.moveFileTo(id, targetFolderId);
+        }
+        state.dragItem = null;
+        this.hideDragTrash();
+    },
+
+    async moveFileTo(fileId, targetFolderId) {
+        try {
+            const res = await fetch(`${API_BASE}/${fileId}/move/`, {
+                method: 'PUT',
+                headers: apiJsonHeaders(),
+                credentials: 'same-origin',
+                body: JSON.stringify({ folder_id: targetFolderId }),
+            });
+            if (res.ok) {
+                showToast('已移动', 'success');
+                this.loadFiles();
+                this.loadFileTree();
+            } else {
+                const data = await res.json();
+                showToast(data.error || '移动失败', 'error');
+            }
+        } catch (e) {
+            showToast('移动失败', 'error');
+        }
+    },
+
+    async handleTrashDrop(event) {
+        event.preventDefault();
+        const zone = document.getElementById('dragTrashZone');
+        if (zone) zone.classList.remove('drag-over');
+        if (!state.dragItem) return;
+        const { type, id, name } = state.dragItem;
+        state.dragItem = null;
+        this.hideDragTrash();
+
+        if (!confirm(`确定要删除"${name}"吗？`)) return;
+
+        try {
+            const url = type === 'file' ? `${API_BASE}/${id}/` : `${API_BASE}/folders/${id}/`;
+            const res = await fetch(url, {
+                method: 'DELETE',
+                headers: apiHeaders(),
+                credentials: 'same-origin',
+            });
+            if (res.ok) {
+                showToast('已删除', 'success');
+                this.loadFiles();
+                this.loadFileTree();
             } else {
                 const data = await res.json();
                 showToast(data.error || '删除失败', 'error');
@@ -818,9 +1085,90 @@ function showToast(message, type = 'info') {
 
 
 /* ============================================
+   主题管理
+   ============================================ */
+
+const filesTheme = {
+    async init() {
+        try {
+            const resp = await fetch('/get_calendar/user_settings/', {
+                credentials: 'same-origin',
+            });
+            if (resp.ok) {
+                window.userSettings = await resp.json();
+            }
+        } catch (e) {
+            console.warn('加载用户设置失败', e);
+        }
+        if (window.themeManager) {
+            window.themeManager.init();
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            this.highlightActive(current);
+        }
+        // 点击外部关闭下拉
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('themeDropdown');
+            if (dropdown && !e.target.closest('.theme-switcher')) {
+                dropdown.style.display = 'none';
+            }
+        });
+    },
+
+    toggle() {
+        const dropdown = document.getElementById('themeDropdown');
+        if (!dropdown) return;
+        dropdown.style.display = dropdown.style.display === 'none' ? '' : 'none';
+    },
+
+    apply(theme) {
+        if (window.themeManager) {
+            window.themeManager.applyTheme(theme, false); // 不依赖 settingsManager 保存
+        } else {
+            document.documentElement.setAttribute('data-theme', theme);
+        }
+        this.highlightActive(theme);
+        const dropdown = document.getElementById('themeDropdown');
+        if (dropdown) dropdown.style.display = 'none';
+
+        // 直接保存到用户设置
+        this.saveThemeToServer(theme);
+    },
+
+    async saveThemeToServer(theme) {
+        // 更新本地
+        if (window.userSettings) {
+            window.userSettings.theme = theme;
+        }
+        try {
+            const settings = window.userSettings || {};
+            settings.theme = theme;
+            await fetch('/get_calendar/user_settings/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(settings),
+            });
+        } catch (e) {
+            console.warn('保存主题失败', e);
+        }
+    },
+
+    highlightActive(theme) {
+        document.querySelectorAll('.theme-option').forEach(opt => {
+            opt.classList.toggle('active', opt.dataset.theme === theme);
+        });
+    },
+};
+
+
+/* ============================================
    初始化
    ============================================ */
 
 document.addEventListener('DOMContentLoaded', () => {
+    filesTheme.init();
     fileManager.init();
 });

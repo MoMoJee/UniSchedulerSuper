@@ -15,7 +15,7 @@ from django.core.files.uploadedfile import InMemoryUploadedFile, TemporaryUpload
 
 from file_service.models import UserFile, UserStorageQuota
 
-logger = logging.getLogger(__name__)
+from logger import logger
 
 # ========== 域名白名单 ==========
 DEFAULT_URL_DOMAIN_WHITELIST = [

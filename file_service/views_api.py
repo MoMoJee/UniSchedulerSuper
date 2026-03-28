@@ -1,9 +1,11 @@
-import logging
+import io
 import os
 import re
-from urllib.parse import quote
+import zipfile
+from urllib.parse import quote, urlparse
 
-from django.http import FileResponse
+import requests as http_requests
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -13,7 +15,7 @@ from file_service.models import UserFile, UserFolder, UserStorageQuota
 from file_service.parser import _strip_markdown, preparse_document, should_preparse
 from file_service.storage import compute_file_hash
 
-logger = logging.getLogger(__name__)
+from logger import logger
 
 
 # ============================================================
@@ -54,12 +56,11 @@ def _core_upload(user, file_obj, folder=None, source='upload') -> dict:
     file_hash = compute_file_hash(file_obj)
 
     # 5. 同文件夹去重检查
-    if folder:
-        existing = UserFile.objects.filter(
-            user=user, folder=folder, file_hash=file_hash, is_deleted=False
-        ).first()
-        if existing:
-            return {"success": False, "error": "该文件夹中已存在相同文件", "status": 400}
+    existing = UserFile.objects.filter(
+        user=user, folder=folder, file_hash=file_hash, is_deleted=False
+    ).first()
+    if existing:
+        return {"success": False, "error": "该文件夹中已存在相同文件", "status": 400}
 
     # 6. 确定分类
     category = UserFile.ALLOWED_MIME_TYPES[mime_type]
@@ -135,8 +136,10 @@ def upload_files(request):
         result = _core_upload(request.user, f, folder=folder)
         if result['success']:
             results.append(result['file'].to_api_dict())
+            logger.info("用户 %s 上传文件: %s (%.1f KB)", request.user.username, f.name, f.size / 1024)
         else:
             errors.append({"filename": f.name, "error": result['error']})
+            logger.warning("用户 %s 上传文件失败: %s - %s", request.user.username, f.name, result['error'])
 
     status_code = 201 if results else 400
     return Response({
@@ -174,6 +177,7 @@ def upload_from_url(request):
     upload_result = _core_upload(request.user, file_obj, folder=folder, source='url')
 
     if not upload_result['success']:
+        logger.warning("用户 %s URL上传失败: %s - %s", request.user.username, url, upload_result['error'])
         return Response({"error": upload_result['error']}, status=upload_result.get('status', 400))
 
     # 记录源 URL
@@ -181,6 +185,7 @@ def upload_from_url(request):
     user_file.source_url = url
     user_file.save(update_fields=['source_url'])
 
+    logger.info("用户 %s 通过URL上传文件: %s -> %s", request.user.username, url, user_file.filename)
     return Response({"file": user_file.to_api_dict()}, status=201)
 
 
@@ -260,25 +265,19 @@ def list_files(request):
 # 文件详情
 # ============================================================
 
-@api_view(['GET'])
+@api_view(['GET', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def get_file(request, file_id):
-    """GET /api/files/<id>/"""
+    """GET /api/files/<id>/  查看文件详情
+    DELETE /api/files/<id>/  软删除文件"""
     user_file = get_object_or_404(UserFile, id=file_id, user=request.user, is_deleted=False)
+
+    if request.method == 'DELETE':
+        user_file.soft_delete()
+        logger.info("用户 %s 删除文件: %s (id=%d)", request.user.username, user_file.filename, file_id)
+        return Response({"message": "文件已删除"})
+
     return Response(user_file.to_api_dict(include_content=True))
-
-
-# ============================================================
-# 文件删除（软删除）
-# ============================================================
-
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def delete_file(request, file_id):
-    """DELETE /api/files/<id>/"""
-    user_file = get_object_or_404(UserFile, id=file_id, user=request.user, is_deleted=False)
-    user_file.soft_delete()
-    return Response({"message": "文件已删除"})
 
 
 # ============================================================
@@ -323,6 +322,7 @@ def move_file(request, file_id):
 
     user_file.folder = target_folder
     user_file.save(update_fields=['folder', 'updated_at'])
+    logger.info("用户 %s 移动文件 %s 到 %s", request.user.username, user_file.filename, target_folder.path if target_folder else '根目录')
     return Response({"id": user_file.id, "folder_id": user_file.folder_id})
 
 
@@ -351,18 +351,66 @@ def download_file(request, file_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def download_markdown(request, file_id):
-    """GET /api/files/<id>/download-md/  下载解析后的 Markdown"""
+    """GET /api/files/<id>/download-md/  下载解析后的 Markdown
+    如果 Markdown 中包含图片链接，则将 .md 和图片打包为 zip 下载。
+    """
     user_file = get_object_or_404(UserFile, id=file_id, user=request.user, is_deleted=False)
     if not user_file.parsed_markdown:
         return Response({"error": "该文件无 Markdown 内容"}, status=404)
 
-    md_filename = os.path.splitext(user_file.filename)[0] + '.md'
-    response = FileResponse(
-        user_file.parsed_markdown.encode('utf-8'),
-        content_type='text/markdown; charset=utf-8',
+    md_content = user_file.parsed_markdown
+    base_name = os.path.splitext(user_file.filename)[0]
+    md_filename = base_name + '.md'
+
+    # 提取图片链接: ![alt](url) 和 <img src="url">
+    img_pattern = re.compile(
+        r'!\[[^\]]*\]\((https?://[^)]+)\)'
+        r'|<img\s[^>]*src=["\']?(https?://[^\s"\'>\)]+)["\']?',
+        re.IGNORECASE,
     )
+    image_urls = []
+    for m in img_pattern.finditer(md_content):
+        url = m.group(1) or m.group(2)
+        if url and url not in image_urls:
+            image_urls.append(url)
+
+    # 无图片：直接返回 .md 文件
+    if not image_urls:
+        response = HttpResponse(
+            md_content,
+            content_type='text/markdown; charset=utf-8',
+        )
+        response['Content-Disposition'] = (
+            f"attachment; filename*=UTF-8''{quote(md_filename)}"
+        )
+        return response
+
+    # 有图片：打包为 zip
+    logger.info("用户 %s 下载Markdown(含%d张图片): %s", request.user.username, len(image_urls), user_file.filename)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(md_filename, md_content.encode('utf-8'))
+        for idx, img_url in enumerate(image_urls):
+            try:
+                resp = http_requests.get(img_url, timeout=15, stream=True)
+                resp.raise_for_status()
+                # 从 URL 或 Content-Type 推断扩展名
+                path = urlparse(img_url).path
+                ext = os.path.splitext(path)[1]
+                if not ext:
+                    ct = resp.headers.get('Content-Type', '')
+                    ext = '.' + ct.split('/')[-1].split(';')[0].strip() if '/' in ct else '.bin'
+                img_name = f"images/image_{idx + 1}{ext}"
+                zf.writestr(img_name, resp.content)
+            except Exception as e:
+                logger.warning("下载图片失败 %s: %s", img_url, e)
+                continue
+
+    buf.seek(0)
+    zip_filename = base_name + '.zip'
+    response = HttpResponse(buf.read(), content_type='application/zip')
     response['Content-Disposition'] = (
-        f"attachment; filename*=UTF-8''{quote(md_filename)}"
+        f"attachment; filename*=UTF-8''{quote(zip_filename)}"
     )
     return response
 
@@ -447,6 +495,7 @@ def create_folder(request):
     folder = UserFolder.objects.create(
         user=request.user, name=name, parent=parent
     )
+    logger.info("用户 %s 创建文件夹: %s", request.user.username, folder.path)
     return Response({
         "id": folder.id,
         "name": folder.name,
@@ -476,6 +525,7 @@ def delete_folder(request, folder_id):
     # 删除文件夹记录
     UserFolder.objects.filter(id__in=folder_ids).delete()
 
+    logger.info("用户 %s 删除文件夹: %s (含 %d 个子文件夹)", request.user.username, folder.path, len(all_folders))
     return Response({"message": "文件夹已删除"})
 
 
@@ -502,6 +552,7 @@ def rename_folder(request, folder_id):
     old_path = folder.path
     folder.name = new_name
     folder.save()  # save() 会自动重算 path
+    logger.info("用户 %s 重命名文件夹: %s -> %s", request.user.username, old_path, folder.path)
 
     # 递归更新子文件夹的 path
     for child in UserFolder.objects.filter(user=request.user, path__startswith=old_path).exclude(id=folder.id):
