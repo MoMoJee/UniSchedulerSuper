@@ -47,6 +47,7 @@ urlpatterns = [
 
     path('', include('core.urls')),
     path('api/agent/', include('agent_service.urls')),  # Agent Service API
+    path('api/files/', include('file_service.urls')),  # 文件服务 API
     path('.well-known/appspecific/com.chrome.devtools.json', lambda request: __import__('django.http').http.HttpResponse(status=204)),
 ]
 

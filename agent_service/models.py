@@ -1255,6 +1255,15 @@ class SessionAttachment(models.Model):
         help_text="发送时使用的模型 ID"
     )
     
+    # ========== 云盘文件关联 ==========
+    cloud_file = models.ForeignKey(
+        'file_service.UserFile',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='session_references',
+        help_text="关联的云盘文件（从云盘加载时设置）"
+    )
+
     # ========== 软删除支持 ==========
     is_deleted = models.BooleanField(default=False, help_text="是否已软删除")
     deleted_at = models.DateTimeField(null=True, blank=True, help_text="软删除时间")

@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'core',
     'agent_service', # New Agent Service App
     'caldav_service', # CalDAV Service
+    'file_service',  # 云盘文件服务
     'corsheaders',
     'rest_framework',
     'rest_framework.authtoken',
