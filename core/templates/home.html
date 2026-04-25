@@ -392,6 +392,7 @@
                                 <option value="event">日程</option>
                                 <option value="reminder">提醒</option>
                                 <option value="todo">待办</option>
+                                <option value="file">文件</option>
                             </select>
                             
                             <!-- 日程组筛选 -->
@@ -4415,55 +4416,57 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                 events: [],
                 reminders: [],
                 todos: [],
+                files: [],
                 shareGroupEvents: [],  // 分享组中的日程
                 shareGroups: []  // 分享组列表
             },
             
             // 切换搜索栏
             toggle() {
-                // ⭐检查设置菜单是否展开，如果是，先关闭它
+                // 检查设置菜单是否展开，如果是，先关闭它
                 if (!this.isExpanded && settingsMenu.isExpanded) {
-                    settingsMenu.toggle();
-                    // ⭐立即强制清理设置菜单UI，不等待动画
+                    // 强制立即关闭设置菜单（跳过动画），避免两段动画冲突
+                    settingsMenu.isExpanded = false;
                     const expandedMenu = document.getElementById('settingsMenuExpanded');
                     const settingsToggleBtn = document.getElementById('settingsToggleBtn');
+                    const searchContainer = document.getElementById('globalSearchContainer');
                     const island = document.querySelector('.dynamic-island');
                     expandedMenu.style.display = 'none';
                     expandedMenu.classList.remove('closing');
-                    settingsToggleBtn.style.display = 'flex';  // 立即显示设置按钮
-                    const searchContainer = document.getElementById('globalSearchContainer');
-                    searchContainer.style.order = '0';  // 恢复order
-                    island.classList.remove('settings-expanded');  // 移除settings-expanded类
+                    settingsToggleBtn.style.display = 'none';
+                    searchContainer.style.order = '0';
+                    island.classList.remove('settings-expanded');
                 }
                 
                 this.isExpanded = !this.isExpanded;
                 const toggleBtn = document.getElementById('searchToggleBtn');
                 const expandedBar = document.getElementById('searchBarExpanded');
                 const resultsDropdown = document.getElementById('searchResultsDropdown');
-                const settingsToggleBtn = document.getElementById('settingsToggleBtn');  // 获取设置按钮
+                const settingsToggleBtn = document.getElementById('settingsToggleBtn');
                 const island = document.querySelector('.dynamic-island');
                 
                 if (this.isExpanded) {
-                    // 展开动画
+                    // 展开：隐藏两个按钮，显示搜索栏
                     toggleBtn.style.display = 'none';
+                    settingsToggleBtn.style.display = 'none';
                     expandedBar.style.display = 'flex';
                     expandedBar.classList.remove('closing');
                     island.classList.add('search-expanded');
                     document.getElementById('globalSearchInput').focus();
                     this.loadAllData();
                     this.populateGroupFilter();
-                    this.restoreFilterSettings(); // 恢复筛选设置
+                    this.restoreFilterSettings();
                 } else {
-                    // 收起动画
-                    // ⭐立即隐藏设置按钮
-                    settingsToggleBtn.style.display = 'none';
-                    
+                    // 收起：先加 closing 动画 class
                     expandedBar.classList.add('closing');
                     resultsDropdown.style.display = 'none';
-                    island.classList.remove('search-expanded');
                     
-                    // 在动画快结束时(250ms)让两个按钮一起显现
+                    // 动画结束后再切换 island 尺寸和显示按钮
                     setTimeout(() => {
+                        expandedBar.style.display = 'none';
+                        expandedBar.classList.remove('closing');
+                        island.classList.remove('search-expanded');
+                        // 按钮同时淡入
                         toggleBtn.style.display = 'flex';
                         settingsToggleBtn.style.display = 'flex';
                         toggleBtn.classList.add('appearing');
@@ -4471,14 +4474,8 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                         setTimeout(() => {
                             toggleBtn.classList.remove('appearing');
                             settingsToggleBtn.classList.remove('appearing');
-                        }, 350);
-                    }, 250);
-                    
-                    // 等待完整动画完成后清理展开栏
-                    setTimeout(() => {
-                        expandedBar.style.display = 'none';
-                        expandedBar.classList.remove('closing');
-                    }, 350);
+                        }, 300);
+                    }, 300);
                     
                     this.clear();
                 }
@@ -4523,6 +4520,17 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                     const todosData = await todosResponse.json();
                     this.searchData.todos = todosData.todos || [];
                     
+                    // 加载云盘文件
+                    try {
+                        const filesResponse = await fetch('/api/files/pick/');
+                        const filesData = await filesResponse.json();
+                        this.searchData.files = (filesData.files || []).map(f => ({
+                            ...f,
+                            type: 'file',
+                            displayType: f.category === 'image' ? '图片' : '文档'
+                        }));
+                    } catch(e) { console.warn('[GlobalSearch] 加载文件失败:', e); }
+
                     // 加载分享组列表
                     const shareGroupsResponse = await fetch('/api/share-groups/my-groups/');
                     const shareGroupsData = await shareGroupsResponse.json();
@@ -4553,6 +4561,7 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                         shareGroupEvents: this.searchData.shareGroupEvents.length,
                         reminders: this.searchData.reminders.length,
                         todos: this.searchData.todos.length,
+                        files: this.searchData.files.length,
                         shareGroups: this.searchData.shareGroups.length
                     });
                 } catch (error) {
@@ -4670,6 +4679,19 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                     }));
                     results.push(...todoResults);
                 }
+
+                // 搜索文件
+                if (typeFilter === 'all' || typeFilter === 'file') {
+                    const fileResults = this.searchData.files.filter(f =>
+                        this.matchesQuery(f.filename, query)
+                    ).map(f => ({
+                        ...f,
+                        title: f.filename,
+                        type: 'file',
+                        displayType: f.category === 'image' ? '图片' : '文档'
+                    }));
+                    results.push(...fileResults);
+                }
                 
                 this.displayResults(results);
             },
@@ -4737,8 +4759,14 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
             
             // 创建结果项
             createResultItem(item) {
-                const time = item.start || item.trigger_time || item.due_date || '';
-                const timeDisplay = time ? new Date(time).toLocaleString('zh-CN') : '无时间';
+                const time = item.start || item.trigger_time || item.due_date || item.created_at || '';
+                let timeDisplay = '';
+                if (item.type === 'file') {
+                    const sizeKB = item.file_size ? (item.file_size / 1024).toFixed(0) + ' KB' : '';
+                    timeDisplay = sizeKB;
+                } else {
+                    timeDisplay = time ? new Date(time).toLocaleString('zh-CN') : '无时间';
+                }
                 
                 // 构建额外信息（分享组、归属者）
                 let extraInfo = '';
@@ -4819,6 +4847,12 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                         // todoManager.openTodoDetailModal 是正确的函数
                         window.todoManager.openTodoDetailModal(todo);
                     }
+                } else if (type === 'file') {
+                    // 文件：新标签页打开文件所在文件夹
+                    const file = this.searchData.files.find(f => String(f.id) === String(id));
+                    const folderId = file && file.folder_id ? file.folder_id : '';
+                    const url = folderId ? `/files/?folder_id=${folderId}` : '/files/';
+                    window.open(url, '_blank');
                 }
             },
             
@@ -4879,10 +4913,10 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
             
             // 切换设置菜单
             toggle() {
-                // ⭐检查搜索是否展开，如果是，先关闭它
+                // 检查搜索是否展开，如果是，先关闭它
                 if (!this.isExpanded && globalSearch.isExpanded) {
-                    globalSearch.toggle();
-                    // ⭐立即强制清理搜索UI，不等待动画
+                    // 强制立即关闭搜索（跳过动画），避免两段动画冲突
+                    globalSearch.isExpanded = false;
                     const expandedBar = document.getElementById('searchBarExpanded');
                     const searchToggleBtn = document.getElementById('searchToggleBtn');
                     const resultsDropdown = document.getElementById('searchResultsDropdown');
@@ -4890,36 +4924,37 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                     expandedBar.style.display = 'none';
                     expandedBar.classList.remove('closing');
                     resultsDropdown.style.display = 'none';
-                    searchToggleBtn.style.display = 'flex';  // 立即显示搜索按钮
-                    island.classList.remove('search-expanded');  // 移除search-expanded类
+                    searchToggleBtn.style.display = 'none';
+                    island.classList.remove('search-expanded');
+                    globalSearch.clear();
                 }
                 
                 this.isExpanded = !this.isExpanded;
                 const toggleBtn = document.getElementById('settingsToggleBtn');
                 const expandedMenu = document.getElementById('settingsMenuExpanded');
                 const searchContainer = document.getElementById('globalSearchContainer');
-                const searchToggleBtn = document.getElementById('searchToggleBtn');  // 获取搜索按钮
+                const searchToggleBtn = document.getElementById('searchToggleBtn');
                 const island = document.querySelector('.dynamic-island');
                 
                 if (this.isExpanded) {
-                    // 展开动画
+                    // 展开：隐藏两个按钮，显示设置菜单
                     toggleBtn.style.display = 'none';
+                    searchToggleBtn.style.display = 'none';
                     expandedMenu.style.display = 'flex';
                     expandedMenu.classList.remove('closing');
-                    // 搜索按钮移到最左侧,设置菜单在右侧,整体居中
                     searchContainer.style.order = '-1';
                     island.classList.add('settings-expanded');
                 } else {
-                    // 收起动画
-                    // ⭐立即隐藏搜索按钮并恢复order
-                    searchToggleBtn.style.display = 'none';
+                    // 收起：先加 closing 动画 class
+                    expandedMenu.classList.add('closing');
                     searchContainer.style.order = '0';
                     
-                    expandedMenu.classList.add('closing');
-                    island.classList.remove('settings-expanded');
-                    
-                    // 在动画快结束时(250ms)让两个按钮一起显现
+                    // 动画结束后再切换 island 尺寸和显示按钮
                     setTimeout(() => {
+                        expandedMenu.style.display = 'none';
+                        expandedMenu.classList.remove('closing');
+                        island.classList.remove('settings-expanded');
+                        // 按钮同时淡入
                         toggleBtn.style.display = 'flex';
                         searchToggleBtn.style.display = 'flex';
                         toggleBtn.classList.add('appearing');
@@ -4927,14 +4962,8 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                         setTimeout(() => {
                             toggleBtn.classList.remove('appearing');
                             searchToggleBtn.classList.remove('appearing');
-                        }, 350);
-                    }, 250);
-                    
-                    // 等待完整动画完成后清理展开菜单
-                    setTimeout(() => {
-                        expandedMenu.style.display = 'none';
-                        expandedMenu.classList.remove('closing');
-                    }, 350);
+                        }, 300);
+                    }, 300);
                 }
             },
             

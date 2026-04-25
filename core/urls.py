@@ -10,6 +10,7 @@ from file_service import views_page as file_views
 
 urlpatterns = [
     path('', views.index, name='index'),
+    path('dev-trial/', views.trial, name='dev-trial'),
     path('about/', views.about, name='about'),
     path('contact/', views.contact, name='contact'),
     path('home/', views.home, name='home'),

@@ -998,6 +998,9 @@ def get_available_tools(request):
         "query_flights_by_route": "查询目标起降机场之间的航班信息",
         "query_flight_itineraries": "搜索航班行程价格",
         "query_flight_transfer": "航班中转方案",
+        # 云盘文件
+        "search_cloud_files": "搜索云盘文件",
+        "read_cloud_file": "读取文件内容",
     }
     
     default_tools = get_default_tools()
@@ -1565,6 +1568,7 @@ def create_attachment_from_cloud(request):
     }
     """
     from file_service.models import UserFile
+    from agent_service.models import SessionAttachment
 
     file_ids = request.data.get('file_ids', [])
     session_id = request.data.get('session_id', '')
@@ -1583,6 +1587,18 @@ def create_attachment_from_cloud(request):
     for cf in cloud_files:
         att_type = SessionAttachment.ALLOWED_MIME_TYPES.get(cf.mime_type, 'pdf')
 
+        # 根据云盘文件状态映射 parse_status
+        if cf.is_document:
+            if cf.parse_status == 'completed':
+                att_parse_status = 'completed'
+            elif cf.parse_status == 'failed':
+                att_parse_status = 'failed'
+            else:
+                att_parse_status = 'pending'  # 待解析/解析中
+        else:
+            # 图片：先标为 pending，生成 base64 后改为 completed
+            att_parse_status = 'pending'
+
         att = SessionAttachment(
             user=request.user,
             session_id=session_id,
@@ -1592,7 +1608,7 @@ def create_attachment_from_cloud(request):
             file_size=cf.file_size,
             file=cf.original_file,
             parsed_text=cf.parsed_markdown if cf.is_document else '',
-            parse_status='completed' if cf.is_parsed else 'none',
+            parse_status=att_parse_status,
             cloud_file=cf,
         )
 
@@ -1605,6 +1621,8 @@ def create_attachment_from_cloud(request):
                 att.parse_status = 'completed'
             except Exception as e:
                 logger.warning(f"生成图片 base64 失败: {e}")
+                att.parse_status = 'failed'
+                att.parse_error = str(e)
 
         att.save()
         created.append({

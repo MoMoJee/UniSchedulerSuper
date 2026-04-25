@@ -91,6 +91,12 @@ function getStatusLabel(parseStatus) {
 const fileManager = {
     // ---------- 初始化 ----------
     init() {
+        // 支持通过 URL 参数跳转到指定文件夹
+        const urlParams = new URLSearchParams(window.location.search);
+        const folderIdParam = urlParams.get('folder_id');
+        if (folderIdParam) {
+            state.currentFolderId = parseInt(folderIdParam);
+        }
         this.loadFiles();
         this.loadFileTree();
         this.initDragDrop();

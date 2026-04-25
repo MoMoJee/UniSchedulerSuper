@@ -79,16 +79,58 @@ async def get_single_mcp_service_tools(service_name: str, service_config: Dict[s
         tools = await client.get_tools()
         
         if tools:
-            logger.info(f"✅ {service_name} 成功加载 {len(tools)} 个工具")
+            logger.info(f"[OK] {service_name} 成功加载 {len(tools)} 个工具")
             return (service_name, tools)
         else:
-            logger.warning(f"⚠️ {service_name} 连接成功但未返回工具")
+            logger.warning(f"[WARN] {service_name} 连接成功但未返回工具")
             return (service_name, [])
             
-    except Exception as e:
-        logger.error(f"❌ {service_name} 连接失败: {e}")
-        logger.debug(f"详细错误信息:", exc_info=True)
+    except BaseException as e:
+        # 捕获包括 ExceptionGroup / BaseExceptionGroup 在内的所有错误
+        # （asyncio.TaskGroup / anyio 在 Py3.11+ 会抛出 ExceptionGroup）
+        reason = _format_mcp_exception(e)
+        # 用单行 ASCII-safe 日志，避免 Windows 控制台编码错误触发 handler.handleError
+        try:
+            logger.error(f"[FAIL] MCP 服务 {service_name} 连接失败: {reason}")
+        except Exception:
+            # 兜底：即使日志写入失败也不要影响主流程
+            pass
         return (service_name, [])
+
+
+def _format_mcp_exception(exc: BaseException, max_depth: int = 3) -> str:
+    """
+    把 ExceptionGroup / 普通异常 扁平化为单行可读消息。
+    只取异常类型 + 消息，避免抛出 traceback 干扰日志。
+    """
+    parts: List[str] = []
+
+    def _walk(e: BaseException, depth: int):
+        if depth > max_depth:
+            return
+        # ExceptionGroup / BaseExceptionGroup 有 .exceptions 属性
+        sub_excs = getattr(e, 'exceptions', None)
+        if sub_excs:
+            for sub in sub_excs:
+                _walk(sub, depth + 1)
+        else:
+            msg = str(e).strip() or e.__class__.__name__
+            parts.append(f"{e.__class__.__name__}: {msg}")
+
+    try:
+        _walk(exc, 0)
+    except Exception:
+        return f"{exc.__class__.__name__}: <unprintable>"
+
+    if not parts:
+        parts.append(f"{exc.__class__.__name__}: {exc}")
+    # 去重并截断，防止日志过长
+    seen = []
+    for p in parts:
+        if p not in seen:
+            seen.append(p)
+    summary = " | ".join(seen)
+    return summary[:500] + ('...' if len(summary) > 500 else '')
 
 
 async def get_mcp_tools_async() -> List[StructuredTool]:
@@ -121,9 +163,12 @@ async def get_mcp_tools_async() -> List[StructuredTool]:
     failed_count = 0
     
     for result in results:
-        if isinstance(result, Exception):
-            # gather 捕获的异常
-            logger.error(f"服务连接异常: {result}")
+        if isinstance(result, BaseException):
+            # gather(return_exceptions=True) 捕获到的异常（含 ExceptionGroup）
+            try:
+                logger.error(f"[FAIL] 服务连接异常: {_format_mcp_exception(result)}")
+            except Exception:
+                pass
             failed_count += 1
             continue
         
@@ -136,11 +181,11 @@ async def get_mcp_tools_async() -> List[StructuredTool]:
     
     # 汇总日志
     if success_count > 0:
-        logger.info(f"✅ MCP 工具加载完成: 成功 {success_count} 个服务, 失败 {failed_count} 个服务, 共 {len(all_tools)} 个工具")
+        logger.info(f"[OK] MCP 工具加载完成: 成功 {success_count} 个服务, 失败 {failed_count} 个服务, 共 {len(all_tools)} 个工具")
     elif failed_count > 0:
-        logger.warning(f"⚠️ 所有 MCP 服务均连接失败 ({failed_count} 个)")
+        logger.warning(f"[WARN] 所有 MCP 服务均连接失败 ({failed_count} 个)")
     else:
-        logger.warning("⚠️ 没有可用的 MCP 服务")
+        logger.warning("[WARN] 没有可用的 MCP 服务")
     
     return all_tools
 

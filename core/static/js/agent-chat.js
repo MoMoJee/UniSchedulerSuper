@@ -4261,10 +4261,44 @@ class AgentChat {
             const resp = await fetch('/api/files/pick/', { credentials: 'same-origin' });
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
-            this.renderCloudPickTree(data.tree || []);
+            const tree = this._buildCloudPickTree(data.folders || [], data.files || []);
+            this.renderCloudPickTree(tree);
         } catch (err) {
             this.cloudPickTree.innerHTML = `<div class="text-center text-muted py-3">加载失败: ${err.message}</div>`;
         }
+    }
+
+    /**
+     * 从 flat folders + files 构建嵌套树结构
+     */
+    _buildCloudPickTree(folders, files) {
+        // Build folder map
+        const folderMap = {};
+        folders.forEach(f => { folderMap[f.id] = { ...f, type: 'folder', children: [] }; });
+
+        // Nest folders
+        const rootFolders = [];
+        folders.forEach(f => {
+            const node = folderMap[f.id];
+            if (f.parent_id && folderMap[f.parent_id]) {
+                folderMap[f.parent_id].children.push(node);
+            } else {
+                rootFolders.push(node);
+            }
+        });
+
+        // Attach files to folders or root
+        const rootFiles = [];
+        files.forEach(f => {
+            const fileNode = { ...f, type: 'file' };
+            if (f.folder_id && folderMap[f.folder_id]) {
+                folderMap[f.folder_id].children.push(fileNode);
+            } else {
+                rootFiles.push(fileNode);
+            }
+        });
+
+        return [...rootFolders, ...rootFiles];
     }
 
     /**
@@ -4383,7 +4417,7 @@ class AgentChat {
         if (this.cloudPickSelected.size === 0) return;
 
         const fileIds = Array.from(this.cloudPickSelected.keys());
-        const sessionId = this.currentSessionId;
+        const sessionId = this.sessionId;
         if (!sessionId) {
             this.showNotification('请先开始对话', 'warning');
             return;
@@ -4395,7 +4429,7 @@ class AgentChat {
                 credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': this.getCSRFToken(),
+                    'X-CSRFToken': this.csrfToken,
                 },
                 body: JSON.stringify({ file_ids: fileIds, session_id: sessionId }),
             });
@@ -4411,6 +4445,7 @@ class AgentChat {
                     type: att.type,
                     id: att.cloud_file_id || att.id,
                     name: att.filename,
+                    filename: att.filename,
                     sa_id: att.id,
                 });
             }

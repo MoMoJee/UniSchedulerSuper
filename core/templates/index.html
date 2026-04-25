@@ -1,19 +1,17 @@
 <!DOCTYPE html>
 <html lang="zh-CN" data-bs-theme="light">
 <head>
-    <meta charset="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta charset="UTF-8">
-    <title>首页 - 时间管理大师</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>时间管理大师 — 开源智能日程管理项目</title>
+    <meta name="description" content="时间管理大师（UniSchedulerSuper）是一个基于 Django + LangGraph 的开源智能日程管理项目，支持日程、提醒、待办、群组协作以及 AI Agent 对话助手。本站点为项目的演示与学习交流平台。">
     <link rel="icon" type="image/png" href="/static/faction.png">
     {% include '_cdn_init.html' %}
-    <!-- Bootstrap 5 CSS + Bootstrap Icons -->
     <script>__cdnCSS('bootstrap@5.3.2/dist/css/bootstrap.min.css','bootstrap/5.3.2/css/bootstrap.min.css');</script>
     <script>__cdnCSS('bootstrap-icons@1.11.1/font/bootstrap-icons.min.css','bootstrap-icons/1.11.1/font/bootstrap-icons.min.css');</script>
-    <!-- Google Fonts (主: googleapis, 备: loli.net 国内镜像) -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;800&display=swap"
           rel="stylesheet"
-          onerror="this.onerror=null;this.href='https://fonts.loli.net/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap'">
-
+          onerror="this.onerror=null;this.href='https://fonts.loli.net/css2?family=Noto+Sans+SC:wght@300;400;500;700;800&display=swap'">
     <style>
         :root {
             --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -21,365 +19,188 @@
             --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             --info-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
         }
-
         [data-bs-theme="dark"] {
             --bs-body-bg: #0f1115;
             --bs-body-color: #ffffff;
             --card-bg: #1a1d24;
             --text-secondary: #a0a3bd;
+            --border-soft: rgba(255,255,255,0.08);
         }
-
         [data-bs-theme="light"] {
             --bs-body-bg: #f0f2f5;
             --bs-body-color: #1a1a2e;
             --card-bg: #ffffff;
             --text-secondary: #6b7280;
+            --border-soft: rgba(0,0,0,0.06);
         }
-
-        * {
-            -webkit-tap-highlight-color: transparent;
-        }
-
+        * { -webkit-tap-highlight-color: transparent; }
         body {
             font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
-            min-height: 100vh;
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        /* 动态背景 */
-        .bg-animate {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
+            margin: 0; padding: 0;
             background: var(--bs-body-bg);
-        }
-
-        .bg-animate::before {
-            content: '';
-            position: absolute;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(102, 126, 234, 0.15) 0%, transparent 60%);
-            top: -50%;
-            left: -50%;
-            animation: rotate 30s linear infinite;
-        }
-
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        /* 主容器 - 移动端全屏优化 */
-        .main-wrapper {
+            color: var(--bs-body-color);
+            -webkit-font-smoothing: antialiased;
             min-height: 100vh;
-            min-height: 100dvh; /* 适配动态视口 */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 1rem;
-            box-sizing: border-box;
         }
-
-        /* 卡片样式 - 移动端更大更舒适 */
-        .main-card {
-            background: var(--card-bg);
-            border-radius: 32px;
-            padding: 2.5rem 1.5rem;
-            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.12);
-            width: 100%;
-            max-width: 480px;
-            position: relative;
+        .bg-animate {
+            position: fixed; inset: 0; z-index: -1;
+            background: var(--bs-body-bg);
             overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .bg-animate::before {
+            content: ''; position: absolute;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.12) 0%, transparent 60%);
+            top: -50%; left: -50%;
+            animation: rotate 40s linear infinite;
+        }
+        @keyframes rotate { to { transform: rotate(360deg); } }
+
+        /* 主题切换 */
+        .theme-toggle {
+            position: fixed; top: 1.25rem; right: 1.25rem;
+            width: 48px; height: 48px; border-radius: 50%;
+            border: none; background: var(--card-bg);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            cursor: pointer; font-size: 1.25rem;
+            color: var(--bs-body-color); z-index: 1000;
+            display: flex; align-items: center; justify-content: center;
         }
 
-        [data-bs-theme="dark"] .main-card {
-            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .main-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 5px;
-            background: var(--primary-gradient);
-        }
-
-        /* Logo 区域 - 移动端放大 */
-        .brand-section {
+        /* Hero */
+        .hero {
+            padding: 5rem 1.25rem 4rem;
             text-align: center;
-            margin-bottom: 2.5rem;
+            max-width: 920px;
+            margin: 0 auto;
         }
-
-        .brand-icon {
-            width: 100px;
-            height: 100px;
+        .hero-icon {
+            width: 96px; height: 96px;
             background: var(--primary-gradient);
             border-radius: 28px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
+            display: inline-flex; align-items: center; justify-content: center;
             margin-bottom: 1.5rem;
             box-shadow: 0 12px 40px rgba(102, 126, 234, 0.35);
             animation: float 3s ease-in-out infinite;
         }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-
-        .brand-icon i {
-            font-size: 3rem; /* 移动端更大的图标 */
-            color: white;
-        }
-
-        .brand-title {
-            font-size: 2.25rem; /* 移动端更大的标题 */
-            font-weight: 800;
-            margin-bottom: 0.75rem;
+        @keyframes float { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-8px);} }
+        .hero-icon i { font-size: 2.75rem; color: #fff; }
+        .hero h1 {
+            font-size: clamp(2.2rem, 5vw, 3.5rem);
+            font-weight: 800; margin: 0 0 1rem;
             background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             background-clip: text;
-            line-height: 1.2;
+            line-height: 1.15;
         }
-
-        .brand-subtitle {
+        .hero .tagline {
+            font-size: 1.2rem;
             color: var(--text-secondary);
-            font-size: 1.1rem; /* 增大副标题 */
+            margin-bottom: 0.5rem;
             font-weight: 400;
-            line-height: 1.5;
         }
-
-        /* 特性标签 - 移动端放大 */
-        .features {
-            display: flex;
-            justify-content: center;
-            gap: 1.25rem;
-            margin-bottom: 2.5rem;
-            flex-wrap: wrap;
+        .hero .sub {
+            font-size: 1rem; color: var(--text-secondary);
+            max-width: 640px; margin: 1.25rem auto 0;
+            line-height: 1.7;
         }
-
-        .feature-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 1rem; /* 增大标签文字 */
-            font-weight: 500;
-            color: var(--text-secondary);
-            background: rgba(102, 126, 234, 0.08);
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-        }
-
-        .feature-item i {
-            color: #10b981;
-            font-size: 1.1rem;
-        }
-
-        /* 按钮组 - 移动端触控优化 */
-        .action-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .btn-modern {
-            position: relative;
-            padding: 1.25rem 1.5rem; /* 更高的按钮，更易点击 */
-            border-radius: 16px;
-            border: none;
-            font-weight: 600;
-            font-size: 1.15rem; /* 更大的按钮文字 */
-            letter-spacing: 0.5px;
-            transition: all 0.3s ease;
-            overflow: hidden;
-            text-decoration: none;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.75rem;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-            min-height: 60px; /* 确保触控区域 */
-            width: 100%;
-        }
-
-        .btn-modern i {
-            font-size: 1.4rem; /* 更大的按钮图标 */
-        }
-
-        .btn-modern:active {
-            transform: scale(0.98);
-        }
-
-        .btn-register {
-            background: var(--secondary-gradient);
-            box-shadow: 0 6px 20px rgba(245, 87, 108, 0.3);
-        }
-        .btn-login {
-            background: var(--success-gradient);
-            box-shadow: 0 6px 20px rgba(0, 242, 254, 0.3);
-        }
-        .btn-about {
-            background: rgba(160, 163, 189, 0.15);
+        .badges { margin-top: 1.5rem; display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap; }
+        .badge-soft {
+            background: rgba(102,126,234,0.1);
             color: var(--bs-body-color);
-            border: 2px solid rgba(160, 163, 189, 0.3);
-        }
-        [data-bs-theme="dark"] .btn-about {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.15);
-            color: #ffffff;
+            border: 1px solid var(--border-soft);
+            font-size: 0.85rem; padding: 0.35rem 0.85rem;
+            border-radius: 999px; font-weight: 500;
         }
 
-        /* 主题切换按钮 - 移动端放大 */
-        .theme-toggle {
-            position: fixed;
-            top: 1.25rem;
-            right: 1.25rem;
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            border: none;
+        /* Section */
+        section { padding: 3rem 1.25rem; max-width: 1100px; margin: 0 auto; }
+        .section-title {
+            font-size: 1.75rem; font-weight: 700;
+            text-align: center; margin: 0 0 0.5rem;
+        }
+        .section-desc {
+            text-align: center; color: var(--text-secondary);
+            margin: 0 auto 2.5rem; max-width: 600px;
+        }
+
+        /* Feature Grid */
+        .feature-grid {
+            display: grid; gap: 1.25rem;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }
+        .feature-card {
             background: var(--card-bg);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
+            border: 1px solid var(--border-soft);
+            border-radius: 20px;
+            padding: 1.75rem 1.5rem;
+            transition: transform .25s ease, box-shadow .25s ease;
+        }
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 40px rgba(0,0,0,0.08);
+        }
+        .feature-card .icon-wrap {
+            width: 52px; height: 52px;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; color: #fff;
+            margin-bottom: 1rem;
+        }
+        .feature-card h3 {
+            font-size: 1.1rem; font-weight: 600;
+            margin: 0 0 0.5rem;
+        }
+        .feature-card p {
+            font-size: 0.95rem; color: var(--text-secondary);
+            line-height: 1.6; margin: 0;
+        }
+
+        /* Tech list */
+        .tech-list {
+            display: flex; flex-wrap: wrap; gap: 0.6rem;
             justify-content: center;
-            font-size: 1.5rem;
+        }
+        .tech-list span {
+            background: var(--card-bg);
+            border: 1px solid var(--border-soft);
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
             color: var(--bs-body-color);
-            transition: all 0.3s ease;
-            z-index: 1000;
         }
 
-        .theme-toggle:active {
-            transform: scale(0.95);
+        /* Notice card */
+        .notice {
+            background: var(--card-bg);
+            border: 1px solid var(--border-soft);
+            border-left: 5px solid #f59e0b;
+            border-radius: 16px;
+            padding: 1.5rem 1.75rem;
+            max-width: 880px; margin: 0 auto;
+            line-height: 1.75;
+            color: var(--bs-body-color);
         }
+        .notice h3 {
+            margin: 0 0 0.75rem; font-size: 1.15rem;
+            color: #f59e0b;
+        }
+        .notice p { margin: 0.4rem 0; color: var(--text-secondary); font-size: 0.95rem; }
+        .notice a { color: #667eea; text-decoration: none; font-weight: 600; }
 
-        /* 底部信息 - 移动端放大 */
-        .footer-text {
+        /* Footer */
+        footer {
+            margin-top: 3rem;
+            padding: 2rem 1.25rem 2rem;
+            border-top: 1px solid var(--border-soft);
             text-align: center;
-            font-size: 0.95rem; /* 增大底部文字 */
             color: var(--text-secondary);
-            margin-top: 1.5rem;
-            line-height: 1.6;
+            font-size: 0.9rem;
+            line-height: 1.8;
         }
-
-        .footer-text a {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        /* 平板和桌面端微调（保持美观但不过大） */
-        @media (min-width: 768px) {
-            .main-card {
-                padding: 3rem 2.5rem;
-                border-radius: 36px;
-            }
-
-            .brand-icon {
-                width: 90px;
-                height: 90px;
-            }
-
-            .brand-icon i {
-                font-size: 2.5rem;
-            }
-
-            .brand-title {
-                font-size: 2.5rem;
-            }
-
-            .brand-subtitle {
-                font-size: 1.2rem;
-            }
-
-            .btn-modern {
-                font-size: 1.2rem;
-                min-height: 64px;
-            }
-
-            .features {
-                gap: 1.5rem;
-            }
-
-            .feature-item {
-                font-size: 1.05rem;
-                padding: 0.6rem 1.2rem;
-            }
-        }
-
-        /* 小屏幕手机专项优化（iPhone SE等小屏） */
-        @media (max-width: 375px) {
-            .main-card {
-                padding: 2rem 1.25rem;
-                border-radius: 28px;
-            }
-
-            .brand-icon {
-                width: 90px;
-                height: 90px;
-            }
-
-            .brand-title {
-                font-size: 2rem;
-            }
-
-            .btn-modern {
-                font-size: 1.1rem;
-                min-height: 56px;
-            }
-
-            .features {
-                gap: 0.75rem;
-            }
-
-            .feature-item {
-                font-size: 0.9rem;
-                padding: 0.4rem 0.8rem;
-            }
-        }
-
-        /* 加载动画 */
-        .fade-in {
-            animation: fadeIn 0.6s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* 安全区域适配（iPhone刘海屏等） */
-        @supports (padding-top: env(safe-area-inset-top)) {
-            .theme-toggle {
-                top: max(1.25rem, env(safe-area-inset-top));
-            }
-
-            .main-wrapper {
-                padding-bottom: env(safe-area-inset-bottom);
-            }
-        }
+        footer a { color: var(--text-secondary); text-decoration: none; }
+        footer a:hover { color: #667eea; }
+        .beian-info a { color: inherit; text-decoration: none; margin: 0 5px; }
     </style>
 </head>
 <body>
@@ -389,114 +210,146 @@
         <i class="bi bi-sun-fill" id="themeIcon"></i>
     </button>
 
-    <div class="main-wrapper">
-        <div class="main-card fade-in">
-            <div class="brand-section">
-                <div class="brand-icon">
-                    <i class="bi bi-clock-history"></i>
-                </div>
-                <h1 class="brand-title">时间管理大师</h1>
-                <p class="brand-subtitle">高效规划<br>成就更好的自己</p>
-            </div>
+    <!-- Hero -->
+    <header class="hero">
+        <div class="hero-icon"><i class="bi bi-clock-history"></i></div>
+        <h1>时间管理大师</h1>
+        <p class="tagline">基于 Django + LangGraph 的开源智能日程管理项目</p>
+        <p class="sub">
+            一个集 <strong>日程</strong>、<strong>提醒</strong>、<strong>待办</strong>、<strong>群组协作</strong>
+            与 <strong>AI Agent 对话助手</strong> 于一体的现代化日程管理系统。
+            本站点为项目的演示与学习交流平台，<strong>非商业服务</strong>。
+        </p>
+        <div class="badges">
+            <span class="badge-soft">Python 3.12</span>
+            <span class="badge-soft">Django 5.x</span>
+            <span class="badge-soft">LangGraph</span>
+            <span class="badge-soft">MIT License</span>
+            <span class="badge-soft">开源项目</span>
+        </div>
+    </header>
 
-            <div class="features">
-                <div class="feature-item">
-                    <i class="bi bi-check-circle-fill"></i>
-                    <span>智能提醒</span>
-                </div>
-                <div class="feature-item">
-                    <i class="bi bi-check-circle-fill"></i>
-                    <span>数据同步</span>
-                </div>
+    <!-- 项目特性 -->
+    <section>
+        <h2 class="section-title">项目特性</h2>
+        <p class="section-desc">围绕个人时间管理打造的全功能开源平台</p>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="icon-wrap" style="background:var(--primary-gradient);"><i class="bi bi-calendar-week"></i></div>
+                <h3>日程管理</h3>
+                <p>支持单次与重复日程，完整 RRule（RFC 5545）规则：FREQ / INTERVAL / COUNT / UNTIL / BYDAY / EXDATE。</p>
             </div>
-
-            <div class="action-buttons">
-                <a href="/user_register" class="btn-modern btn-register">
-                    <i class="bi bi-person-plus-fill"></i>
-                    <span>立即注册</span>
-                </a>
-
-                <a href="/user_login" class="btn-modern btn-login">
-                    <i class="bi bi-box-arrow-in-right"></i>
-                    <span>账号登录</span>
-                </a>
-
-                <a href="/about" class="btn-modern btn-about">
-                    <i class="bi bi-info-circle"></i>
-                    <span>关于我们</span>
-                </a>
+            <div class="feature-card">
+                <div class="icon-wrap" style="background:var(--secondary-gradient);"><i class="bi bi-bell"></i></div>
+                <h3>智能提醒</h3>
+                <p>多优先级、延迟提醒、重复提醒，与日程、待办双向关联，支持桌面与浏览器通知。</p>
             </div>
+            <div class="feature-card">
+                <div class="icon-wrap" style="background:var(--success-gradient);"><i class="bi bi-check2-square"></i></div>
+                <h3>待办事项</h3>
+                <p>艾森豪威尔四象限法分类，支持依赖关系、预估时长，帮助理性安排优先级。</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon-wrap" style="background:var(--info-gradient);"><i class="bi bi-people"></i></div>
+                <h3>群组协作</h3>
+                <p>多人共享日程，三级权限管理，版本号增量同步，避免冲突与覆盖。</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon-wrap" style="background:var(--primary-gradient);"><i class="bi bi-robot"></i></div>
+                <h3>AI Agent 助手</h3>
+                <p>LangGraph 驱动，WebSocket 实时对话，支持自然语言创建与查询日程、附件 OCR、联网搜索。</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon-wrap" style="background:var(--secondary-gradient);"><i class="bi bi-arrow-repeat"></i></div>
+                <h3>iCalendar 互通</h3>
+                <p>导入兼容标准 iCal；订阅 Feed 可直接添加到 Apple Calendar / Google Calendar，支持 CalDAV。</p>
+            </div>
+        </div>
+    </section>
 
-            <div class="footer-text">
-                注册即表示同意<br>
-                <a href="#">服务条款</a> 和 <a href="#">隐私政策</a>
-            </div>
-            
-            {% if beian_info.enabled %}
-            <div class="beian-info" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(128, 128, 128, 0.2); font-size: 0.85rem; color: var(--text-secondary, #6c757d); text-align: center;">
-                {% if beian_info.icp_number %}
-                <a href="{{ beian_info.icp_link }}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none; margin: 0 5px;">{{ beian_info.icp_number }}</a>
-                {% endif %}
-                {% if beian_info.gongan_number %}
-                <span style="margin: 0 5px;">|</span>
-                <a href="{{ beian_info.gongan_link }}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none; margin: 0 5px;">{{ beian_info.gongan_number }}</a>
-                {% endif %}
-            </div>
+    <!-- 技术栈 -->
+    <section>
+        <h2 class="section-title">技术栈</h2>
+        <p class="section-desc">现代、开放、可自部署</p>
+        <div class="tech-list">
+            <span>Django 5.x</span>
+            <span>Django REST Framework</span>
+            <span>Channels + Daphne</span>
+            <span>LangGraph + LangChain</span>
+            <span>FullCalendar 6.x</span>
+            <span>Bootstrap 5</span>
+            <span>SQLite / PostgreSQL</span>
+            <span>icalendar</span>
+            <span>AES-256-GCM</span>
+        </div>
+    </section>
+
+    <!-- 平台说明 -->
+    <section>
+        <h2 class="section-title">关于本平台</h2>
+        <p class="section-desc">透明、合规、欢迎自部署</p>
+        <div class="notice">
+            <h3><i class="bi bi-info-circle-fill"></i> 平台性质说明</h3>
+            <p>1. 本站点为开源项目 <strong>UniSchedulerSuper</strong> 的演示与学习交流站，<strong>非商业性服务</strong>，不提供任何形式的商业承诺。</p>
+            <p>2. 本站点不提供面向公众的注册与登录入口，所有功能均以源码形式公开发布，鼓励访问者
+                <a href="https://github.com/MoMoJee/UniSchedulerSuper" target="_blank" rel="noopener noreferrer">访问 GitHub 仓库</a>
+                自行部署使用。
+            </p>
+            <p>3. 本站点遵守中华人民共和国相关法律法规，已完成 ICP 备案（如下方所示）。如发现任何不当内容，欢迎通过 GitHub Issue 反馈。</p>
+            <p>4. 本项目以 <strong>MIT 协议</strong>开源，源码、文档与协议详见仓库。</p>
+        </div>
+    </section>
+
+    <!-- Footer / 备案 -->
+    <footer>
+        <div>
+            <a href="https://github.com/MoMoJee/UniSchedulerSuper" target="_blank" rel="noopener noreferrer">
+                <i class="bi bi-github"></i> GitHub 源码
+            </a>
+            &nbsp;·&nbsp;
+            <a href="/about">项目介绍</a>
+        </div>
+        <div style="margin-top:0.6rem;">
+            © {{ current_year }} 时间管理大师（UniSchedulerSuper） · 基于 MIT 协议开源
+        </div>
+        {% if beian_info.enabled %}
+        <div class="beian-info" style="margin-top: 0.8rem;">
+            {% if beian_info.icp_number %}
+            <a href="{{ beian_info.icp_link }}" target="_blank" rel="noopener noreferrer">{{ beian_info.icp_number }}</a>
+            {% endif %}
+            {% if beian_info.gongan_number %}
+            <span style="margin: 0 5px;">|</span>
+            <a href="{{ beian_info.gongan_link }}" target="_blank" rel="noopener noreferrer">{{ beian_info.gongan_number }}</a>
             {% endif %}
         </div>
-    </div>
+        {% endif %}
+    </footer>
 
-    <!-- Bootstrap JS -->
     <script src="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"
             onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js';document.head.appendChild(s)"></script>
-
     <script>
         const ThemeManager = {
             init() {
                 this.themeToggle = document.getElementById('themeToggle');
                 this.themeIcon = document.getElementById('themeIcon');
                 this.html = document.documentElement;
-
-                const savedTheme = localStorage.getItem('theme');
-                if (savedTheme) {
-                    this.setTheme(savedTheme);
-                } else {
-                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    this.setTheme(prefersDark ? 'dark' : 'light');
-                }
-
-                this.themeToggle.addEventListener('click', () => this.toggleTheme());
-
-                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-                    if (!localStorage.getItem('theme')) {
-                        this.setTheme(e.matches ? 'dark' : 'light');
-                    }
-                });
+                const saved = localStorage.getItem('theme');
+                if (saved) this.setTheme(saved);
+                else this.setTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                this.themeToggle.addEventListener('click', () => this.toggle());
             },
-
-            toggleTheme() {
-                const currentTheme = this.html.getAttribute('data-bs-theme');
-                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-                this.setTheme(newTheme);
-                localStorage.setItem('theme', newTheme);
+            toggle() {
+                const cur = this.html.getAttribute('data-bs-theme');
+                const next = cur === 'dark' ? 'light' : 'dark';
+                this.setTheme(next);
+                localStorage.setItem('theme', next);
             },
-
-            setTheme(theme) {
-                this.html.setAttribute('data-bs-theme', theme);
-                this.themeIcon.className = theme === 'dark' ? 'bi bi-moon-fill' : 'bi bi-sun-fill';
+            setTheme(t) {
+                this.html.setAttribute('data-bs-theme', t);
+                this.themeIcon.className = t === 'dark' ? 'bi bi-moon-fill' : 'bi bi-sun-fill';
             }
         };
-
-        document.addEventListener('DOMContentLoaded', () => {
-            ThemeManager.init();
-        });
-
-        // 添加触觉反馈（如果设备支持）
-        document.querySelectorAll('.btn-modern, .theme-toggle').forEach(btn => {
-            btn.addEventListener('click', function() {
-                if (navigator.vibrate) navigator.vibrate(10);
-            });
-        });
+        document.addEventListener('DOMContentLoaded', () => ThemeManager.init());
     </script>
 </body>
 </html>

@@ -655,6 +655,7 @@ def pick_files(request):
                 "filename": uf.filename,
                 "file_size": uf.file_size,
                 "category": uf.category,
+                "mime_type": uf.mime_type,
                 "folder_id": uf.folder_id,
                 "parse_status": uf.parse_status,
             }

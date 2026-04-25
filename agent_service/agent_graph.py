@@ -243,6 +243,15 @@ TOOL_CATEGORIES = {
             "save_skill": "保存/更新一个技能",
             "list_skills": "列出所有已保存的技能",
         }
+    },
+    "cloud_file": {
+        "display_name": "云盘文件",
+        "description": "搜索和读取云盘中的文件内容",
+        "tools": list(CLOUD_FILE_TOOLS_MAP.keys()),
+        "tool_descriptions": {
+            "search_cloud_files": "在云盘中搜索文件内容",
+            "read_cloud_file": "读取云盘文件的 Markdown 内容",
+        }
     }
 }
 
@@ -264,7 +273,7 @@ def get_all_tool_names() -> List[str]:
 def get_default_tools() -> List[str]:
     """获取默认启用的工具"""
     # 默认启用所有 planner、memory、todo 和 skill 工具
-    return list(PLANNER_TOOLS.keys()) + list(MEMORY_TOOLS.keys()) + list(TODO_TOOLS_MAP.keys()) + list(SKILL_TOOLS_MAP.keys())
+    return list(PLANNER_TOOLS.keys()) + list(MEMORY_TOOLS.keys()) + list(TODO_TOOLS_MAP.keys()) + list(SKILL_TOOLS_MAP.keys()) + list(CLOUD_FILE_TOOLS_MAP.keys())
 
 # ==========================================
 # 状态定义
@@ -1356,7 +1365,7 @@ def create_tool_node_with_permission_check():
 
 def create_workflow():
     """创建工作流图"""
-    workflow = StateGraph(AgentState)
+    workflow  = StateGraph(AgentState)
     
     # 添加节点
     workflow.add_node("skill_selector", skill_selector_node)

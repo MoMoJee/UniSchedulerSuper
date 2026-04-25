@@ -74,10 +74,18 @@ from .views_events import (
     get_django_request  # 添加这个辅助函数
 )
 
-# 索引页
+# 索引页（介绍性主页）
 def index(request):
     beian_info = get_beian_info()
-    return render(request, 'index.html', {'beian_info': beian_info})
+    return render(request, 'index.html', {
+        'beian_info': beian_info,
+        'current_year': datetime.datetime.now().year,
+    })
+
+# 试用入口
+def trial(request):
+    beian_info = get_beian_info()
+    return render(request, 'trial.html', {'beian_info': beian_info})
 
 # 关于我们
 def about(request):

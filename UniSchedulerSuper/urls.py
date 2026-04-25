@@ -31,6 +31,11 @@ def robots_txt(request):
         "Disallow: /agent/\n"
         "Disallow: /media/\n"
         "Disallow: /static/\n"
+        "Disallow: /trial/\n"
+        "Disallow: /user_login/\n"
+        "Disallow: /user_register/\n"
+        "Disallow: /home/\n"
+        "Disallow: /password-reset/\n"
         "Allow: /$\n"
         "Allow: /about/\n"
     )

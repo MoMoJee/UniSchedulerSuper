@@ -1467,7 +1467,7 @@ body {
 
 /* 搜索栏收起动画 */
 .search-bar-expanded.closing {
-    animation: collapseSearch 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: collapseSearch 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 /* 搜索按钮收起动画 */
@@ -1691,6 +1691,11 @@ body {
     color: #48bb78;
 }
 
+.search-result-type.file {
+    background-color: rgba(128, 90, 213, 0.1);
+    color: #805ad5;
+}
+
 .search-result-extra {
     padding: 0.125rem 0.4rem;
     border-radius: 10px;
@@ -1793,7 +1798,7 @@ body {
 
 /* 设置菜单收起动画 */
 .settings-menu-expanded.closing {
-    animation: collapseSettings 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: collapseSettings 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 /* 设置输入包装器 - 类似搜索栏的样式 */
