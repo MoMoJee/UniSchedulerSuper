@@ -3220,6 +3220,19 @@
                                                         <div id="modelCostOutput" class="fw-bold">-</div>
                                                     </div>
                                                 </div>
+                                                <hr class="my-3">
+                                                <div class="row align-items-center">
+                                                    <div class="col-md-8">
+                                                        <small class="text-muted d-block">思考模式 (Thinking / Reasoning)</small>
+                                                        <span id="thinkingModeHint" class="text-muted small">启用后模型会先生成推理链，再给出最终答案</span>
+                                                    </div>
+                                                    <div class="col-md-4 text-end">
+                                                        <div class="form-check form-switch d-inline-block">
+                                                            <input class="form-check-input" type="checkbox" id="thinkingEnabledSwitch" onchange="agentConfig.toggleThinking()">
+                                                            <label class="form-check-label" for="thinkingEnabledSwitch" id="thinkingEnabledLabel">关闭</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

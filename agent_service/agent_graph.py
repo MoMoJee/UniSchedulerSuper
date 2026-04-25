@@ -6,7 +6,7 @@ import os
 import sqlite3
 import datetime
 import json
-from typing import Annotated, TypedDict, List, Literal, Optional, Dict
+from typing import Annotated, TypedDict, List, Literal, Optional, Dict, Any
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.sqlite import SqliteSaver
@@ -68,7 +68,7 @@ from agent_service.mcp_tools import get_mcp_tools_sync
 # 导入上下文优化模块
 from agent_service.context_optimizer import (
     TokenCalculator, ToolMessageCompressor,
-    get_current_model_config, get_optimization_config, update_token_usage
+    get_current_model_config, get_current_model_runtime, get_optimization_config, update_token_usage
 )
 from agent_service.context_summarizer import (
     ConversationSummarizer, build_optimized_context, build_full_context
@@ -315,17 +315,93 @@ def _normalize_base_url(base_url: str) -> str:
     return base_url.rstrip('/')
 
 
-def _build_chat_llm(model_name: str, base_url: str, api_key: str) -> Optional[ChatOpenAI]:
-    """构建 ChatOpenAI 实例，不满足条件时返回 None。"""
+class ReasoningAwareChatOpenAI(ChatOpenAI):
+    """子类：在请求负载中回传 reasoning_content，响应中提取 reasoning_content 到 additional_kwargs。"""
+
+    def _get_request_payload(self, input_, *, stop=None, **kwargs):
+        payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+        try:
+            if isinstance(input_, list):
+                msgs_in = input_
+            elif hasattr(input_, 'to_messages'):
+                msgs_in = input_.to_messages()
+            else:
+                msgs_in = []
+            if msgs_in and isinstance(payload, dict):
+                out_msgs = payload.get('messages', [])
+                for src, dst in zip(msgs_in, out_msgs):
+                    if not isinstance(dst, dict):
+                        continue
+                    ak = getattr(src, 'additional_kwargs', None) or {}
+                    rc = ak.get('reasoning_content')
+                    if rc and dst.get('role') == 'assistant':
+                        dst['reasoning_content'] = rc
+        except Exception as e:
+            logger.debug(f"[Reasoning] payload 注入失败，忽略: {e}")
+        return payload
+
+    def _create_chat_result(self, response, generation_info=None):
+        result = super()._create_chat_result(response, generation_info)
+        try:
+            choices = getattr(response, 'choices', None) or (response.get('choices') if isinstance(response, dict) else None)
+            raw_msg = None
+            if choices:
+                first = choices[0]
+                raw_msg = getattr(first, 'message', None) or (first.get('message') if isinstance(first, dict) else None)
+            rc = None
+            if raw_msg is not None:
+                rc = getattr(raw_msg, 'reasoning_content', None)
+                if rc is None and isinstance(raw_msg, dict):
+                    rc = raw_msg.get('reasoning_content')
+            if rc and result.generations:
+                msg = result.generations[0].message
+                if not msg.additional_kwargs.get('reasoning_content'):
+                    msg.additional_kwargs['reasoning_content'] = rc
+        except Exception as e:
+            logger.debug(f"[Reasoning] response 提取失败，忽略: {e}")
+        return result
+
+
+def _build_chat_llm(model_name: str, base_url: str, api_key: str,
+                    *,
+                    thinking_enabled: bool = False,
+                    thinking_param_style: str = "none",
+                    thinking_min_max_tokens: int = 0) -> Optional[ChatOpenAI]:
+    """构建 ChatOpenAI 实例，不满足条件时返回 None。可选启用思考模式。"""
     if not model_name or not base_url or not api_key:
         return None
-    return ChatOpenAI(
+
+    extra_body: Dict[str, Any] = {}
+    extra_kwargs: Dict[str, Any] = {}
+
+    if thinking_param_style == "deepseek":
+        extra_body["thinking"] = {"type": "enabled" if thinking_enabled else "disabled"}
+        if thinking_enabled:
+            extra_body["reasoning_effort"] = "high"
+    elif thinking_param_style == "kimi-k2":
+        extra_body["thinking"] = {
+            "type": "enabled" if thinking_enabled else "disabled",
+            "keep": "all",
+        }
+        if thinking_enabled:
+            extra_kwargs["temperature"] = 1.0
+            extra_kwargs["max_tokens"] = max(thinking_min_max_tokens or 0, 16000)
+
+    init_kwargs: Dict[str, Any] = dict(
         model=model_name,
         base_url=base_url,
-        api_key=api_key,  # type: ignore
-        # temperature=0,
-        streaming=False,  # 关闭流式传输（项目只需节点级别流式，不需要 LLM 级别流式）
+        api_key=api_key,
+        streaming=False,
     )
+    if extra_body:
+        init_kwargs["model_kwargs"] = {"extra_body": extra_body}
+    init_kwargs.update(extra_kwargs)
+
+    try:
+        return ReasoningAwareChatOpenAI(**init_kwargs)  # type: ignore
+    except Exception as e:
+        logger.warning(f"[LLM] ReasoningAwareChatOpenAI 创建失败，回退原生 ChatOpenAI: {e}")
+        return ChatOpenAI(**init_kwargs)  # type: ignore
 
 
 _default_llm: Optional[object] = None
@@ -371,67 +447,67 @@ def get_default_llm():
     return _default_llm
 
 
-def get_user_llm(user):
+def get_user_llm(user, *, force_thinking: Optional[bool] = None):
     """
-    获取用户配置的 LLM 实例
-    
-    根据用户选择的模型（系统模型或自定义模型）创建对应的 LLM 实例。
-    系统模型的配置从 api_keys.json 统一读取。
-    
+    获取用户配置的 LLM 实例（含思考模式参数）。
+
     Args:
         user: Django User 对象
-    
-    Returns:
-        ChatOpenAI 实例
+        force_thinking: 如果传入 True/False，则覆盖用户 thinking_enabled（用于降级重试）
     """
     if not user or not user.is_authenticated:
         return get_default_llm()
-    
+
     try:
-        current_model_id, model_config = get_current_model_config(user)
-        
+        current_model_id, model_config, thinking_enabled = get_current_model_runtime(user)
+        if force_thinking is not None:
+            thinking_enabled = bool(force_thinking)
+
+        thinking_param_style = model_config.get('thinking_param_style', 'none')
+        thinking_min_max_tokens = int(model_config.get('thinking_min_max_tokens', 0) or 0)
+
         # 判断是否为系统模型
         is_system = model_config.get('provider') == 'system' or current_model_id.startswith('system_')
-        
+
         if is_system:
             # 系统模型：从统一配置读取
             system_model_config = APIKeyManager.get_system_model_config(current_model_id)
             if system_model_config:
                 api_key = system_model_config.get('api_key', '')
-                base_url = system_model_config.get('base_url', '')
+                base_url = _normalize_base_url(system_model_config.get('base_url', ''))
                 model_name = system_model_config.get('model_name', 'deepseek-chat')
-                
-                # 调试日志
-                logger.debug(f"[LLM] 系统模型配置: id={current_model_id}, model={model_name}")
-                logger.debug(f"[LLM] base_url(原始): {base_url}")
-                logger.debug(f"[LLM] api_key(前8位): {api_key[:8] if api_key else 'None'}...")
-                
-                # 统一处理 base_url（与自定义模型保持一致）
-                base_url = _normalize_base_url(base_url)
-                
-                logger.debug(f"[LLM] base_url(处理后): {base_url}")
-                
-                user_llm = _build_chat_llm(model_name, base_url, api_key)
+                # 优先使用 system_model_config 中的思考参数字段
+                thinking_param_style = system_model_config.get('thinking_param_style', thinking_param_style)
+                thinking_min_max_tokens = int(system_model_config.get('thinking_min_max_tokens', thinking_min_max_tokens) or 0)
+
+                user_llm = _build_chat_llm(
+                    model_name, base_url, api_key,
+                    thinking_enabled=thinking_enabled,
+                    thinking_param_style=thinking_param_style,
+                    thinking_min_max_tokens=thinking_min_max_tokens,
+                )
                 if user_llm:
-                    logger.debug(f"[LLM] 使用系统模型: {model_name} ({current_model_id}) @ {base_url}")
+                    logger.debug(f"[LLM] 系统模型: {model_name} thinking={thinking_enabled} style={thinking_param_style}")
                     return user_llm
-            
-            # 系统模型配置不存在，使用默认
+
             logger.warning(f"[LLM] 系统模型 {current_model_id} 配置不存在，使用默认")
             return get_default_llm()
-        
-        # 自定义模型：使用用户配置
-        api_url = model_config.get('api_url', '') or model_config.get('base_url', '')
-        api_url = _normalize_base_url(api_url)
-        
+
+        # 自定义模型
+        api_url = _normalize_base_url(model_config.get('api_url', '') or model_config.get('base_url', ''))
         api_key = model_config.get('api_key', '')
         model_name = model_config.get('model_name', model_config.get('model', ''))
-        
-        user_llm = _build_chat_llm(model_name, api_url, api_key)
+
+        user_llm = _build_chat_llm(
+            model_name, api_url, api_key,
+            thinking_enabled=thinking_enabled,
+            thinking_param_style=thinking_param_style,
+            thinking_min_max_tokens=thinking_min_max_tokens,
+        )
         if user_llm:
-            logger.debug(f"[LLM] 使用自定义模型: {model_name} @ {api_url}")
+            logger.debug(f"[LLM] 自定义模型: {model_name} thinking={thinking_enabled} style={thinking_param_style}")
             return user_llm
-        
+
     except Exception as e:
         logger.warning(f"[LLM] 创建用户 LLM 失败，使用默认: {e}")
 
@@ -1091,6 +1167,12 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
             if hasattr(_msg, 'tool_call_id') and _msg.tool_call_id:
                 _serialized["tool_call_id"] = _msg.tool_call_id
 
+            # 思考内容（截断防爆）
+            _ak_for_rc = getattr(_msg, 'additional_kwargs', None) or {}
+            _rc = _ak_for_rc.get('reasoning_content')
+            if _rc:
+                _serialized["reasoning_content"] = _rc[:5000]
+
             # 元数据标记
             _meta = {"type": _role}
             _content_str = _serialized.get("content", "")
@@ -1105,6 +1187,8 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
             if _kwargs.get('attachments_metadata'):
                 _meta["has_attachments"] = True
                 _meta["attachment_ids"] = _kwargs.get('attachment_ids', [])
+            if _kwargs.get('reasoning_content'):
+                _meta["has_reasoning"] = True
             _serialized["_meta"] = _meta
 
             _snapshot_messages.append(_serialized)
@@ -1152,7 +1236,49 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     except Exception as _snap_e:
         logger.warning(f"[Agent] 保存 LLM 请求快照失败: {_snap_e}")
 
-    response = llm_with_tools.invoke(full_messages, config)
+    # ========== 调用 LLM（带思考模式降级） ==========
+    try:
+        response = llm_with_tools.invoke(full_messages, config)
+    except Exception as _llm_e:
+        _err_msg = str(_llm_e).lower()
+        # 识别思考模式与 reasoning_content 相关的 400
+        _is_thinking_400 = (
+            ('reasoning_content' in _err_msg or 'reasoningcontent' in _err_msg or 'thinking' in _err_msg)
+            and ('400' in _err_msg or 'bad request' in _err_msg or 'invalid' in _err_msg)
+        )
+        # 当前用户是否有启用思考
+        _user_thinking_on = False
+        try:
+            if user and user.is_authenticated:
+                _, _, _user_thinking_on = get_current_model_runtime(user)
+        except Exception:
+            pass
+
+        if _is_thinking_400 and _user_thinking_on and user and user.is_authenticated:
+            logger.warning(f"[Thinking] 思考模式请求 400，静默降级为非思考重试: {_llm_e}")
+            _fallback_llm = get_user_llm(user, force_thinking=False)
+            if tools:
+                _fallback_llm = _fallback_llm.bind_tools(tools)
+            response = _fallback_llm.invoke(full_messages, config)
+            # 标记本轮发生了降级，供 consumers 由会话状态推送
+            try:
+                _fb_session_id = configurable.get("thread_id", "")
+                if _fb_session_id:
+                    from agent_service.models import AgentSession as _FbSession
+                    from datetime import datetime as _fbdt
+                    _fb_sess = _FbSession.objects.filter(session_id=_fb_session_id).first()
+                    if _fb_sess:
+                        _state = _fb_sess.state_snapshot or {}
+                        _state['thinking_fallback'] = {
+                            'reason': 'legacy_history',
+                            'at': _fbdt.now().isoformat(),
+                        }
+                        _fb_sess.state_snapshot = _state
+                        _fb_sess.save(update_fields=['state_snapshot'])
+            except Exception as _fb_save_e:
+                logger.debug(f"[Thinking] 记录降级状态失败: {_fb_save_e}")
+        else:
+            raise
     
     # ========== Token 统计 ==========
     if user and user.is_authenticated:

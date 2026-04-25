@@ -329,7 +329,7 @@ def get_history(request):
                     "attachments": attachments  # 附件列表（供前端渲染磁贴）
                 })
             elif isinstance(msg, AIMessage):
-                formatted_messages.append({
+                _ai_item = {
                     "role": "assistant",
                     "content": msg.content,
                     "id": msg.id,
@@ -338,7 +338,12 @@ def get_history(request):
                         {"name": tc.get("name"), "args": tc.get("args")}
                         for tc in (msg.tool_calls or [])
                     ] if msg.tool_calls else None
-                })
+                }
+                _ai_ak = getattr(msg, 'additional_kwargs', None) or {}
+                _ai_rc = _ai_ak.get('reasoning_content')
+                if _ai_rc:
+                    _ai_item["reasoning_content"] = _ai_rc
+                formatted_messages.append(_ai_item)
             elif isinstance(msg, ToolMessage):
                 formatted_messages.append({
                     "role": "tool",

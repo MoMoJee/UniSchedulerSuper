@@ -123,6 +123,7 @@ def get_model_config(request):
             "success": True,
             "current_model_id": current_model_id,
             "current_model": current_model,
+            "thinking_enabled": bool(agent_config.get('thinking_enabled', False)),
             "system_models": get_system_models(),
             "custom_models": masked_custom_models,
             "all_models": all_models
@@ -168,20 +169,44 @@ def update_model_config(request):
         
         # 获取当前配置（解密后）
         agent_config = get_agent_config_decrypted(user)
-        
+
         # 切换当前模型
         if 'current_model_id' in data:
             model_id = data['current_model_id']
             all_models = get_all_models(user)
-            
+
             if model_id not in all_models:
                 return Response({
                     "success": False,
                     "error": f"模型 {model_id} 不存在"
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
+
             agent_config['current_model_id'] = model_id
             logger.info(f"用户 {user.username} 切换模型为 {model_id}")
+
+            # 切模型后联动修正 thinking_enabled
+            new_mode = all_models[model_id].get('thinking_mode', 'unsupported')
+            if new_mode == 'unsupported':
+                agent_config['thinking_enabled'] = False
+            elif new_mode == 'forced':
+                agent_config['thinking_enabled'] = True
+
+        # 思考开关（与当前模型能力联合校验）
+        if 'thinking_enabled' in data:
+            requested_thinking = bool(data.get('thinking_enabled'))
+            target_model_id = agent_config.get('current_model_id', 'system_deepseek')
+            all_models = get_all_models(user)
+            target_model = all_models.get(target_model_id, {})
+            thinking_mode = target_model.get('thinking_mode', 'unsupported')
+            if thinking_mode == 'unsupported' and requested_thinking:
+                return Response({
+                    "success": False,
+                    "error": "该模型不支持思考模式，请先关闭思考开关或换用支持的模型"
+                }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+            if thinking_mode == 'forced':
+                requested_thinking = True
+            agent_config['thinking_enabled'] = requested_thinking
+            logger.info(f"用户 {user.username} 设置思考开关为 {requested_thinking}")
         
         # 添加/更新自定义模型
         if 'add_custom_model' in data:
@@ -601,6 +626,7 @@ def get_all_agent_config(request):
             "model": {
                 "current_model_id": agent_config.get('current_model_id', 'system_deepseek'),
                 "current_model": current_model,
+                "thinking_enabled": bool(agent_config.get('thinking_enabled', False)),
                 "system_models": get_system_models(),
                 "custom_models": agent_config.get('custom_models', {}),
                 "all_models": all_models

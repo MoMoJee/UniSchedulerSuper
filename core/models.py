@@ -1130,6 +1130,12 @@ DATA_SCHEMA = {
                 "nullable": False,
                 "default": "system_deepseek",
             },
+            # 思考模式开关（仅对支持的模型生效）
+            "thinking_enabled": {
+                "type": bool,
+                "nullable": False,
+                "default": False,
+            },
             # 自定义模型列表（系统模型由代码提供）
             "custom_models": {
                 "type": dict,

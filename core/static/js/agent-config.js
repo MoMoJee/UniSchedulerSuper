@@ -94,12 +94,77 @@ const agentConfig = {
         // 显示当前模型信息
         const currentModel = modelData.current_model || this.allModels[modelData.current_model_id];
         this.showModelInfo(currentModel);
-        
+
+        // 渲染思考开关（依赖当前模型能力）
+        this._currentThinkingEnabled = !!modelData.thinking_enabled;
+        this.applyThinkingSwitch(currentModel, this._currentThinkingEnabled);
+
         // 更新自定义模型列表
         this.updateCustomModelsList(customModels);
-        
+
         // 监听选择变化
-        select.onchange = () => this.showModelInfo(this.allModels[select.value]);
+        select.onchange = () => {
+            const m = this.allModels[select.value];
+            this.showModelInfo(m);
+            this.applyThinkingSwitch(m, this._currentThinkingEnabled);
+        };
+    },
+
+    /**
+     * 根据模型能力应用思考开关状态
+     */
+    applyThinkingSwitch(model, currentEnabled) {
+        const sw = document.getElementById('thinkingEnabledSwitch');
+        const label = document.getElementById('thinkingEnabledLabel');
+        const hint = document.getElementById('thinkingModeHint');
+        if (!sw || !label) return;
+        const mode = (model && model.thinking_mode) || 'unsupported';
+        if (mode === 'unsupported') {
+            sw.checked = false;
+            sw.disabled = true;
+            if (hint) hint.textContent = '当前模型不支持思考模式';
+        } else if (mode === 'forced') {
+            sw.checked = true;
+            sw.disabled = true;
+            if (hint) hint.textContent = '当前模型始终启用思考模式';
+        } else {
+            sw.disabled = false;
+            sw.checked = !!currentEnabled;
+            if (hint) hint.textContent = '启用后模型会先生成推理链，再给出最终答案';
+        }
+        label.textContent = sw.checked ? '开启' : '关闭';
+    },
+
+    /**
+     * 切换思考开关
+     */
+    async toggleThinking() {
+        const sw = document.getElementById('thinkingEnabledSwitch');
+        if (!sw) return;
+        const enabled = !!sw.checked;
+        try {
+            const response = await fetch('/api/agent/model-config/update/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify({ thinking_enabled: enabled })
+            });
+            const data = await response.json();
+            if (data.success) {
+                this._currentThinkingEnabled = enabled;
+                const label = document.getElementById('thinkingEnabledLabel');
+                if (label) label.textContent = enabled ? '开启' : '关闭';
+                this.showSuccess(enabled ? '思考模式已开启' : '思考模式已关闭');
+            } else {
+                sw.checked = !enabled;
+                this.showError(data.error || '设置失败');
+            }
+        } catch (error) {
+            sw.checked = !enabled;
+            this.showError('设置失败: ' + error.message);
+        }
     },
     
     /**

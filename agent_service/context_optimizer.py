@@ -129,6 +129,13 @@ class TokenCalculator:
                 tokens += self.calculate_text(tool_call.get("name", ""))
                 tokens += self.calculate_text(json.dumps(tool_call.get("args", {}), ensure_ascii=False))
 
+        # 思考内容 token（服务商实际会计费）
+        if isinstance(message, AIMessage):
+            ak = getattr(message, 'additional_kwargs', None) or {}
+            rc = ak.get('reasoning_content')
+            if rc and isinstance(rc, str):
+                tokens += self.calculate_text(rc)
+
         return tokens
 
     def calculate_messages(self, messages: List[BaseMessage], usage: Optional[Dict] = None) -> int:
@@ -437,12 +444,16 @@ def get_system_models() -> Dict[str, Dict]:
             'supports_tools': config.get('supports_tools', True),
             'supports_vision': config.get('supports_vision', False),
             'supports_multimodal': config.get('supports_multimodal', False),
+            'supports_thinking': config.get('supports_thinking', False),
+            'thinking_mode': config.get('thinking_mode', 'unsupported'),
+            'thinking_param_style': config.get('thinking_param_style', 'none'),
+            'thinking_min_max_tokens': config.get('thinking_min_max_tokens', 0),
             'cost_per_1k_input': config.get('cost_per_1k_input', 0),
             'cost_per_1k_output': config.get('cost_per_1k_output', 0),
             'cost_currency': config.get('cost_currency', 'CNY'),
             'readonly': config.get('readonly', True),
         }
-    
+
     return result
 
 
@@ -527,6 +538,39 @@ def get_current_model_config(user) -> Tuple[str, Dict]:
         })
 
     return current_model_id, model_config
+
+
+def get_current_model_runtime(user) -> Tuple[str, Dict, bool]:
+    """
+    获取用户当前运行时模型配置，含思考开关。
+
+    返回 (model_id, model_config, thinking_enabled)。并根据模型能力与
+    `thinking_mode` 对 `thinking_enabled` 做静默修正：forced→True，unsupported→False。
+    同时注入 `_thinking_enabled` 到 model_config 拷贝供下游读取。
+    """
+    from core.models import UserData
+
+    model_id, model_config = get_current_model_config(user)
+
+    thinking_enabled = False
+    try:
+        agent_config_data = UserData.objects.filter(user=user, key='agent_config').first()
+        if agent_config_data:
+            cfg = agent_config_data.get_value() or {}
+            thinking_enabled = bool(cfg.get('thinking_enabled', False))
+    except Exception as e:
+        logger.warning(f"Failed to get thinking_enabled: {e}")
+
+    thinking_mode = (model_config or {}).get('thinking_mode', 'unsupported')
+    if thinking_mode == 'forced':
+        thinking_enabled = True
+    elif thinking_mode == 'unsupported':
+        thinking_enabled = False
+
+    # 不修改入参 dict，返回拷贝并注入运行时标记
+    cfg_copy = dict(model_config) if model_config else {}
+    cfg_copy['_thinking_enabled'] = thinking_enabled
+    return model_id, cfg_copy, thinking_enabled
 
 
 def get_optimization_config(user) -> Dict:

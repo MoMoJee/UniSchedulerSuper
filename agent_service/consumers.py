@@ -522,7 +522,13 @@ class AgentConsumer(AsyncWebsocketConsumer):
                                 if self.should_stop:
                                     logger.debug(f"[Stream] 检测到停止信号，中断消息处理")
                                     break
-                                
+
+                                # 推送思考内容（在 content / tool_calls 之前）
+                                _ak = getattr(msg, 'additional_kwargs', None) or {}
+                                _rc = _ak.get('reasoning_content')
+                                if _rc:
+                                    await self.send_json({"type": "reasoning", "content": _rc})
+
                                 # 处理 AIMessage 的内容
                                 if hasattr(msg, 'content') and msg.content:
                                     if not stream_started:
@@ -617,6 +623,27 @@ class AgentConsumer(AsyncWebsocketConsumer):
             except Exception as _ws_snap_e:
                 logger.warning(f"[WS] 推送 LLM 请求快照失败: {_ws_snap_e}")
 
+            # 检查是否本轮触发了思考模式降级，推送一次 toast 后清除标记
+            try:
+                from agent_service.models import AgentSession as _FbSnapSession
+                _fb_session = await database_sync_to_async(
+                    _FbSnapSession.objects.filter(session_id=self.session_id).first
+                )()
+                if _fb_session and _fb_session.state_snapshot:
+                    _fb_info = (_fb_session.state_snapshot or {}).get('thinking_fallback')
+                    if _fb_info:
+                        await self.send_json({
+                            "type": "thinking_fallback",
+                            "reason": _fb_info.get('reason', 'legacy_history')
+                        })
+                        # 清除标记，避免重复推送
+                        _new_state = dict(_fb_session.state_snapshot)
+                        _new_state.pop('thinking_fallback', None)
+                        _fb_session.state_snapshot = _new_state
+                        await database_sync_to_async(_fb_session.save)(update_fields=['state_snapshot'])
+            except Exception as _fb_e:
+                logger.debug(f"[WS] 思考降级标记处理失败: {_fb_e}")
+
             # 发送完成信号（包含消息数量）
             if not self.should_stop:
                 await self.send_json({
@@ -706,7 +733,13 @@ class AgentConsumer(AsyncWebsocketConsumer):
                             for msg in node_output['messages']:
                                 if self.should_stop:
                                     break
-                                
+
+                                # 推送思考内容
+                                _ak = getattr(msg, 'additional_kwargs', None) or {}
+                                _rc = _ak.get('reasoning_content')
+                                if _rc:
+                                    await self.send_json({"type": "reasoning", "content": _rc})
+
                                 # 处理 AIMessage 内容
                                 if hasattr(msg, 'content') and msg.content:
                                     has_tool_calls = hasattr(msg, 'tool_calls') and msg.tool_calls

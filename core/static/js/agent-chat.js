@@ -865,7 +865,16 @@ class AgentChat {
             case 'stream_end':
                 this.endStreamMessage(data.metadata);
                 break;
-            
+
+            case 'reasoning':
+                // 思考过程：插入折叠块（不计入正文）
+                this.appendReasoningBlock(data.content);
+                break;
+
+            case 'thinking_fallback':
+                this.showToast('由于历史会话缺少思考链，本轮已自动切换为非思考模式', 'warning');
+                break;
+
             case 'tool_call':
                 this.showToolCall(data.name || data.tool, data.args);
                 break;
@@ -1822,6 +1831,50 @@ class AgentChat {
     }
 
     /**
+     * 在当前 AI 气泡或新插入气泡上方添加思考折叠块
+     */
+    appendReasoningBlock(content) {
+        if (!content) return;
+        let target = document.getElementById('streamingMessage');
+        if (!target) {
+            // 没有正在流式的气泡，主动起一个，使思考块挂在 AI 气泡里
+            this.startStreamMessage();
+            target = document.getElementById('streamingMessage');
+        }
+        if (!target) return;
+        const body = target.querySelector('.message-body');
+        if (!body) return;
+        const block = document.createElement('details');
+        block.className = 'reasoning-block';
+        const summary = document.createElement('summary');
+        summary.className = 'reasoning-summary';
+        summary.textContent = '思考过程';
+        const pre = document.createElement('pre');
+        pre.className = 'reasoning-content';
+        pre.textContent = content;
+        block.appendChild(summary);
+        block.appendChild(pre);
+        body.insertBefore(block, body.firstChild);
+        this.scrollToBottom();
+    }
+
+    /**
+     * 简单 toast（基于 Bootstrap，回退 alert 区）
+     */
+    showToast(message, level = 'info') {
+        try {
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;max-width:360px;';
+            const colorMap = { info: '#0d6efd', warning: '#d48806', error: '#dc3545', success: '#28a745' };
+            wrap.innerHTML = `<div style="background:${colorMap[level] || colorMap.info};color:#fff;padding:10px 14px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.15);font-size:0.9em;">${this.escapeHtml(message)}</div>`;
+            document.body.appendChild(wrap);
+            setTimeout(() => { try { wrap.remove(); } catch(e){} }, 4000);
+        } catch (e) {
+            console.warn('toast fallback:', message);
+        }
+    }
+
+    /**
      * 开始流式消息
      */
     startStreamMessage() {
@@ -2493,7 +2546,24 @@ class AgentChat {
                             if (hasContent(msg.content)) {
                                 this.addMessage(msg.content, 'agent', {}, index);
                             }
-                            
+
+                            // 历史思考内容（reasoning_content）
+                            if (msg.reasoning_content) {
+                                // 找最后一条 agent 消息，挂折叠块
+                                const all = this.messagesContainer.querySelectorAll('.agent-message');
+                                const lastAgent = all[all.length - 1];
+                                if (lastAgent) {
+                                    const body = lastAgent.querySelector('.message-body');
+                                    if (body) {
+                                        const block = document.createElement('details');
+                                        block.className = 'reasoning-block';
+                                        block.innerHTML = `<summary class="reasoning-summary">思考过程</summary><pre class="reasoning-content"></pre>`;
+                                        block.querySelector('pre').textContent = msg.reasoning_content;
+                                        body.insertBefore(block, body.firstChild);
+                                    }
+                                }
+                            }
+
                             // 第二步：显示工具调用指示器（如果有）
                             if (msg.tool_calls && msg.tool_calls.length > 0) {
                                 msg.tool_calls.forEach(tc => {
@@ -5733,6 +5803,7 @@ class AgentChat {
             else if (meta.type === 'attachment_context') title += '<span class="badge bg-warning ms-1">附件上下文</span>';
             else if (meta.type === 'system_prompt') title += '<span class="badge bg-purple ms-1">系统提示</span>';
             if (meta.has_attachments) title += '<span class="badge bg-info ms-1">含附件</span>';
+            if (meta.has_reasoning || msg.reasoning_content) title += '<span class="badge bg-secondary ms-1">💭 思考</span>';
             if (msg.name) title += ` <code>${this._escapeVizHtml(msg.name)}</code>`;
             if (msg.tool_calls?.length > 0) title += ` → 调用 ${msg.tool_calls.map(tc => `<code>${this._escapeVizHtml(tc.name || '')}</code>`).join(', ')}`;
             title += ` <span style="font-size:10px;color:var(--text-muted);">#${i}</span>`;
@@ -5746,6 +5817,10 @@ class AgentChat {
                     if (block.type === 'image_url') return '<div class="badge bg-info">🖼️ 图片 (base64 已截断)</div>';
                     return `<pre>${this._escapeVizHtml(JSON.stringify(block, null, 2))}</pre>`;
                 }).join('');
+            }
+            if (msg.reasoning_content) {
+                body += '<div style="margin-top:8px;"><strong>💭 思考内容（截断 5000 字）:</strong></div>';
+                body += `<pre style="background:#f7f7fa;border-left:3px solid #b0b6c1;color:#555;">${this._escapeVizHtml(msg.reasoning_content)}</pre>`;
             }
             if (msg.tool_calls?.length > 0) {
                 body += '<div style="margin-top:8px;"><strong>Tool Calls:</strong></div>';

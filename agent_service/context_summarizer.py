@@ -409,6 +409,14 @@ class ConversationSummarizer:
 
             lines.append(f"[{role}] {content}")
 
+            # 如果是 AI 消息且有思考内容（截断）
+            if isinstance(msg, AIMessage):
+                ak = getattr(msg, 'additional_kwargs', None) or {}
+                rc = ak.get('reasoning_content')
+                if rc and isinstance(rc, str):
+                    rc_preview = rc[:200] + ("..." if len(rc) > 200 else "")
+                    lines.append(f"  [思考摘要] {rc_preview}")
+
             # 如果是 AI 消息且有工具调用
             if isinstance(msg, AIMessage) and msg.tool_calls:
                 for tc in msg.tool_calls:
