@@ -8,6 +8,7 @@
 db.sqlite3-shm
 db.sqlite3-wal
 db.sqlite3
+/backup/
 
 # API 密钥配置文件（包含敏感信息）
 /config/api_keys.json

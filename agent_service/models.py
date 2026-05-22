@@ -1463,20 +1463,21 @@ class SessionAttachment(models.Model):
     
     def hard_delete(self):
         """物理删除（包括文件）"""
-        # 删除原始文件
-        if self.file:
+        # 若此附件是从云盘加载的，file 字段与 UserFile.original_file 共享同一磁盘文件，
+        # 不能在这里删除，由云盘模块负责文件生命周期管理，避免云盘文件被意外删除。
+        if self.cloud_file_id is None and self.file:
             try:
                 self.file.delete(save=False)
             except Exception:
                 pass
-        
-        # 删除缩略图
+
+        # 缩略图是独立生成的，始终可以安全删除
         if self.thumbnail:
             try:
                 self.thumbnail.delete(save=False)
             except Exception:
                 pass
-        
+
         # 删除数据库记录
         self.delete()
     

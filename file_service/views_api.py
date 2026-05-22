@@ -78,33 +78,40 @@ def _core_upload(user, file_obj, folder=None, source='upload') -> dict:
         source=source,
     )
 
-    if category == 'image':
-        user_file.parse_status = 'none'
-        user_file.save()
-    else:
-        # 尝试跨文件夹解析复用
-        donor = UserFile.objects.filter(
-            user=user, file_hash=file_hash,
-            parse_status='completed', markdown_edited=False, is_deleted=False,
-        ).first()
-        if donor and donor.parsed_markdown:
-            from django.utils import timezone
-            user_file.parsed_markdown = donor.parsed_markdown
-            user_file.search_text = donor.search_text
-            user_file.text_preview = donor.text_preview
-            user_file.parse_status = 'completed'
-            user_file.parse_source = 'reused'
-            user_file.parsed_at = timezone.now()
+    # 7. 创建 UserFile + 消耗配额（原子化，防止配额与文件状态不一致）
+    # 预解析（慢速 I/O）放在事务外执行，避免长时间持锁
+    needs_parse = False
+    from django.db import transaction
+    with transaction.atomic():
+        if category == 'image':
+            user_file.parse_status = 'none'
             user_file.save()
         else:
-            user_file.parse_status = 'pending'
-            user_file.save()
-            # 同步预解析
-            if should_preparse(mime_type):
-                preparse_document(user_file)
+            # 尝试跨文件夹解析复用
+            donor = UserFile.objects.filter(
+                user=user, file_hash=file_hash,
+                parse_status='completed', markdown_edited=False, is_deleted=False,
+            ).first()
+            if donor and donor.parsed_markdown:
+                from django.utils import timezone
+                user_file.parsed_markdown = donor.parsed_markdown
+                user_file.search_text = donor.search_text
+                user_file.text_preview = donor.text_preview
+                user_file.parse_status = 'completed'
+                user_file.parse_source = 'reused'
+                user_file.parsed_at = timezone.now()
+                user_file.save()
+            else:
+                user_file.parse_status = 'pending'
+                user_file.save()
+                needs_parse = should_preparse(mime_type)
 
-    # 8. 更新配额
-    quota.consume(user_file.file_size)
+        # 8. 更新配额（与文件记录同处一个事务）
+        quota.consume(user_file.file_size)
+
+    # 同步预解析（在事务外执行，失败只影响解析状态，不回滚文件记录和配额）
+    if needs_parse:
+        preparse_document(user_file)
 
     return {"success": True, "file": user_file}
 
@@ -387,21 +394,67 @@ def download_markdown(request, file_id):
 
     # 有图片：打包为 zip
     logger.info("用户 %s 下载Markdown(含%d张图片): %s", request.user.username, len(image_urls), user_file.filename)
+
+    # 单图上限 10MB，zip 总量上限 100MB
+    SINGLE_IMG_LIMIT = 10 * 1024 * 1024
+    TOTAL_IMG_LIMIT = 100 * 1024 * 1024
+
+    from file_service.url_fetcher import _check_ip_blocked
+    from urllib.parse import urlparse as _urlparse
+
+    def _is_safe_image_url(img_url: str) -> bool:
+        """对 Markdown 中嵌入图片 URL 做 SSRF 校验（仅允许 http/https、拒绝内网）"""
+        try:
+            p = _urlparse(img_url)
+            if p.scheme not in ('http', 'https') or not p.hostname:
+                return False
+            blocked, _ = _check_ip_blocked(p.hostname)
+            return not blocked
+        except Exception:
+            return False
+
     buf = io.BytesIO()
+    total_downloaded = 0
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(md_filename, md_content.encode('utf-8'))
         for idx, img_url in enumerate(image_urls):
+            if not _is_safe_image_url(img_url):
+                logger.warning("跳过不安全图片URL %s", img_url)
+                continue
             try:
-                resp = http_requests.get(img_url, timeout=15, stream=True)
+                resp = http_requests.get(
+                    img_url, timeout=15, stream=True,
+                    headers={'User-Agent': 'UniScheduler-FileService/1.0'},
+                )
                 resp.raise_for_status()
                 # 从 URL 或 Content-Type 推断扩展名
-                path = urlparse(img_url).path
-                ext = os.path.splitext(path)[1]
+                path_part = os.path.splitext(_urlparse(img_url).path)[1]
+                ext = path_part if path_part else ''
                 if not ext:
                     ct = resp.headers.get('Content-Type', '')
                     ext = '.' + ct.split('/')[-1].split(';')[0].strip() if '/' in ct else '.bin'
                 img_name = f"images/image_{idx + 1}{ext}"
-                zf.writestr(img_name, resp.content)
+
+                # 流式写入，限制单图大小
+                img_buf = io.BytesIO()
+                img_size = 0
+                for chunk in resp.iter_content(chunk_size=65536):
+                    img_size += len(chunk)
+                    if img_size > SINGLE_IMG_LIMIT:
+                        logger.warning("图片过大跳过 %s (>%dMB)", img_url, SINGLE_IMG_LIMIT // (1024*1024))
+                        img_buf = None
+                        break
+                    img_buf.write(chunk)
+                resp.close()
+
+                if img_buf is None:
+                    continue
+                total_downloaded += img_size
+                if total_downloaded > TOTAL_IMG_LIMIT:
+                    logger.warning("下载Markdown图片总量超限，截断后续图片")
+                    break
+                img_buf.seek(0)
+                zf.writestr(img_name, img_buf.read())
             except Exception as e:
                 logger.warning("下载图片失败 %s: %s", img_url, e)
                 continue
@@ -551,13 +604,18 @@ def rename_folder(request, folder_id):
 
     old_path = folder.path
     folder.name = new_name
-    folder.save()  # save() 会自动重算 path
+    folder.save()  # save() 会自动重算 path（仅更新顶层文件夹）
     logger.info("用户 %s 重命名文件夹: %s -> %s", request.user.username, old_path, folder.path)
 
-    # 递归更新子文件夹的 path
-    for child in UserFolder.objects.filter(user=request.user, path__startswith=old_path).exclude(id=folder.id):
-        child.path = child.path.replace(old_path, folder.path, 1)
-        child.save(update_fields=['path', 'updated_at'])
+    # 用 DB 函数批量替换所有后代路径，绕过 UserFolder.save() 的自动重算逻辑
+    # （Python 层逐条调用 save() 时，save() 会用 parent.path 重新计算并覆盖手动修改）
+    from django.db.models import Value
+    from django.db.models.functions import Replace as DbReplace
+    UserFolder.objects.filter(
+        user=request.user, path__startswith=old_path
+    ).exclude(id=folder.id).update(
+        path=DbReplace('path', Value(old_path), Value(folder.path))
+    )
 
     return Response({"id": folder.id, "name": folder.name, "path": folder.path})
 
@@ -630,16 +688,19 @@ def search_files(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def pick_files(request):
-    """GET /api/files/pick/?category=document  供聊天页'从云盘加载'弹窗使用"""
+    """GET /api/files/pick/?category=document&q=关键词  供聊天页'从云盘加载'弹窗使用"""
     user = request.user
     folder_id = request.query_params.get('folder_id')
     category = request.query_params.get('category')
+    q = request.query_params.get('q', '').strip()
 
     qs = UserFile.objects.filter(user=user, is_deleted=False)
     if folder_id:
         qs = qs.filter(folder_id=folder_id)
     if category:
         qs = qs.filter(category=category)
+    if q:
+        qs = qs.filter(filename__icontains=q)
 
     # 同时返回文件夹结构
     folders = UserFolder.objects.filter(user=user)
@@ -659,6 +720,6 @@ def pick_files(request):
                 "folder_id": uf.folder_id,
                 "parse_status": uf.parse_status,
             }
-            for uf in qs[:100]
+            for uf in qs
         ],
     })

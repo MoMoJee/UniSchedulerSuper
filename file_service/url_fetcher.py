@@ -66,6 +66,24 @@ def is_domain_allowed(url: str) -> bool:
     return False
 
 
+def _verify_final_url(response) -> tuple[bool, str]:
+    """
+    检查 requests 响应最终 URL 的主机是否仍然合法。
+    防止 HTTP 重定向将请求引导到内网/保留地址（DNS Rebinding 防护补充层）。
+    """
+    final_url = getattr(response, 'url', None)
+    if not final_url:
+        return True, ""
+    final_parsed = urlparse(final_url)
+    final_hostname = final_parsed.hostname
+    if not final_hostname:
+        return False, "响应最终 URL 格式异常"
+    blocked, reason = _check_ip_blocked(final_hostname)
+    if blocked:
+        return False, f"重定向目标不被允许: {reason}"
+    return True, ""
+
+
 def _check_ip_blocked(hostname: str) -> tuple[bool, str]:
     """DNS 解析后检查 IP 是否在黑名单中"""
     try:
@@ -136,6 +154,11 @@ def fetch_url(url: str, user) -> dict:
     except requests.RequestException as e:
         return {"success": False, "error": f"HEAD 请求失败: {e}"}
 
+    # DNS Rebinding 防护：重定向后再次校验最终目标 IP
+    ok, err = _verify_final_url(head)
+    if not ok:
+        return {"success": False, "error": err}
+
     content_type = head.headers.get('Content-Type', '').split(';')[0].strip().lower()
     if content_type and content_type not in ALLOWED_CONTENT_TYPES:
         return {"success": False, "error": f"不支持的文件类型: {content_type}"}
@@ -148,10 +171,36 @@ def fetch_url(url: str, user) -> dict:
             max_mb = quota.max_file_size / (1024 * 1024)
             return {"success": False, "error": f"文件大小超过限制（上限 {max_mb:.0f}MB）"}
 
-    # 5. 流式下载
+    # 5. 流式下载（禁止跨主机重定向，防止通过 302 绕过白名单）
     try:
         resp = requests.get(url, timeout=DOWNLOAD_TIMEOUT, stream=True,
+                            allow_redirects=False,
                             headers={'User-Agent': 'UniScheduler-FileService/1.0'})
+        # 手动跟随同主机重定向，拒绝跨主机
+        redirect_count = 0
+        while resp.is_redirect and redirect_count < 5:
+            next_url = resp.headers.get('Location', '')
+            if not next_url:
+                break
+            if not next_url.startswith(('http://', 'https://')):
+                # 相对路径：拼接
+                from urllib.parse import urljoin
+                next_url = urljoin(url, next_url)
+            next_parsed = urlparse(next_url)
+            if next_parsed.hostname != urlparse(url).hostname:
+                # 跨主机重定向：校验目标域名
+                if not is_domain_allowed(next_url):
+                    resp.close()
+                    return {"success": False, "error": "重定向目标域名不在白名单中"}
+                blocked, reason = _check_ip_blocked(next_parsed.hostname)
+                if blocked:
+                    resp.close()
+                    return {"success": False, "error": f"重定向目标不被允许: {reason}"}
+            resp.close()
+            resp = requests.get(next_url, timeout=DOWNLOAD_TIMEOUT, stream=True,
+                                allow_redirects=False,
+                                headers={'User-Agent': 'UniScheduler-FileService/1.0'})
+            redirect_count += 1
         resp.raise_for_status()
     except requests.RequestException as e:
         return {"success": False, "error": f"下载失败: {e}"}

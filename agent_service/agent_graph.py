@@ -666,8 +666,6 @@ findings: ["关键发现1"]
     # 6. 组装完整 prompt
     system_prompt = f"""{base_prompt}
 
-当前时间: {current_time}
-
 你的能力:
 {capabilities_str}
 
@@ -679,7 +677,10 @@ findings: ["关键发现1"]
 3. 如果用户没有提供完整信息，请礼貌询问
 4. 工具调用后，请根据返回结果给用户一个清晰的回复
 5. 如果用户提到重要的个人信息或偏好，请使用 save_personal_info 保存
-6. 如果用户要求将某段流程或知识沉淀为可复用的指令，使用 save_skill 保存为技能{workflow_hint}{todo_hint}{info_hint}{context_status_hint}{agent_state_hint}"""
+6. 如果用户要求将某段流程或知识沉淀为可复用的指令，使用 save_skill 保存为技能{workflow_hint}{todo_hint}{info_hint}{context_status_hint}{agent_state_hint}
+
+当前时间: {current_time}
+"""
 
     # 7. 注入被 Skill Selector 选中的技能完整内容
     skill_hint = ""

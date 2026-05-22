@@ -136,8 +136,12 @@ class UserFolder(models.Model):
         super().save(*args, **kwargs)
 
     @classmethod
-    def ensure_path(cls, user, path: str) -> 'UserFolder':
-        """确保路径存在，不存在则递归创建（类似 mkdir -p）"""
+    def ensure_path(cls, user, path: str) -> 'UserFolder | None':
+        """确保路径存在，不存在则递归创建（类似 mkdir -p）。
+        使用 get_or_create + IntegrityError 捕获处理并发竞态。
+        """
+        from django.db import IntegrityError
+
         parts = [p for p in path.strip('/').split('/') if p]
         current_parent = None
         current_path = "/"
@@ -145,11 +149,15 @@ class UserFolder(models.Model):
 
         for part in parts:
             current_path = f"{current_path}{part}/"
-            folder, _ = cls.objects.get_or_create(
-                user=user,
-                path=current_path,
-                defaults={'name': part, 'parent': current_parent}
-            )
+            try:
+                folder, _ = cls.objects.get_or_create(
+                    user=user,
+                    path=current_path,
+                    defaults={'name': part, 'parent': current_parent}
+                )
+            except IntegrityError:
+                # 并发请求同时创建了相同路径，直接查询已存在的记录
+                folder = cls.objects.get(user=user, path=current_path)
             current_parent = folder
 
         return folder
@@ -279,13 +287,15 @@ class UserFile(models.Model):
         return bool(self.parsed_markdown)
 
     def soft_delete(self):
-        """软删除文件并释放配额"""
+        """软删除文件并释放配额（原子操作，防止配额与文件状态不一致）"""
         from django.utils import timezone
-        self.is_deleted = True
-        self.deleted_at = timezone.now()
-        self.save(update_fields=['is_deleted', 'deleted_at'])
-        quota = UserStorageQuota.get_or_create_for_user(self.user)
-        quota.release(self.file_size)
+        from django.db import transaction
+        with transaction.atomic():
+            self.is_deleted = True
+            self.deleted_at = timezone.now()
+            self.save(update_fields=['is_deleted', 'deleted_at'])
+            quota = UserStorageQuota.get_or_create_for_user(self.user)
+            quota.release(self.file_size)
 
     def hard_delete(self):
         """物理删除文件和数据库记录"""
