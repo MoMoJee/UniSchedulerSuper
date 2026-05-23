@@ -266,7 +266,7 @@ def _get_tools_info(session: AgentSession, session_id: str) -> Dict[str, Any]:
         recent_calls = list(AgentTransaction.objects.filter(
             session_id=session_id
         ).order_by('-created_at')[:10].values(
-            'id', 'action_type', 'tool_type', 'status',
+            'id', 'action_type', 'description',
             'created_at', 'is_rolled_back'
         ))
 
@@ -274,7 +274,7 @@ def _get_tools_info(session: AgentSession, session_id: str) -> Dict[str, Any]:
         total_calls = AgentTransaction.objects.filter(session_id=session_id).count()
         reversible_calls = AgentTransaction.objects.filter(
             session_id=session_id,
-            reversible=True,
+            revision_id__isnull=False,
             is_rolled_back=False
         ).count()
 

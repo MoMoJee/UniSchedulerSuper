@@ -1121,3 +1121,141 @@ def get_token_usage_stats(user) -> Dict:
             "models": {},
             "history": {}
         }
+
+
+def _usage_float(value, digits: int = 6) -> float:
+    """格式化用量统计中的浮点数。"""
+    return round(float(value or 0.0), digits)
+
+
+def get_token_usage_record_summary(user, month: Optional[str] = None, recent_limit: int = 20) -> Dict[str, Any]:
+    """获取 AgentUsageRecord 请求级聚合统计。"""
+    from datetime import datetime, timezone
+    from django.db.models import Avg, Count, Sum
+    from agent_service.models import AgentUsageRecord
+
+    target_month = month or datetime.now(timezone.utc).strftime('%Y-%m')
+    safe_limit = max(1, min(int(recent_limit or 20), 50))
+    queryset = AgentUsageRecord.objects.filter(user=user, month=target_month)
+    record_count = queryset.count()
+
+    by_call_site = {}
+    for row in queryset.values('call_site').annotate(
+        count=Count('id'),
+        input_cache_miss_tokens=Sum('input_cache_miss_tokens'),
+        input_cache_hit_tokens=Sum('input_cache_hit_tokens'),
+        output_tokens=Sum('output_tokens'),
+        total_tokens=Sum('total_tokens'),
+        cost_total=Sum('cost_total'),
+        avg_cache_hit_ratio=Avg('cache_hit_ratio'),
+    ).order_by('call_site'):
+        key = row.get('call_site') or 'unknown'
+        by_call_site[key] = {
+            "count": int(row.get('count') or 0),
+            "record_count": int(row.get('count') or 0),
+            "input_cache_miss_tokens": int(row.get('input_cache_miss_tokens') or 0),
+            "input_cache_hit_tokens": int(row.get('input_cache_hit_tokens') or 0),
+            "output_tokens": int(row.get('output_tokens') or 0),
+            "total_tokens": int(row.get('total_tokens') or 0),
+            "cost_total": _usage_float(row.get('cost_total')),
+            "avg_cache_hit_ratio": _usage_float(row.get('avg_cache_hit_ratio'), 4),
+        }
+
+    by_source = {}
+    for row in queryset.values('source').annotate(
+        count=Count('id'),
+        cost_total=Sum('cost_total'),
+    ).order_by('source'):
+        key = row.get('source') or 'unknown'
+        by_source[key] = {
+            "count": int(row.get('count') or 0),
+            "cost_total": _usage_float(row.get('cost_total')),
+        }
+
+    by_model = {}
+    for row in queryset.values(
+        'model_id', 'model_name', 'provider', 'style', 'is_system_model', 'currency'
+    ).annotate(
+        record_count=Count('id'),
+        input_cache_miss_tokens=Sum('input_cache_miss_tokens'),
+        input_cache_hit_tokens=Sum('input_cache_hit_tokens'),
+        output_tokens=Sum('output_tokens'),
+        reasoning_tokens=Sum('reasoning_tokens'),
+        total_tokens=Sum('total_tokens'),
+        cost_input_cache_miss=Sum('cost_input_cache_miss'),
+        cost_input_cache_hit=Sum('cost_input_cache_hit'),
+        cost_output=Sum('cost_output'),
+        cost_total=Sum('cost_total'),
+        avg_cache_hit_ratio=Avg('cache_hit_ratio'),
+        price_input_cache_miss_per_1k=Avg('price_input_cache_miss_per_1k'),
+        price_input_cache_hit_per_1k=Avg('price_input_cache_hit_per_1k'),
+        price_output_per_1k=Avg('price_output_per_1k'),
+    ).order_by('model_id'):
+        model_id = row.get('model_id') or 'unknown'
+        by_model[model_id] = {
+            "model_id": model_id,
+            "name": row.get('model_name') or model_id,
+            "provider": row.get('provider') or '',
+            "style": row.get('style') or '',
+            "is_system": bool(row.get('is_system_model')),
+            "currency": row.get('currency') or 'CNY',
+            "record_count": int(row.get('record_count') or 0),
+            "input_cache_miss_tokens": int(row.get('input_cache_miss_tokens') or 0),
+            "input_cache_hit_tokens": int(row.get('input_cache_hit_tokens') or 0),
+            "output_tokens": int(row.get('output_tokens') or 0),
+            "reasoning_tokens": int(row.get('reasoning_tokens') or 0),
+            "total_tokens": int(row.get('total_tokens') or 0),
+            "cost_input_cache_miss": _usage_float(row.get('cost_input_cache_miss')),
+            "cost_input_cache_hit": _usage_float(row.get('cost_input_cache_hit')),
+            "cost_output": _usage_float(row.get('cost_output')),
+            "cost_total": _usage_float(row.get('cost_total')),
+            "avg_cache_hit_ratio": _usage_float(row.get('avg_cache_hit_ratio'), 4),
+            "prices": {
+                "input_cache_miss_per_1k": _usage_float(row.get('price_input_cache_miss_per_1k'), 8),
+                "input_cache_hit_per_1k": _usage_float(row.get('price_input_cache_hit_per_1k'), 8),
+                "output_per_1k": _usage_float(row.get('price_output_per_1k'), 8),
+            },
+            "source_counts": {},
+            "style_counts": {},
+        }
+
+    for row in queryset.values('model_id', 'source').annotate(count=Count('id')):
+        model_id = row.get('model_id') or 'unknown'
+        source = row.get('source') or 'unknown'
+        if model_id in by_model:
+            by_model[model_id]["source_counts"][source] = int(row.get('count') or 0)
+
+    for row in queryset.values('model_id', 'style').annotate(count=Count('id')):
+        model_id = row.get('model_id') or 'unknown'
+        style = row.get('style') or 'unknown'
+        if model_id in by_model:
+            by_model[model_id]["style_counts"][style] = int(row.get('count') or 0)
+
+    recent_records = []
+    for record in queryset.order_by('-created_at')[:safe_limit]:
+        recent_records.append({
+            "record_id": str(record.record_id),
+            "created_at": record.created_at.isoformat(),
+            "model_id": record.model_id,
+            "model_name": record.model_name or record.model_id,
+            "provider": record.provider,
+            "style": record.style,
+            "call_site": record.call_site,
+            "source": record.source,
+            "input_cache_miss_tokens": record.input_cache_miss_tokens,
+            "input_cache_hit_tokens": record.input_cache_hit_tokens,
+            "output_tokens": record.output_tokens,
+            "total_tokens": record.total_tokens,
+            "cost_total": _usage_float(record.cost_total),
+            "cache_hit_ratio": _usage_float(record.cache_hit_ratio, 4),
+        })
+
+    return {
+        "month": target_month,
+        "record_count": record_count,
+        "request_record_count": record_count,
+        "by_call_site": by_call_site,
+        "by_source": by_source,
+        "by_model": by_model,
+        "recent_records": recent_records,
+    }

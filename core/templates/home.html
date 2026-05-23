@@ -15,7 +15,7 @@
     <!-- Share Groups CSS -->
     <link rel="stylesheet" href="{% static 'css/share-groups.css' %}?v=20251111-001">
     <!-- Agent Chat CSS -->
-    <link rel="stylesheet" href="{% static 'css/agent-chat.css' %}?v=20251201-001">
+    <link rel="stylesheet" href="{% static 'css/agent-chat.css' %}?v=20260524-001">
     <!-- Quick Action CSS -->
     <link rel="stylesheet" href="{% static 'css/quick-action.css' %}?v=20260204-001">
     
@@ -3449,47 +3449,37 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- 按模型统计表格 -->
-                                    <div class="card mb-3">
-                                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                                            <span><i class="fas fa-chart-bar me-2"></i>本月模型使用明细</span>
-                                            <button class="btn btn-outline-danger btn-sm" onclick="agentConfig.resetTokenStats()">
-                                                <i class="fas fa-redo me-1"></i>重置当月
-                                            </button>
-                                        </div>
-                                        <div class="card-body p-0">
-                                            <div class="table-responsive">
-                                                <table class="table table-hover mb-0">
-                                                    <thead class="table-light">
-                                                        <tr>
-                                                            <th>模型</th>
-                                                            <th class="text-end">输入 Tokens</th>
-                                                            <th class="text-end">输出 Tokens</th>
-                                                            <th class="text-end">成本 (CNY)</th>
-                                                            <th>类型</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody id="modelStatsTableBody">
-                                                        <tr>
-                                                            <td colspan="5" class="text-center text-muted py-3">
-                                                                <i class="fas fa-spinner fa-spin me-2"></i>加载中...
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
+                                    <div class="agent-token-dashboard">
+                                        <div class="agent-token-panel mb-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0"><i class="fas fa-layer-group me-2"></i>模型 Token 分布</h6>
+                                                <button class="btn btn-outline-danger btn-sm" onclick="agentConfig.resetTokenStats()">
+                                                    <i class="fas fa-redo me-1"></i>重置当月
+                                                </button>
+                                            </div>
+                                            <div id="tokenModelStatsContainer" class="agent-token-model-list">
+                                                <div class="agent-token-empty"><i class="fas fa-spinner fa-spin me-2"></i>加载中...</div>
                                             </div>
                                         </div>
-                                    </div>
-                                    
-                                    <!-- 提示信息 -->
-                                    <div class="alert alert-secondary">
-                                        <h6 class="alert-heading"><i class="fas fa-lightbulb me-2"></i>关于配额</h6>
-                                        <ul class="mb-0 small">
-                                            <li>系统模型每月提供 ¥5.00 抵用金，每月1日 UTC 时间自动重置</li>
-                                            <li>抵用金用尽后，您需要使用自己配置的模型或等待下月</li>
-                                            <li>自定义模型无限额限制，仅做统计</li>
-                                            <li>建议在"模型配置"中添加您自己的 API Key 以获得无限使用</li>
-                                        </ul>
+
+                                        <div class="row g-3">
+                                            <div class="col-lg-5">
+                                                <div class="agent-token-panel h-100">
+                                                    <h6><i class="fas fa-database me-2"></i>请求元数据统计</h6>
+                                                    <div id="tokenUsageMetadataContainer">
+                                                        <div class="agent-token-empty"><i class="fas fa-spinner fa-spin me-2"></i>加载中...</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-lg-7">
+                                                <div class="agent-token-panel h-100">
+                                                    <h6><i class="fas fa-clock me-2"></i>最近请求</h6>
+                                                    <div id="tokenRecentRecordsContainer">
+                                                        <div class="agent-token-empty"><i class="fas fa-spinner fa-spin me-2"></i>加载中...</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -5031,8 +5021,8 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
     <script src="{% static 'js/container-query-polyfill.js' %}?v=20251107-001"></script>
     
     <!-- AI Agent 模块 -->
-    <script src="{% static 'js/agent-chat.js' %}?v=20260522-001"></script>
-    <script src="{% static 'js/agent-config.js' %}?v=20260102-001"></script>
+    <script src="{% static 'js/agent-chat.js' %}?v=20260524-003"></script>
+    <script src="{% static 'js/agent-config.js' %}?v=20260523-001"></script>
     <script src="{% static 'js/agent-skills.js' %}?v=20260312-001"></script>
     <!-- Quick Action 快速操作模块 -->
     <script src="{% static 'js/quick-action.js' %}?v=20260204-001"></script>

@@ -193,6 +193,23 @@ class EventManager {
 
 读操作（列表加载）使用 `_inFlightFetchKey` 防并发重复请求（参见 [JS 模块规范](./JS模块规范.md) 第 3.2 节）。
 
+### 5.1 后端兜底恢复
+
+对话上下文、可视化详情、Token 调试数据这类可由后端重建的数据，前端打开详情页时应调用只读接口兜底恢复最新状态。
+
+**示例**：
+
+```javascript
+const response = await fetch(`/api/agent/context-visualization/?session_id=${encodeURIComponent(sessionId)}`);
+const data = await response.json();
+const snapshot = data.llm_request;
+```
+
+**规则**：
+- WebSocket 推送可用于实时更新，但不能作为唯一数据源。
+- 刷新页面、切换会话、本地缓存清空后，详情页必须能从后端只读接口恢复。
+- 本地缓存只做体验优化，后端持久字段才是权威数据。
+
 ---
 
 ## 6. 乐观更新

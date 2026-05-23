@@ -8,6 +8,7 @@ import datetime
 import json
 import hashlib
 import re
+import uuid
 from typing import Annotated, TypedDict, List, Literal, Optional, Dict, Any
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
@@ -961,6 +962,114 @@ def _build_tool_schema_debug(
 # ==========================================
 # Agent 节点
 # ==========================================
+
+def _get_latest_human_message_index(messages: List[BaseMessage]) -> int:
+    """获取当前用户请求对应的 human 消息索引。"""
+    for index in range(len(messages) - 1, -1, -1):
+        message = messages[index]
+        role = getattr(message, 'type', '')
+        if isinstance(message, HumanMessage) or role == 'human':
+            return index
+    return -1
+
+
+def _as_int(value: Any) -> int:
+    """安全转换 token 数值。"""
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _build_context_viz_parent_snapshot(previous_snapshot: Dict[str, Any], call_snapshot: Dict[str, Any]) -> Dict[str, Any]:
+    """把同一用户请求内的多次 LLM 调用合并为父子快照结构。"""
+    previous_snapshot = previous_snapshot if isinstance(previous_snapshot, dict) else {}
+    same_parent = previous_snapshot.get('parent_message_index') == call_snapshot.get('parent_message_index')
+    child_snapshots = []
+    if same_parent:
+        child_snapshots = list(previous_snapshot.get('child_snapshots') or [])
+
+    call_snapshot = dict(call_snapshot)
+    call_snapshot['call_index'] = len(child_snapshots) + 1
+    child_snapshots.append(call_snapshot)
+
+    parent_snapshot = dict(call_snapshot)
+    parent_snapshot['snapshot_kind'] = 'agent_parent_call'
+    parent_snapshot['child_snapshots'] = child_snapshots
+    parent_snapshot['child_count'] = len(child_snapshots)
+    parent_snapshot['token_stats'] = _aggregate_context_viz_token_stats(child_snapshots, parent_snapshot.get('token_stats', {}))
+    return parent_snapshot
+
+
+def _token_stats_from_usage(usage_info: Dict[str, Any], input_tokens: int, output_tokens: int, source: str) -> Dict[str, Any]:
+    """把单次 LLM usage 转为上下文可视化 token 结构。"""
+    input_cache_hit_tokens = _as_int(usage_info.get('input_cache_hit_tokens', usage_info.get('cache_hit_tokens', 0)))
+    input_cache_miss_tokens = _as_int(usage_info.get('input_cache_miss_tokens', usage_info.get('cache_miss_tokens', input_tokens)))
+    if input_cache_hit_tokens == 0 and input_cache_miss_tokens == 0:
+        input_cache_miss_tokens = input_tokens
+    input_total = input_cache_hit_tokens + input_cache_miss_tokens
+
+    return {
+        "input_tokens": _as_int(input_tokens or usage_info.get('input_tokens', 0)),
+        "output_tokens": _as_int(output_tokens or usage_info.get('output_tokens', 0)),
+        "total_tokens": _as_int(usage_info.get('total_tokens', input_tokens + output_tokens)),
+        "cached_tokens": _as_int(usage_info.get('cached_tokens', input_cache_hit_tokens)),
+        "cache_hit_tokens": input_cache_hit_tokens,
+        "cache_miss_tokens": input_cache_miss_tokens,
+        "input_cache_hit_tokens": input_cache_hit_tokens,
+        "input_cache_miss_tokens": input_cache_miss_tokens,
+        "cache_hit_ratio": float(usage_info.get('cache_hit_ratio', (input_cache_hit_tokens / input_total) if input_total else 0.0) or 0.0),
+        "reasoning_tokens": _as_int(usage_info.get('reasoning_tokens', 0)),
+        "cache_source": usage_info.get('cache_source', 'none'),
+        "source": source,
+    }
+
+
+def _aggregate_context_viz_token_stats(child_snapshots: List[Dict[str, Any]], base_stats: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """聚合同一父调用下所有 LLM 子调用的 token。"""
+    aggregate = dict(base_stats or {})
+    counters = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
+        "cached_tokens": 0,
+        "cache_hit_tokens": 0,
+        "cache_miss_tokens": 0,
+        "input_cache_hit_tokens": 0,
+        "input_cache_miss_tokens": 0,
+        "reasoning_tokens": 0,
+    }
+    sources = set()
+
+    for child in child_snapshots or []:
+        stats = child.get('token_stats') or {}
+        input_hit = _as_int(stats.get('input_cache_hit_tokens', stats.get('cache_hit_tokens', stats.get('cached_tokens', 0))))
+        input_miss = _as_int(stats.get('input_cache_miss_tokens', stats.get('cache_miss_tokens', 0)))
+        input_tokens = _as_int(stats.get('input_tokens', input_hit + input_miss))
+        if input_miss == 0 and input_hit == 0 and input_tokens:
+            input_miss = input_tokens
+
+        counters["input_tokens"] += input_tokens
+        counters["output_tokens"] += _as_int(stats.get('output_tokens', 0))
+        counters["total_tokens"] += _as_int(stats.get('total_tokens', input_tokens + _as_int(stats.get('output_tokens', 0))))
+        counters["cached_tokens"] += _as_int(stats.get('cached_tokens', input_hit))
+        counters["cache_hit_tokens"] += input_hit
+        counters["cache_miss_tokens"] += input_miss
+        counters["input_cache_hit_tokens"] += input_hit
+        counters["input_cache_miss_tokens"] += input_miss
+        counters["reasoning_tokens"] += _as_int(stats.get('reasoning_tokens', 0))
+        if stats.get('source'):
+            sources.add(str(stats.get('source')))
+
+    aggregate.update(counters)
+    input_total = counters["input_cache_hit_tokens"] + counters["input_cache_miss_tokens"]
+    aggregate["cache_hit_ratio"] = (counters["input_cache_hit_tokens"] / input_total) if input_total else 0.0
+    aggregate["cache_source"] = "aggregate"
+    aggregate["source"] = "aggregate" if len(sources) != 1 else next(iter(sources), "aggregate")
+    aggregate["call_count"] = len(child_snapshots or [])
+    return aggregate
+
+
 def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     """
     统一的 Agent 节点，根据 active_tools 动态绑定工具
@@ -1214,6 +1323,8 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     logger.debug(f"[Agent] 发送给 LLM 的消息内容: {full_messages}")
 
     # ========== 保存 LLM 请求快照（供前端上下文可视化）==========
+    _snapshot_call_id = uuid.uuid4().hex
+    _snapshot_parent_message_index = _get_latest_human_message_index(state.get("messages", []))
     try:
         _snapshot_messages = []
         for _msg in full_messages:
@@ -1294,8 +1405,12 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
                 logger.debug(f"[ToolCacheDebug] 与上一轮工具 schema 对比: {tool_schema_debug['previous']}")
 
                 _tool_defs = tool_schema_debug["definitions"]
-                _invoke_session.last_llm_request_snapshot = {
+                _call_snapshot = {
                     "timestamp": _dt.now().isoformat(),
+                    "snapshot_kind": "llm_call",
+                    "call_id": _snapshot_call_id,
+                    "call_index": 1,
+                    "parent_message_index": _snapshot_parent_message_index,
                     "message_index": len(state.get("messages", [])),
                     "model_id": current_model_id,
                     "model_name": model_config.get('model_name', '') if model_config else '',
@@ -1316,8 +1431,15 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
                         "total_chars": sum(len(str(m.content)) for m in full_messages),
                     }
                 }
+                _invoke_session.last_llm_request_snapshot = _build_context_viz_parent_snapshot(
+                    _previous_snapshot,
+                    _call_snapshot,
+                )
                 _invoke_session.save(update_fields=['last_llm_request_snapshot'])
-                logger.debug(f"[Agent] 保存 LLM 请求快照: {len(_snapshot_messages)} 条消息, {len(_tool_defs)} 个工具定义")
+                logger.debug(
+                    f"[Agent] 保存 LLM 请求快照: parent={_snapshot_parent_message_index}, "
+                    f"call={_snapshot_call_id}, messages={len(_snapshot_messages)}, tools={len(_tool_defs)}"
+                )
     except Exception as _snap_e:
         logger.warning(f"[Agent] 保存 LLM 请求快照失败: {_snap_e}")
 
@@ -1453,25 +1575,34 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
                             session.save_token_snapshot(current_message_index, input_tokens, source, usage_info)
 
                             snapshot = session.last_llm_request_snapshot or {}
-                            token_stats = snapshot.get("token_stats", {})
-                            token_stats.update({
-                                "input_tokens": input_tokens,
-                                "output_tokens": output_tokens,
-                                "total_tokens": usage_info.get("total_tokens", input_tokens + output_tokens),
-                                "cached_tokens": usage_info.get("cached_tokens", 0),
-                                "cache_hit_tokens": usage_info.get("cache_hit_tokens", 0),
-                                "cache_miss_tokens": usage_info.get("cache_miss_tokens", 0),
-                                "cache_hit_ratio": usage_info.get("cache_hit_ratio", 0),
-                                "reasoning_tokens": usage_info.get("reasoning_tokens", 0),
-                                "cache_source": usage_info.get("cache_source", "none"),
-                                "source": source,
-                            })
-                            snapshot["token_stats"] = token_stats
+                            call_token_stats = _token_stats_from_usage(usage_info, input_tokens, output_tokens, source)
+                            child_snapshots = list(snapshot.get("child_snapshots") or [])
+                            matched_child = False
+                            for child in child_snapshots:
+                                if child.get("call_id") == _snapshot_call_id:
+                                    child_stats = child.get("token_stats", {})
+                                    child_stats.update(call_token_stats)
+                                    child["token_stats"] = child_stats
+                                    matched_child = True
+                                    break
+
+                            if not child_snapshots or not matched_child:
+                                token_stats = snapshot.get("token_stats", {})
+                                token_stats.update(call_token_stats)
+                                snapshot["token_stats"] = token_stats
+                            else:
+                                snapshot["child_snapshots"] = child_snapshots
+                                snapshot["child_count"] = len(child_snapshots)
+                                snapshot["token_stats"] = _aggregate_context_viz_token_stats(
+                                    child_snapshots,
+                                    snapshot.get("token_stats", {}),
+                                )
+
                             session.last_llm_request_snapshot = snapshot
                             session.save(update_fields=['last_llm_request_snapshot'])
                             
                             logger.debug(f"[Token快照] 已保存: session={session_id}, message_index={current_message_index}, input_tokens={input_tokens}, source={source}")
-                            logger.debug(f"[token_stats]: {token_stats}")
+                            logger.debug(f"[token_stats]: {snapshot.get('token_stats', {})}")
                         else:
                             logger.warning(f"[上下文显示] 未找到会话: session_id={session_id}")
                 except Exception as e:

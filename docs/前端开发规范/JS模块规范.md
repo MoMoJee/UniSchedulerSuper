@@ -111,6 +111,17 @@ if (window.settingsManager) {
 }
 ```
 
+### 2.3 大对象状态与本地缓存
+
+上下文快照、LLM 请求详情、附件预览等大对象必须优先放在模块内存状态中，不能把完整对象长期写入 `localStorage`。
+
+**规则**：
+- 完整调试数据只放在当前页面内存，例如 `AgentChat._contextSnapshots`。
+- `localStorage` 仅保存瘦身摘要：截断长文本、移除大体积 schema、图片/base64 用占位符替代。
+- 写入 `localStorage` 必须包裹 `try/catch`，捕获 `QuotaExceededError` 后降级为内存显示。
+- 本地缓存失败不得影响当前 UI 渲染，最多记录一次 `console.warn()`。
+- 如果需要跨刷新恢复完整数据，应从后端接口重新拉取，而不是依赖浏览器存储。
+
 ---
 
 ## 3. 异步操作规范

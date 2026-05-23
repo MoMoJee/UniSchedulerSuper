@@ -24,6 +24,7 @@ from agent_service.context_optimizer import (
     get_optimization_config,
     update_token_usage,
     get_token_usage_stats,
+    get_token_usage_record_summary,
 )
 
 # 导入加密模块
@@ -486,6 +487,45 @@ def get_token_stats(request):
         
     except Exception as e:
         logger.error(f"获取 Token 统计失败: {e}", exc_info=True)
+        return Response({
+            "success": False,
+            "error": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_token_usage_records_summary(request):
+    """
+    获取请求级 Token 用量聚合统计。
+    GET /api/agent/token-usage/records/summary/?month=YYYY-MM&limit=20
+    """
+    import re
+
+    try:
+        month = request.query_params.get('month') or None
+        if month and not re.match(r'^\d{4}-\d{2}$', month):
+            return Response({
+                "success": False,
+                "error": "month 必须使用 YYYY-MM 格式"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            limit = int(request.query_params.get('limit', 20))
+        except (TypeError, ValueError):
+            return Response({
+                "success": False,
+                "error": "limit 必须是整数"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        summary = get_token_usage_record_summary(request.user, month=month, recent_limit=limit)
+        return Response({
+            "success": True,
+            **summary
+        })
+
+    except Exception as e:
+        logger.error(f"获取请求级 Token 用量聚合失败: {e}", exc_info=True)
         return Response({
             "success": False,
             "error": str(e)

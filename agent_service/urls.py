@@ -59,6 +59,7 @@ urlpatterns = [
     
     # Token 统计
     path('token-usage/', views_config_api.get_token_stats, name='get_token_stats'),
+    path('token-usage/records/summary/', views_config_api.get_token_usage_records_summary, name='get_token_usage_records_summary'),
     path('token-usage/reset/', views_config_api.reset_token_stats, name='reset_token_stats'),
     path('token-usage/quota/', views_config_api.update_quota, name='update_quota'),
     

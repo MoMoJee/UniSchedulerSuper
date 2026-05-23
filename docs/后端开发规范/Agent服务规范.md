@@ -196,6 +196,19 @@ Quick Action 在独立线程中执行，不占用 WebSocket 连接。
 
 Token 快照存储在 `AgentSession.token_snapshots`，用于上下文用量可视化。
 
+### 7.1 LLM 请求快照
+
+`AgentSession.last_llm_request_snapshot` 用于前端“上下文构建详情”。它保存最近一次用户请求对应的父子快照结构：
+
+- 父级表示一次用户消息触发的完整 Agent 调用。
+- `child_snapshots` 表示该用户请求内每一轮 LLM 调用。
+- 是否属于同一父级由最近一条 `HumanMessage` 的 `parent_message_index` 判断。
+- 父级 `token_stats` 必须聚合所有子调用的 `input_cache_miss_tokens`、`input_cache_hit_tokens`、`output_tokens`。
+- 子级快照保留该轮真实上下文和该轮真实 token，用于排查工具循环。
+- 后端接口 `/api/agent/context-visualization/` 必须能返回 `llm_request` 作为前端刷新后的兜底数据源。
+
+注意：快照可能包含完整工具定义和长上下文，前端不得把完整快照长期写入 `localStorage`。
+
 ---
 
 ## 8. 主 Agent KV Cache 与 Provider 适配规范

@@ -5655,13 +5655,18 @@ class AgentChat {
         });
         this._currentVizTab = 'ui';
         this._selectedSnapshotIndex = null;
+        this._selectedChildSnapshotIndex = null;
+        this._expandedSnapshotIndexes = this._expandedSnapshotIndexes || new Set();
+        this._contextSnapshots = this._contextSnapshots || [];
+        this._contextSnapshotSessionId = this._contextSnapshotSessionId || null;
     }
 
     openContextVisualization() {
         const overlay = document.getElementById('contextVizOverlay');
         if (!overlay) return;
         overlay.style.display = 'flex';
-        this._loadContextSnapshots();
+        this._loadContextSnapshots({ autoSelectLatest: true });
+        this._loadLatestContextSnapshotFromServer();
     }
 
     closeContextVisualization() {
@@ -5671,27 +5676,181 @@ class AgentChat {
 
     saveContextSnapshot(snapshot) {
         if (!snapshot || !this.sessionId) return;
-        const key = `context_snapshots_${this.sessionId}`;
+        this._mergeContextSnapshot(snapshot);
+    }
+
+    _getContextSnapshotStorageKey() {
+        return `context_snapshots_${this.sessionId}`;
+    }
+
+    _getContextSnapshotId(snapshot) {
+        if (!snapshot) return '';
+        return snapshot.call_id || `${snapshot.parent_message_index ?? ''}:${snapshot.message_index ?? ''}:${snapshot.timestamp ?? ''}`;
+    }
+
+    _loadStoredContextSnapshots() {
         try {
-            let snapshots = JSON.parse(localStorage.getItem(key) || '[]');
-            snapshots.push(snapshot);
-            if (snapshots.length > 50) snapshots = snapshots.slice(-50);
-            localStorage.setItem(key, JSON.stringify(snapshots));
-        } catch (e) {
-            console.warn('保存上下文快照失败:', e);
+            const stored = JSON.parse(localStorage.getItem(this._getContextSnapshotStorageKey()) || '[]');
+            return Array.isArray(stored) ? stored : [];
+        } catch {
+            return [];
         }
     }
 
-    _loadContextSnapshots() {
+    _ensureContextSnapshotMemory() {
+        if (this._contextSnapshotSessionId !== this.sessionId) {
+            this._contextSnapshotSessionId = this.sessionId;
+            this._contextSnapshots = this._loadStoredContextSnapshots();
+        }
+        if (!Array.isArray(this._contextSnapshots)) this._contextSnapshots = [];
+        return this._contextSnapshots;
+    }
+
+    _getContextSnapshots() {
+        return this._ensureContextSnapshotMemory();
+    }
+
+    _slimContextSnapshot(snapshot, includeChildren = true) {
+        const trimText = (value, limit = 1200) => {
+            const text = String(value || '');
+            return text.length > limit ? `${text.slice(0, limit)}...[truncated]` : text;
+        };
+        const slimMessage = (message) => {
+            const slim = {
+                role: message.role,
+                name: message.name,
+                tool_call_id: message.tool_call_id,
+                tool_status: message.tool_status,
+                _meta: message._meta,
+            };
+            if (typeof message.content === 'string') {
+                slim.content = trimText(message.content);
+            } else if (Array.isArray(message.content)) {
+                slim.content = message.content.map(block => {
+                    if (!block || typeof block !== 'object') return block;
+                    if (block.type === 'text') return { ...block, text: trimText(block.text) };
+                    if (block.type === 'image_url') return { type: 'image_url', image_url: { url: '[image omitted]' } };
+                    return block;
+                });
+            } else {
+                slim.content = message.content;
+            }
+            if (message.reasoning_content) slim.reasoning_content = trimText(message.reasoning_content, 1000);
+            if (message.tool_calls) slim.tool_calls = message.tool_calls;
+            return slim;
+        };
+
+        return {
+            timestamp: snapshot.timestamp,
+            snapshot_kind: snapshot.snapshot_kind,
+            call_id: snapshot.call_id,
+            call_index: snapshot.call_index,
+            parent_message_index: snapshot.parent_message_index,
+            message_index: snapshot.message_index,
+            model_id: snapshot.model_id,
+            model_name: snapshot.model_name,
+            supports_vision: snapshot.supports_vision,
+            tool_names: snapshot.tool_names || [],
+            tool_schema: snapshot.tool_schema,
+            token_stats: snapshot.token_stats,
+            messages: Array.isArray(snapshot.messages) ? snapshot.messages.map(slimMessage) : [],
+            child_count: snapshot.child_count,
+            child_snapshots: includeChildren && Array.isArray(snapshot.child_snapshots)
+                ? snapshot.child_snapshots.map(child => this._slimContextSnapshot(child, false))
+                : undefined,
+        };
+    }
+
+    _pruneContextSnapshotStorage() {
+        try {
+            const currentKey = this._getContextSnapshotStorageKey();
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('context_snapshots_') && key !== currentKey) {
+                    localStorage.removeItem(key);
+                }
+            }
+        } catch {
+            // localStorage 不可用时忽略，当前页面内存仍可显示。
+        }
+    }
+
+    _persistContextSnapshotCache(snapshots) {
+        const key = this._getContextSnapshotStorageKey();
+        const slimSnapshots = snapshots.slice(-8).map(snapshot => this._slimContextSnapshot(snapshot));
+        try {
+            localStorage.setItem(key, JSON.stringify(slimSnapshots));
+        } catch {
+            this._pruneContextSnapshotStorage();
+            try {
+                localStorage.setItem(key, JSON.stringify(slimSnapshots.slice(-1)));
+            } catch {
+                if (!this._contextSnapshotStorageWarned) {
+                    console.warn('上下文快照较大，已仅在当前页面内显示，不再写入 localStorage。');
+                    this._contextSnapshotStorageWarned = true;
+                }
+            }
+        }
+    }
+
+    _mergeContextSnapshot(snapshot) {
+        try {
+            let snapshots = this._ensureContextSnapshotMemory();
+            const snapshotId = this._getContextSnapshotId(snapshot);
+            const existingIndex = snapshots.findIndex(item => {
+                const itemId = this._getContextSnapshotId(item);
+                return snapshotId && itemId === snapshotId;
+            });
+            if (existingIndex >= 0) {
+                snapshots[existingIndex] = snapshot;
+            } else {
+                snapshots.push(snapshot);
+            }
+            if (snapshots.length > 20) snapshots = snapshots.slice(-20);
+            this._contextSnapshots = snapshots;
+            this._persistContextSnapshotCache(snapshots);
+            return true;
+        } catch (e) {
+            console.warn('上下文快照缓存失败，当前详情仍可显示。');
+            return false;
+        }
+    }
+
+    async _loadLatestContextSnapshotFromServer() {
+        if (!this.sessionId) return;
+        try {
+            const response = await fetch(`/api/agent/context-visualization/?session_id=${encodeURIComponent(this.sessionId)}`, {
+                headers: { 'X-CSRFToken': this.csrfToken }
+            });
+            if (!response.ok) return;
+            const data = await response.json();
+            const snapshot = data.llm_request;
+            if (snapshot && snapshot.has_data !== false) {
+                this._mergeContextSnapshot(snapshot);
+                this._loadContextSnapshots({ autoSelectLatest: true });
+            }
+        } catch (e) {
+            console.warn('加载最新上下文快照失败:', e);
+        }
+    }
+
+    _loadContextSnapshots(options = {}) {
         const listEl = document.getElementById('contextVizList');
         if (!listEl) return;
-        const key = `context_snapshots_${this.sessionId}`;
-        let snapshots = [];
-        try { snapshots = JSON.parse(localStorage.getItem(key) || '[]'); } catch { snapshots = []; }
+        const snapshots = this._getContextSnapshots();
 
         if (snapshots.length === 0) {
             listEl.innerHTML = '<div class="text-muted text-center py-4" style="font-size:12px;">暂无请求记录<br><small>发送消息后将自动记录</small></div>';
+            const detailEl = document.getElementById('contextVizDetail');
+            if (detailEl) {
+                detailEl.innerHTML = '<div class="context-viz-placeholder"><i class="fas fa-spinner fa-spin fa-2x mb-3"></i><p>正在读取最新上下文快照</p></div>';
+            }
             return;
+        }
+
+        if (options.autoSelectLatest || this._selectedSnapshotIndex === null || !snapshots[this._selectedSnapshotIndex]) {
+            this._selectedSnapshotIndex = snapshots.length - 1;
+            this._selectedChildSnapshotIndex = null;
         }
 
         listEl.innerHTML = snapshots.slice().reverse().map((s, revIdx) => {
@@ -5699,6 +5858,9 @@ class AgentChat {
             const time = s.timestamp ? new Date(s.timestamp).toLocaleTimeString('zh-CN') : '未知';
             const msgCount = s.messages?.length || 0;
             const model = s.model_name || s.model_id || '未知模型';
+            const childSnapshots = Array.isArray(s.child_snapshots) ? s.child_snapshots : [];
+            const hasChildren = childSnapshots.length > 1;
+            const isExpanded = this._expandedSnapshotIndexes?.has(idx);
             let preview = '';
             if (s.messages) {
                 for (let j = s.messages.length - 1; j >= 0; j--) {
@@ -5710,33 +5872,79 @@ class AgentChat {
                 }
             }
             preview = (preview || '(\u7a7a)').substring(0, 40);
-            const isActive = idx === this._selectedSnapshotIndex;
-            return `<div class="context-viz-item ${isActive ? 'active' : ''}" data-index="${idx}" onclick="agentChat._selectSnapshot(${idx})">
-                <div class="viz-item-time">${time} · ${this._escapeVizHtml(model)}</div>
+            const isActive = idx === this._selectedSnapshotIndex && this._selectedChildSnapshotIndex === null;
+            const aggregateStats = this._normalizeVizTokenStats(s.token_stats || {});
+            const tokenLabel = aggregateStats && aggregateStats.total > 0 ? `${aggregateStats.total.toLocaleString('zh-CN')} t` : '-';
+            const childRows = hasChildren && isExpanded ? childSnapshots.map((child, childIdx) => {
+                const childTime = child.timestamp ? new Date(child.timestamp).toLocaleTimeString('zh-CN') : '未知';
+                const childStats = this._normalizeVizTokenStats(child.token_stats || {});
+                const childTokenLabel = childStats && childStats.total > 0 ? `${childStats.total.toLocaleString('zh-CN')} t` : '-';
+                const childMsgCount = child.messages?.length || 0;
+                const childActive = idx === this._selectedSnapshotIndex && childIdx === this._selectedChildSnapshotIndex;
+                return `<div class="context-viz-item context-viz-child-item ${childActive ? 'active' : ''}" data-index="${idx}" data-child-index="${childIdx}" onclick="agentChat._selectSnapshot(${idx}, ${childIdx})">
+                    <div class="viz-item-time"><i class="fas fa-level-up-alt fa-rotate-90 me-1"></i>第 ${childIdx + 1} 轮 · ${childTime}</div>
+                    <div class="viz-item-preview">${childMsgCount} 条上下文 · ${childTokenLabel}</div>
+                </div>`;
+            }).join('') : '';
+            return `<div class="context-viz-tree-group">
+                <div class="context-viz-item ${isActive ? 'active' : ''}" data-index="${idx}" onclick="agentChat._selectSnapshot(${idx})">
+                    <div class="viz-item-time">
+                        ${hasChildren ? `<button class="context-viz-tree-toggle" onclick="agentChat._toggleSnapshotChildren(${idx}, event)" title="展开子调用"><i class="fas fa-chevron-${isExpanded ? 'down' : 'right'}"></i></button>` : '<span class="context-viz-tree-spacer"></span>'}
+                        ${time} · ${this._escapeVizHtml(model)}
+                    </div>
                 <div class="viz-item-preview">${this._escapeVizHtml(preview)}</div>
                 <div class="viz-item-stats">
                     <span><i class="fas fa-comment"></i> ${msgCount} 条</span>
                     <span><i class="fas fa-tools"></i> ${s.tool_names?.length || 0} 工具</span>
+                    <span><i class="fas fa-layer-group"></i> ${childSnapshots.length || 1} 轮</span>
+                    <span><i class="fas fa-coins"></i> ${tokenLabel}</span>
                 </div>
+                </div>
+                ${childRows}
             </div>`;
         }).join('');
+
+        this._renderContextVizDetail();
     }
 
-    _selectSnapshot(index) {
+    _toggleSnapshotChildren(index, event) {
+        if (event) event.stopPropagation();
+        this._expandedSnapshotIndexes = this._expandedSnapshotIndexes || new Set();
+        if (this._expandedSnapshotIndexes.has(index)) {
+            this._expandedSnapshotIndexes.delete(index);
+        } else {
+            this._expandedSnapshotIndexes.add(index);
+        }
+        this._loadContextSnapshots();
+    }
+
+    _selectSnapshot(index, childIndex = null) {
         this._selectedSnapshotIndex = index;
+        this._selectedChildSnapshotIndex = childIndex;
         document.querySelectorAll('.context-viz-item').forEach(el => {
-            el.classList.toggle('active', parseInt(el.dataset.index) === index);
+            const itemIndex = parseInt(el.dataset.index);
+            const rawChildIndex = el.dataset.childIndex;
+            const itemChildIndex = rawChildIndex === undefined ? null : parseInt(rawChildIndex);
+            el.classList.toggle('active', itemIndex === index && itemChildIndex === childIndex);
         });
         this._renderContextVizDetail();
+    }
+
+    _getSelectedContextSnapshot(snapshots) {
+        const parentSnapshot = snapshots[this._selectedSnapshotIndex];
+        if (!parentSnapshot) return null;
+        if (this._selectedChildSnapshotIndex === null || this._selectedChildSnapshotIndex === undefined) {
+            return parentSnapshot;
+        }
+        const childSnapshots = Array.isArray(parentSnapshot.child_snapshots) ? parentSnapshot.child_snapshots : [];
+        return childSnapshots[this._selectedChildSnapshotIndex] || parentSnapshot;
     }
 
     _renderContextVizDetail() {
         const detailEl = document.getElementById('contextVizDetail');
         if (!detailEl || this._selectedSnapshotIndex === null) return;
-        const key = `context_snapshots_${this.sessionId}`;
-        let snapshots = [];
-        try { snapshots = JSON.parse(localStorage.getItem(key) || '[]'); } catch { return; }
-        const snapshot = snapshots[this._selectedSnapshotIndex];
+        const snapshots = this._getContextSnapshots();
+        const snapshot = this._getSelectedContextSnapshot(snapshots);
         if (!snapshot) return;
         if (this._currentVizTab === 'json') {
             this._renderVizJsonMode(detailEl, snapshot);
@@ -5749,15 +5957,91 @@ class AgentChat {
         container.innerHTML = `<div class="context-viz-json">${this._escapeVizHtml(JSON.stringify(snapshot, null, 2))}</div>`;
     }
 
+    _normalizeVizTokenStats(tokenStats) {
+        if (!tokenStats) return null;
+
+        const inputMiss = Number(tokenStats.input_cache_miss_tokens ?? tokenStats.cache_miss_tokens ?? 0);
+        const inputHit = Number(tokenStats.input_cache_hit_tokens ?? tokenStats.cache_hit_tokens ?? tokenStats.cached_tokens ?? 0);
+        const output = Number(tokenStats.output_tokens || 0);
+        const input = Number(tokenStats.input_tokens || inputMiss + inputHit);
+        const total = inputMiss + inputHit + output;
+        const hitRatio = tokenStats.cache_hit_ratio !== undefined
+            ? Number(tokenStats.cache_hit_ratio || 0)
+            : (input > 0 ? inputHit / input : 0);
+
+        return {
+            inputMiss,
+            inputHit,
+            output,
+            input,
+            total,
+            hitRatio,
+            source: tokenStats.source || tokenStats.tokens_source || tokenStats.cache_source || 'unknown'
+        };
+    }
+
+    _renderPercentStack(parts) {
+        const total = parts.reduce((sum, part) => sum + Math.max(0, Number(part.value || 0)), 0);
+        if (total <= 0) {
+            return '<div class="context-viz-token-empty">暂无 token 统计</div>';
+        }
+
+        const segments = parts
+            .filter(part => Number(part.value || 0) > 0)
+            .map(part => {
+                const value = Number(part.value || 0);
+                const percent = (value / total) * 100;
+                return `<div class="context-viz-token-segment ${part.className}" style="width:${percent.toFixed(2)}%;" title="${this._escapeVizHtml(part.label)}: ${value.toLocaleString('zh-CN')} (${percent.toFixed(1)}%)"></div>`;
+            })
+            .join('');
+
+        return `<div class="context-viz-token-stack">${segments}</div>`;
+    }
+
+    _renderVizSummaryHeader(snapshot, messages) {
+        const normalized = this._normalizeVizTokenStats(snapshot.token_stats);
+        const modelName = this._escapeVizHtml(snapshot.model_name || snapshot.model_id || '未知');
+        const timestamp = snapshot.timestamp ? new Date(snapshot.timestamp).toLocaleString('zh-CN') : '未知';
+        const toolCount = snapshot.tool_names?.length || 0;
+        const callCount = snapshot.child_count || snapshot.token_stats?.call_count || 1;
+        const visionBadge = snapshot.supports_vision ? '<span class="badge bg-success">支持视觉</span>' : '';
+
+        let tokenHtml = '<div class="context-viz-token-empty">暂无 token 统计</div>';
+        if (normalized) {
+            const stackHtml = this._renderPercentStack([
+                { label: '输入未命中', value: normalized.inputMiss, className: 'token-miss' },
+                { label: '输入命中', value: normalized.inputHit, className: 'token-hit' },
+                { label: '输出', value: normalized.output, className: 'token-output' }
+            ]);
+            tokenHtml = `
+                <div class="context-viz-token-total">Token ${normalized.total.toLocaleString('zh-CN')}</div>
+                ${stackHtml}
+                <div class="context-viz-token-legend">
+                    <span><i class="token-dot token-miss"></i>未命中 ${normalized.inputMiss.toLocaleString('zh-CN')}</span>
+                    <span><i class="token-dot token-hit"></i>命中 ${normalized.inputHit.toLocaleString('zh-CN')}</span>
+                    <span><i class="token-dot token-output"></i>输出 ${normalized.output.toLocaleString('zh-CN')}</span>
+                    <span>命中率 ${(normalized.hitRatio * 100).toFixed(1)}%</span>
+                    <span>source ${this._escapeVizHtml(normalized.source)}</span>
+                </div>
+            `;
+        }
+
+        return `<div class="context-viz-summary-header">
+            <div class="context-viz-meta-row">
+                <span><strong>模型:</strong> ${modelName}</span>
+                <span><strong>时间:</strong> ${timestamp}</span>
+                <span><strong>消息数:</strong> ${messages.length}</span>
+                <span><strong>工具数:</strong> ${toolCount}</span>
+                ${callCount > 1 ? `<span><strong>LLM轮次:</strong> ${callCount}</span>` : ''}
+                ${visionBadge}
+            </div>
+            <div class="context-viz-token-row">${tokenHtml}</div>
+        </div>`;
+    }
+
     _renderVizUiMode(container, snapshot) {
         const messages = snapshot.messages || [];
-        let html = `<div style="margin-bottom:16px;font-size:12px;color:var(--text-muted);">
-            <strong>模型:</strong> ${this._escapeVizHtml(snapshot.model_name || snapshot.model_id || '未知')}
-            &nbsp;|&nbsp; <strong>时间:</strong> ${snapshot.timestamp ? new Date(snapshot.timestamp).toLocaleString('zh-CN') : '未知'}
-            &nbsp;|&nbsp; <strong>消息数:</strong> ${messages.length}
-            &nbsp;|&nbsp; <strong>工具数:</strong> ${snapshot.tool_names?.length || 0}
-            ${snapshot.supports_vision ? ' &nbsp;|&nbsp; <span class="badge bg-success">支持视觉</span>' : ''}
-        </div>`;
+        let html = this._renderVizSummaryHeader(snapshot, messages);
 
         if (snapshot.tool_definitions?.length > 0) {
             const toolDefsHtml = snapshot.tool_definitions.map(td => {
@@ -5780,16 +6064,6 @@ class AgentChat {
                 '🔧 绑定工具',
                 `<div style="display:flex;flex-wrap:wrap;gap:4px;">${snapshot.tool_names.map(t => `<span class="badge bg-secondary">${this._escapeVizHtml(t)}</span>`).join('')}</div>`,
                 'tool-list', false
-            );
-        }
-
-        if (snapshot.token_stats) {
-            const ts = snapshot.token_stats;
-            const cacheRatio = ts.cache_hit_ratio !== undefined ? `${(Number(ts.cache_hit_ratio || 0) * 100).toFixed(1)}%` : '-';
-            html += this._buildVizSection(
-                '📊 Token 统计',
-                `<div style="font-size:12px;">消息数: ${ts.total_messages} | 输入: ${ts.input_tokens || '-'} | 输出: ${ts.output_tokens || '-'} | 缓存命中: ${ts.cache_hit_tokens || 0} | 缓存未命中: ${ts.cache_miss_tokens || 0} | 命中率: ${cacheRatio} | 系统提示字符: ${ts.system_prompt_chars} | 总字符: ${ts.total_chars}</div>`,
-                'token-stats', false
             );
         }
 
@@ -5828,7 +6102,7 @@ class AgentChat {
                 body += `<pre>${this._escapeVizHtml(JSON.stringify(msg.tool_calls, null, 2))}</pre>`;
             }
 
-            html += this._buildVizSection(title, body, `msg-${i}`, i === 0);
+            html += this._buildVizSection(title, body, `msg-${i}`, false);
         }
 
         container.innerHTML = html;
@@ -5856,8 +6130,12 @@ class AgentChat {
 
     _clearContextSnapshots() {
         if (!confirm('确定清除当前会话的所有上下文快照记录？')) return;
-        localStorage.removeItem(`context_snapshots_${this.sessionId}`);
+        localStorage.removeItem(this._getContextSnapshotStorageKey());
+        this._contextSnapshots = [];
+        this._contextSnapshotSessionId = this.sessionId;
         this._selectedSnapshotIndex = null;
+        this._selectedChildSnapshotIndex = null;
+        this._expandedSnapshotIndexes = new Set();
         this._loadContextSnapshots();
         const detailEl = document.getElementById('contextVizDetail');
         if (detailEl) detailEl.innerHTML = '<div class="context-viz-placeholder"><i class="fas fa-hand-pointer fa-2x mb-3"></i><p>选择左侧的一条请求记录查看详情</p></div>';

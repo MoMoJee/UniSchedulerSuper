@@ -835,118 +835,73 @@ const agentConfig = {
     // ==========================================
     // Token 统计
     // ==========================================
-    
+
     /**
-     * 更新 Token 统计 UI
-     */
-    updateTokenStatsUI(stats) {
-        if (!stats) return;
-        
-        // 总体统计
-        document.getElementById('totalInputTokens').textContent = 
-            this.formatNumber(stats.total_input_tokens || 0);
-        document.getElementById('totalOutputTokens').textContent = 
-            this.formatNumber(stats.total_output_tokens || 0);
-        document.getElementById('totalCost').textContent = 
-            '￥' + (stats.total_cost || 0).toFixed(4);
-        document.getElementById('quotaUsedRatio').textContent = 
-            ((stats.quota_used_ratio || 0) * 100).toFixed(2) + '%';
-        
-        // 配额
-        const quotaInput = document.getElementById('tokenQuota');
-        if (quotaInput) quotaInput.value = stats.quota || 9999999;
-        
-        // 按模型统计表格
-        this.updateModelStatsTable(stats.model_stats || {});
-    },
-    
-    /**
-     * 更新模型统计表格
-     */
-    updateModelStatsTable(modelStats) {
-        const container = document.getElementById('modelStatsTable');
-        if (!container) return;
-        
-        if (Object.keys(modelStats).length === 0) {
-            container.innerHTML = `
-                <div class="text-center text-muted py-3">
-                    <i class="fas fa-info-circle me-2"></i>暂无使用记录
-                </div>
-            `;
-            return;
-        }
-        
-        let html = `
-            <table class="table table-sm table-hover">
-                <thead>
-                    <tr>
-                        <th>模型</th>
-                        <th class="text-end">输入</th>
-                        <th class="text-end">输出</th>
-                        <th class="text-end">成本</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-        
-        for (const [modelId, stat] of Object.entries(modelStats)) {
-            const modelName = this.allModels[modelId]?.name || modelId;
-            html += `
-                <tr>
-                    <td>${modelName}</td>
-                    <td class="text-end">${this.formatNumber(stat.input_tokens || 0)}</td>
-                    <td class="text-end">${this.formatNumber(stat.output_tokens || 0)}</td>
-                    <td class="text-end">￥${(stat.cost || 0).toFixed(4)}</td>
-                </tr>
-            `;
-        }
-        
-        html += '</tbody></table>';
-        container.innerHTML = html;
-    },
-    
-    /**
-     * 加载 Token 统计（新版）
+     * 加载 Token 统计
      */
     async loadTokenStats() {
         try {
-            const response = await fetch('/api/agent/token-usage/');
-            const data = await response.json();
-            
-            if (data.success) {
-                this.updateTokenStatsUI(data);
+            this._setTokenStatsLoading();
+            const [usageResponse, summaryResponse] = await Promise.all([
+                fetch('/api/agent/token-usage/'),
+                fetch('/api/agent/token-usage/records/summary/')
+            ]);
+            const data = await usageResponse.json();
+
+            if (!data.success) {
+                this.showError(data.error || '加载 Token 统计失败');
+                this._setTokenStatsError(data.error || '加载失败');
+                return;
             }
+
+            let recordSummary = { success: false, by_model: {}, by_call_site: {}, by_source: {}, recent_records: [], request_record_count: data.request_record_count || 0 };
+            if (summaryResponse.ok) {
+                const summaryData = await summaryResponse.json();
+                if (summaryData.success) recordSummary = summaryData;
+            }
+
+            this.renderTokenStatsDashboard(data, recordSummary);
         } catch (error) {
             console.error('[AgentConfig] 加载统计失败:', error);
+            this._setTokenStatsError(error.message);
         }
     },
-    
+
     /**
-     * 更新 Token 统计 UI（新版）
+     * 渲染 Token 统计总览
      */
-    updateTokenStatsUI(data) {
-        // 更新配额信息
+    renderTokenStatsDashboard(monthlyData, recordSummary = {}) {
+        this._renderTokenQuota(monthlyData);
+        const models = this._normalizeModelTokenStats(monthlyData.models || {}, recordSummary);
+        const modelContainer = document.getElementById('tokenModelStatsContainer');
+        if (modelContainer) modelContainer.innerHTML = this._renderModelTokenCards(models);
+
+        const metadataContainer = document.getElementById('tokenUsageMetadataContainer');
+        if (metadataContainer) metadataContainer.innerHTML = this._renderUsageMetadataSummary(monthlyData, recordSummary);
+
+        const recentContainer = document.getElementById('tokenRecentRecordsContainer');
+        if (recentContainer) recentContainer.innerHTML = this._renderRecentUsageRecords(recordSummary.recent_records || []);
+    },
+
+    _renderTokenQuota(data) {
         const monthlyCredit = data.monthly_credit || 5.0;
         const monthlyUsed = data.monthly_used || 0;
         const remaining = data.remaining || monthlyCredit;
         const currentMonth = data.current_month || '-';
-        
-        // 格式化货币
-        const formatCNY = (val) => `¥${val.toFixed(2)}`;
-        
-        document.getElementById('tokenMonthlyUsed').textContent = formatCNY(monthlyUsed);
-        document.getElementById('tokenMonthlyCredit').textContent = formatCNY(monthlyCredit);
-        document.getElementById('tokenRemaining').textContent = formatCNY(remaining);
-        document.getElementById('tokenCurrentMonth').textContent = currentMonth;
-        
-        // 更新进度条
+
+        this._setText('tokenMonthlyUsed', this._formatCNY(monthlyUsed));
+        this._setText('tokenMonthlyCredit', this._formatCNY(monthlyCredit));
+        this._setText('tokenRemaining', this._formatCNY(remaining));
+        this._setText('tokenCurrentMonth', currentMonth);
+
         const usedPercent = monthlyCredit > 0 ? Math.min(100, (monthlyUsed / monthlyCredit) * 100) : 0;
         const progressBar = document.getElementById('tokenQuotaProgressBar');
+        if (!progressBar) return;
+
         progressBar.style.width = `${usedPercent}%`;
         progressBar.setAttribute('aria-valuenow', usedPercent);
-        document.getElementById('tokenQuotaPercent').textContent = `${usedPercent.toFixed(1)}%`;
-        
-        // 根据使用率改变进度条颜色
+        this._setText('tokenQuotaPercent', `${usedPercent.toFixed(1)}%`);
+
         progressBar.classList.remove('bg-success', 'bg-warning', 'bg-danger');
         if (usedPercent >= 90) {
             progressBar.classList.add('bg-danger');
@@ -955,12 +910,13 @@ const agentConfig = {
         } else {
             progressBar.classList.add('bg-success');
         }
-        
-        // 更新状态提示
+
         const statusAlert = document.getElementById('quotaStatusAlert');
         const statusText = document.getElementById('quotaStatusText');
+        if (!statusAlert || !statusText) return;
+
         statusAlert.classList.remove('alert-info', 'alert-warning', 'alert-danger');
-        
+
         if (remaining <= 0) {
             statusAlert.classList.add('alert-danger');
             statusText.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>配额已用尽';
@@ -971,43 +927,194 @@ const agentConfig = {
             statusAlert.classList.add('alert-info');
             statusText.innerHTML = '<i class="fas fa-check-circle me-1"></i>配额充足';
         }
-        
-        // 更新模型统计表格
-        const tbody = document.getElementById('modelStatsTableBody');
-        const models = data.models || {};
-        
-        if (Object.keys(models).length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="5" class="text-center text-muted py-3">
-                        <i class="fas fa-info-circle me-2"></i>本月暂无使用记录
-                    </td>
-                </tr>
-            `;
-        } else {
-            let rows = '';
-            for (const [modelId, stats] of Object.entries(models)) {
-                const isSystem = stats.is_system || modelId.startsWith('system_');
-                const modelName = stats.name || modelId;
-                rows += `
-                    <tr>
-                        <td>
-                            <i class="fas fa-${isSystem ? 'server' : 'user-cog'} me-2 text-${isSystem ? 'primary' : 'secondary'}"></i>
-                            ${this.escapeHtml(modelName)}
-                        </td>
-                        <td class="text-end">${this.formatNumber(stats.input_tokens || 0)}</td>
-                        <td class="text-end">${this.formatNumber(stats.output_tokens || 0)}</td>
-                        <td class="text-end">¥${(stats.cost || 0).toFixed(4)}</td>
-                        <td>
-                            <span class="badge bg-${isSystem ? 'primary' : 'secondary'}">
-                                ${isSystem ? '系统' : '自定义'}
-                            </span>
-                        </td>
-                    </tr>
-                `;
-            }
-            tbody.innerHTML = rows;
+    },
+
+    _normalizeModelTokenStats(models, recordSummary) {
+        const byModel = recordSummary.by_model || {};
+        const modelIds = new Set([...Object.keys(models), ...Object.keys(byModel)]);
+
+        return Array.from(modelIds).map(modelId => {
+            const monthly = models[modelId] || {};
+            const record = byModel[modelId] || {};
+            const inputMiss = Number(record.input_cache_miss_tokens ?? monthly.input_cache_miss_tokens ?? monthly.cache_miss_tokens ?? 0);
+            const inputHit = Number(record.input_cache_hit_tokens ?? monthly.input_cache_hit_tokens ?? monthly.cache_hit_tokens ?? monthly.cached_tokens ?? 0);
+            const output = Number(record.output_tokens ?? monthly.output_tokens ?? 0);
+            const total = inputMiss + inputHit + output || Number(record.total_tokens ?? monthly.total_tokens ?? 0);
+            const inputTotal = inputMiss + inputHit;
+            const cacheHitRatio = record.avg_cache_hit_ratio !== undefined
+                ? Number(record.avg_cache_hit_ratio || 0)
+                : (inputTotal > 0 ? inputHit / inputTotal : 0);
+            const costBreakdown = monthly.cost_breakdown || {};
+
+            return {
+                id: modelId,
+                name: record.name || monthly.name || this.allModels[modelId]?.name || modelId,
+                isSystem: record.is_system ?? monthly.is_system ?? modelId.startsWith('system_'),
+                provider: record.provider || monthly.provider || '',
+                style: record.style || monthly.style || '',
+                recordCount: Number(record.record_count || 0),
+                inputMiss,
+                inputHit,
+                output,
+                total,
+                cacheHitRatio,
+                costTotal: Number(record.cost_total ?? monthly.cost_total ?? monthly.cost ?? 0),
+                costInputMiss: Number(record.cost_input_cache_miss ?? costBreakdown.input_cache_miss_cost ?? 0),
+                costInputHit: Number(record.cost_input_cache_hit ?? costBreakdown.input_cache_hit_cost ?? 0),
+                costOutput: Number(record.cost_output ?? costBreakdown.output_cost ?? 0),
+                prices: record.prices || {},
+                sourceCounts: record.source_counts || {},
+                styleCounts: record.style_counts || {}
+            };
+        }).sort((a, b) => b.costTotal - a.costTotal);
+    },
+
+    _renderModelTokenCards(models) {
+        if (!models.length) {
+            return '<div class="agent-token-empty"><i class="fas fa-info-circle me-2"></i>本月暂无使用记录</div>';
         }
+
+        return models.map(model => {
+            const stack = this._renderTokenStackBar([
+                { label: '输入未命中', value: model.inputMiss, className: 'token-miss' },
+                { label: '输入命中', value: model.inputHit, className: 'token-hit' },
+                { label: '输出', value: model.output, className: 'token-output' }
+            ]);
+            const sourceBadges = Object.entries(model.sourceCounts).map(([source, count]) =>
+                `<span class="badge bg-${source === 'actual' ? 'success' : 'warning'} text-${source === 'actual' ? 'white' : 'dark'}">${this.escapeHtml(source)} ${count}</span>`
+            ).join(' ');
+
+            return `
+                <div class="agent-token-model-card">
+                    <div class="agent-token-model-header">
+                        <div>
+                            <div class="fw-semibold">
+                                <i class="fas fa-${model.isSystem ? 'server' : 'user-cog'} me-2 text-${model.isSystem ? 'primary' : 'secondary'}"></i>
+                                ${this.escapeHtml(model.name)}
+                            </div>
+                            <div class="small text-muted">${this.escapeHtml(model.id)}${model.provider ? ` · ${this.escapeHtml(model.provider)}` : ''}${model.style ? ` · ${this.escapeHtml(model.style)}` : ''}</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-semibold">${this._formatCNY(model.costTotal, 4)}</div>
+                            <div class="small text-muted">${model.recordCount} 次请求</div>
+                        </div>
+                    </div>
+                    ${stack}
+                    <div class="agent-token-stat-grid">
+                        <span><i class="token-dot token-miss"></i>未命中 ${this.formatNumber(model.inputMiss)}</span>
+                        <span><i class="token-dot token-hit"></i>命中 ${this.formatNumber(model.inputHit)}</span>
+                        <span><i class="token-dot token-output"></i>输出 ${this.formatNumber(model.output)}</span>
+                        <span>命中率 ${(model.cacheHitRatio * 100).toFixed(1)}%</span>
+                    </div>
+                    <div class="agent-token-cost-row">
+                        <span>miss ${this._formatCNY(model.costInputMiss, 6)}</span>
+                        <span>hit ${this._formatCNY(model.costInputHit, 6)}</span>
+                        <span>output ${this._formatCNY(model.costOutput, 6)}</span>
+                        ${sourceBadges || '<span class="badge bg-secondary">暂无 source</span>'}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    _renderTokenStackBar(parts) {
+        const total = parts.reduce((sum, part) => sum + Math.max(0, Number(part.value || 0)), 0);
+        if (total <= 0) return '<div class="agent-token-stack agent-token-stack-empty"></div>';
+
+        return `<div class="agent-token-stack">${parts.filter(part => Number(part.value || 0) > 0).map(part => {
+            const value = Number(part.value || 0);
+            const percent = (value / total) * 100;
+            return `<div class="agent-token-segment ${part.className}" style="width:${percent.toFixed(2)}%;" title="${this.escapeHtml(part.label)}: ${this.formatNumber(value)} (${percent.toFixed(1)}%)"></div>`;
+        }).join('')}</div>`;
+    },
+
+    _renderUsageMetadataSummary(monthlyData, recordSummary) {
+        const recordCount = recordSummary.request_record_count ?? recordSummary.record_count ?? monthlyData.request_record_count ?? 0;
+        const callSites = Object.entries(recordSummary.by_call_site || {});
+        const sources = Object.entries(recordSummary.by_source || {});
+
+        if (!recordCount) {
+            return '<div class="agent-token-empty"><i class="fas fa-database me-2"></i>暂无请求级用量记录</div>';
+        }
+
+        const callSiteHtml = callSites.map(([name, stats]) => `
+            <div class="agent-token-meta-row">
+                <span>${this.escapeHtml(name)}</span>
+                <strong>${stats.count || stats.record_count || 0}</strong>
+                <span>${this._formatCNY(stats.cost_total || 0, 4)}</span>
+            </div>
+        `).join('');
+        const sourceHtml = sources.map(([name, stats]) =>
+            `<span class="badge bg-${name === 'actual' ? 'success' : 'warning'} text-${name === 'actual' ? 'white' : 'dark'} me-1">${this.escapeHtml(name)} ${stats.count || 0}</span>`
+        ).join('');
+
+        return `
+            <div class="agent-token-meta-total">请求记录 <strong>${recordCount}</strong> 条</div>
+            <div class="agent-token-meta-title">调用点</div>
+            ${callSiteHtml || '<div class="small text-muted">暂无调用点统计</div>'}
+            <div class="agent-token-meta-title mt-3">数据来源</div>
+            <div>${sourceHtml || '<span class="text-muted small">暂无 source 统计</span>'}</div>
+        `;
+    },
+
+    _renderRecentUsageRecords(records) {
+        if (!records.length) {
+            return '<div class="agent-token-empty"><i class="fas fa-clock me-2"></i>暂无最近请求</div>';
+        }
+
+        return `
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>模型</th>
+                            <th>调用点</th>
+                            <th class="text-end">Token</th>
+                            <th class="text-end">成本</th>
+                            <th>source</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${records.map(record => `
+                            <tr>
+                                <td class="small text-muted">${this.escapeHtml(new Date(record.created_at).toLocaleString('zh-CN'))}</td>
+                                <td>${this.escapeHtml(record.model_name || record.model_id || '-')}</td>
+                                <td>${this.escapeHtml(record.call_site || '-')}</td>
+                                <td class="text-end">${this.formatNumber(record.total_tokens || 0)}</td>
+                                <td class="text-end">${this._formatCNY(record.cost_total || 0, 6)}</td>
+                                <td><span class="badge bg-${record.source === 'actual' ? 'success' : 'warning'} text-${record.source === 'actual' ? 'white' : 'dark'}">${this.escapeHtml(record.source || '-')}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    },
+
+    _setTokenStatsLoading() {
+        const loading = '<div class="agent-token-empty"><i class="fas fa-spinner fa-spin me-2"></i>加载中...</div>';
+        ['tokenModelStatsContainer', 'tokenUsageMetadataContainer', 'tokenRecentRecordsContainer'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = loading;
+        });
+    },
+
+    _setTokenStatsError(message) {
+        const errorHtml = `<div class="agent-token-empty text-danger"><i class="fas fa-exclamation-triangle me-2"></i>${this.escapeHtml(message || '加载失败')}</div>`;
+        ['tokenModelStatsContainer', 'tokenUsageMetadataContainer', 'tokenRecentRecordsContainer'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = errorHtml;
+        });
+    },
+
+    _setText(id, text) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    },
+
+    _formatCNY(value, digits = 2) {
+        return `¥${Number(value || 0).toFixed(digits)}`;
     },
     
     /**

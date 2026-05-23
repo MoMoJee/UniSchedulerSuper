@@ -148,6 +148,10 @@ class ProjectLogger:
             import traceback
             stack_info = ''.join(traceback.format_stack()[:-2])  # 排除当前方法和调用方法
 
+        exc_info = kwargs.get('exc_info')
+        if exc_info is True:
+            exc_info = sys.exc_info()
+
         # 创建LogRecord并添加自定义字段
         record = self.logger.makeRecord(
             name=self.logger.name,
@@ -156,7 +160,7 @@ class ProjectLogger:
             lno=0,  # 行号，稍后会设置
             msg=message,
             args=args,
-            exc_info=kwargs.get('exc_info'),
+            exc_info=exc_info,
             func=None,  # 函数名，稍后会设置
             extra={'source_path': source_path},
             sinfo=stack_info  # 使用 sinfo 而不是 stack_info
