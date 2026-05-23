@@ -54,8 +54,8 @@ daphne -b 0.0.0.0 -p 8000 UniSchedulerSuper.asgi:application
 # 数据库迁移
 python manage.py makemigrations && python manage.py migrate
 
-# 激活虚拟环境
-.venv\Scripts\Activate.ps1
+# 使用虚拟环境（必须）
+.venv\Scripts\python.exe
 ```
 
 ---
@@ -75,4 +75,4 @@ import logging; logging.getLogger(...)
 - **Agent 工具第一参数必须是 `config: RunnableConfig`**
 - **JS 模块禁止使用 `document.write` 注入 CDN**（详见前端规范）
 - **静态文件每次修改后必须更新模板中的版本号**（格式 `?v=YYYYMMDD-NNN`）
-- **使用 editFiles 写入文档/代码时，不允许一次写入超过80行，必须逐模块分多次写入**
+- **注释必须用中文撰写**

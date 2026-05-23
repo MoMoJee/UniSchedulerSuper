@@ -2,7 +2,7 @@
 
 > UniSchedulerSuper 后端开发规范，基于项目现有代码约定整理。  
 > 所有新功能开发、代码审查均应参照本规范。  
-> 最后更新：2026-04-27
+> 最后更新：2026-05-23
 
 ---
 
@@ -15,7 +15,7 @@
 | [认证与权限规范](./认证与权限规范.md) | Token / Session 双轨认证、页面认证、CalDAV 认证 |
 | [服务层规范](./服务层规范.md) | `services/` 层职责、`MockRequest` 模式、`reversion` 版本追踪 |
 | [日志与错误处理规范](./日志与错误处理规范.md) | 统一日志 `logger`、错误响应格式、中间件请求日志 |
-| [Agent 服务规范](./Agent服务规范.md) | WebSocket 协议、LangGraph 工具注册、快速操作、会话管理 |
+| [Agent 服务规范](./Agent服务规范.md) | WebSocket 协议、LangGraph 工具注册、快速操作、会话管理、KV Cache 与 provider 适配 |
 
 ---
 

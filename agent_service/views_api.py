@@ -1110,7 +1110,11 @@ def optimize_memory(request):
         return Response({"error": "无权访问此会话"}, status=status.HTTP_403_FORBIDDEN)
 
     # 获取用户对应的 LLM，并检查是否可用
-    active_llm = get_user_llm(user)
+    active_llm = get_user_llm(
+        user,
+        force_thinking=False,
+        provider_user_id_suffix="-memory-optimizer",
+    )
     if isinstance(active_llm, DisabledLLM):
         return Response({"error": f"LLM 未配置，无法执行记忆优化：{active_llm.reason}"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
@@ -1624,10 +1628,14 @@ def create_attachment_from_cloud(request):
                 ip = ImageParser()
                 att.base64_data = ip._generate_base64(cf.original_file.path)
                 att.parse_status = 'completed'
+                att.ocr_status = 'skipped'
+                att.ocr_error = ''
             except Exception as e:
                 logger.warning(f"生成图片 base64 失败: {e}")
                 att.parse_status = 'failed'
                 att.parse_error = str(e)
+                att.ocr_status = 'failed'
+                att.ocr_error = str(e)
 
         att.save()
         created.append({

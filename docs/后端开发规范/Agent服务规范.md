@@ -195,3 +195,39 @@ Quick Action 在独立线程中执行，不占用 WebSocket 连接。
 - Token 计算：优先使用 LLM 返回的实际 token 数，回退到估算（`actual` > `tiktoken` > `estimate`）
 
 Token 快照存储在 `AgentSession.token_snapshots`，用于上下文用量可视化。
+
+---
+
+## 8. 主 Agent KV Cache 与 Provider 适配规范
+
+主 WebSocket Agent 的上下文构建必须遵守“稳定前缀优先”的约定。真实长会话中，工具权限、Skill 池、对话风格通常近似恒定，应让这些内容稳定排在前面；秒级时间、当前轮附件、临时运行状态必须贴近对应用户消息，避免污染 provider 的 system/tool 前缀缓存。
+
+### 8.1 消息构建规则
+
+- `build_system_prompt()` 不得包含秒级时间戳、当前轮附件、临时请求 ID 等每轮变化内容。
+- 当前时间写入 `HumanMessage.additional_kwargs['runtime_context']`，由 `OutboundMessageMaterializer` 在调用 LLM 前前缀到 user 内容。
+- 附件上下文写入 `HumanMessage.additional_kwargs['attachments_context']`，历史中完整保留，直到现有压缩策略触发。
+- 不要在最新 user 消息前插入 runtime `SystemMessage`。DeepSeek 在开启 `tools` 时会把 system/tool 区域作为特殊前置 prompt 处理，interleaved `SystemMessage` 会显著降低缓存命中。
+- 压缩、换 provider、切换多模态能力都视为新的缓存纪元，可以接受下一轮重建缓存。
+
+### 8.2 Provider 适配规则
+
+- Provider 差异统一通过 `ProviderProfile`、`ProviderNameMapper`、`OutboundMessageMaterializer` 和 `extract_llm_usage()` 处理。
+- DeepSeek 的稳定 user id 通过 `extra_body.user_id` 传递，格式为 `unischeduler-u{user.id}-{feature}`，例如 `-main-agent`、`-skill-selector`、`-session-namer`。
+- 主 Agent、Skill Selector、会话命名器、摘要器、记忆优化器、Quick Action、冲突分析器等不同 LLM 功能调用应使用不同 suffix，避免 provider 侧缓存命名空间互相干扰。
+- 工具 schema 继续通过 OpenAI-compatible `tools` 字段发送，不要为了缓存改成 system prompt 文本。
+- 如果 provider 对 tool name / message name 有更严格约束，必须通过 `ProviderNameMapper` 做双向映射，工具执行前还原内部名称。
+
+### 8.3 多模态切换规则
+
+- Checkpoint 保存 canonical history，不保存某个 provider 专用的图片块格式。
+- 多模态模型出站时必须发送 provider 支持的图片块，并确保图片 base64 可用。
+- 非多模态模型出站时不得包含 `image_url` / `image` 块；图片必须 OCR 后以文本进入请求，OCR 失败要显式暴露，不得静默当作空内容。
+- 模型切换时优先保证请求正确性，不以 KV Cache 命中为目标。
+
+### 8.4 缓存观测规则
+
+- token 统计必须记录 `cached_tokens`、`cache_hit_tokens`、`cache_miss_tokens`、`cache_hit_ratio`、`cache_source`。
+- DeepSeek 优先读取 `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`，兼容 `prompt_tokens_details.cached_tokens`。
+- Kimi/Moonshot 读取 `usage.cached_tokens`。
+- 调试缓存问题时同时记录最终 messages hash、tools hash、provider 参数 hash、tool count 和 provider profile。不要只根据 LangGraph state 推断 provider 实际请求。

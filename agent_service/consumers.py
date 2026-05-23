@@ -17,11 +17,11 @@ import re
 import asyncio
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from asgiref.sync import sync_to_async
-from langchain_core.messages import HumanMessage, AIMessage, AIMessageChunk, ToolMessage
+from langchain_core.messages import HumanMessage, AIMessage, AIMessageChunk, ToolMessage, BaseMessage
 from django.contrib.auth.models import User
 
 from logger import logger
@@ -289,17 +289,32 @@ class AgentConsumer(AsyncWebsocketConsumer):
             logger.exception(f"处理消息时出错: {e}")
             await self.send_json({"type": "error", "message": f"服务器错误: {str(e)}"})
     
-    async def _build_human_message(self, content: str, attachment_ids: list = None) -> HumanMessage:
+    def _build_runtime_context_message(self) -> str:
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return f"[Runtime Context] Current time: {current_time}"
+
+    async def _build_input_messages(
+        self,
+        content: str,
+        attachment_ids: list = None,
+        *,
+        message_index: int = 0,
+    ) -> List[BaseMessage]:
         """
-        构建 HumanMessage，支持多模态附件。
+        构建本轮输入消息，附件上下文作为独立消息冻结进 LangGraph state。
         
         核心改造：
-        1. content 只包含用户输入文本（图片除外，图片以 image_url 块形式包含）
-        2. 附件的描述信息（给 LLM 看）存到 additional_kwargs['attachments_context']
-        3. 附件元数据（给前端历史渲染）存到 additional_kwargs['attachments_metadata']
+        1. System Prompt 不再承担秒级时间，时间戳紧贴本轮用户消息
+        2. 附件上下文保存在 HumanMessage.additional_kwargs，出站时贴到用户消息前
+        3. HumanMessage 保留 attachment_ids，供出站 materializer 处理图片/OCR
         """
+        runtime_context = self._build_runtime_context_message()
+
         if not attachment_ids:
-            return HumanMessage(content=content)
+            return [HumanMessage(
+                content=content,
+                additional_kwargs={'runtime_context': runtime_context},
+            )]
         
         try:
             from agent_service.attachment_handler import AttachmentHandler
@@ -313,7 +328,10 @@ class AgentConsumer(AsyncWebsocketConsumer):
             )()
             
             if not attachments:
-                return HumanMessage(content=content)
+                return [HumanMessage(
+                    content=content,
+                    additional_kwargs={'runtime_context': runtime_context},
+                )]
             
             # 构建附件元数据（供前端历史渲染）
             attachments_metadata = []
@@ -334,77 +352,62 @@ class AgentConsumer(AsyncWebsocketConsumer):
                     meta['thumbnail_url'] = att.thumbnail.url
                 attachments_metadata.append(meta)
             
-            # 构建多模态 content_blocks（用于判断是否有图片，以及给 LLM 的上下文）
+            # 以纯文本方式冻结附件上下文；图片块由出站 materializer 按当前 provider 生成。
             content_blocks = await database_sync_to_async(
                 AttachmentHandler.format_for_message
-            )(attachments, user=self.user)
+            )(attachments, user=self.user, model_supports_vision=False)
             
             if not content_blocks:
-                return HumanMessage(
+                await database_sync_to_async(
+                    AttachmentHandler.mark_sent
+                )([a.id for a in attachments], message_index=message_index)
+                return [HumanMessage(
                     content=content,
                     additional_kwargs={
+                        'runtime_context': runtime_context,
                         'attachment_ids': attachment_ids,
                         'attachments_metadata': attachments_metadata,
                     }
-                )
-            
-            # 分离图片块和文本块
-            image_blocks = [b for b in content_blocks if b.get('type') == 'image_url']
+                )]
+
             text_blocks = [b for b in content_blocks if b.get('type') == 'text']
+            attachments_context = '\n\n'.join(b.get('text', '') for b in text_blocks if b.get('text'))
             
             # 标记附件为已发送
             att_ids = [a.id for a in attachments]
             await database_sync_to_async(
                 AttachmentHandler.mark_sent
-            )(att_ids, message_index=0)
-            
-            if image_blocks:
-                # 有图片：构建多模态 content（text + images），文本块作为附件上下文
-                multimodal_content = [{"type": "text", "text": content}]
-                multimodal_content.extend(image_blocks)
-                
-                # 提取纯文本附件的描述（给 LLM 的上下文）
-                attachments_context = '\n\n'.join(b.get('text', '') for b in text_blocks)
-                
-                # 估算图片 token 数（OpenAI 视觉模型的粗略估算）
-                # 参考: 低细节图片约 85 tokens, 高细节图片约 170-765 tokens (取决于分块数)
-                # 这里假设使用 detail="auto" 配置，平均约 85-100 tokens/图
-                estimated_tokens_per_image = 85
-                estimated_image_tokens = len(image_blocks) * estimated_tokens_per_image
-                
-                logger.debug(
-                    f"[多模态] 构建多模态消息: {len(image_blocks)} 张图片, "
-                    f"附件上下文 {len(attachments_context)} 字符, "
-                    f"预估图片Token≈{estimated_image_tokens} (按{estimated_tokens_per_image}token/图)"
-                )
-                
-                return HumanMessage(
-                    content=multimodal_content,
-                    additional_kwargs={
-                        'attachment_ids': attachment_ids,
-                        'attachments_metadata': attachments_metadata,
-                        'attachments_context': attachments_context,
-                    }
-                )
-            else:
-                # 纯文本附件：content 只包含用户输入，附件描述存到 attachments_context
-                attachments_context = '\n\n'.join(b.get('text', '') for b in text_blocks)
-                
-                logger.debug(f"[附件] 纯文本附件: {len(attachments)} 个, 上下文 {len(attachments_context)} 字符")
-                
-                return HumanMessage(
-                    content=content,
-                    additional_kwargs={
-                        'attachment_ids': attachment_ids,
-                        'attachments_metadata': attachments_metadata,
-                        'attachments_context': attachments_context,
-                    }
-                )
+            )(att_ids, message_index=message_index)
+
+            logger.debug(f"[附件] 冻结附件上下文: {len(attachments)} 个, 上下文 {len(attachments_context)} 字符")
+
+            messages: List[BaseMessage] = []
+            messages.append(HumanMessage(
+                content=content,
+                additional_kwargs={
+                    'runtime_context': runtime_context,
+                    'attachment_ids': attachment_ids,
+                    'attachments_metadata': attachments_metadata,
+                    'attachments_context': attachments_context,
+                }
+            ))
+            return messages
             
         except Exception as e:
             logger.error(f"[多模态] 构建多模态消息失败: {e}", exc_info=True)
             # 降级为纯文本
-            return HumanMessage(content=content)
+            return [HumanMessage(
+                content=content,
+                additional_kwargs={'runtime_context': runtime_context},
+            )]
+
+    async def _build_human_message(self, content: str, attachment_ids: list = None) -> HumanMessage:
+        """兼容旧调用：返回本轮最后一条 HumanMessage。"""
+        messages = await self._build_input_messages(content, attachment_ids)
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                return msg
+        return HumanMessage(content=content)
 
     async def _process_message(self, content: str, attachment_ids: list = None):
         """
@@ -473,10 +476,12 @@ class AgentConsumer(AsyncWebsocketConsumer):
             
             # ========== 【关键】发送前检查并执行历史总结 ==========
             # 获取当前历史消息，检查是否需要总结
+            current_message_count = 0
             try:
                 current_state = await app.aget_state(config)
                 if current_state and current_state.values:
                     current_messages = current_state.values.get("messages", [])
+                    current_message_count = len(current_messages)
                     if current_messages:
                         await self._check_and_summarize(current_messages, config)
             except Exception as e:
@@ -485,11 +490,15 @@ class AgentConsumer(AsyncWebsocketConsumer):
             # ========== 更新 last_message_preview ==========
             await self._update_last_message_preview(content)
             
-            # 准备输入 — 支持多模态（attachment_ids → content_blocks）
-            human_message = await self._build_human_message(content, attachment_ids)
+            # 准备输入 — 附件上下文冻结，图片/OCR 在 agent_node 出站前 materialize
+            input_messages = await self._build_input_messages(
+                content,
+                attachment_ids,
+                message_index=current_message_count + (2 if attachment_ids else 1),
+            )
             
             input_state = {
-                "messages": [human_message],
+                "messages": input_messages,
                 "active_tools": self.active_tools
             }
             
@@ -708,7 +717,10 @@ class AgentConsumer(AsyncWebsocketConsumer):
             await self._cleanup_incomplete_tool_calls(config)
             
             # 构建继续执行的输入消息
-            continue_message = HumanMessage(content="继续执行上述任务，完成未完成的工作。")
+            continue_message = HumanMessage(
+                content="继续执行上述任务，完成未完成的工作。",
+                additional_kwargs={'runtime_context': self._build_runtime_context_message()},
+            )
             input_state = {"messages": [continue_message]}
             
             stream_started = False
@@ -1139,7 +1151,13 @@ class AgentConsumer(AsyncWebsocketConsumer):
             
             try:
                 # 获取用户的 LLM
-                user_llm = await database_sync_to_async(get_user_llm)(self.user)
+                user_llm = await database_sync_to_async(
+                    lambda: get_user_llm(
+                        self.user,
+                        force_thinking=False,
+                        provider_user_id_suffix="-session-namer",
+                    )
+                )()
                 
                 # 构建命名提示词
                 naming_prompt = f"""请根据以下用户消息，为这次对话起一个简短的名称（5-15个字符），直接返回名称，不要有任何额外的解释或标点符号。
@@ -1297,7 +1315,13 @@ class AgentConsumer(AsyncWebsocketConsumer):
             logger.debug(f"[总结] 获取到的配置: {opt_config}")
             
             # 获取用户配置的 LLM（用于总结）
-            user_llm = await database_sync_to_async(get_user_llm)(self.user)
+            user_llm = await database_sync_to_async(
+                lambda: get_user_llm(
+                    self.user,
+                    force_thinking=False,
+                    provider_user_id_suffix="-summarizer",
+                )
+            )()
             
             # 检查是否启用总结
             if not opt_config.get('enable_summarization', True):

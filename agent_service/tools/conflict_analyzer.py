@@ -454,7 +454,10 @@ def analyze_with_llm(
     
     # 获取用户配置的 LLM
     try:
-        user_llm = get_user_llm(user)
+        user_llm = get_user_llm(
+            user,
+            provider_user_id_suffix="-conflict-analyzer",
+        )
         current_model_id, _ = get_current_model_config(user)
     except Exception as e:
         logger.error(f"获取用户 LLM 配置失败: {e}")

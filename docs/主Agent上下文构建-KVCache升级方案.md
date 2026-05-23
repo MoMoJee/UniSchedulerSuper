@@ -182,16 +182,18 @@ flowchart TD
   - AIMessage
   - ToolMessage
 
-[SystemMessage: 当前时间 / runtime context]
-  - 当前时间
-  - 当前模型必要运行时提示
+[历史 HumanMessage 的 additional_kwargs]
+  - runtime_context: 该轮发送时的时间戳
+  - attachments_context: 该轮发送时冻结的附件文本上下文
+  - attachment_ids / attachments_metadata: 附件元数据
 
-[SystemMessage or Human-adjacent message: 最新附件上下文，可选]
-  - 完整附件内容
-  - 放在最新 HumanMessage 之前
-
-[HumanMessage: 最新用户文本]
+[Outbound Materialized HumanMessage: 最新用户文本]
+  - Runtime Context 作为 user 内容前缀
+  - Attachment Context 作为 user 内容前缀
+  - 多模态图片或 OCR 文本按当前 provider profile 在出站副本中生成
 ```
+
+实际落地时不再把 runtime context 构造成新的 `SystemMessage`。`AgentConsumer` 将时间戳写入 `HumanMessage.additional_kwargs['runtime_context']`，`OutboundMessageMaterializer` 在调用 LLM 前把它前缀到对应 user 内容里。这样 checkpoint 仍保留规范历史，provider 侧也不会把动态时间戳合并进 system/tool 前缀。
 
 ### 4.2 流程图
 
@@ -200,10 +202,10 @@ flowchart TD
     A["用户发送消息"] --> B["前端传 content + attachment_ids"]
     B --> C["后端加载 SessionAttachment"]
     C --> D["生成或读取 frozen attachment context"]
-    D --> E["构建最新输入段"]
-    E --> E1["Runtime time context"]
-    E --> E2["Attachment context placed before HumanMessage"]
-    E --> E3["HumanMessage: user text only"]
+    D --> E["构建 HumanMessage"]
+    E --> E1["additional_kwargs.runtime_context"]
+    E --> E2["additional_kwargs.attachments_context"]
+    E --> E3["content: user text"]
     E1 --> F["LangGraph input_state"]
     E2 --> F
     E3 --> F
@@ -212,8 +214,9 @@ flowchart TD
     H --> I["build_system_prompt without current_time"]
     I --> J["bind_tools stable active_tools"]
     J --> K["build_optimized_context keeps existing compression strategy"]
-    K --> L["merge frozen attachment context messages"]
-    L --> M["LLM invoke"]
+    K --> L["OutboundMessageMaterializer"]
+    L --> L1["runtime / attachment prefixed into user content"]
+    L1 --> M["LLM invoke"]
     M --> N["extract token usage + cache usage"]
     N --> O["save session token snapshot and cache snapshot"]
 ```
@@ -232,24 +235,30 @@ flowchart TD
 
 ### 5.2 推荐消息结构
 
-对于带附件的用户消息：
+对于带附件的用户消息，checkpoint 中保留 canonical `HumanMessage`，附件上下文不再作为独立 `SystemMessage` 参与历史：
 
 ```text
-[SystemMessage]
-【附件上下文】
-message_index: 12
-attachment_ids: [101, 102]
-render_version: 1
-content_hash: sha256:...
+[HumanMessage]
+content: 请根据附件，帮我整理...
+additional_kwargs:
+  runtime_context: "[Runtime Context] Current time: ..."
+  attachments_context: "### 附件 1: xxx.pdf\n完整解析内容..."
+  attachment_ids: [101, 102]
+  attachments_metadata: [...]
+```
 
+出站调用 LLM 前由 `OutboundMessageMaterializer` 生成 provider-bound 副本：
+
+```text
+[HumanMessage.content]
+[Runtime Context] Current time: ...
+
+[Attachment Context]
 ### 附件 1: xxx.pdf
 完整解析内容...
 
-### 附件 2: screenshot.png
-OCR 或图片说明...
-
-[HumanMessage]
-请根据上面的附件，帮我整理...
+[User Message]
+请根据附件，帮我整理...
 ```
 
 如果是 vision 模型且决定发送图片，正常同模型长对话中应优先复用本次冻结结果；但一旦发生模型 provider 或多模态能力切换，应进入“兼容性重构模式”。兼容性重构不考虑 KV Cache，优先保证请求不会因图片格式、OCR 缺失或 provider JSON 字段不兼容而失败。
@@ -266,11 +275,11 @@ OCR 或图片说明...
 | `frozen_context_model_id` | CharField | 首次冻结时的模型 |
 | `frozen_context_created_at` | DateTimeField | 冻结时间 |
 
-也可以先不迁移数据库，把冻结内容写入 LangGraph 消息本体：新增一条 `SystemMessage` 并持久化在 checkpoint 中。这样实现最小，但缺点是附件库无法单独追踪冻结内容。
+也可以先不迁移数据库，把冻结内容写入 `HumanMessage.additional_kwargs['attachments_context']`。本次落地采用该方式：实现改动小，且不会在 tool-enabled 请求里新增 interleaved `SystemMessage`，更符合 DeepSeek KV Cache 行为。
 
 建议路线：
 
-1. 第一阶段：只改消息构建，把附件上下文作为独立消息写入 LangGraph state，确保历史不再每轮重建。
+1. 第一阶段：只改消息构建，把附件上下文冻结到 `HumanMessage.additional_kwargs`，确保历史不再每轮重建。
 2. 第二阶段：再给 `SessionAttachment` 增加冻结字段，支持调试、复用、hash 展示。
 
 ### 5.4 代码调整点
@@ -282,20 +291,25 @@ OCR 或图片说明...
 
 目标：
 
-1. `_build_human_message` 改为返回消息列表，而非单条消息：
+1. `_build_human_message` 改造为 `_build_input_messages`，返回带 metadata 的 `HumanMessage` 列表：
 
 ```python
 [
-    SystemMessage(content=runtime_time_context),        # 仅最新消息
-    SystemMessage(content=frozen_attachment_context),   # 如果有附件
-    HumanMessage(content=user_text, additional_kwargs={...})
+    HumanMessage(
+        content=user_text,
+        additional_kwargs={
+            "runtime_context": runtime_time_context,
+            "attachments_context": frozen_attachment_context,
+            "attachment_ids": [...],
+        },
+    )
 ]
 ```
 
 2. `_process_message` 的 `input_state["messages"]` 允许传入多条消息。
-3. 移除或禁用 `agent_node` 中“遍历所有 HumanMessage 并注入附件上下文”的逻辑。
+3. 移除或禁用 `agent_node` 中“遍历所有 HumanMessage 并注入附件 SystemMessage”的逻辑。
 4. 移除非最新附件截断逻辑。完整保留交给现有压缩策略处理。
-5. 历史多模态重建逻辑只允许处理最新消息，避免改写历史。
+5. 历史多模态重建逻辑只在 `OutboundMessageMaterializer` 的出站副本中进行，避免改写 checkpoint 历史。
 
 ### 5.5 附件位置示意
 
@@ -309,9 +323,9 @@ sequenceDiagram
     U->>C: content + attachment_ids
     C->>C: load attachments
     C->>C: build frozen attachment context
-    C->>G: [runtime time, attachment context, human text]
+    C->>G: HumanMessage + runtime/attachment additional_kwargs
     G->>G: append to checkpoint
-    G->>L: system + history + runtime + attachment + human
+    G->>L: materialized system + history + prefixed human
     L-->>G: response
 ```
 
@@ -333,14 +347,14 @@ sequenceDiagram
 当前时间: 2026-05-22 15:30:01
 ```
 
-改为在最新用户消息前追加：
+改为在最新用户消息的出站副本中前缀：
 
 ```text
-[SystemMessage]
-【本轮运行时上下文】
-当前时间: 2026-05-22 15:30:01
-时区: Asia/Shanghai
-说明: 仅用于理解用户本轮消息中的相对时间表达。
+[HumanMessage.content]
+[Runtime Context] Current time: 2026-05-22 15:30:01
+
+[User Message]
+用户本轮输入...
 ```
 
 ### 6.3 影响
@@ -879,14 +893,15 @@ ratio = cache_hit / input_tokens if input_tokens else 0
 任务：
 
 1. `build_system_prompt` 移除 `current_time` 拼接。
-2. `_process_message` 构建当前轮 runtime context message。
-3. `_continue_processing` 同样添加 runtime context。
+2. `_process_message` 构建当前轮 runtime context，并写入 `HumanMessage.additional_kwargs['runtime_context']`。
+3. `_continue_processing` 同样写入 runtime context。
 4. 确保相对时间工具和日程创建仍能使用当前时间。
 
 验收：
 
 1. 连续两轮相同工具/Skill 下，首个 System Prompt 内容不因秒级时间变化。
-2. 用户说“明天上午 9 点”仍能正确理解。
+2. 出站请求中不出现 interleaved runtime `SystemMessage`。
+3. 用户说“明天上午 9 点”仍能正确理解。
 
 ### Phase 3：附件消息冻结与前置
 
@@ -895,17 +910,17 @@ ratio = cache_hit / input_tokens if input_tokens else 0
 任务：
 
 1. `_build_human_message` 改造为 `_build_input_messages`，返回 `List[BaseMessage]`。
-2. 带附件时生成 `SystemMessage(附件上下文)`，排在 `HumanMessage` 前。
+2. 带附件时把附件上下文写入 `HumanMessage.additional_kwargs['attachments_context']`。
 3. `input_state["messages"]` 支持多条消息。
 4. 删除 `agent_node` 中动态扫描历史并插入附件上下文的逻辑。
 5. 禁止历史附件截断。
-6. 历史图片不再按当前模型能力重建。
+6. 历史图片不再按当前模型能力改写 checkpoint，只在出站 materializer 中重建。
 
 验收：
 
 1. 带附件消息进入 checkpoint 后，下一轮不会重新生成附件上下文。
-2. 历史附件内容完整保留。
-3. 上下文可视化显示附件消息位于对应用户消息前。
+2. 历史附件内容完整保留在 `HumanMessage.additional_kwargs`。
+3. LLM 出站副本中，附件上下文位于对应用户消息内容前缀。
 4. 回滚后附件软删除逻辑仍可依据 `attachment_ids/message_index` 工作。
 
 ### Phase 4：模型切换兼容层
@@ -978,3 +993,40 @@ flowchart LR
 ```
 
 本方案的核心不是把所有动态能力静态化，而是承认当前真实会话中“工具与 Skill 基本恒定”，优先修复两个高频破坏缓存的点：时间戳和附件重建。模型切换是独立的正确性通道：切换时可以牺牲缓存，但必须保证图片、OCR 和 provider JSON 名称字段全部正确。缓存观测字段先落地后，可以用真实 hit ratio 决定是否继续做更深的工具 profile / Skill Registry 改造。
+
+---
+
+## 12. DeepSeek KV Cache 实测经验
+
+本次升级后用底层 OpenAI SDK 直接请求 DeepSeek，绕开 LangGraph / LangChain / Agent 层，验证了缓存命中的真实影响因素。测试脚本位于 `tests/deepseek_cache_layout_probe.py` 与 `tests/deepseek_system_message_order_probe.py`，由于项目 `.gitignore` 忽略 `tests/`，提交前需按需 `git add -f`。
+
+### 12.1 关键结论
+
+1. 高命中的决定性因素是“动态时间戳不能进入 provider 的 system/tool 前缀区域”。
+2. `extra_body.user_id` 不是本次 90%+ 命中的主因，但仍建议保留，用于隔离主 Agent、Skill Selector、会话命名器、摘要器等不同功能调用。
+3. 工具继续使用 API `tools` 字段，不要为了缓存把工具 schema 渲染进 system prompt 文本。
+4. 多条稳定 `SystemMessage` 本身不是问题；真正危险的是 tool-enabled 请求中新增或变化的 runtime `SystemMessage`。
+5. 模型切换不追求缓存命中，优先保证图片/OCR/provider JSON 名称正确。
+
+### 12.2 实测数据摘要
+
+47 个 tools、4 轮对话、DeepSeek `deepseek-v4-flash`：
+
+| 场景 | 预热后平均命中率 | 结论 |
+|---|---:|---|
+| `human_prefix + api_tools + no_user` | 98.33% | 不带 user_id 也能高命中 |
+| `human_prefix + api_tools + extra_body.user_id` | 98.23% | user_id 不降低命中 |
+| `none_timestamp + api_tools + extra_body.user_id` | 98.88% | 无动态时间戳时最高 |
+| `system_before_user + api_tools + extra_body.user_id` | 6.81% | runtime `SystemMessage` 严重破坏缓存 |
+| `system_front + api_tools + extra_body.user_id` | 0.00% | 动态 system 放最前完全失效 |
+| `human_prefix + api_tools + tool_loop` | 96.94% | 多工具调用历史仍可高命中 |
+
+进一步定位中，去掉 tools 后，interleaved dynamic `SystemMessage` 仍可约 90% 命中；加上 47 个 tools 后，同样结构降到约 7.5%。因此可以推断：DeepSeek 在 tool-enabled 请求中会把 `tools` 与 `system` 区域序列化成一个特殊前置缓存单元，后续新增或变化的 `SystemMessage` 会污染该单元，而 user/assistant 内容不会。
+
+### 12.3 后续开发规则
+
+1. 主 Agent 开启 tools 时，禁止把秒级时间、当前轮附件、临时运行状态作为新的 `SystemMessage` 插入历史中间或最新用户消息前。
+2. 动态运行时上下文写入 `HumanMessage.additional_kwargs`，只在出站 materializer 中作为 user 内容前缀。
+3. 需要新增 provider 适配逻辑时，优先扩展 `ProviderProfile` / `OutboundMessageMaterializer` / `ProviderNameMapper`，不要在 `agent_node` 中分散写 provider 特判。
+4. 调试缓存时优先看 `prompt_cache_hit_tokens`、`prompt_cache_miss_tokens`、最终 messages hash、tools hash 和 provider profile，而不是只看 LangGraph state。
+5. 压缩、换 provider、切换多模态能力视为新的缓存纪元，可以接受下一轮重建缓存。

@@ -112,11 +112,13 @@ class AttachmentHandler:
 
         # 如果当前模型支持 vision 且是图片，跳过耗时的 OCR
         parse_kwargs = {'mime_type': mime_type}
+        skipped_ocr = False
         if attachment.type == 'image':
             try:
                 from agent_service.model_capabilities import ModelCapabilities
                 if ModelCapabilities.supports_vision(attachment.user):
                     parse_kwargs['skip_ocr'] = True
+                    skipped_ocr = True
             except Exception as e:
                 logger.warning(f"检查模型 vision 能力失败，继续执行 OCR: {e}")
 
@@ -130,12 +132,23 @@ class AttachmentHandler:
             # 图片额外处理: base64 + 缩略图
             if attachment.type == 'image':
                 attachment.base64_data = result.get('base64', '')
+                attachment.ocr_status = 'skipped' if skipped_ocr else 'completed'
+                attachment.ocr_attempted_at = None if skipped_ocr else timezone.now()
+                attachment.ocr_provider = '' if skipped_ocr else 'fallback-chain'
+                attachment.ocr_error = ''
                 AttachmentHandler._generate_thumbnail(attachment, parser)
         else:
             attachment.parse_status = 'failed'
             attachment.parse_error = result.get('error', '解析失败')
+            if attachment.type == 'image':
+                attachment.ocr_status = 'failed'
+                attachment.ocr_attempted_at = timezone.now()
+                attachment.ocr_error = attachment.parse_error
 
-        update_fields = ['parsed_text', 'base64_data', 'parse_status', 'parse_error']
+        update_fields = [
+            'parsed_text', 'base64_data', 'parse_status', 'parse_error',
+            'ocr_status', 'ocr_attempted_at', 'ocr_provider', 'ocr_error',
+        ]
         if attachment.type == 'image' and attachment.thumbnail:
             update_fields.append('thumbnail')
         attachment.save(update_fields=update_fields)
@@ -553,20 +566,74 @@ class AttachmentHandler:
         
         # 如果已有有效的 OCR 结果，直接返回
         if att.parsed_text and att.parsed_text not in ['', '[图片，无可识别文字内容]']:
+            if getattr(att, 'ocr_status', '') != 'completed':
+                att.ocr_status = 'completed'
+                att.ocr_error = ''
+                att.save(update_fields=['ocr_status', 'ocr_error'])
             return {"success": True, "text": att.parsed_text, "error": ""}
         
         try:
+            att.ocr_status = 'processing'
+            att.ocr_error = ''
+            att.save(update_fields=['ocr_status', 'ocr_error'])
+
             parser = ImageParser()
             ocr_text = parser._extract_text_ocr(att.file.path)
             
             # 更新附件
             att.parsed_text = ocr_text or "[图片，无可识别文字内容]"
-            att.save(update_fields=['parsed_text'])
+            att.ocr_status = 'completed'
+            att.ocr_attempted_at = timezone.now()
+            att.ocr_provider = 'fallback-chain'
+            att.ocr_error = ''
+            att.save(update_fields=['parsed_text', 'ocr_status', 'ocr_attempted_at', 'ocr_provider', 'ocr_error'])
             
             return {"success": True, "text": att.parsed_text, "error": ""}
         except Exception as e:
             logger.error(f"OCR 失败 [{attachment_id}]: {e}")
+            att.ocr_status = 'failed'
+            att.ocr_attempted_at = timezone.now()
+            att.ocr_error = str(e)
+            att.save(update_fields=['ocr_status', 'ocr_attempted_at', 'ocr_error'])
             return {"success": False, "text": "", "error": str(e)}
+
+    @staticmethod
+    def ensure_image_base64(attachment) -> bool:
+        """确保图片附件有 base64_data，供多模态模型发送。"""
+        if attachment.type != 'image':
+            return True
+        if attachment.base64_data:
+            return True
+        if not attachment.file:
+            return False
+
+        try:
+            from agent_service.parsers.image_parser import ImageParser
+
+            parser = ImageParser()
+            attachment.base64_data = parser._generate_base64(attachment.file.path)
+            attachment.save(update_fields=['base64_data'])
+            return bool(attachment.base64_data)
+        except Exception as e:
+            logger.error(f"生成图片 base64 失败 [{attachment.id}]: {e}")
+            return False
+
+    @staticmethod
+    def ensure_image_ocr(attachment, user) -> Dict[str, Any]:
+        """确保图片已经 OCR。失败时返回 success=False，由调用方阻断 LLM 请求。"""
+        if attachment.type != 'image':
+            return {"success": True, "text": attachment.parsed_text or "", "error": ""}
+
+        valid_text = attachment.parsed_text and attachment.parsed_text not in ['', '[图片，无可识别文字内容]']
+        if getattr(attachment, 'ocr_status', '') == 'completed':
+            return {"success": True, "text": attachment.parsed_text or "[图片，无可识别文字内容]", "error": ""}
+        if valid_text:
+            attachment.ocr_status = 'completed'
+            attachment.ocr_error = ''
+            attachment.save(update_fields=['ocr_status', 'ocr_error'])
+            return {"success": True, "text": attachment.parsed_text, "error": ""}
+
+        return AttachmentHandler.run_ocr_on_attachment(attachment.id, user)
 
     @staticmethod
     def batch_run_ocr(attachment_ids: List[int], user) -> Dict[str, Any]:
@@ -681,3 +748,82 @@ class AttachmentHandler:
                     text_parts.append(f"[图片: {att.filename}，待 OCR 处理]")
             
             return '\n\n'.join(text_parts)
+
+    @staticmethod
+    def materialize_message_content_for_profile(
+        original_content,
+        attachment_ids: List[int],
+        user,
+        provider_profile,
+    ) -> any:
+        """
+        根据 provider profile 生成出站 HumanMessage.content。
+
+        多模态模型必须拿到图片块；非多模态模型必须拿到 OCR 后的纯文本。
+        """
+        from agent_service.models import SessionAttachment
+
+        if not attachment_ids:
+            return original_content
+
+        attachments = list(SessionAttachment.objects.filter(
+            id__in=attachment_ids, user=user, is_deleted=False
+        ))
+        image_atts = [a for a in attachments if a.type == 'image']
+        if not image_atts:
+            return original_content
+
+        text_content = ""
+        if isinstance(original_content, str):
+            text_content = original_content
+        elif isinstance(original_content, list):
+            text_parts = []
+            for block in original_content:
+                if isinstance(block, dict) and block.get('type') == 'text':
+                    text_parts.append(block.get('text', ''))
+                elif isinstance(block, str):
+                    text_parts.append(block)
+            text_content = '\n'.join(text_parts)
+
+        if provider_profile.supports_vision:
+            if provider_profile.image_block_style == "none":
+                raise RuntimeError(f"模型 {provider_profile.model_id} 标记支持 vision，但未配置 image_block_style")
+
+            content = [{"type": "text", "text": text_content}] if text_content else []
+            for att in image_atts:
+                if not AttachmentHandler.ensure_image_base64(att):
+                    raise RuntimeError(f"图片 {att.filename} 缺少 base64 数据，无法发送给多模态模型")
+                mime = att.mime_type or 'image/jpeg'
+                if provider_profile.image_block_style == "anthropic-image-source":
+                    media_type = mime
+                    content.append({
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": media_type,
+                            "data": att.base64_data,
+                        }
+                    })
+                else:
+                    content.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{mime};base64,{att.base64_data}",
+                            "detail": "auto",
+                        }
+                    })
+            return content if content else text_content
+
+        text_parts = [text_content] if text_content else []
+        for att in image_atts:
+            result = AttachmentHandler.ensure_image_ocr(att, user)
+            if not result.get("success"):
+                raise RuntimeError(f"图片 {att.filename} OCR 失败，无法发送给非多模态模型: {result.get('error', '')}")
+
+            text = result.get("text") or att.parsed_text or ""
+            if text and text != "[图片，无可识别文字内容]":
+                text_parts.append(f"[图片 {att.filename} 的 OCR 内容]\n{text}")
+            else:
+                text_parts.append(f"[图片 {att.filename} 已执行 OCR，但未识别出文字内容]")
+
+        return '\n\n'.join(text_parts)

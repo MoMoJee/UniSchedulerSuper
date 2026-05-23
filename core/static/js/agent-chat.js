@@ -5785,9 +5785,10 @@ class AgentChat {
 
         if (snapshot.token_stats) {
             const ts = snapshot.token_stats;
+            const cacheRatio = ts.cache_hit_ratio !== undefined ? `${(Number(ts.cache_hit_ratio || 0) * 100).toFixed(1)}%` : '-';
             html += this._buildVizSection(
                 '📊 Token 统计',
-                `<div style="font-size:12px;">消息数: ${ts.total_messages} | 系统提示字符: ${ts.system_prompt_chars} | 总字符: ${ts.total_chars}</div>`,
+                `<div style="font-size:12px;">消息数: ${ts.total_messages} | 输入: ${ts.input_tokens || '-'} | 输出: ${ts.output_tokens || '-'} | 缓存命中: ${ts.cache_hit_tokens || 0} | 缓存未命中: ${ts.cache_miss_tokens || 0} | 命中率: ${cacheRatio} | 系统提示字符: ${ts.system_prompt_chars} | 总字符: ${ts.total_chars}</div>`,
                 'token-stats', false
             );
         }

@@ -203,7 +203,7 @@ class AgentSession(models.Model):
         self.last_input_tokens_updated_at = timezone.now()
         self.save(update_fields=['last_input_tokens', 'last_input_tokens_source', 'last_input_tokens_updated_at'])
     
-    def save_token_snapshot(self, message_index: int, input_tokens: int, tokens_source: str = 'actual'):
+    def save_token_snapshot(self, message_index: int, input_tokens: int, tokens_source: str = 'actual', cache_stats: dict = None):
         """
         保存某轮对话的 Token 快照（用于回滚时恢复显示）
         
@@ -221,11 +221,22 @@ class AgentSession(models.Model):
         
         # 使用字符串作为键（JSON 要求）
         snapshot_key = str(message_index)
-        self.token_snapshots[snapshot_key] = {
+        snapshot = {
             "input_tokens": input_tokens,
             "source": tokens_source,
             "timestamp": timezone.now().isoformat()
         }
+        if cache_stats:
+            snapshot.update({
+                "cached_tokens": cache_stats.get("cached_tokens", 0),
+                "cache_hit_tokens": cache_stats.get("cache_hit_tokens", 0),
+                "cache_miss_tokens": cache_stats.get("cache_miss_tokens", 0),
+                "cache_hit_ratio": cache_stats.get("cache_hit_ratio", 0),
+                "reasoning_tokens": cache_stats.get("reasoning_tokens", 0),
+                "cache_source": cache_stats.get("cache_source", "none"),
+            })
+
+        self.token_snapshots[snapshot_key] = snapshot
         
         self.save(update_fields=['token_snapshots'])
         logger.debug(f"[Token快照存储] session={self.session_id}, index={message_index}, tokens={input_tokens}, 当前快照数={len(self.token_snapshots)}")
@@ -1221,6 +1232,23 @@ class SessionAttachment(models.Model):
         help_text="解析状态"
     )
     parse_error = models.TextField(blank=True, default='', help_text="解析错误信息")
+
+    # ========== 图片 OCR 状态 ==========
+    ocr_status = models.CharField(
+        max_length=20,
+        default='pending',
+        choices=[
+            ('pending', '待 OCR'),
+            ('processing', 'OCR 中'),
+            ('completed', 'OCR 已完成'),
+            ('failed', 'OCR 失败'),
+            ('skipped', '已跳过 OCR'),
+        ],
+        help_text="图片 OCR 状态；用于模型从多模态切换到纯文本时做发送前校验"
+    )
+    ocr_attempted_at = models.DateTimeField(null=True, blank=True, help_text="最近 OCR 执行时间")
+    ocr_provider = models.CharField(max_length=50, blank=True, default='', help_text="最近 OCR 使用的 provider")
+    ocr_error = models.TextField(blank=True, default='', help_text="OCR 失败原因")
     
     # ========== 内部元素引用 ==========
     internal_type = models.CharField(

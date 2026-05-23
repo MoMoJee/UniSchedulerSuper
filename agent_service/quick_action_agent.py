@@ -209,7 +209,7 @@ def agent_node(state: QuickActionState) -> Dict:
     messages = state['messages']
     
     # 获取用户配置的 LLM
-    llm = get_user_llm(user)
+    llm = get_user_llm(user, provider_user_id_suffix="-quick-action")
     
     # 绑定工具
     tools = list(PLANNER_TOOLS.values())

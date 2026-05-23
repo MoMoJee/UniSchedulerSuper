@@ -6,6 +6,8 @@ import os
 import sqlite3
 import datetime
 import json
+import hashlib
+import re
 from typing import Annotated, TypedDict, List, Literal, Optional, Dict, Any
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
@@ -73,6 +75,10 @@ from agent_service.context_optimizer import (
 from agent_service.context_summarizer import (
     ConversationSummarizer, build_optimized_context, build_full_context
 )
+from agent_service.message_materializer import OutboundMessageMaterializer, ensure_legacy_attachment_context_messages
+from agent_service.provider_profiles import build_provider_profile
+from agent_service.tool_name_mapper import ProviderNameMapper, map_tools_for_provider
+from agent_service.usage_extractor import extract_llm_usage
 
 from logger import logger
 # ==========================================
@@ -315,12 +321,52 @@ def _normalize_base_url(base_url: str) -> str:
     return base_url.rstrip('/')
 
 
+def _build_provider_user_id(user, provider_style: str, suffix: str = "") -> str:
+    """为支持该字段的供应商生成稳定、非隐私的 user_id。"""
+    if provider_style != "deepseek" or not user or not getattr(user, "is_authenticated", False):
+        return ""
+    raw_user_id = f"unischeduler-u{getattr(user, 'id', '')}{suffix}"
+    return re.sub(r"[^a-zA-Z0-9_-]", "_", raw_user_id)[:512]
+
+
 class ReasoningAwareChatOpenAI(ChatOpenAI):
     """子类：在请求负载中回传 reasoning_content，响应中提取 reasoning_content 到 additional_kwargs。"""
 
     def _get_request_payload(self, input_, *, stop=None, **kwargs):
         payload = super()._get_request_payload(input_, stop=stop, **kwargs)
         try:
+            if isinstance(payload, dict):
+                tools_payload = payload.get("tools") or []
+                if tools_payload:
+                    tools_raw = json.dumps(tools_payload, ensure_ascii=False, default=str, separators=(",", ":"))
+                    tools_semantic = json.dumps(tools_payload, ensure_ascii=False, default=str, sort_keys=True, separators=(",", ":"))
+                    logger.debug(
+                        "[LLMPayloadDebug] 最终请求 tools: "
+                        f"count={len(tools_payload)}, chars={len(tools_raw)}, "
+                        f"raw_hash={_hash_text(tools_raw)}, semantic_hash={_hash_text(tools_semantic)}"
+                    )
+
+                extra_body = payload.get("extra_body") if isinstance(payload.get("extra_body"), dict) else {}
+                user_id = extra_body.get("user_id") or ""
+                if extra_body or payload.get("reasoning_effort"):
+                    logger.debug(
+                        "[LLMPayloadDebug] provider 参数: "
+                        f"extra_body_keys={sorted(extra_body.keys())}, "
+                        f"thinking={extra_body.get('thinking')}, "
+                        f"user_id_enabled={bool(extra_body.get('user_id'))}, "
+                        f"user_id_hash={_hash_text(user_id) if user_id else ''}, "
+                        f"reasoning_effort={payload.get('reasoning_effort')}"
+                    )
+
+                messages_payload = payload.get("messages") or []
+                if messages_payload:
+                    messages_raw = json.dumps(messages_payload, ensure_ascii=False, default=str, separators=(",", ":"))
+                    logger.debug(
+                        "[LLMPayloadDebug] 最终请求 messages: "
+                        f"count={len(messages_payload)}, chars={len(messages_raw)}, "
+                        f"raw_hash={_hash_text(messages_raw)}"
+                    )
+
             if isinstance(input_, list):
                 msgs_in = input_
             elif hasattr(input_, 'to_messages'):
@@ -366,7 +412,9 @@ def _build_chat_llm(model_name: str, base_url: str, api_key: str,
                     *,
                     thinking_enabled: bool = False,
                     thinking_param_style: str = "none",
-                    thinking_min_max_tokens: int = 0) -> Optional[ChatOpenAI]:
+                    thinking_min_max_tokens: int = 0,
+                    provider_style: str = "openai-compatible",
+                    provider_user_id: str = "") -> Optional[ChatOpenAI]:
     """构建 ChatOpenAI 实例，不满足条件时返回 None。可选启用思考模式。"""
     if not model_name or not base_url or not api_key:
         return None
@@ -377,7 +425,7 @@ def _build_chat_llm(model_name: str, base_url: str, api_key: str,
     if thinking_param_style == "deepseek":
         extra_body["thinking"] = {"type": "enabled" if thinking_enabled else "disabled"}
         if thinking_enabled:
-            extra_body["reasoning_effort"] = "high"
+            extra_kwargs["reasoning_effort"] = "high"
     elif thinking_param_style == "kimi-k2":
         extra_body["thinking"] = {
             "type": "enabled" if thinking_enabled else "disabled",
@@ -387,6 +435,9 @@ def _build_chat_llm(model_name: str, base_url: str, api_key: str,
             extra_kwargs["temperature"] = 1.0
             extra_kwargs["max_tokens"] = max(thinking_min_max_tokens or 0, 16000)
 
+    if provider_style == "deepseek" and provider_user_id:
+        extra_body["user_id"] = provider_user_id
+
     init_kwargs: Dict[str, Any] = dict(
         model=model_name,
         base_url=base_url,
@@ -394,7 +445,7 @@ def _build_chat_llm(model_name: str, base_url: str, api_key: str,
         streaming=False,
     )
     if extra_body:
-        init_kwargs["model_kwargs"] = {"extra_body": extra_body}
+        init_kwargs["extra_body"] = extra_body
     init_kwargs.update(extra_kwargs)
 
     try:
@@ -447,7 +498,7 @@ def get_default_llm():
     return _default_llm
 
 
-def get_user_llm(user, *, force_thinking: Optional[bool] = None):
+def get_user_llm(user, *, force_thinking: Optional[bool] = None, provider_user_id_suffix: str = ""):
     """
     获取用户配置的 LLM 实例（含思考模式参数）。
 
@@ -476,6 +527,8 @@ def get_user_llm(user, *, force_thinking: Optional[bool] = None):
                 api_key = system_model_config.get('api_key', '')
                 base_url = _normalize_base_url(system_model_config.get('base_url', ''))
                 model_name = system_model_config.get('model_name', 'deepseek-chat')
+                provider_profile = build_provider_profile(current_model_id, system_model_config)
+                provider_user_id = _build_provider_user_id(user, provider_profile.provider_style, provider_user_id_suffix)
                 # 优先使用 system_model_config 中的思考参数字段
                 thinking_param_style = system_model_config.get('thinking_param_style', thinking_param_style)
                 thinking_min_max_tokens = int(system_model_config.get('thinking_min_max_tokens', thinking_min_max_tokens) or 0)
@@ -485,9 +538,15 @@ def get_user_llm(user, *, force_thinking: Optional[bool] = None):
                     thinking_enabled=thinking_enabled,
                     thinking_param_style=thinking_param_style,
                     thinking_min_max_tokens=thinking_min_max_tokens,
+                    provider_style=provider_profile.provider_style,
+                    provider_user_id=provider_user_id,
                 )
                 if user_llm:
-                    logger.debug(f"[LLM] 系统模型: {model_name} thinking={thinking_enabled} style={thinking_param_style}")
+                    logger.debug(
+                        f"[LLM] 系统模型: {model_name} thinking={thinking_enabled} "
+                        f"style={thinking_param_style} provider_style={provider_profile.provider_style} "
+                        f"user_id_enabled={bool(provider_user_id)}"
+                    )
                     return user_llm
 
             logger.warning(f"[LLM] 系统模型 {current_model_id} 配置不存在，使用默认")
@@ -497,15 +556,23 @@ def get_user_llm(user, *, force_thinking: Optional[bool] = None):
         api_url = _normalize_base_url(model_config.get('api_url', '') or model_config.get('base_url', ''))
         api_key = model_config.get('api_key', '')
         model_name = model_config.get('model_name', model_config.get('model', ''))
+        provider_profile = build_provider_profile(current_model_id, model_config)
+        provider_user_id = _build_provider_user_id(user, provider_profile.provider_style, provider_user_id_suffix)
 
         user_llm = _build_chat_llm(
             model_name, api_url, api_key,
             thinking_enabled=thinking_enabled,
             thinking_param_style=thinking_param_style,
             thinking_min_max_tokens=thinking_min_max_tokens,
+            provider_style=provider_profile.provider_style,
+            provider_user_id=provider_user_id,
         )
         if user_llm:
-            logger.debug(f"[LLM] 自定义模型: {model_name} thinking={thinking_enabled} style={thinking_param_style}")
+            logger.debug(
+                f"[LLM] 自定义模型: {model_name} thinking={thinking_enabled} "
+                f"style={thinking_param_style} provider_style={provider_profile.provider_style} "
+                f"user_id_enabled={bool(provider_user_id)}"
+            )
             return user_llm
 
     except Exception as e:
@@ -517,7 +584,7 @@ def get_user_llm(user, *, force_thinking: Optional[bool] = None):
 # ==========================================
 # System Prompt 构建
 # ==========================================
-def build_system_prompt(user, active_tool_names: List[str], current_time: str, selected_skill_ids: List[int] = None, summary_metadata: Optional[Dict] = None) -> str:
+def build_system_prompt(user, active_tool_names: List[str], current_time: str = "", selected_skill_ids: List[int] = None, summary_metadata: Optional[Dict] = None) -> str:
     """
     构建 System Prompt
     - 加载用户的对话风格模板（如果有），否则使用默认模板
@@ -678,8 +745,6 @@ findings: ["关键发现1"]
 4. 工具调用后，请根据返回结果给用户一个清晰的回复
 5. 如果用户提到重要的个人信息或偏好，请使用 save_personal_info 保存
 6. 如果用户要求将某段流程或知识沉淀为可复用的指令，使用 save_skill 保存为技能{workflow_hint}{todo_hint}{info_hint}{context_status_hint}{agent_state_hint}
-
-当前时间: {current_time}
 """
 
     # 7. 注入被 Skill Selector 选中的技能完整内容
@@ -772,7 +837,11 @@ def skill_selector_node(state: AgentState, config: RunnableConfig) -> dict:
 用户消息：{last_human_msg}"""
 
     try:
-        llm = get_user_llm(user)
+        llm = get_user_llm(
+            user,
+            force_thinking=False,
+            provider_user_id_suffix="-skill-selector", # 为技能选择器单独分配 user id 来避免和主进程的 KVCache 冲突
+        )
         response = llm.invoke(
             [SystemMessage(content=selector_prompt)],
             config={**config, "max_tokens": 200}
@@ -797,6 +866,71 @@ def skill_selector_node(state: AgentState, config: RunnableConfig) -> dict:
     except Exception as e:
         logger.warning(f"[SkillSelector] LLM 调用失败，跳过技能选择: {e}")
         return {"selected_skill_ids": []}
+
+
+def _serialize_tool_definition(tool) -> Dict[str, Any]:
+    """序列化工具定义，用于诊断 provider 侧工具 schema 是否稳定。"""
+    tool_def: Dict[str, Any] = {
+        "name": getattr(tool, "name", ""),
+        "description": getattr(tool, "description", "") or "",
+    }
+    args_schema = getattr(tool, "args_schema", None)
+    if args_schema is not None:
+        try:
+            if hasattr(args_schema, "model_json_schema"):
+                tool_def["parameters"] = args_schema.model_json_schema()
+            elif hasattr(args_schema, "schema"):
+                tool_def["parameters"] = args_schema.schema()
+        except Exception as schema_error:
+            logger.debug(f"[ToolCacheDebug] 工具 {tool_def['name']} schema 获取失败: {schema_error}")
+            tool_def["parameters_error"] = str(schema_error)
+    return tool_def
+
+
+def _hash_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def _build_tool_schema_debug(
+    provider_tools: List,
+    active_tool_names: List[str],
+    tool_name_mapping: Dict[str, str],
+) -> Dict[str, Any]:
+    """构建工具 schema 的稳定性诊断信息。"""
+    definitions = [_serialize_tool_definition(tool) for tool in provider_tools]
+    provider_names = [d.get("name", "") for d in definitions]
+    names_payload = json.dumps(provider_names, ensure_ascii=False, separators=(",", ":"))
+    semantic_payload = json.dumps(definitions, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    raw_payload = json.dumps(definitions, ensure_ascii=False, separators=(",", ":"))
+
+    per_tool = []
+    for tool_def in definitions:
+        tool_payload = json.dumps(tool_def, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        provider_name = tool_def.get("name", "")
+        per_tool.append({
+            "provider_name": provider_name,
+            "internal_name": tool_name_mapping.get(provider_name, provider_name),
+            "chars": len(tool_payload),
+            "hash": _hash_text(tool_payload),
+        })
+
+    largest_tools = sorted(per_tool, key=lambda item: item["chars"], reverse=True)[:8]
+    mapped_count = sum(1 for provider_name, internal_name in tool_name_mapping.items() if provider_name != internal_name)
+
+    return {
+        "count": len(definitions),
+        "provider_names": provider_names,
+        "active_tool_names": list(active_tool_names or []),
+        "names_hash": _hash_text(names_payload),
+        "semantic_hash": _hash_text(semantic_payload),
+        "raw_hash": _hash_text(raw_payload),
+        "schema_chars": len(raw_payload),
+        "schema_estimated_tokens": int(len(raw_payload) / 2.5),
+        "mapped_count": mapped_count,
+        "per_tool": per_tool,
+        "largest_tools": largest_tools,
+        "definitions": definitions,
+    }
 
 
 # ==========================================
@@ -873,10 +1007,12 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
             logger.debug(f"[Agent] 模型详情: {model_config}")
         except Exception as e:
             logger.warning(f"[Agent] 获取模型配置失败: {e}")
+
+    provider_profile = build_provider_profile(current_model_id, model_config)
     
     # ========== 动态创建 LLM 实例 ==========
     # 使用统一的 get_user_llm() 函数，正确处理系统模型和自定义模型
-    active_llm = get_user_llm(user)
+    active_llm = get_user_llm(user, provider_user_id_suffix="-main-agent")
 
     if isinstance(active_llm, DisabledLLM):
         return {
@@ -890,8 +1026,23 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
             ]
         }
     
-    if tools:
-        llm_with_tools = active_llm.bind_tools(tools)
+    name_mapper = ProviderNameMapper(provider_profile.tool_name_style).build_for_names(active_tool_names)
+    provider_tools, tool_name_mapping = map_tools_for_provider(tools, name_mapper)
+    tool_schema_debug = _build_tool_schema_debug(provider_tools, active_tool_names, tool_name_mapping)
+    logger.debug(
+        "[ToolCacheDebug] 当前工具 schema: "
+        f"count={tool_schema_debug['count']}, "
+        f"schema_chars={tool_schema_debug['schema_chars']}, "
+        f"est_tokens={tool_schema_debug['schema_estimated_tokens']}, "
+        f"names_hash={tool_schema_debug['names_hash']}, "
+        f"semantic_hash={tool_schema_debug['semantic_hash']}, "
+        f"raw_hash={tool_schema_debug['raw_hash']}, "
+        f"mapped_count={tool_schema_debug['mapped_count']}, "
+        f"largest={tool_schema_debug['largest_tools']}"
+    )
+
+    if provider_tools:
+        llm_with_tools = active_llm.bind_tools(provider_tools)
     else:
         llm_with_tools = active_llm
     
@@ -1022,118 +1173,20 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
             logger.error(f"[Agent] 上下文优化失败: {e}", exc_info=True)
             optimized_messages = messages
     
-    full_messages = [system_message] + list(optimized_messages)
-    
-    # ========== 注入附件上下文（跟随每条 HumanMessage 位置）==========
-    # 遍历所有 HumanMessage，将附件上下文以独立 SystemMessage 注入到紧随其后的位置
-    # 对非最新消息中的文件附件，截断长文本
-    from agent_service.attachment_handler import AttachmentHandler
+    canonical_messages = ensure_legacy_attachment_context_messages(list(optimized_messages))
+    full_messages = [system_message] + canonical_messages
 
-    # 找到最后一条 HumanMessage 的原始索引
-    last_human_idx = None
-    for i in range(len(full_messages) - 1, -1, -1):
-        if isinstance(full_messages[i], HumanMessage):
-            last_human_idx = i
-            break
-
-    # 从后向前遍历，避免插入导致索引偏移
-    for i in range(len(full_messages) - 1, -1, -1):
-        msg = full_messages[i]
-        if not isinstance(msg, HumanMessage):
-            continue
-
-        kwargs = getattr(msg, 'additional_kwargs', None) or {}
-        attachments_context = kwargs.get('attachments_context', '')
-        if not attachments_context:
-            continue
-
-        is_latest = (i == last_human_idx)
-
-        # 非最新消息：对包含文件附件的上下文执行截断
-        if not is_latest:
-            meta_list = kwargs.get('attachments_metadata', [])
-            has_file_attachment = any(
-                m.get('type') in ('image', 'pdf', 'word', 'excel')
-                for m in meta_list
-            )
-            if has_file_attachment:
-                attachments_context = AttachmentHandler.truncate_attachment_text(
-                    attachments_context
-                )
-
-        label = "最新消息附件" if is_latest else "历史消息附件"
-        attachment_msg = SystemMessage(
-            content=f"【{label}内容】以下是用户该条消息中包含的附件信息：\n\n{attachments_context}"
-        )
-        full_messages.insert(i + 1, attachment_msg)
-        logger.debug(f"[Agent] 注入附件上下文@msg#{i}: {len(attachments_context)} 字符, latest={is_latest}")
-    
-    # ========== 多模态动态重建：根据当前模型能力重建历史消息中的图片内容 ==========
-    current_supports_vision = model_config.get('supports_vision', False) if model_config else False
-    rebuilt_count = 0
-    
-    for i, msg in enumerate(full_messages):
-        if not isinstance(msg, HumanMessage):
-            continue
-        
-        # 检查消息是否包含附件
-        attachment_ids = []
-        if hasattr(msg, 'additional_kwargs') and msg.additional_kwargs:
-            attachment_ids = msg.additional_kwargs.get('attachment_ids', [])
-            # 也检查 attachments_metadata 中的 sa_id
-            if not attachment_ids:
-                metadata = msg.additional_kwargs.get('attachments_metadata', [])
-                attachment_ids = [m.get('sa_id') for m in metadata if m.get('sa_id')]
-        
-        if not attachment_ids:
-            # 没有附件，但可能有旧格式的 image_url 块需要降级
-            if not current_supports_vision and isinstance(msg.content, list):
-                text_parts = []
-                image_count = 0
-                for block in msg.content:
-                    if isinstance(block, dict):
-                        if block.get('type') == 'text':
-                            text_parts.append(block.get('text', ''))
-                        elif block.get('type') == 'image_url':
-                            image_count += 1
-                    elif isinstance(block, str):
-                        text_parts.append(block)
-                if image_count > 0:
-                    text_parts.append(f"[此消息包含 {image_count} 张图片，当前模型不支持图片识别]")
-                    new_content = '\n'.join(text_parts) if text_parts else str(msg.content)
-                    full_messages[i] = HumanMessage(
-                        content=new_content,
-                        additional_kwargs=msg.additional_kwargs,
-                    )
-                    rebuilt_count += 1
-            continue
-        
-        # 有附件，根据模型能力重建消息内容
-        try:
-            from agent_service.attachment_handler import AttachmentHandler
-            
-            new_content = AttachmentHandler.rebuild_message_content_for_model(
-                original_content=msg.content,
-                attachment_ids=attachment_ids,
-                user=user,
-                supports_vision=current_supports_vision
-            )
-            
-            if new_content != msg.content:
-                full_messages[i] = HumanMessage(
-                    content=new_content,
-                    additional_kwargs=msg.additional_kwargs,
-                )
-                rebuilt_count += 1
-        except Exception as e:
-            logger.warning(f"[Agent] 重建消息内容失败: {e}")
-    
-    if rebuilt_count > 0:
-        mode = "多模态" if current_supports_vision else "纯文本"
-        logger.debug(f"[Agent] 动态重建: {rebuilt_count} 条消息已根据当前模型能力({mode})重建内容")
+    materializer = OutboundMessageMaterializer(provider_profile, user, name_mapper)
+    full_messages, materialize_meta = materializer.materialize(full_messages)
+    current_supports_vision = provider_profile.supports_vision
+    logger.debug(
+        f"[Agent] 出站 materialize 完成: profile={provider_profile.provider_style}, "
+        f"vision={current_supports_vision}, stats={materialize_meta.get('stats')}"
+    )
     
     # 打印最终发送给 LLM 的消息
     logger.debug(f"[Agent] 发送给 LLM 的消息: {len(full_messages)} 条")
+    logger.debug(f"[Agent] 发送给 LLM 的消息内容: {full_messages}")
 
     # ========== 保存 LLM 请求快照（供前端上下文可视化）==========
     try:
@@ -1200,29 +1253,35 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
             from datetime import datetime as _dt
             _invoke_session = _SnapshotSession.objects.filter(session_id=_invoke_session_id).first()
             if _invoke_session:
-                # 序列化工具定义（名称 + 描述 + 参数 schema）
-                _tool_defs = []
-                for _t in tools:
-                    try:
-                        _tdef = {"name": _t.name, "description": _t.description}
-                        if hasattr(_t, 'args_schema') and _t.args_schema is not None:
-                            try:
-                                # Pydantic v2 优先，回退到 v1
-                                if hasattr(_t.args_schema, 'model_json_schema'):
-                                    _tdef["parameters"] = _t.args_schema.model_json_schema()
-                                elif hasattr(_t.args_schema, 'schema'):
-                                    _tdef["parameters"] = _t.args_schema.schema()
-                            except Exception as _schema_e:
-                                logger.debug(f"[Snapshot] 工具 {_t.name} schema 获取失败: {_schema_e}")
-                        _tool_defs.append(_tdef)
-                    except Exception:
-                        pass
+                _previous_snapshot = _invoke_session.last_llm_request_snapshot or {}
+                _previous_tool_schema = _previous_snapshot.get("tool_schema", {}) if isinstance(_previous_snapshot, dict) else {}
+                tool_schema_debug["previous"] = {
+                    "had_previous": bool(_previous_tool_schema),
+                    "count_changed": _previous_tool_schema.get("count") != tool_schema_debug["count"],
+                    "names_hash_changed": _previous_tool_schema.get("names_hash") != tool_schema_debug["names_hash"],
+                    "semantic_hash_changed": _previous_tool_schema.get("semantic_hash") != tool_schema_debug["semantic_hash"],
+                    "raw_hash_changed": _previous_tool_schema.get("raw_hash") != tool_schema_debug["raw_hash"],
+                    "previous_count": _previous_tool_schema.get("count"),
+                    "previous_names_hash": _previous_tool_schema.get("names_hash"),
+                    "previous_semantic_hash": _previous_tool_schema.get("semantic_hash"),
+                    "previous_raw_hash": _previous_tool_schema.get("raw_hash"),
+                }
+                logger.debug(f"[ToolCacheDebug] 与上一轮工具 schema 对比: {tool_schema_debug['previous']}")
+
+                _tool_defs = tool_schema_debug["definitions"]
                 _invoke_session.last_llm_request_snapshot = {
                     "timestamp": _dt.now().isoformat(),
                     "message_index": len(state.get("messages", [])),
                     "model_id": current_model_id,
                     "model_name": model_config.get('model_name', '') if model_config else '',
                     "supports_vision": current_supports_vision,
+                    "provider_profile": provider_profile.to_dict(),
+                    "tool_name_mapping": tool_name_mapping,
+                    "tool_schema": {
+                        key: value for key, value in tool_schema_debug.items()
+                        if key != "definitions"
+                    },
+                    "materialize": materialize_meta,
                     "tool_names": active_tool_names,
                     "tool_definitions": _tool_defs,
                     "messages": _snapshot_messages,
@@ -1257,9 +1316,13 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
 
         if _is_thinking_400 and _user_thinking_on and user and user.is_authenticated:
             logger.warning(f"[Thinking] 思考模式请求 400，静默降级为非思考重试: {_llm_e}")
-            _fallback_llm = get_user_llm(user, force_thinking=False)
-            if tools:
-                _fallback_llm = _fallback_llm.bind_tools(tools)
+            _fallback_llm = get_user_llm(
+                user,
+                force_thinking=False,
+                provider_user_id_suffix="-main-agent",
+            )
+            if provider_tools:
+                _fallback_llm = _fallback_llm.bind_tools(provider_tools)
             response = _fallback_llm.invoke(full_messages, config)
             # 标记本轮发生了降级，供 consumers 由会话状态推送
             try:
@@ -1284,32 +1347,14 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     # ========== Token 统计 ==========
     if user and user.is_authenticated:
         try:
-            # 尝试从 response 获取实际 token 使用
-            input_tokens = 0
-            output_tokens = 0
-            
-            # 优先检查 usage_metadata（LangChain 新版本标准）
-            if hasattr(response, 'usage_metadata') and response.usage_metadata:
-                usage_metadata = response.usage_metadata
-                if isinstance(usage_metadata, dict):
-                    input_tokens = usage_metadata.get('input_tokens', 0) or usage_metadata.get('prompt_tokens', 0)
-                    output_tokens = usage_metadata.get('output_tokens', 0) or usage_metadata.get('completion_tokens', 0)
-                else:
-                    input_tokens = getattr(usage_metadata, 'input_tokens', 0) or getattr(usage_metadata, 'prompt_tokens', 0)
-                    output_tokens = getattr(usage_metadata, 'output_tokens', 0) or getattr(usage_metadata, 'completion_tokens', 0)
-            
-            # 回退：检查 response_metadata
-            if not input_tokens and hasattr(response, 'response_metadata'):
-                metadata = response.response_metadata
-                usage = metadata.get('token_usage') or metadata.get('usage') or {}
-                input_tokens = usage.get('prompt_tokens', 0) or usage.get('input_tokens', 0)
-                output_tokens = usage.get('completion_tokens', 0) or usage.get('output_tokens', 0)
+            usage_info = extract_llm_usage(response, provider_profile.cache_usage_style)
+            input_tokens = usage_info.get("input_tokens", 0)
+            output_tokens = usage_info.get("output_tokens", 0)
             
             # 如果无法从 API 获取，使用估算值
             if input_tokens == 0 or output_tokens == 0:
-                # 准备降级日志信息
-                usage_metadata_str = str(response.usage_metadata) if hasattr(response, 'usage_metadata') else 'None'
-                response_metadata_keys = list(response.response_metadata.keys()) if hasattr(response, 'response_metadata') else []
+                usage_metadata_str = str(getattr(response, 'usage_metadata', None))
+                response_metadata_keys = list(getattr(response, 'response_metadata', {}).keys()) if hasattr(response, 'response_metadata') else []
                 
                 logger.warning(
                     f"⚠️ [Token统计降级] 无法从API获取Token用量，使用估算值（将用于计费，可能存在偏差）。"
@@ -1333,21 +1378,20 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
                     response_content = response.content if hasattr(response, 'content') and isinstance(response.content, str) else ""
                     output_tokens = int(len(response_content) / 2.5) or 10  # 至少 10 tokens
                     logger.debug(f"[Token统计] 输出Token估算: {len(response_content)} 字符 → {output_tokens} tokens")
+                usage_info["input_tokens"] = input_tokens
+                usage_info["output_tokens"] = output_tokens
+                usage_info["total_tokens"] = input_tokens + output_tokens
+                usage_info["source"] = "estimated"
             
             if input_tokens > 0 or output_tokens > 0:
-                # 判断数据来源
-                has_usage_metadata = hasattr(response, 'usage_metadata') and response.usage_metadata
-                has_response_metadata_usage = False
-                if not has_usage_metadata and hasattr(response, 'response_metadata'):
-                    metadata = response.response_metadata
-                    usage = metadata.get('token_usage') or metadata.get('usage') or {}
-                    has_response_metadata_usage = bool(usage.get('prompt_tokens') or usage.get('input_tokens'))
-                
-                source = "actual" if (has_usage_metadata or has_response_metadata_usage) else "estimated"
+                source = usage_info.get("source", "actual")
                 
                 # 成本由 update_token_usage 自动计算（基于 CNY）
                 update_token_usage(user, input_tokens, output_tokens, current_model_id)
-                logger.debug(f"[Agent] Token 统计已更新: in={input_tokens}, out={output_tokens}, model={current_model_id}, source={source}")
+                logger.debug(
+                    f"[Agent] Token 统计已更新: in={input_tokens}, out={output_tokens}, "
+                    f"cache_hit={usage_info.get('cache_hit_tokens', 0)}, model={current_model_id}, source={source}"
+                )
                 
                 # ========== 保存上下文 Token 数到会话（用于前端显示）==========
                 try:
@@ -1362,9 +1406,28 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
                             # 保存当前消息的 Token 快照（用于回滚时恢复显示）
                             # AI 响应的索引 = 当前消息列表长度（因为返回后会追加到列表）
                             current_message_index = len(state["messages"])
-                            session.save_token_snapshot(current_message_index, input_tokens, source)
+                            session.save_token_snapshot(current_message_index, input_tokens, source, usage_info)
+
+                            snapshot = session.last_llm_request_snapshot or {}
+                            token_stats = snapshot.get("token_stats", {})
+                            token_stats.update({
+                                "input_tokens": input_tokens,
+                                "output_tokens": output_tokens,
+                                "total_tokens": usage_info.get("total_tokens", input_tokens + output_tokens),
+                                "cached_tokens": usage_info.get("cached_tokens", 0),
+                                "cache_hit_tokens": usage_info.get("cache_hit_tokens", 0),
+                                "cache_miss_tokens": usage_info.get("cache_miss_tokens", 0),
+                                "cache_hit_ratio": usage_info.get("cache_hit_ratio", 0),
+                                "reasoning_tokens": usage_info.get("reasoning_tokens", 0),
+                                "cache_source": usage_info.get("cache_source", "none"),
+                                "source": source,
+                            })
+                            snapshot["token_stats"] = token_stats
+                            session.last_llm_request_snapshot = snapshot
+                            session.save(update_fields=['last_llm_request_snapshot'])
                             
                             logger.debug(f"[Token快照] 已保存: session={session_id}, message_index={current_message_index}, input_tokens={input_tokens}, source={source}")
+                            logger.debug(f"[token_stats]: {token_stats}")
                         else:
                             logger.warning(f"[上下文显示] 未找到会话: session_id={session_id}")
                 except Exception as e:
@@ -1413,17 +1476,28 @@ def create_tool_node_with_permission_check():
             state.get('active_tools') or 
             []  # 默认为空列表，不启用任何工具
         )
+
+        tool_name_mapper = ProviderNameMapper("openai-compatible").build_for_names(active_tool_names)
+        user = configurable.get("user")
+        if user and getattr(user, "is_authenticated", False):
+            try:
+                _model_id, _model_config = get_current_model_config(user)
+                _profile = build_provider_profile(_model_id, _model_config)
+                tool_name_mapper = ProviderNameMapper(_profile.tool_name_style).build_for_names(active_tool_names)
+            except Exception as e:
+                logger.debug(f"[ToolNode] provider 名称映射初始化失败，使用默认规则: {e}")
         
         if not hasattr(last_message, 'tool_calls') or not last_message.tool_calls:
             return {"messages": []}
         
         tool_messages = []
         for tool_call in last_message.tool_calls:
-            tool_name = tool_call.get("name")
+            provider_tool_name = tool_call.get("name")
+            tool_name = tool_name_mapper.to_internal_tool_name(provider_tool_name)
             tool_call_id = tool_call.get("id")
             tool_args = tool_call.get("args", {})
             
-            logger.debug(f"[ToolNode]   - 请求调用工具: {tool_name}")
+            logger.debug(f"[ToolNode]   - 请求调用工具: {provider_tool_name} -> {tool_name}")
             
             # 检查工具是否被启用
             if tool_name not in active_tool_names:

@@ -174,6 +174,8 @@ def update_model_config(request):
         if 'current_model_id' in data:
             model_id = data['current_model_id']
             all_models = get_all_models(user)
+            old_model_id = agent_config.get('current_model_id', 'system_deepseek')
+            old_model = all_models.get(old_model_id, {})
 
             if model_id not in all_models:
                 return Response({
@@ -184,8 +186,17 @@ def update_model_config(request):
             agent_config['current_model_id'] = model_id
             logger.info(f"用户 {user.username} 切换模型为 {model_id}")
 
+            new_model = all_models[model_id]
+            agent_config['last_model_switch'] = {
+                "from": old_model_id,
+                "to": model_id,
+                "at": datetime.now().isoformat(),
+                "vision_changed": bool(old_model.get('supports_vision', False)) != bool(new_model.get('supports_vision', False)),
+                "provider_changed": old_model.get('provider') != new_model.get('provider'),
+            }
+
             # 切模型后联动修正 thinking_enabled
-            new_mode = all_models[model_id].get('thinking_mode', 'unsupported')
+            new_mode = new_model.get('thinking_mode', 'unsupported')
             if new_mode == 'unsupported':
                 agent_config['thinking_enabled'] = False
             elif new_mode == 'forced':
