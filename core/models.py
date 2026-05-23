@@ -1159,47 +1159,40 @@ DATA_SCHEMA = {
         "nullable": False,
         "default": {},
         "items": {
-            # 累计输入 Token
-            "total_input_tokens": {
-                "type": int,
+            # 当前统计月份，格式 YYYY-MM
+            "current_month": {
+                "type": str,
                 "nullable": False,
-                "default": 0,
+                "default": "",
             },
-            # 累计输出 Token
-            "total_output_tokens": {
-                "type": int,
-                "nullable": False,
-                "default": 0,
-            },
-            # 累计费用（美元）
-            "total_cost": {
+            # 每月抵用金额度
+            "monthly_credit": {
                 "type": float,
                 "nullable": False,
                 "default": 0.0,
             },
-            # Token 配额（暂时设为大值）
-            "quota": {
-                "type": int,
+            # 本月已用金额
+            "monthly_used": {
+                "type": float,
                 "nullable": False,
-                "default": 9999999,
+                "default": 0.0,
             },
-            # 最后更新时间
+            # 模型月度累计统计
+            "models": {
+                "type": dict,
+                "nullable": False,
+                "default": {},
+            },
+            # 历史月份累计摘要
+            "history": {
+                "type": dict,
+                "nullable": False,
+                "default": {},
+            },
             "last_updated": {
                 "type": str,
                 "nullable": True,
                 "default": "",
-            },
-            # 每日统计: {"2026-01-02": {"input": 1000, "output": 500, "cost": 0.01}}
-            "daily_stats": {
-                "type": dict,
-                "nullable": False,
-                "default": {},
-            },
-            # 模型统计: {"system_deepseek": {"input": 1000, "output": 500, "cost": 0.01}}
-            "model_stats": {
-                "type": dict,
-                "nullable": False,
-                "default": {},
             },
         },
     },

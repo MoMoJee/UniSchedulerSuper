@@ -437,9 +437,16 @@ def get_system_models() -> Dict[str, Dict]:
         result[model_id] = {
             'name': config.get('name', model_id),
             'provider': 'system',  # 标记为系统模型
+            'source_provider': config.get('provider', ''),
             'api_url': f"{config.get('base_url', '')}/chat/completions",
             'base_url': config.get('base_url', ''),
             'model_name': config.get('model_name', ''),
+            'style': config.get('style', ''),
+            'provider_style': config.get('provider_style', ''),
+            'cache_usage_style': config.get('cache_usage_style', ''),
+            'message_format_style': config.get('message_format_style', ''),
+            'image_block_style': config.get('image_block_style', ''),
+            'tool_name_style': config.get('tool_name_style', ''),
             'context_window': config.get('context_window', 128000),
             'supports_tools': config.get('supports_tools', True),
             'supports_vision': config.get('supports_vision', False),
@@ -448,7 +455,9 @@ def get_system_models() -> Dict[str, Dict]:
             'thinking_mode': config.get('thinking_mode', 'unsupported'),
             'thinking_param_style': config.get('thinking_param_style', 'none'),
             'thinking_min_max_tokens': config.get('thinking_min_max_tokens', 0),
-            'cost_per_1k_input': config.get('cost_per_1k_input', 0),
+            'cost_per_1k_input': config.get('cost_per_1k_input_cache_miss', config.get('cost_per_1k_input', 0)),
+            'cost_per_1k_input_cache_miss': config.get('cost_per_1k_input_cache_miss', config.get('cost_per_1k_input', 0)),
+            'cost_per_1k_input_cache_hit': config.get('cost_per_1k_input_cache_hit', 0),
             'cost_per_1k_output': config.get('cost_per_1k_output', 0),
             'cost_currency': config.get('cost_currency', 'CNY'),
             'readonly': config.get('readonly', True),
@@ -657,14 +666,91 @@ class MockRequest:
         self.user = user
 
 
-def update_token_usage(user, input_tokens: int, output_tokens: int, model_id: str, cost: float = 0) -> bool:
+def create_usage_record(
+    user,
+    usage_info: Dict[str, Any],
+    model_id: str,
+    cost_info: Dict[str, Any],
+    request_meta: Optional[Dict[str, Any]] = None,
+):
+    """创建单次 LLM 请求用量明细记录。"""
+    from datetime import datetime, timezone
+    from time import perf_counter
+    from agent_service.models import AgentSession, AgentUsageRecord
+    from config.api_keys_manager import APIKeyManager, is_system_model
+
+    started_at = perf_counter()
+    meta = request_meta or {}
+    if not request_meta:
+        logger.warning(f"[用量明细] 缺少 request_meta: model={model_id}")
+
+    try:
+        session = None
+        session_id = meta.get('session_id')
+        if session_id:
+            session = AgentSession.objects.filter(session_id=session_id, user=user).first()
+
+        model_config = APIKeyManager.get_system_model_config(model_id) or {}
+        prices = cost_info.get('prices', {}) if isinstance(cost_info, dict) else {}
+        diagnostics = {
+            'message_index': meta.get('message_index'),
+            'cache_source': usage_info.get('cache_source', ''),
+            'usage_keys': list((usage_info.get('raw_usage') or {}).keys()),
+            'provider_profile': meta.get('provider_profile', {}),
+        }
+        record = AgentUsageRecord.objects.create(
+            user=user,
+            session=session,
+            month=datetime.now(timezone.utc).strftime('%Y-%m'),
+            call_site=meta.get('call_site') or usage_info.get('call_site') or 'legacy',
+            model_id=model_id,
+            model_name=model_config.get('model_name', ''),
+            provider=model_config.get('provider', ''),
+            style=usage_info.get('provider_style') or model_config.get('style', ''),
+            is_system_model=is_system_model(model_id),
+            input_total_tokens=int(usage_info.get('input_tokens', 0) or 0),
+            input_cache_miss_tokens=int(usage_info.get('input_cache_miss_tokens', 0) or 0),
+            input_cache_hit_tokens=int(usage_info.get('input_cache_hit_tokens', 0) or 0),
+            output_tokens=int(usage_info.get('output_tokens', 0) or 0),
+            reasoning_tokens=int(usage_info.get('reasoning_tokens', 0) or 0),
+            total_tokens=int(usage_info.get('total_tokens', 0) or 0),
+            cache_hit_ratio=float(usage_info.get('cache_hit_ratio', 0.0) or 0.0),
+            price_input_cache_miss_per_1k=float(prices.get('cost_per_1k_input_cache_miss', 0.0) or 0.0),
+            price_input_cache_hit_per_1k=float(prices.get('cost_per_1k_input_cache_hit', 0.0) or 0.0),
+            price_output_per_1k=float(prices.get('cost_per_1k_output', 0.0) or 0.0),
+            cost_input_cache_miss=float(cost_info.get('input_cache_miss_cost', 0.0) or 0.0),
+            cost_input_cache_hit=float(cost_info.get('input_cache_hit_cost', 0.0) or 0.0),
+            cost_output=float(cost_info.get('output_cost', 0.0) or 0.0),
+            cost_total=float(cost_info.get('total_cost', 0.0) or 0.0),
+            currency=cost_info.get('currency', 'CNY'),
+            source=usage_info.get('source', 'actual'),
+            diagnostics=diagnostics,
+        )
+        elapsed_ms = int((perf_counter() - started_at) * 1000)
+        logger.debug(f"[用量明细] record={record.record_id}, call_site={record.call_site}, session={session_id}, elapsed={elapsed_ms}ms")
+        logger.info(f"[用量明细] 已记录: model={model_id}, cost=¥{record.cost_total:.6f}, hit={record.input_cache_hit_tokens}, miss={record.input_cache_miss_tokens}")
+        return record
+    except Exception as e:
+        logger.error(f"[用量明细] 创建失败: model={model_id}, error={e}", exc_info=True)
+        return None
+
+
+def update_token_usage(
+    user,
+    usage_info,
+    output_tokens: Any = None,
+    model_id: Optional[str] = None,
+    cost: float = 0,
+    request_meta: Optional[Dict[str, Any]] = None,
+    cost_override: Optional[Dict[str, Any]] = None,
+) -> bool:
     """
     更新用户的 Token 使用统计
     
     Args:
         user: Django User 对象
-        input_tokens: 输入 token 数
-        output_tokens: 输出 token 数
+        usage_info: 新版 usage dict，或旧签名中的输入 token 数
+        output_tokens: 旧签名中的输出 token 数；新版调用可传 model_id
         model_id: 使用的模型 ID
         cost: 费用 (CNY)，如果为 0 会自动计算
     
@@ -674,10 +760,53 @@ def update_token_usage(user, input_tokens: int, output_tokens: int, model_id: st
     from core.models import UserData
     from datetime import datetime, timezone
     from config.api_keys_manager import (
-        get_model_cost_config, is_system_model, calculate_cost
+        get_model_cost_config, is_system_model, calculate_llm_cost
     )
+
+    if isinstance(usage_info, dict):
+        normalized_usage = usage_info.copy()
+        if isinstance(output_tokens, str) and model_id is None:
+            model_id = output_tokens
+    else:
+        logger.warning("[Token统计-计费] update_token_usage 使用旧签名，cache hit 将按 0 处理")
+        input_value = int(usage_info or 0)
+        output_value = int(output_tokens or 0)
+        normalized_usage = {
+            'input_tokens': input_value,
+            'input_cache_miss_tokens': input_value,
+            'input_cache_hit_tokens': 0,
+            'output_tokens': output_value,
+            'total_tokens': input_value + output_value,
+            'source': 'legacy',
+        }
+
+    if not model_id:
+        logger.error("[Token统计-计费] 缺少 model_id，无法更新统计")
+        return False
+
+    input_tokens = int(normalized_usage.get('input_tokens', 0) or 0)
+    output_tokens_value = int(normalized_usage.get('output_tokens', 0) or 0)
+    cache_hit_tokens = int(
+        normalized_usage.get('input_cache_hit_tokens', normalized_usage.get('cache_hit_tokens', 0)) or 0
+    )
+    cache_miss_value = normalized_usage.get('input_cache_miss_tokens', normalized_usage.get('cache_miss_tokens'))
+    if cache_miss_value is None:
+        cache_miss_tokens = max(input_tokens - cache_hit_tokens, 0)
+        if input_tokens:
+            logger.warning(f"[Token统计-计费] cache miss 缺失，按 input-cache_hit 估算: model={model_id}")
+    else:
+        cache_miss_tokens = int(cache_miss_value or 0)
+    normalized_usage['input_cache_hit_tokens'] = cache_hit_tokens
+    normalized_usage['input_cache_miss_tokens'] = cache_miss_tokens
+    normalized_usage['output_tokens'] = output_tokens_value
+    normalized_usage['billable_input_cache_hit_tokens'] = cache_hit_tokens
+    normalized_usage['billable_input_cache_miss_tokens'] = cache_miss_tokens
+    normalized_usage['billable_output_tokens'] = output_tokens_value
     
-    logger.debug(f"[Token统计-计费] 开始更新: user={user.username}, model={model_id}, in={input_tokens}, out={output_tokens}")
+    logger.debug(
+        f"[Token统计-计费] 开始更新: user={user.username}, model={model_id}, "
+        f"miss={cache_miss_tokens}, hit={cache_hit_tokens}, out={output_tokens_value}"
+    )
     
     try:
         # 使用 get_or_initialize 获取或创建统计记录
@@ -697,20 +826,71 @@ def update_token_usage(user, input_tokens: int, output_tokens: int, model_id: st
         stats = _ensure_current_month(stats)
         
         # 计算成本（如果未提供）
-        if cost == 0:
+        if cost_override:
+            cost_info = cost_override.copy()
+        elif cost:
+            cost_info = {
+                'input_cache_miss_cost': 0.0,
+                'input_cache_hit_cost': 0.0,
+                'output_cost': 0.0,
+                'total_cost': float(cost),
+                'currency': 'CNY',
+            }
+        else:
             cost_config = get_model_cost_config(model_id)
             if cost_config:
-                cost = calculate_cost(input_tokens, output_tokens, cost_config)
-                logger.debug(f"[Token统计] 计算成本: ¥{cost:.6f}")
+                cost_info = calculate_llm_cost(normalized_usage, cost_config)
+                logger.debug(f"[Token统计] 三段成本: {cost_info}")
+            else:
+                logger.warning(f"[Token统计-计费] 模型无成本配置，按 0 计费: model={model_id}")
+                cost_info = {
+                    'input_cache_miss_cost': 0.0,
+                    'input_cache_hit_cost': 0.0,
+                    'output_cost': 0.0,
+                    'total_cost': 0.0,
+                    'currency': 'CNY',
+                }
+        cost = float(cost_info.get('total_cost', 0.0) or 0.0)
+        create_usage_record(user, normalized_usage, model_id, cost_info, request_meta)
         
         # 更新模型统计
         models = stats.get('models', {})
         if model_id not in models:
-            models[model_id] = {'input_tokens': 0, 'output_tokens': 0, 'cost': 0.0}
-        
-        models[model_id]['input_tokens'] += input_tokens
-        models[model_id]['output_tokens'] += output_tokens
-        models[model_id]['cost'] += cost
+            models[model_id] = {
+                'input_tokens': 0,
+                'input_cache_miss_tokens': 0,
+                'input_cache_hit_tokens': 0,
+                'output_tokens': 0,
+                'cost': 0.0,
+                'cost_breakdown': {
+                    'input_cache_miss_cost': 0.0,
+                    'input_cache_hit_cost': 0.0,
+                    'output_cost': 0.0,
+                },
+                'currency': cost_info.get('currency', 'CNY'),
+            }
+
+        model_stats = models[model_id]
+        model_stats.setdefault('input_tokens', 0)
+        model_stats.setdefault('input_cache_miss_tokens', 0)
+        model_stats.setdefault('input_cache_hit_tokens', 0)
+        model_stats.setdefault('output_tokens', 0)
+        model_stats.setdefault('cost', 0.0)
+        breakdown = model_stats.setdefault('cost_breakdown', {})
+        breakdown.setdefault('input_cache_miss_cost', 0.0)
+        breakdown.setdefault('input_cache_hit_cost', 0.0)
+        breakdown.setdefault('output_cost', 0.0)
+
+        model_stats['input_tokens'] += input_tokens
+        model_stats['input_cache_miss_tokens'] += cache_miss_tokens
+        model_stats['input_cache_hit_tokens'] += cache_hit_tokens
+        model_stats['output_tokens'] += output_tokens_value
+        model_stats['cost'] += cost
+        breakdown['input_cache_miss_cost'] += float(cost_info.get('input_cache_miss_cost', 0.0) or 0.0)
+        breakdown['input_cache_hit_cost'] += float(cost_info.get('input_cache_hit_cost', 0.0) or 0.0)
+        breakdown['output_cost'] += float(cost_info.get('output_cost', 0.0) or 0.0)
+        model_stats['currency'] = cost_info.get('currency', model_stats.get('currency', 'CNY'))
+        model_stats['cache_hit_ratio'] = normalized_usage.get('cache_hit_ratio', 0.0)
         stats['models'] = models
         
         # 如果是系统模型，更新已用配额
@@ -726,7 +906,14 @@ def update_token_usage(user, input_tokens: int, output_tokens: int, model_id: st
         
         logger.debug(
             f"[Token统计-计费] 已保存: user={user.username}, model={model_id}, "
-            f"input={input_tokens}, output={output_tokens}, cost=¥{cost:.4f}"
+            f"input={input_tokens}, hit={cache_hit_tokens}, miss={cache_miss_tokens}, "
+            f"output={output_tokens_value}, cost=¥{cost:.4f}"
+        )
+        logger.info(
+            f"[Token计费] user={user.username}, model={model_id}, "
+            f"miss={cache_miss_tokens}, hit={cache_hit_tokens}, out={output_tokens_value}, "
+            f"cost=¥{cost:.6f}, source={normalized_usage.get('source', 'actual')}, "
+            f"style={normalized_usage.get('provider_style', '')}"
         )
         return True
         
@@ -852,6 +1039,7 @@ def get_token_usage_stats(user) -> Dict:
     """
     from core.models import UserData
     from datetime import datetime, timezone
+    from agent_service.models import AgentUsageRecord
     from config.api_keys_manager import (
         get_system_model_costs, get_default_monthly_credit, is_system_model
     )
@@ -895,6 +1083,22 @@ def get_token_usage_stats(user) -> Dict:
                 "is_system": is_system_model(model_id),
                 "name": system_model_costs.get(model_id, {}).get('name', model_id)
             }
+
+        record_queryset = AgentUsageRecord.objects.filter(user=user, month=stats.get('current_month', ''))
+        latest_record = record_queryset.order_by('-created_at').first()
+        latest_record_summary = None
+        if latest_record:
+            latest_record_summary = {
+                "record_id": str(latest_record.record_id),
+                "created_at": latest_record.created_at.isoformat(),
+                "model_id": latest_record.model_id,
+                "call_site": latest_record.call_site,
+                "cost_total": latest_record.cost_total,
+                "input_cache_hit_tokens": latest_record.input_cache_hit_tokens,
+                "input_cache_miss_tokens": latest_record.input_cache_miss_tokens,
+                "output_tokens": latest_record.output_tokens,
+                "source": latest_record.source,
+            }
         
         return {
             "current_month": stats.get('current_month', ''),
@@ -902,7 +1106,9 @@ def get_token_usage_stats(user) -> Dict:
             "monthly_used": monthly_used,
             "remaining": max(0, monthly_credit - monthly_used),
             "models": enriched_models,
-            "history": stats.get('history', {})
+            "history": stats.get('history', {}),
+            "request_record_count": record_queryset.count(),
+            "last_request_record": latest_record_summary,
         }
         
     except Exception as e:

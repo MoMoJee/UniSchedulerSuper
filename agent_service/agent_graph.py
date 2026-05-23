@@ -413,6 +413,7 @@ def _build_chat_llm(model_name: str, base_url: str, api_key: str,
                     thinking_enabled: bool = False,
                     thinking_param_style: str = "none",
                     thinking_min_max_tokens: int = 0,
+                    thinking_config: Optional[Dict[str, Any]] = None,
                     provider_style: str = "openai-compatible",
                     provider_user_id: str = "") -> Optional[ChatOpenAI]:
     """构建 ChatOpenAI 实例，不满足条件时返回 None。可选启用思考模式。"""
@@ -422,18 +423,39 @@ def _build_chat_llm(model_name: str, base_url: str, api_key: str,
     extra_body: Dict[str, Any] = {}
     extra_kwargs: Dict[str, Any] = {}
 
-    if thinking_param_style == "deepseek":
-        extra_body["thinking"] = {"type": "enabled" if thinking_enabled else "disabled"}
-        if thinking_enabled:
-            extra_kwargs["reasoning_effort"] = "high"
-    elif thinking_param_style == "kimi-k2":
-        extra_body["thinking"] = {
-            "type": "enabled" if thinking_enabled else "disabled",
-            "keep": "all",
+    thinking = thinking_config or {}
+    if not thinking and thinking_param_style == "deepseek":
+        thinking = {
+            "mode_param": "deepseek",
+            "enabled_extra_body": {"thinking": {"type": "enabled"}},
+            "disabled_extra_body": {"thinking": {"type": "disabled"}},
+            "enabled_extra_kwargs": {"reasoning_effort": "high"},
         }
+    elif not thinking and thinking_param_style == "kimi-k2":
+        thinking = {
+            "mode_param": "kimi-k2",
+            "enabled_extra_body": {"thinking": {"type": "enabled", "keep": "all"}},
+            "disabled_extra_body": {"thinking": {"type": "disabled", "keep": "all"}},
+            "enabled_defaults": {"temperature": 1.0, "min_max_tokens": 16000},
+        }
+
+    mode_param = thinking.get("mode_param", thinking_param_style)
+    if mode_param and mode_param != "none":
+        body_key = "enabled_extra_body" if thinking_enabled else "disabled_extra_body"
+        body_payload = thinking.get(body_key, {})
+        if isinstance(body_payload, dict):
+            extra_body.update(body_payload)
         if thinking_enabled:
-            extra_kwargs["temperature"] = 1.0
-            extra_kwargs["max_tokens"] = max(thinking_min_max_tokens or 0, 16000)
+            extra_payload = thinking.get("enabled_extra_kwargs", {})
+            if isinstance(extra_payload, dict):
+                extra_kwargs.update(extra_payload)
+            defaults = thinking.get("enabled_defaults", {})
+            if isinstance(defaults, dict):
+                if "temperature" in defaults:
+                    extra_kwargs["temperature"] = defaults["temperature"]
+                min_max_tokens = int(defaults.get("min_max_tokens", 0) or 0)
+                if min_max_tokens or thinking_min_max_tokens:
+                    extra_kwargs["max_tokens"] = max(thinking_min_max_tokens or 0, min_max_tokens)
 
     if provider_style == "deepseek" and provider_user_id:
         extra_body["user_id"] = provider_user_id
@@ -530,7 +552,7 @@ def get_user_llm(user, *, force_thinking: Optional[bool] = None, provider_user_i
                 provider_profile = build_provider_profile(current_model_id, system_model_config)
                 provider_user_id = _build_provider_user_id(user, provider_profile.provider_style, provider_user_id_suffix)
                 # 优先使用 system_model_config 中的思考参数字段
-                thinking_param_style = system_model_config.get('thinking_param_style', thinking_param_style)
+                thinking_param_style = provider_profile.thinking_param_style
                 thinking_min_max_tokens = int(system_model_config.get('thinking_min_max_tokens', thinking_min_max_tokens) or 0)
 
                 user_llm = _build_chat_llm(
@@ -538,6 +560,7 @@ def get_user_llm(user, *, force_thinking: Optional[bool] = None, provider_user_i
                     thinking_enabled=thinking_enabled,
                     thinking_param_style=thinking_param_style,
                     thinking_min_max_tokens=thinking_min_max_tokens,
+                    thinking_config=provider_profile.thinking,
                     provider_style=provider_profile.provider_style,
                     provider_user_id=provider_user_id,
                 )
@@ -558,12 +581,14 @@ def get_user_llm(user, *, force_thinking: Optional[bool] = None, provider_user_i
         model_name = model_config.get('model_name', model_config.get('model', ''))
         provider_profile = build_provider_profile(current_model_id, model_config)
         provider_user_id = _build_provider_user_id(user, provider_profile.provider_style, provider_user_id_suffix)
+        thinking_param_style = provider_profile.thinking_param_style
 
         user_llm = _build_chat_llm(
             model_name, api_url, api_key,
             thinking_enabled=thinking_enabled,
             thinking_param_style=thinking_param_style,
             thinking_min_max_tokens=thinking_min_max_tokens,
+            thinking_config=provider_profile.thinking,
             provider_style=provider_profile.provider_style,
             provider_user_id=provider_user_id,
         )
@@ -1347,7 +1372,11 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
     # ========== Token 统计 ==========
     if user and user.is_authenticated:
         try:
-            usage_info = extract_llm_usage(response, provider_profile.cache_usage_style)
+            usage_info = extract_llm_usage(
+                response,
+                provider_profile.cache_usage_style,
+                provider_profile=provider_profile,
+            )
             input_tokens = usage_info.get("input_tokens", 0)
             output_tokens = usage_info.get("output_tokens", 0)
             
@@ -1381,16 +1410,31 @@ def agent_node(state: AgentState, config: RunnableConfig) -> dict:
                 usage_info["input_tokens"] = input_tokens
                 usage_info["output_tokens"] = output_tokens
                 usage_info["total_tokens"] = input_tokens + output_tokens
+                usage_info["input_cache_hit_tokens"] = 0
+                usage_info["input_cache_miss_tokens"] = input_tokens
+                usage_info["billable_input_cache_hit_tokens"] = 0
+                usage_info["billable_input_cache_miss_tokens"] = input_tokens
+                usage_info["billable_output_tokens"] = output_tokens
                 usage_info["source"] = "estimated"
             
             if input_tokens > 0 or output_tokens > 0:
                 source = usage_info.get("source", "actual")
                 
                 # 成本由 update_token_usage 自动计算（基于 CNY）
-                update_token_usage(user, input_tokens, output_tokens, current_model_id)
+                update_token_usage(
+                    user,
+                    usage_info,
+                    current_model_id,
+                    request_meta={
+                        "call_site": "main_agent",
+                        "session_id": configurable.get("thread_id"),
+                        "message_index": len(state["messages"]),
+                        "provider_profile": provider_profile.to_dict(),
+                    },
+                )
                 logger.debug(
                     f"[Agent] Token 统计已更新: in={input_tokens}, out={output_tokens}, "
-                    f"cache_hit={usage_info.get('cache_hit_tokens', 0)}, model={current_model_id}, source={source}"
+                    f"cache_hit={usage_info.get('input_cache_hit_tokens', 0)}, model={current_model_id}, source={source}"
                 )
                 
                 # ========== 保存上下文 Token 数到会话（用于前端显示）==========

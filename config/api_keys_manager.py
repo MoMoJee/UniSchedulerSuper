@@ -519,6 +519,26 @@ class APIKeyManager:
         """
         system_models = cls.get_system_models()
         return system_models.get(model_id)
+
+    @classmethod
+    def get_provider_styles(cls) -> Dict[str, Dict[str, Any]]:
+        """获取 Provider Style 集中配置。"""
+        config = cls._load_config()
+        provider_styles = config.get('provider_styles', {})
+        result = {}
+        for style_name, style_config in provider_styles.items():
+            if style_name.startswith('_'):
+                continue
+            if isinstance(style_config, dict):
+                result[style_name] = style_config.copy()
+        return result
+
+    @classmethod
+    def get_provider_style(cls, style_name: str) -> Optional[Dict[str, Any]]:
+        """获取指定 Provider Style 配置。"""
+        if not style_name:
+            return None
+        return cls.get_provider_styles().get(style_name)
     
     @classmethod
     def get_monthly_credit(cls) -> float:
@@ -540,10 +560,22 @@ def _get_system_model_costs() -> Dict[str, Dict[str, Any]]:
     system_models = APIKeyManager.get_system_models()
     costs = {}
     for model_id, config in system_models.items():
+        input_miss_price = config.get('cost_per_1k_input_cache_miss')
+        if input_miss_price is None:
+            input_miss_price = config.get('cost_per_1k_input', 0)
+            if 'cost_per_1k_input' in config:
+                logger.warning(f"[成本配置] {model_id} 使用旧字段 cost_per_1k_input 作为 cache_miss 单价")
+        input_hit_price = config.get('cost_per_1k_input_cache_hit')
+        if input_hit_price is None:
+            input_hit_price = 0
+            logger.warning(f"[成本配置] {model_id} 缺少 cost_per_1k_input_cache_hit，旧兼容路径暂按 0 处理")
         costs[model_id] = {
             "name": config.get('name', model_id),
-            "cost_per_1k_input": config.get('cost_per_1k_input', 0),
+            "cost_per_1k_input": input_miss_price,
+            "cost_per_1k_input_cache_miss": input_miss_price,
+            "cost_per_1k_input_cache_hit": input_hit_price,
             "cost_per_1k_output": config.get('cost_per_1k_output', 0),
+            "cost_currency": config.get('cost_currency', 'CNY'),
         }
     return costs
 
@@ -582,10 +614,22 @@ def get_model_cost_config(model_id: str) -> Optional[Dict[str, Any]]:
     # 优先从新配置读取
     model_config = APIKeyManager.get_system_model_config(model_id)
     if model_config:
+        input_miss_price = model_config.get('cost_per_1k_input_cache_miss')
+        if input_miss_price is None:
+            input_miss_price = model_config.get('cost_per_1k_input', 0)
+            if 'cost_per_1k_input' in model_config:
+                logger.warning(f"[成本配置] {model_id} 使用旧字段 cost_per_1k_input 作为 cache_miss 单价")
+        input_hit_price = model_config.get('cost_per_1k_input_cache_hit')
+        if input_hit_price is None:
+            input_hit_price = 0
+            logger.warning(f"[成本配置] {model_id} 缺少 cost_per_1k_input_cache_hit，旧兼容路径暂按 0 处理")
         return {
             "name": model_config.get('name', model_id),
-            "cost_per_1k_input": model_config.get('cost_per_1k_input', 0),
+            "cost_per_1k_input": input_miss_price,
+            "cost_per_1k_input_cache_miss": input_miss_price,
+            "cost_per_1k_input_cache_hit": input_hit_price,
             "cost_per_1k_output": model_config.get('cost_per_1k_output', 0),
+            "cost_currency": model_config.get('cost_currency', 'CNY'),
         }
     return None
 
@@ -596,6 +640,38 @@ def is_system_model(model_id: str) -> bool:
         # 检查是否确实存在于配置中
         return APIKeyManager.get_system_model_config(model_id) is not None
     return False
+
+
+def calculate_llm_cost(usage_info: Dict[str, Any], cost_config: Dict[str, Any]) -> Dict[str, Any]:
+    """按 cache miss / cache hit / output 三段价格计算 LLM 成本。"""
+    miss_tokens = int(usage_info.get('input_cache_miss_tokens', 0) or 0)
+    hit_tokens = int(usage_info.get('input_cache_hit_tokens', 0) or 0)
+    output_tokens = int(usage_info.get('output_tokens', 0) or 0)
+    miss_price = cost_config.get('cost_per_1k_input_cache_miss')
+    if miss_price is None:
+        miss_price = cost_config.get('cost_per_1k_input', 0)
+        logger.warning("[成本配置] 使用旧字段 cost_per_1k_input 作为 cache_miss 单价")
+    if 'cost_per_1k_input_cache_hit' not in cost_config:
+        logger.error("[成本配置] 缺少 cost_per_1k_input_cache_hit，无法进行三段计费")
+        raise ValueError("missing cost_per_1k_input_cache_hit")
+    hit_price = cost_config.get('cost_per_1k_input_cache_hit', 0)
+    output_price = cost_config.get('cost_per_1k_output', 0)
+    input_cache_miss_cost = miss_tokens * miss_price / 1000
+    input_cache_hit_cost = hit_tokens * hit_price / 1000
+    output_cost = output_tokens * output_price / 1000
+    total_cost = input_cache_miss_cost + input_cache_hit_cost + output_cost
+    return {
+        "input_cache_miss_cost": input_cache_miss_cost,
+        "input_cache_hit_cost": input_cache_hit_cost,
+        "output_cost": output_cost,
+        "total_cost": total_cost,
+        "currency": cost_config.get('cost_currency', 'CNY'),
+        "prices": {
+            "cost_per_1k_input_cache_miss": miss_price,
+            "cost_per_1k_input_cache_hit": hit_price,
+            "cost_per_1k_output": output_price,
+        },
+    }
 
 
 def calculate_cost(input_tokens: int, output_tokens: int, cost_config: Dict) -> float:
@@ -610,9 +686,12 @@ def calculate_cost(input_tokens: int, output_tokens: int, cost_config: Dict) -> 
     Returns:
         成本 (CNY)
     """
-    cost_input = cost_config.get('cost_per_1k_input', 0)
-    cost_output = cost_config.get('cost_per_1k_output', 0)
-    return (input_tokens * cost_input + output_tokens * cost_output) / 1000
+    usage_info = {
+        "input_cache_miss_tokens": int(input_tokens or 0),
+        "input_cache_hit_tokens": 0,
+        "output_tokens": int(output_tokens or 0),
+    }
+    return calculate_llm_cost(usage_info, cost_config).get('total_cost', 0.0)
 
 
 # 便捷函数

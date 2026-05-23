@@ -2,6 +2,81 @@
     "_comment": "API 密钥配置文件，将后缀中的 .example 去除后使用",
     "_注意": "此文件包含敏感信息，请妥善保管。必须有此文件才能启动服务",
 
+    "provider_styles": {
+        "_description": "LLM Provider 兼容风格定义。system_models 通过 style 字段引用这里的配置。",
+        "deepseek": {
+            "label": "DeepSeek OpenAI-compatible",
+            "request": {
+                "chat_api": "openai-compatible",
+                "message_format": "openai-chat",
+                "image_block": "none",
+                "tool_name": "openai-compatible"
+            },
+            "thinking": {
+                "mode_param": "deepseek",
+                "enabled_extra_body": {"thinking": {"type": "enabled"}},
+                "disabled_extra_body": {"thinking": {"type": "disabled"}},
+                "enabled_extra_kwargs": {"reasoning_effort": "high"}
+            },
+            "usage": {
+                "input_tokens": ["usage.input_tokens", "usage.prompt_tokens"],
+                "output_tokens": ["usage.output_tokens", "usage.completion_tokens"],
+                "cache_hit_input_tokens": ["usage.prompt_cache_hit_tokens", "usage.prompt_tokens_details.cached_tokens"],
+                "cache_miss_input_tokens": ["usage.prompt_cache_miss_tokens"],
+                "reasoning_tokens": ["usage.completion_tokens_details.reasoning_tokens"]
+            },
+            "billing": {
+                "input_cache_miss_price_key": "cost_per_1k_input_cache_miss",
+                "input_cache_hit_price_key": "cost_per_1k_input_cache_hit",
+                "output_price_key": "cost_per_1k_output"
+            }
+        },
+        "kimi": {
+            "label": "Moonshot/Kimi OpenAI-compatible",
+            "request": {
+                "chat_api": "openai-compatible",
+                "message_format": "openai-chat",
+                "image_block": "openai-image-url",
+                "tool_name": "openai-compatible"
+            },
+            "thinking": {
+                "mode_param": "kimi-k2",
+                "enabled_extra_body": {"thinking": {"type": "enabled", "keep": "all"}},
+                "disabled_extra_body": {"thinking": {"type": "disabled", "keep": "all"}},
+                "enabled_defaults": {"temperature": 1.0, "min_max_tokens": 16000}
+            },
+            "usage": {
+                "input_tokens": ["usage.input_tokens", "usage.prompt_tokens"],
+                "output_tokens": ["usage.output_tokens", "usage.completion_tokens"],
+                "cache_hit_input_tokens": ["usage.cached_tokens"],
+                "cache_miss_input_tokens": ["derived.input_minus_cache_hit"],
+                "reasoning_tokens": []
+            },
+            "billing": {
+                "input_cache_miss_price_key": "cost_per_1k_input_cache_miss",
+                "input_cache_hit_price_key": "cost_per_1k_input_cache_hit",
+                "output_price_key": "cost_per_1k_output"
+            }
+        },
+        "openai-compatible": {
+            "label": "Generic OpenAI-compatible",
+            "request": {
+                "chat_api": "openai-compatible",
+                "message_format": "openai-chat",
+                "image_block": "openai-image-url",
+                "tool_name": "openai-compatible"
+            },
+            "thinking": {"mode_param": "none"},
+            "usage": {
+                "input_tokens": ["usage.input_tokens", "usage.prompt_tokens"],
+                "output_tokens": ["usage.output_tokens", "usage.completion_tokens"],
+                "cache_hit_input_tokens": [],
+                "cache_miss_input_tokens": ["derived.input_when_no_cache"],
+                "reasoning_tokens": []
+            }
+        }
+    },
+
     "system_models": {
         "_description": "系统提供的大语言模型配置（统一参数源）",
         "system_deepseek": {
@@ -10,16 +85,15 @@
             "api_key": "sk-xxx",
             "base_url": "https://api.deepseek.com",
             "model_name": "deepseek-chat",
-            "provider_style": "deepseek",
-            "cache_usage_style": "deepseek",
-            "message_format_style": "openai-chat",
-            "image_block_style": "none",
-            "tool_name_style": "openai-compatible",
+            "style": "deepseek",
             "context_window": 131072,
             "supports_tools": true,
             "supports_vision": false,
             "supports_multimodal": false,
-            "cost_per_1k_input": 0.002,
+            "supports_thinking": true,
+            "thinking_mode": "optional",
+            "cost_per_1k_input_cache_miss": 0.002,
+            "cost_per_1k_input_cache_hit": 0.0002,
             "cost_per_1k_output": 0.003,
             "cost_currency": "CNY",
             "readonly": true,
@@ -31,16 +105,15 @@
             "api_key": "sk-xxx",
             "base_url": "https://api.moonshot.cn/v1",
             "model_name": "kimi-k2.5",
-            "provider_style": "kimi",
-            "cache_usage_style": "kimi",
-            "message_format_style": "openai-chat",
-            "image_block_style": "openai-image-url",
-            "tool_name_style": "openai-compatible",
+            "style": "kimi",
             "context_window": 262144,
             "supports_tools": true,
             "supports_vision": true,
             "supports_multimodal": true,
-            "cost_per_1k_input": 0.004,
+            "supports_thinking": true,
+            "thinking_mode": "optional",
+            "cost_per_1k_input_cache_miss": 0.004,
+            "cost_per_1k_input_cache_hit": 0.001,
             "cost_per_1k_output": 0.021,
             "cost_currency": "CNY",
             "readonly": true,
@@ -52,16 +125,15 @@
             "api_key": "sk-api-xxx",
             "base_url": "https://api.minimaxi.com/v1",
             "model_name": "MiniMax-M2.1",
-            "provider_style": "openai-compatible",
-            "cache_usage_style": "none",
-            "message_format_style": "openai-chat",
-            "image_block_style": "none",
-            "tool_name_style": "openai-compatible",
+            "style": "openai-compatible",
             "context_window": 204800,
             "supports_tools": true,
             "supports_vision": false,
             "supports_multimodal": false,
-            "cost_per_1k_input": 0.0021,
+            "supports_thinking": false,
+            "thinking_mode": "none",
+            "cost_per_1k_input_cache_miss": 0.0021,
+            "cost_per_1k_input_cache_hit": 0.0,
             "cost_per_1k_output": 0.0084,
             "cost_currency": "CNY",
             "readonly": true,

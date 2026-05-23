@@ -378,6 +378,52 @@ class AgentSession(models.Model):
         return True
 
 
+class AgentUsageRecord(models.Model):
+    """单次 Agent LLM 请求的用量与费用明细。"""
+    record_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='agent_usage_records')
+    session = models.ForeignKey(AgentSession, null=True, blank=True, on_delete=models.SET_NULL, related_name='usage_records')
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    month = models.CharField(max_length=7, db_index=True)
+    call_site = models.CharField(max_length=50, default='main_agent', db_index=True)
+    model_id = models.CharField(max_length=100, db_index=True)
+    model_name = models.CharField(max_length=200, blank=True, default='')
+    provider = models.CharField(max_length=50, blank=True, default='')
+    style = models.CharField(max_length=50, blank=True, default='')
+    is_system_model = models.BooleanField(default=True)
+    input_total_tokens = models.IntegerField(default=0)
+    input_cache_miss_tokens = models.IntegerField(default=0)
+    input_cache_hit_tokens = models.IntegerField(default=0)
+    output_tokens = models.IntegerField(default=0)
+    reasoning_tokens = models.IntegerField(default=0)
+    total_tokens = models.IntegerField(default=0)
+    cache_hit_ratio = models.FloatField(default=0.0)
+    price_input_cache_miss_per_1k = models.FloatField(default=0.0)
+    price_input_cache_hit_per_1k = models.FloatField(default=0.0)
+    price_output_per_1k = models.FloatField(default=0.0)
+    cost_input_cache_miss = models.FloatField(default=0.0)
+    cost_input_cache_hit = models.FloatField(default=0.0)
+    cost_output = models.FloatField(default=0.0)
+    cost_total = models.FloatField(default=0.0)
+    currency = models.CharField(max_length=10, default='CNY')
+    source = models.CharField(max_length=20, default='actual')
+    diagnostics = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'month']),
+            models.Index(fields=['user', 'model_id']),
+            models.Index(fields=['user', 'call_site']),
+            models.Index(fields=['user', 'created_at']),
+        ]
+        verbose_name = "Agent 用量明细"
+        verbose_name_plural = "Agent 用量明细"
+
+    def __str__(self):
+        return f"{self.user.username}: {self.model_id} ¥{self.cost_total:.6f}"
+
+
 class UserMemory(models.Model):
     """
     用户核心画像 (Core Profile)

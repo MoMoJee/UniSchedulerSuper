@@ -289,51 +289,53 @@ class ConversationSummarizer:
 
             # 计算总结的 token 数
             summary_tokens = self.token_calculator.calculate_text(summary_text)
+            input_tokens = 0
+            output_tokens = 0
+            tokens_source = 'not_tracked'
 
             # ===== Token 统计 =====
             if user and user.is_authenticated:
                 try:
                     from agent_service.context_optimizer import update_token_usage
-                    
-                    # 尝试从 response 获取实际 token 使用
-                    input_tokens = 0
-                    output_tokens = 0
-                    tokens_source = 'estimated'  # 默认为估算
-                    
-                    # 优先检查 usage_metadata
-                    if hasattr(response, 'usage_metadata') and response.usage_metadata:
-                        usage_metadata = response.usage_metadata
-                        if isinstance(usage_metadata, dict):
-                            input_tokens = usage_metadata.get('input_tokens', 0) or usage_metadata.get('prompt_tokens', 0)
-                            output_tokens = usage_metadata.get('output_tokens', 0) or usage_metadata.get('completion_tokens', 0)
-                        else:
-                            input_tokens = getattr(usage_metadata, 'input_tokens', 0) or getattr(usage_metadata, 'prompt_tokens', 0)
-                            output_tokens = getattr(usage_metadata, 'output_tokens', 0) or getattr(usage_metadata, 'completion_tokens', 0)
-                        
-                        if input_tokens > 0 and output_tokens > 0:
-                            tokens_source = 'actual'
-                    
-                    # 回退：检查 response_metadata
-                    if not input_tokens and hasattr(response, 'response_metadata'):
-                        metadata = response.response_metadata
-                        usage = metadata.get('token_usage') or metadata.get('usage') or {}
-                        input_tokens = usage.get('prompt_tokens', 0) or usage.get('input_tokens', 0)
-                        output_tokens = usage.get('completion_tokens', 0) or usage.get('output_tokens', 0)
-                        
-                        if input_tokens > 0 and output_tokens > 0:
-                            tokens_source = 'actual'
-                    
+                    from agent_service.provider_profiles import build_provider_profile
+                    from agent_service.usage_extractor import extract_llm_usage
+                    from config.api_keys_manager import APIKeyManager
+
+                    model_config = APIKeyManager.get_system_model_config(model_id) or {}
+                    provider_profile = build_provider_profile(model_id, model_config)
+                    usage_info = extract_llm_usage(
+                        response,
+                        provider_profile.cache_usage_style,
+                        provider_profile=provider_profile,
+                    )
+                    input_tokens = usage_info.get('input_tokens', 0)
+                    output_tokens = usage_info.get('output_tokens', 0)
+
                     # 如果无法获取实际值，使用估算值
                     if input_tokens == 0 or output_tokens == 0:
                         logger.warning(f"⚠️ [总结-Token降级] 无法从API获取Token用量，使用估算值（将用于上下文显示）")
-                        tokens_source = 'estimated'
                         if input_tokens == 0:
                             input_tokens = self.token_calculator.calculate_text(prompt)
                         if output_tokens == 0:
                             output_tokens = summary_tokens
+                        usage_info['input_tokens'] = input_tokens
+                        usage_info['output_tokens'] = output_tokens
+                        usage_info['total_tokens'] = input_tokens + output_tokens
+                        usage_info['input_cache_hit_tokens'] = 0
+                        usage_info['input_cache_miss_tokens'] = input_tokens
+                        usage_info['billable_input_cache_hit_tokens'] = 0
+                        usage_info['billable_input_cache_miss_tokens'] = input_tokens
+                        usage_info['billable_output_tokens'] = output_tokens
+                        usage_info['source'] = 'estimated'
+                    tokens_source = usage_info.get('source', 'actual')
                     
                     from asgiref.sync import sync_to_async
-                    await sync_to_async(update_token_usage)(user, input_tokens, output_tokens, model_id)
+                    await sync_to_async(update_token_usage)(
+                        user,
+                        usage_info,
+                        model_id,
+                        request_meta={'call_site': 'summarizer'},
+                    )
                     logger.debug(f"[总结-计费] Token 统计已更新: in={input_tokens}, out={output_tokens}, source={tokens_source}")
                 except Exception as e:
                     logger.warning(f"[总结] Token 统计失败: {e}")
