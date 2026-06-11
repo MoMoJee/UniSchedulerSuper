@@ -31,6 +31,8 @@ ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [
     'https://unischedulersuper.online',
     'https://www.unischedulersuper.online',
+    'https://unischedulersuper.cn',
+    'https://www.unischedulersuper.cn',
 ]
 
 # 设定

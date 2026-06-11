@@ -508,6 +508,12 @@ def check_group_update(request, share_group_id):
     }
     """
     try:
+        if not request.user.is_authenticated:
+            return JsonResponse({
+                'status': 'error',
+                'message': '未登录'
+            }, status=401)
+
         local_version = int(request.GET.get('version', 0))
         
         # 检查用户是否是该群组成员
