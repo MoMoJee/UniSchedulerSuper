@@ -23,6 +23,7 @@ class Command(BaseCommand):
         parser.add_argument('--to', dest='to_value', default='2035-01-01', help='窗口终点。')
         parser.add_argument('--strict', action='store_true', help='存在任何差异时以非零状态退出。')
         parser.add_argument('--mark-verified', action='store_true', help='仅 strict 零差异时，将当前 source state 标记为 verified。')
+        parser.add_argument('--only-imported', action='store_true', help='只校验已导入 state 的用户，适合 staging 演练。')
         parser.add_argument('--output', help='可选 JSON 输出路径。')
 
     def handle(self, *args, **options):
@@ -33,6 +34,11 @@ class Command(BaseCommand):
             users = users.filter(id=options['user_id'])
             if not users.exists():
                 raise CommandError(f'用户不存在: {options["user_id"]}')
+        elif options['only_imported']:
+            users = users.filter(planner_migration_states__status__in=[
+                PlannerMigrationState.STATUS_IMPORTED,
+                PlannerMigrationState.STATUS_VERIFIED,
+            ]).distinct()
         reports = [PlannerMigrationVerifier(user, range_start=range_start, range_end=range_end).verify() for user in users.iterator(chunk_size=50)]
         result = {
             'user_count': len(reports),

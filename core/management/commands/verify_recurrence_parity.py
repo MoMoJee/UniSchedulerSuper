@@ -7,6 +7,7 @@ from pathlib import Path
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand, CommandError
 
+from core.models import PlannerMigrationState
 from core.planner.recurrence.codec import PlannerTimeCodec
 from core.planner.verification import PlannerMigrationVerifier
 
@@ -20,6 +21,7 @@ class Command(BaseCommand):
         parser.add_argument('--from', dest='from_value', default='2020-01-01', help='窗口起点。')
         parser.add_argument('--to', dest='to_value', default='2035-01-01', help='窗口终点。')
         parser.add_argument('--strict', action='store_true', help='存在差异时以非零状态退出。')
+        parser.add_argument('--only-imported', action='store_true', help='只校验已导入 state 的用户，适合 staging 演练。')
         parser.add_argument('--output', help='可选 JSON 输出路径。')
 
     def handle(self, *args, **options):
@@ -30,6 +32,11 @@ class Command(BaseCommand):
             users = users.filter(id=options['user_id'])
             if not users.exists():
                 raise CommandError(f'用户不存在: {options["user_id"]}')
+        elif options['only_imported']:
+            users = users.filter(planner_migration_states__status__in=[
+                PlannerMigrationState.STATUS_IMPORTED,
+                PlannerMigrationState.STATUS_VERIFIED,
+            ]).distinct()
         reports = [
             PlannerMigrationVerifier(user, range_start=range_start, range_end=range_end).verify(recurrence_only=True)
             for user in users.iterator(chunk_size=50)

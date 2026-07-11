@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from typing import Any, Iterable
 
 import reversion
@@ -40,6 +40,7 @@ from core.models import (
 )
 from core.planner.legacy import LegacyPlannerDataError, LegacyPlannerPayload, LegacyPlannerRepository
 from core.planner.recurrence.codec import InvalidRRuleError, PlannerTimeCodec, PlannerTimeError, canonicalize_rrule
+from core.planner.recurrence.expander import RecurrenceDefinition, RecurrenceExpander
 from logger import logger
 
 
@@ -82,6 +83,7 @@ class PlannerLegacyMigration:
         self._event_rows: list[dict[str, Any]] = []
         self._todo_rows: list[dict[str, Any]] = []
         self._reminder_rows: list[dict[str, Any]] = []
+        self._rule_cache: dict[tuple[str, str], tuple[str | None, tuple[str, ...]]] = {}
 
     def build_plan(self) -> dict[str, Any]:
         """读取 source 并分类；该方法没有数据库写副作用。"""
@@ -137,6 +139,20 @@ class PlannerLegacyMigration:
             f'counts={dict(self.counts)}, issues={len(self.issues)}'
         )
         return self.report(applied=True)
+
+    def record_quarantine(self) -> dict[str, Any]:
+        """仅持久化隔离 state/issue，不导入任何 normalized 业务实体。"""
+        if not self.payloads:
+            self.build_plan()
+        if not self.issues:
+            raise ValueError('没有 migration issue，不能记录 quarantine')
+        with transaction.atomic(), reversion.create_revision():
+            reversion.set_user(self.user)
+            reversion.set_comment('Record Planner migration quarantine')
+            self._persist_states_and_issues(quarantine_all=True)
+        report = self.report(applied=True)
+        report['quarantine_recorded'] = True
+        return report
 
     def report(self, *, applied: bool) -> dict[str, Any]:
         """返回可机读报告；不带原始业务正文或敏感配置。"""
@@ -195,8 +211,18 @@ class PlannerLegacyMigration:
             if not isinstance(item, dict):
                 self._issue(key, 'item_not_object', detail={'index': index})
                 continue
+            if key in {'events', 'todos', 'reminders'} and not self._legacy_id(item):
+                item = dict(item)
+                item['id'] = self.synthetic_legacy_id(payload.source_row_id, key, index)
+                item['_planner_synthetic_id'] = True
+                self.counts['synthetic_ids_generated'] += 1
             result.append(item)
         return result
+
+    @staticmethod
+    def synthetic_legacy_id(source_row_id: int, source_key: str, index: int) -> str:
+        """为缺 ID 的旧列表项生成可重跑、可追溯的兼容 ID。"""
+        return f'legacy-{source_key}-{source_row_id}-{index}'
 
     def _validate_required_ids(self, rows: Iterable[dict[str, Any]], source_key: str) -> None:
         seen: set[str] = set()
@@ -232,7 +258,7 @@ class PlannerLegacyMigration:
         if len(self._segments('events_rrule_series', series_id)) > 1:
             self._issue('events_rrule_series', 'multi_segment_series_requires_review', series_id=series_id)
             return
-        self._canonical_rule(masters[0], 'events', series_id)
+        self._canonical_rule(masters[0], 'events', series_id, rows=rows)
 
     def _validate_reminder_series(self, series_id: str, rows: list[dict[str, Any]]) -> None:
         masters = [row for row in rows if row.get('is_main_reminder')]
@@ -242,9 +268,20 @@ class PlannerLegacyMigration:
         if len(self._segments('rrule_series_storage', series_id)) > 1:
             self._issue('rrule_series_storage', 'multi_segment_series_requires_review', series_id=series_id)
             return
-        self._canonical_rule(masters[0], 'reminders', series_id)
+        self._canonical_rule(masters[0], 'reminders', series_id, rows=rows)
 
-    def _canonical_rule(self, row: dict[str, Any], source_key: str, series_id: str) -> str | None:
+    def _canonical_rule(
+        self,
+        row: dict[str, Any],
+        source_key: str,
+        series_id: str,
+        *,
+        rows: list[dict[str, Any]] | None = None,
+    ) -> str | None:
+        """把旧式内嵌 EXDATE 与 COUNT+UNTIL 规范为单一 RFC 规则。"""
+        cache_key = (source_key, series_id)
+        if cache_key in self._rule_cache:
+            return self._rule_cache[cache_key][0]
         rule = str(row.get('rrule') or '').strip()
         segments = self._segments(
             'events_rrule_series' if source_key == 'events' else 'rrule_series_storage',
@@ -256,10 +293,115 @@ class PlannerLegacyMigration:
             dtstart = self._parse_temporal(row.get('start') if source_key == 'events' else row.get('trigger_time'))
             if dtstart is None:
                 raise PlannerTimeError('DTSTART 缺失')
-            return canonicalize_rrule(rule, dtstart=dtstart)
+            stripped_rule, inline_exdates = self._split_inline_exdates(rule, dtstart=dtstart)
+            parts = self._rrule_parts(stripped_rule)
+            if 'COUNT' in parts and 'UNTIL' in parts:
+                canonical = self._resolve_count_until(
+                    parts,
+                    dtstart=dtstart,
+                    rows=rows or [],
+                    source_key=source_key,
+                    series_id=series_id,
+                    inline_exdates=inline_exdates,
+                )
+            else:
+                canonical = canonicalize_rrule(stripped_rule, dtstart=dtstart)
+            self._rule_cache[cache_key] = (canonical, inline_exdates)
+            return canonical
         except (InvalidRRuleError, PlannerTimeError, TypeError, ValueError) as exc:
             self._issue(source_key, 'rrule_invalid', legacy_id=self._legacy_id(row), series_id=series_id, detail={'error': str(exc)})
+            self._rule_cache[cache_key] = (None, ())
             return None
+
+    @staticmethod
+    def _rrule_parts(rule: str) -> dict[str, str]:
+        raw = rule.strip()
+        if raw.upper().startswith('RRULE:'):
+            raw = raw[6:]
+        return {
+            key.strip().upper(): value.strip()
+            for component in raw.strip(';').split(';')
+            if '=' in component
+            for key, value in [component.split('=', 1)]
+        }
+
+    def _split_inline_exdates(self, rule: str, *, dtstart: date | datetime) -> tuple[str, tuple[str, ...]]:
+        """兼容旧引擎把 EXDATE 误拼在 RRULE 中的历史格式。"""
+        components = []
+        recurrence_ids: list[str] = []
+        for component in rule.strip().rstrip(';').split(';'):
+            key, separator, value = component.partition('=')
+            if separator and key.strip().upper() == 'EXDATE':
+                for raw_value in value.split(','):
+                    recurrence_id = self._recurrence_id(raw_value.strip())
+                    if not recurrence_id:
+                        raise PlannerTimeError('EXDATE 时间无法解析')
+                    recurrence_ids.append(recurrence_id)
+                continue
+            components.append(component)
+        return ';'.join(components), tuple(sorted(set(recurrence_ids)))
+
+    def _resolve_count_until(
+        self,
+        parts: dict[str, str],
+        *,
+        dtstart: date | datetime,
+        rows: list[dict[str, Any]],
+        source_key: str,
+        series_id: str,
+        inline_exdates: tuple[str, ...],
+    ) -> str:
+        """只在一个候选规则与已物化 occurrence 集唯一等价时消除 COUNT/UNTIL 冲突。"""
+        candidates: list[str] = []
+        for discarded_key in ('COUNT', 'UNTIL'):
+            candidate_parts = {key: value for key, value in parts.items() if key != discarded_key}
+            candidate_raw = ';'.join(f'{key}={value}' for key, value in candidate_parts.items())
+            candidates.append(canonicalize_rrule(candidate_raw, dtstart=dtstart))
+        observed_ids = self._observed_recurrence_ids(rows, source_key)
+        matched = [
+            candidate
+            for candidate in candidates
+            if self._candidate_matches_observed(candidate, dtstart, observed_ids, inline_exdates)
+        ]
+        if len(matched) != 1:
+            raise InvalidRRuleError('COUNT 与 UNTIL 无法从已物化 occurrence 集唯一判定')
+        return matched[0]
+
+    def _observed_recurrence_ids(self, rows: Iterable[dict[str, Any]], source_key: str) -> set[str]:
+        field = 'start' if source_key == 'events' else 'trigger_time'
+        values: set[str] = set()
+        for item in rows:
+            recurrence_id = self._recurrence_id(item.get(field))
+            if recurrence_id:
+                values.add(recurrence_id)
+        return values
+
+    def _candidate_matches_observed(
+        self,
+        rule: str,
+        dtstart: date | datetime,
+        observed_ids: set[str],
+        exdates: tuple[str, ...],
+    ) -> bool:
+        if not observed_ids:
+            return False
+        observed_values = [PlannerTimeCodec.parse_recurrence_id(item) for item in observed_ids]
+        range_start = min(PlannerTimeCodec.recurrence_datetime(item) for item in observed_values)
+        range_end = max(PlannerTimeCodec.recurrence_datetime(item) for item in observed_values) + timedelta(days=1)
+        definition = RecurrenceDefinition(
+            entity_type='event',
+            entity_id='legacy-comparison',
+            series_id='legacy-comparison',
+            dtstart=dtstart,
+            duration=timedelta(seconds=1),
+            rrule=rule,
+            exdates=frozenset(exdates),
+        )
+        actual_ids = {
+            occurrence.ref.recurrence_id
+            for occurrence in RecurrenceExpander.expand(definition, range_start=range_start, range_end=range_end)
+        }
+        return actual_ids == observed_ids
 
     def _validate_references(self) -> None:
         group_ids = {self._legacy_id(row) for row in self._items('events_groups')}
@@ -268,6 +410,39 @@ class PlannerLegacyMigration:
                 group_id = str(row.get('groupID') or '').strip()
                 if group_id and group_id not in group_ids:
                     self._issue(source_key, 'group_reference_missing', legacy_id=self._legacy_id(row), detail={'group_id': group_id})
+        share_group_ids = {
+            str(share_group_id)
+            for row in self._event_rows
+            for share_group_id in (row.get('shared_to_groups') or [])
+            if isinstance(share_group_id, str) and share_group_id
+        }
+        existing_share_group_ids = set(
+            CollaborativeCalendarGroup.objects.filter(share_group_id__in=share_group_ids).values_list('share_group_id', flat=True)
+        )
+        missing_share_group_refs: dict[str, list[str]] = defaultdict(list)
+        invalid_share_group_refs: list[str] = []
+        for row in self._event_rows:
+            for share_group_id in row.get('shared_to_groups') or []:
+                if not isinstance(share_group_id, str) or not share_group_id:
+                    invalid_share_group_refs.append(self._legacy_id(row))
+                elif share_group_id not in existing_share_group_ids:
+                    missing_share_group_refs[share_group_id].append(self._legacy_id(row))
+        for share_group_id, legacy_ids in missing_share_group_refs.items():
+            self._issue(
+                'events',
+                'share_group_reference_missing',
+                detail={
+                    'share_group_id': share_group_id,
+                    'referencing_event_count': len(legacy_ids),
+                    'example_legacy_id': legacy_ids[0],
+                },
+            )
+        if invalid_share_group_refs:
+            self._issue(
+                'events',
+                'share_group_reference_invalid',
+                detail={'referencing_event_count': len(invalid_share_group_refs), 'example_legacy_id': invalid_share_group_refs[0]},
+            )
 
     def _validate_importable_entities(self) -> None:
         """让 dry-run 与 apply 使用相同的字段可解释性门槛。"""
@@ -326,7 +501,7 @@ class PlannerLegacyMigration:
             if not group_id or self._has_issue('events_groups', group_id):
                 continue
             defaults = {
-                'name': str(row.get('name') or '').strip(),
+                'name': str(row.get('name') or ''),
                 'description': str(row.get('description') or ''),
                 'color': str(row.get('color') or '#3498db'),
                 'group_type': str(row.get('type') or 'other'),
@@ -407,7 +582,7 @@ class PlannerLegacyMigration:
         event = self._create_event(master)
         if event is None:
             return
-        canonical = self._canonical_rule(master, 'events', series_id)
+        canonical = self._canonical_rule(master, 'events', series_id, rows=rows)
         if not canonical:
             return
         dtstart = self._parse_temporal(master.get('start'))
@@ -433,7 +608,13 @@ class PlannerLegacyMigration:
             return
         self._events[self._legacy_id(master)] = event
         self._map('event', self._legacy_id(master), entity_id=event.event_id, series_id=series_id)
-        self._import_series_exdates(EventRecurrenceExDate, series, 'events_rrule_series', series_id)
+        self._import_series_exdates(
+            EventRecurrenceExDate,
+            series,
+            'events_rrule_series',
+            series_id,
+            inline_exdates=self._rule_cache[('events', series_id)][1],
+        )
         for row in rows:
             if row is master:
                 continue
@@ -449,7 +630,7 @@ class PlannerLegacyMigration:
         reminder = self._create_reminder(master)
         if reminder is None:
             return
-        canonical = self._canonical_rule(master, 'reminders', series_id)
+        canonical = self._canonical_rule(master, 'reminders', series_id, rows=rows)
         if not canonical:
             return
         dtstart = self._parse_temporal(master.get('trigger_time'))
@@ -474,7 +655,13 @@ class PlannerLegacyMigration:
             return
         self._reminders[self._legacy_id(master)] = reminder
         self._map('reminder', self._legacy_id(master), entity_id=reminder.reminder_id, series_id=series_id)
-        self._import_series_exdates(ReminderRecurrenceExDate, series, 'rrule_series_storage', series_id)
+        self._import_series_exdates(
+            ReminderRecurrenceExDate,
+            series,
+            'rrule_series_storage',
+            series_id,
+            inline_exdates=self._rule_cache[('reminders', series_id)][1],
+        )
         for row in rows:
             if row is master:
                 continue
@@ -515,7 +702,7 @@ class PlannerLegacyMigration:
         group = self._groups.get(str(row.get('groupID') or '').strip())
         defaults = {
             'group': group,
-            'title': str(row.get('title') or '').strip(),
+            'title': str(row.get('title') or ''),
             'description': str(row.get('description') or ''),
             'location': str(row.get('location') or ''),
             'status': str(row.get('status') or 'confirmed'),
@@ -552,7 +739,7 @@ class PlannerLegacyMigration:
             self._issue('todos', 'priority_score_precision_loss', legacy_id=legacy_id, detail={'legacy_value': priority})
         defaults = {
             'group': self._groups.get(str(row.get('groupID') or '').strip()),
-            'title': str(row.get('title') or '').strip(),
+            'title': str(row.get('title') or ''),
             'description': str(row.get('description') or ''),
             'status': str(row.get('status') or 'pending'),
             'importance': str(row.get('importance') or ''),
@@ -580,7 +767,7 @@ class PlannerLegacyMigration:
             self._issue('reminders', 'reminder_trigger_invalid', legacy_id=legacy_id)
             return None
         defaults = {
-            'title': str(row.get('title') or '').strip(),
+            'title': str(row.get('title') or ''),
             'content': str(row.get('content') or ''),
             'priority': str(row.get('priority') or 'normal'),
             'status': str(row.get('status') or 'active'),
@@ -643,7 +830,16 @@ class PlannerLegacyMigration:
         for share_group_id in row.get('shared_to_groups') or []:
             share_group = CollaborativeCalendarGroup.objects.filter(share_group_id=str(share_group_id)).first()
             if share_group is None:
-                self._issue('events', 'share_group_reference_missing', legacy_id=self._legacy_id(row), detail={'share_group_id': str(share_group_id)})
+                if not any(
+                    issue.code == 'share_group_reference_missing'
+                    and issue.detail.get('share_group_id') == str(share_group_id)
+                    for issue in self.issues
+                ):
+                    self._issue(
+                        'events',
+                        'share_group_reference_missing',
+                        detail={'share_group_id': str(share_group_id), 'referencing_event_count': 1, 'example_legacy_id': self._legacy_id(row)},
+                    )
                 continue
             EventShareGroup.objects.get_or_create(event=event, share_group=share_group)
 
@@ -674,7 +870,17 @@ class PlannerLegacyMigration:
                 },
             )
 
-    def _import_series_exdates(self, model, series, source_key: str, series_id: str) -> None:
+    def _import_series_exdates(
+        self,
+        model,
+        series,
+        source_key: str,
+        series_id: str,
+        *,
+        inline_exdates: tuple[str, ...] = (),
+    ) -> None:
+        for recurrence_id in inline_exdates:
+            model.objects.get_or_create(series=series, recurrence_id=recurrence_id, defaults={'source': 'legacy_inline_rrule'})
         for segment in self._segments(source_key, series_id):
             for raw_exdate in segment.get('exdates') or []:
                 recurrence_id = self._recurrence_id(raw_exdate)
@@ -693,7 +899,7 @@ class PlannerLegacyMigration:
             return []
         return [item for item in segments if isinstance(item, dict) and str(item.get('uid') or '') == series_id]
 
-    def _persist_states_and_issues(self) -> None:
+    def _persist_states_and_issues(self, *, quarantine_all: bool = False) -> None:
         issues_by_key: dict[str, list[MigrationIssueSpec]] = defaultdict(list)
         for issue in self.issues:
             issues_by_key[issue.source_key].append(issue)
@@ -702,12 +908,12 @@ class PlannerLegacyMigration:
             key_issues = issues_by_key.get(key, [])
             state.source_row_id = payload.source_row_id
             state.source_checksum = payload.checksum
-            state.imported_count = self._state_imported_count(key)
+            state.imported_count = 0 if quarantine_all else self._state_imported_count(key)
             state.issue_count = len(key_issues)
             state.last_error = key_issues[0].code if key_issues else ''
             state.status = (
                 PlannerMigrationState.STATUS_QUARANTINED
-                if key_issues
+                if quarantine_all or key_issues
                 else PlannerMigrationState.STATUS_IMPORTED
             )
             state.save(update_fields=['source_row_id', 'source_checksum', 'imported_count', 'issue_count', 'last_error', 'status', 'updated_at'])

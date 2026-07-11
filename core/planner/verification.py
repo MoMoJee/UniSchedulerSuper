@@ -243,7 +243,16 @@ class PlannerMigrationVerifier:
         payload = self.payloads.get(key)
         if payload is None:
             return []
-        return [item for item in payload.value if isinstance(item, dict)]
+        rows = []
+        for index, item in enumerate(payload.value):
+            if not isinstance(item, dict):
+                continue
+            if key in {'events', 'todos', 'reminders'} and not self._id(item):
+                item = dict(item)
+                item['id'] = PlannerLegacyMigration.synthetic_legacy_id(payload.source_row_id, key, index)
+                item['_planner_synthetic_id'] = True
+            rows.append(item)
+        return rows
 
     @staticmethod
     def _recurring_groups(rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:

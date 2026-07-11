@@ -11,6 +11,7 @@ from core.models import (
     CalendarEvent,
     EventGroup,
     EventRecurrenceSeries,
+    EventRecurrenceExDate,
     EventReminderLink,
     EventTag,
     PlannerLegacyIdMap,
@@ -174,3 +175,78 @@ class PlannerLegacyMigrationCommandTests(TestCase):
         )
         parity = json.loads(output.getvalue())
         self.assertEqual(parity['difference_count'], 0)
+
+    def test_inline_exdate_and_count_until_are_normalized_only_when_observed_occurrences_match(self):
+        self._put('events_groups', [])
+        self._put('todos', [])
+        self._put('reminders', [])
+        self._put(
+            'events',
+            [
+                {
+                    'id': 'event-master', 'title': '晨会', 'start': '2026-03-01T09:00', 'end': '2026-03-01T10:00',
+                    'series_id': 'series-legacy-rule',
+                    'rrule': 'FREQ=DAILY;COUNT=3;UNTIL=20260302T090000;EXDATE=2026-03-02T09:00:00',
+                    'is_recurring': True, 'is_main_event': True,
+                },
+                {
+                    'id': 'event-instance', 'title': '晨会', 'start': '2026-03-03T09:00', 'end': '2026-03-03T10:00',
+                    'series_id': 'series-legacy-rule', 'is_recurring': True, 'is_main_event': False,
+                },
+            ],
+        )
+
+        report = self._run('--apply')
+
+        self.assertEqual(report['cohort_eligible_user_count'], 1)
+        series = EventRecurrenceSeries.objects.get(series_id='series-legacy-rule')
+        self.assertEqual(series.rrule_canonical, 'COUNT=3;FREQ=DAILY')
+        self.assertEqual(
+            list(EventRecurrenceExDate.objects.filter(series=series).values_list('recurrence_id', flat=True)),
+            ['20260302T090000'],
+        )
+
+    def test_complete_event_without_legacy_id_uses_stable_synthetic_id(self):
+        self._put('events_groups', [])
+        self._put('todos', [])
+        self._put('reminders', [])
+        self._put('events', [{'title': '无旧 ID 日程', 'start': '2026-03-01T09:00', 'end': '2026-03-01T10:00'}])
+
+        report = self._run('--apply')
+
+        self.assertEqual(report['cohort_eligible_user_count'], 1)
+        event = CalendarEvent.objects.get()
+        self.assertTrue(event.event_id.startswith('legacy-events-'))
+        self.assertTrue(event.metadata['legacy_unknown_fields']['_planner_synthetic_id'])
+        self.assertEqual(PlannerLegacyIdMap.objects.get(entity_type='event').legacy_id, event.event_id)
+
+    def test_dry_run_detects_missing_share_group_before_apply(self):
+        self._put('events_groups', [])
+        self._put('todos', [])
+        self._put('reminders', [])
+        self._put(
+            'events',
+            [{
+                'id': 'shared-event', 'title': '共享日程', 'start': '2026-03-01T09:00', 'end': '2026-03-01T10:00',
+                'shared_to_groups': ['share_group_missing'],
+            }],
+        )
+
+        report = self._run('--dry-run')
+
+        self.assertFalse(report['users'][0]['cohort_eligible'])
+        self.assertIn('share_group_reference_missing', [item['code'] for item in report['users'][0]['issues']])
+
+    def test_apply_records_quarantine_without_importing_business_rows(self):
+        self._put('events_groups', [])
+        self._put('todos', [])
+        self._put('reminders', [])
+        self._put('events', [{'id': 'broken-event', 'title': '损坏日程', 'start': 'bad-time', 'end': '2026-03-01T10:00'}])
+
+        report = self._run('--apply', '--skip-quarantined', '--record-quarantined')
+
+        self.assertTrue(report['users'][0]['quarantine_recorded'])
+        self.assertEqual(CalendarEvent.objects.count(), 0)
+        state = PlannerMigrationState.objects.get(user=self.user, source_key='events')
+        self.assertEqual(state.status, PlannerMigrationState.STATUS_QUARANTINED)
+        self.assertEqual(PlannerMigrationIssue.objects.filter(user=self.user, source_key='events').count(), 1)

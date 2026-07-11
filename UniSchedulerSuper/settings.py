@@ -110,7 +110,8 @@ WSGI_APPLICATION = 'UniSchedulerSuper.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        # 演练可通过 UNISCHEDULER_DB_PATH 指向 SQLite 副本，默认仍为主库。
+        'NAME': Path(os.getenv('UNISCHEDULER_DB_PATH', BASE_DIR / 'db.sqlite3')),
         'OPTIONS': {
             'timeout': 30,  # 增加数据库锁等待超时时间（秒）
         }

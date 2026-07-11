@@ -2,8 +2,8 @@
 
 > 更新日期：2026-07-11  
 > 对应设计：[核心日程正规化与 RRule 引擎升级方案](./核心日程正规化与RRule引擎升级方案.md)  
-> 当前阶段：P0、P1-A、P1-B 完成；P2-A/P2-B（可重跑导入与只读校验）已实现，尚未对生产库执行 `--apply`，也未切换任何业务流量。
-> 当前存储模式：legacy JSON 为唯一业务事实源；normalized 表仅作为空的旁路结构，未切换流量。
+> 当前阶段：P0、P1-A、P1-B、P2 完成；已进入 P3（v2 definitions/occurrences/command/search API 与入口适配）。
+> 当前存储模式：legacy JSON 仍为唯一业务事实源；normalized 表已建立经严格校验的 shadow 投影，但尚未承接任何业务流量。
 
 ---
 
@@ -61,7 +61,11 @@ Calendar subscription 与 CalDAV 基础读取改为直接调用 `LegacyPlannerRe
 
 最终调用面报告保存为 `logs/planner-direct-userdata-access-20260711-p1b.json`：144 个结构性命中中，14 个为已标识的 Agent 配置/用量或 `user_preference` 访问（不属于 Planner 实体），`planner_bypass_count = 0`。剩余 Planner 存取仅位于 legacy adapter、审计/去重命令、模型定义或已登记兼容入口。
 
-P2 已新增三条管理命令：`migrate_planner_legacy`（默认 dry-run，只有 `--apply` 才写旁路表）、`verify_planner_migration`（实体/mapping/时间字段/occurrence 只读校验）和 `verify_recurrence_parity`（只比较 recurrence occurrence 集）。`core.0010_planner_cohort_assignment` 已应用到当前数据库；它只创建 cohort 记录表，不导入或修改任何 Planner 业务数据。`PlannerRolloutPolicy` 也已建立按用户、入口和启用时间记录 cohort 的安全门禁；全局开关或 assignment 任一条件不满足时，策略强制回退到 legacy。当前业务入口尚未接入该策略。2026-07-11 已对当前生产库执行一次 **dry-run**，没有写入任何 normalized 数据或 migration state：39 位用户中 34 位通过当前预检，5 位因历史 RRule 不可规范化或缺少 legacy item ID 被报告隔离。该数字只表示“可进入下一步 apply 演练的候选”，不是 cohort 切换授权。
+P2 已新增三条管理命令：`migrate_planner_legacy`（默认 dry-run，只有 `--apply` 才写旁路表）、`verify_planner_migration`（实体/mapping/时间字段/occurrence 只读校验）和 `verify_recurrence_parity`（只比较 recurrence occurrence 集）。`core.0010_planner_cohort_assignment` 已应用到当前数据库；它只创建 cohort 记录表，不导入或修改任何 Planner 业务数据。`PlannerRolloutPolicy` 也已建立按用户、入口和启用时间记录 cohort 的安全门禁；全局开关或 assignment 任一条件不满足时，策略强制回退到 legacy。当前业务入口尚未接入该策略。
+
+2026-07-11 已完成副本与生产 shadow 导入：先由 SQLite online backup API 创建独立副本并运行 `--apply --skip-quarantined`，再执行两条 `--strict` 校验；副本中 31 位有 Planner 源数据的用户均为 0 实体差异、0 recurrence 差异。随后将同一 shadow 投影写入生产库，生产 `verify_planner_migration --only-imported --strict --mark-verified` 与 `verify_recurrence_parity --only-imported --strict` 同样均为 0 差异。生产当前有 31 位 verified 用户、6 位 quarantine 用户和 2 位没有任何 Planner source 行的用户；legacy JSON 未被改写，也没有切换任何业务读取流量。
+
+兼容导入会把旧式 `RRULE;EXDATE=...` 拆为 RFC 的 RRULE + EXDATE 关系行；同时出现 `COUNT` 与 `UNTIL` 时只在已物化 occurrence 集能唯一证明一个候选规则等价时才规范化。完整但缺少 legacy ID 的项目使用 `source_row_id + list index` 生成确定性兼容 ID 并保留 metadata；缺 `end`、时间/标题类型损坏、无法唯一解释的 COUNT/UNTIL 和不存在的 share group 均保留为 issue。`--record-quarantined` 已在生产记录 6 位隔离用户的 state/issue，但没有导入这些用户的任何业务投影。
 
 ---
 
@@ -118,7 +122,7 @@ P2 已新增三条管理命令：`migrate_planner_legacy`（默认 dry-run，只
 
 验收结果：核心 Planner 调用的直接 `UserData` 访问仅保留在 legacy adapter、审计/迁移 command 与兼容 facade；调用面报告 `planner_bypass_count = 0`。全量 `core.tests` 34 项、`manage.py check`、`makemigrations --check --dry-run` 均通过。
 
-### P2：历史迁移、差异校验与 cohort 开关（进行中）
+### P2：历史迁移、差异校验与 cohort 开关（已完成）
 
 目标：在新旧双轨校验期内，将数据复制到 normalized 表并证明语义一致；仍不默认切换用户流量。
 
@@ -138,7 +142,7 @@ P2 已新增三条管理命令：`migrate_planner_legacy`（默认 dry-run，只
 4. 无法一一解释的预生成实例、规则段边界或未来 override 写入 `PlannerMigrationIssue`，该用户不得进入 normalized cohort。
 5. 加入仅迁移期开关：`PLANNER_STORAGE_MODE`、`PLANNER_DIFF_ASSERT`、`PLANNER_LEGACY_FALLBACK`、`PLANNER_CALDAV_NORMALIZED`；开关必须按 user cohort/入口记录。
 
-当前验收：命令默认只读/dry-run；apply 按用户单事务、checksum 幂等，测试已覆盖普通实体、关系、unknown field 保留、单规则段 recurrence、ID map、dry-run 隔离与 verifier/parity。P2-C cohort 门禁已实现但尚未被业务入口消费。下一步是先执行 `core.0010`，处理 dry-run issue、在数据库副本 `--apply`，再用 `--strict --mark-verified` 通过固定窗口 parity 后，才允许显式登记 shadow cohort。
+验收结果：命令默认只读/dry-run；apply 按用户单事务、checksum 幂等，测试覆盖普通实体、关系、unknown field 保留、单规则段 recurrence、ID map、旧式 EXDATE、可证明等价的 COUNT/UNTIL、缺 ID 兼容、隔离审计与 verifier/parity。P2-C cohort 门禁已实现但尚未被业务入口消费。通过验证的用户可以在 P3 的入口适配代码完成后才显式登记 shadow cohort；6 位 quarantine 用户继续保持 legacy-only，直到单独处置 issue。
 
 ---
 
