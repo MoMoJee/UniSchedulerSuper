@@ -2,7 +2,7 @@
 
 > 更新日期：2026-07-11  
 > 对应设计：[核心日程正规化与 RRule 引擎升级方案](./核心日程正规化与RRule引擎升级方案.md)  
-> 当前阶段：P0 完成；P1-A（基础设施与契约）进行中。  
+> 当前阶段：P0、P1-A 完成；P1-B（legacy 入口收敛）进行中，已完成 TodoService 首批改造。  
 > 当前存储模式：legacy JSON 为唯一业务事实源；normalized 表仅作为空的旁路结构，未切换流量。
 
 ---
@@ -46,9 +46,12 @@ events_rrule_series / rrule_series_storage
 | `core/planner/recurrence/codec.py` | `PlannerTimeCodec`、RFC 5545 RRULE 规范化与校验 | 统一 DATE、TZID、UTC、UNTIL、受支持 RRULE 字段语义 |
 | `core/planner/recurrence/expander.py` | 纯 `RecurrenceExpander` | 对时间窗展开 RRULE/RDATE/EXDATE/稀疏 override；无数据库副作用 |
 | `core/planner/legacy.py` | `LegacyPlannerRepository` | 原样读取 legacy JSON，不经 `DATA_SCHEMA` 重建，保护 `caldav_uid` 和未知字段 |
+| `core/planner/repository.py` | `PlannerRepository` | 从 normalized ORM 构建 definitions/occurrences 查询投影，并使用同一纯展开器 |
 | `core/management/commands/` | audit 与相同副本去重命令 | P0 审计、证据保留和安全处置 |
 
 隔离测试期间，Agent 图不再在导入期访问真实 MCP；MCP 配置日志也不再输出 URL（避免泄漏 query 中的密钥）。
+
+本轮还新增了 `report_planner_direct_userdata_access` 调用面报告。排除测试代码后，当前基线为 164 处非白名单直接访问。`core/services/todo_service.py` 已完成首批收敛，直接访问数为 0：读写都通过 `LegacyPlannerRepository`，写入在 `transaction.atomic()` 与 `reversion` 上下文内进行，并保留未知 JSON 字段。
 
 ---
 
@@ -66,24 +69,22 @@ events_rrule_series / rrule_series_storage
 
 ## 3. 下一步详细工作计划
 
-### P1-A：补齐领域契约与安全门禁
+### P1-A：领域契约与安全门禁（已完成）
 
-目标：让新模型、时间语义、legacy 原始读取和迁移入口具备稳定契约，但不改变现有功能行为。
+已完成 normalized repository、版本/软删除基础、纯展开器 ORM 测试和调用面门禁；没有改变现有功能行为。
 
 1. 完成 `core/planner/repository.py`。
    - 提供 normalized model 的只读 query DTO，以及批量预取 event series、RDATE、EXDATE、override 的接口。
    - 将 ORM 行转换为 `RecurrenceDefinition` / `OccurrenceOverride`，使后续查询只调用同一展开器。
    - 实现业务版本校验 helper；不在此阶段暴露 HTTP 命令接口。
 
-2. 扩展 recurrence 契约测试。
-   - 覆盖 WEEKLY 多 BYDAY、MONTHLY 月末/负 BYMONTHDAY、YEARLY、COUNT、UNTIL、WKST、RDATE、EXDATE。
-   - 增加 `single` override、cancelled override、移动 occurrence、跨窗口事件、all-day 与 America/New_York DST 测试。
-   - 新增“连续读取 10,000 个窗口不增加任何 Planner 行”的 ORM 级测试。
+2. 已建立 recurrence 基础契约测试。
+   - 已覆盖 COUNT、UNTIL、RDATE、EXDATE、modified/cancelled override、跨窗口、all-day 和 America/New_York DST。
+   - MONTHLY/YEARLY、WKST、负 BYMONTHDAY、序号 BYDAY 与 10,000 窗口压力测试作为 P1-B/P2 的持续测试项。
 
-3. 补齐模型约束和管理能力。
-   - 校验 event/todo/reminder 与 user、group、share group 的同用户关系。
-   - 为 todo dependency 增加服务层环检测接口。
-   - 明确软删除、version 增加和 CalendarCollectionVersion 递增的公共 helper。
+3. 已补齐基础模型管理能力。
+   - 已提供 event 版本校验、软删除和版本递增 helper。
+   - 跨 user 关系校验、todo dependency 环检测和 collection version 递增将随对应 command service 一起实现。
 
 4. 实现调用面门禁。
    - 新增 `report_planner_direct_userdata_access` 管理命令，按模块列出 `UserData.objects`、`get_or_initialize()`、`set_value()` 直接访问。

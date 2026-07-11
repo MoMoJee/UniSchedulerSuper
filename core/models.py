@@ -1800,6 +1800,27 @@ class PlannerVersionedModel(models.Model):
     class Meta:
         abstract = True
 
+    def require_expected_version(self, expected_version):
+        """在领域命令写入前校验乐观锁版本。"""
+        if expected_version is not None and self.version != expected_version:
+            raise ValueError(f'版本冲突: expected={expected_version}, actual={self.version}')
+
+    def bump_version(self, *, update_fields=None):
+        """递增版本并保存；调用者必须在事务和版本记录上下文中使用。"""
+        self.version += 1
+        fields = set(update_fields or [])
+        fields.update({'version', 'updated_at'})
+        self.save(update_fields=sorted(fields))
+
+    def soft_delete(self, *, expected_version=None):
+        """标记软删除并递增版本，不物理删除同步资源。"""
+        from django.utils import timezone
+
+        self.require_expected_version(expected_version)
+        if self.deleted_at is None:
+            self.deleted_at = timezone.now()
+            self.bump_version(update_fields={'deleted_at'})
+
 
 @reversion.register
 class EventGroup(PlannerVersionedModel):

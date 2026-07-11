@@ -96,3 +96,33 @@ class LegacyPlannerRepository:
     def read_groups(cls, user: User) -> LegacyPlannerPayload | None:
         """读取 legacy events_groups。"""
         return cls.read_list(user, 'events_groups')
+
+    @classmethod
+    def get_list_for_update(cls, user: User, key: str):
+        """在调用方事务中读取或初始化列表型 key，供兼容写路径集中使用。"""
+        if key not in cls.PLANNER_KEYS:
+            raise LegacyPlannerDataError(f'不是 Planner legacy key: {key}')
+        rows = list(UserData.objects.select_for_update().filter(user=user, key=key).order_by('id')[:2])
+        if len(rows) > 1:
+            logger.warning(f'用户 {user.username} 的 Planner legacy key 重复: {key}')
+            raise LegacyPlannerDataError(f'重复 legacy key: {key}')
+        if not rows:
+            row = UserData.objects.create(user=user, key=key, value='[]')
+            return row, []
+
+        row = rows[0]
+        try:
+            value = json.loads(row.value or '')
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise LegacyPlannerDataError(f'legacy key JSON 非法: {key}') from exc
+        if not isinstance(value, list):
+            raise LegacyPlannerDataError(f'legacy key 类型错误: {key}')
+        return row, value
+
+    @staticmethod
+    def replace_list(row: UserData, value: list) -> None:
+        """原样序列化列表，不执行 DATA_SCHEMA 重建或丢弃未知字段。"""
+        if not isinstance(value, list):
+            raise LegacyPlannerDataError('写入 legacy Planner 数据时必须提供 list')
+        row.value = json.dumps(value)
+        row.save(update_fields=['value'])

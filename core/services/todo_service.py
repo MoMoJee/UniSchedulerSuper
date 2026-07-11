@@ -2,36 +2,22 @@ import uuid
 import datetime
 from logger import logger
 import reversion
-from core.models import UserData
+from django.db import transaction
 
-class MockRequest:
-    def __init__(self, user):
-        self.user = user
-        self.is_authenticated = True
+from core.planner.legacy import LegacyPlannerRepository
 
 class TodoService:
     @staticmethod
     def get_todos(user):
-        mock_request = MockRequest(user)
-        user_todos_data, _, _ = UserData.get_or_initialize(mock_request, new_key="todos")
-        if user_todos_data:
-            return user_todos_data.get_value() or []
-        return []
+        payload = LegacyPlannerRepository.read_todos(user)
+        return payload.value if payload else []
 
     @staticmethod
     def create_todo(user, title, description="", due_date="", estimated_duration="", importance="", urgency="", groupID="", session_id=None):
-        mock_request = MockRequest(user)
-        user_todos_data, _, _ = UserData.get_or_initialize(mock_request, new_key="todos")
-        if not user_todos_data:
-            raise Exception("Failed to get user todos data")
-            
-        todos = user_todos_data.get_value() or []
-        if not isinstance(todos, list):
-            todos = []
-            
-        with reversion.create_revision():
+        with transaction.atomic(), reversion.create_revision():
             reversion.set_user(user)
             reversion.set_comment(f"Create todo: {title}")
+            user_todos_data, todos = LegacyPlannerRepository.get_list_for_update(user, 'todos')
             
             new_todo = {
                 "id": str(uuid.uuid4()),
@@ -48,22 +34,16 @@ class TodoService:
             }
             
             todos.append(new_todo)
-            user_todos_data.set_value(todos)
+            LegacyPlannerRepository.replace_list(user_todos_data, todos)
             
             return new_todo
 
     @staticmethod
     def update_todo(user, todo_id, title=None, description=None, due_date=None, estimated_duration=None, importance=None, urgency=None, groupID=None, status=None, session_id=None):
-        mock_request = MockRequest(user)
-        user_todos_data, _, _ = UserData.get_or_initialize(mock_request, new_key="todos")
-        if not user_todos_data:
-            raise Exception("Failed to get user todos data")
-            
-        todos = user_todos_data.get_value() or []
-        
-        with reversion.create_revision():
+        with transaction.atomic(), reversion.create_revision():
             reversion.set_user(user)
             reversion.set_comment(f"Update todo: {todo_id}")
+            user_todos_data, todos = LegacyPlannerRepository.get_list_for_update(user, 'todos')
             
             target_todo = None
             for todo in todos:
@@ -85,26 +65,20 @@ class TodoService:
             
             target_todo['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
-            user_todos_data.set_value(todos)
+            LegacyPlannerRepository.replace_list(user_todos_data, todos)
             return target_todo
 
     @staticmethod
     def delete_todo(user, todo_id, session_id=None):
-        mock_request = MockRequest(user)
-        user_todos_data, _, _ = UserData.get_or_initialize(mock_request, new_key="todos")
-        if not user_todos_data:
-            raise Exception("Failed to get user todos data")
-            
-        todos = user_todos_data.get_value() or []
-        original_count = len(todos)
-        
-        with reversion.create_revision():
+        with transaction.atomic(), reversion.create_revision():
             reversion.set_user(user)
             reversion.set_comment(f"Delete todo: {todo_id}")
+            user_todos_data, todos = LegacyPlannerRepository.get_list_for_update(user, 'todos')
+            original_count = len(todos)
             
             todos = [t for t in todos if t['id'] != todo_id]
             
             if len(todos) < original_count:
-                user_todos_data.set_value(todos)
+                LegacyPlannerRepository.replace_list(user_todos_data, todos)
                 return True
             return False
