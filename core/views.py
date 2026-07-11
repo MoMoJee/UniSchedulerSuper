@@ -6,6 +6,7 @@ import uuid
 import markdown
 from datetime import timedelta
 import reversion
+from django.db import transaction
 
 try:
     from dateutil.rrule import rrulestr
@@ -63,6 +64,8 @@ from .views_reminder import (
 
 # 导入参数验证装饰器
 from core.utils.validators import validate_body
+from core.services.todo_service import TodoService
+from core.planner.legacy import LegacyPlannerRepository
 
 # 导入 events 相关视图函数  
 from .views_events import (
@@ -948,11 +951,7 @@ def get_pending_reminders(request):
 def get_todos(request):
     """获取所有待办事项 - 支持服务端筛选参数"""
     if request.method == 'GET':
-        # 获取原生 Django request
-        django_request = get_django_request(request)
-        
-        user_todos_data, created, result = UserData.get_or_initialize(django_request, new_key="todos")
-        todos = user_todos_data.get_value()
+        todos = TodoService.get_todos(request.user)
         
         # ===== 服务端筛选 =====
         status_filter = request.GET.get('status')  # pending / completed / converted
@@ -994,15 +993,8 @@ def get_todos(request):
 def create_todo(request):
     """创建新待办事项"""
     if request.method == 'POST':
-        # 获取原生 Django request
-        django_request = get_django_request(request)
-        
-        user_todos_data, created, result = UserData.get_or_initialize(django_request, new_key="todos")
-        todos = user_todos_data.get_value()
-        
         # 使用验证后的数据
         data = request.validated_data
-        logger.debug(f"1108 {data}")
         
         title = data.get('title')
         description = data.get('description')
@@ -1012,26 +1004,16 @@ def create_todo(request):
         urgency = data.get('urgency')
         group_id = data.get('groupID')
         
-        with reversion.create_revision():
-            reversion.set_user(request.user)
-            reversion.set_comment(f"Create todo: {title}")
-            
-            new_todo = {
-                "id": str(uuid.uuid4()),
-                "title": title,
-                "description": description,
-                "due_date": due_date,
-                "estimated_duration": estimated_duration,
-                "importance": importance,
-                "urgency": urgency,
-                "groupID": group_id,
-                "status": "pending",
-                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "last_modified": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
-            
-            todos.append(new_todo)
-            user_todos_data.set_value(todos)
+        new_todo = TodoService.create_todo(
+            request.user,
+            title,
+            description=description,
+            due_date=due_date,
+            estimated_duration=estimated_duration,
+            importance=importance,
+            urgency=urgency,
+            groupID=group_id,
+        )
         
         return JsonResponse({'status': 'success', 'todo': new_todo})
     
@@ -1054,49 +1036,24 @@ def create_todo(request):
 def update_todo(request):
     """更新待办事项"""
     if request.method == 'POST':
-        # 获取原生 Django request
-        django_request = get_django_request(request)
-        
-        user_todos_data, created, result = UserData.get_or_initialize(django_request, new_key="todos")
-        todos = user_todos_data.get_value()
-        
         # 使用验证后的数据
         data = request.validated_data
         todo_id = data.get('id')
-        
-        # 查找要更新的待办事项
-        todo_found = False
-        for todo in todos:
-            if todo['id'] == todo_id:
-                # 更新字段 - 仅更新请求中提供的字段
-                if 'title' in data:
-                    todo['title'] = data['title']
-                if 'description' in data:
-                    todo['description'] = data['description']
-                if 'due_date' in data:
-                    todo['due_date'] = data['due_date']
-                if 'estimated_duration' in data:
-                    todo['estimated_duration'] = data['estimated_duration']
-                if 'importance' in data:
-                    todo['importance'] = data['importance']
-                if 'urgency' in data:
-                    todo['urgency'] = data['urgency']
-                if 'groupID' in data:
-                    todo['groupID'] = data['groupID']
-                if 'status' in data:
-                    todo['status'] = data['status']
-                
-                todo['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                todo_found = True
-                break
-        
-        if not todo_found:
+        if not any(todo.get('id') == todo_id for todo in TodoService.get_todos(request.user)):
             return JsonResponse({'status': 'error', 'message': '未找到指定的待办事项'}, status=404)
-        
-        with reversion.create_revision():
-            reversion.set_user(request.user)
-            reversion.set_comment(f"Update todo: {todo_id}")
-            user_todos_data.set_value(todos)
+
+        todo = TodoService.update_todo(
+            request.user,
+            todo_id,
+            title=data['title'] if 'title' in data else None,
+            description=data['description'] if 'description' in data else None,
+            due_date=data['due_date'] if 'due_date' in data else None,
+            estimated_duration=data['estimated_duration'] if 'estimated_duration' in data else None,
+            importance=data['importance'] if 'importance' in data else None,
+            urgency=data['urgency'] if 'urgency' in data else None,
+            groupID=data['groupID'] if 'groupID' in data else None,
+            status=data['status'] if 'status' in data else None,
+        )
         
         return JsonResponse({'status': 'success', 'todo': todo})
     
@@ -1111,27 +1068,11 @@ def update_todo(request):
 def delete_todo(request):
     """删除待办事项"""
     if request.method == 'POST':
-        # 获取原生 Django request
-        django_request = get_django_request(request)
-        
-        user_todos_data, created, result = UserData.get_or_initialize(django_request, new_key="todos")
-        todos = user_todos_data.get_value()
-        
         # 使用验证后的数据
         data = request.validated_data
         todo_id = data.get('id')
-        
-        # 查找并删除待办事项
-        original_length = len(todos)
-        todos[:] = [todo for todo in todos if todo['id'] != todo_id]
-        
-        if len(todos) == original_length:
+        if not TodoService.delete_todo(request.user, todo_id):
             return JsonResponse({'status': 'error', 'message': '未找到指定的待办事项'}, status=404)
-        
-        with reversion.create_revision():
-            reversion.set_user(request.user)
-            reversion.set_comment(f"Delete todo: {todo_id}")
-            user_todos_data.set_value(todos)
         
         return JsonResponse({'status': 'success'})
     
@@ -1148,34 +1089,21 @@ def delete_todo(request):
 def convert_todo_to_event(request):
     """将待办事项转换为日程事件"""
     if request.method == 'POST':
-        # 获取原生 Django request
-        django_request = get_django_request(request)
-        
-        user_todos_data, created, result = UserData.get_or_initialize(django_request, new_key="todos")
-        todos = user_todos_data.get_value()
-        
-        user_events_data, created, result = UserData.get_or_initialize(django_request, new_key="events")
-        events = user_events_data.get_value()
-        
         # 使用 request.validated_data
         data = request.validated_data
         todo_id = data.get('id')
         start_time = data.get('start_time')
         end_time = data.get('end_time')
 
-        # 查找待办事项
-        todo_found = None
-        for todo in todos:
-            if todo['id'] == todo_id:
-                todo_found = todo
-                break
-        
-        if not todo_found:
-            return JsonResponse({'status': 'error', 'message': '未找到指定的待办事项'}, status=404)
-        
-        with reversion.create_revision():
+        with transaction.atomic(), reversion.create_revision():
             reversion.set_user(request.user)
             reversion.set_comment(f"Convert todo to event: {todo_id}")
+            user_todos_data, todos = LegacyPlannerRepository.get_list_for_update(request.user, 'todos')
+            user_events_data, events = LegacyPlannerRepository.get_list_for_update(request.user, 'events')
+
+            todo_found = next((todo for todo in todos if todo.get('id') == todo_id), None)
+            if not todo_found:
+                return JsonResponse({'status': 'error', 'message': '未找到指定的待办事项'}, status=404)
             
             # 创建新事件
             new_event = {
@@ -1193,13 +1121,13 @@ def convert_todo_to_event(request):
             }
             
             events.append(new_event)
-            user_events_data.set_value(events)
             
             # 标记待办事项为已转换
             todo_found['status'] = 'converted'
             todo_found['converted_to_event'] = new_event['id']
             todo_found['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            user_todos_data.set_value(todos)
+            LegacyPlannerRepository.replace_list(user_events_data, events)
+            LegacyPlannerRepository.replace_list(user_todos_data, todos)
         
         return JsonResponse({'status': 'success', 'event': new_event})
     

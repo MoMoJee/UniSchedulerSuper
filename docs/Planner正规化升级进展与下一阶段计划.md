@@ -51,7 +51,9 @@ events_rrule_series / rrule_series_storage
 
 隔离测试期间，Agent 图不再在导入期访问真实 MCP；MCP 配置日志也不再输出 URL（避免泄漏 query 中的密钥）。
 
-本轮还新增了 `report_planner_direct_userdata_access` 调用面报告。排除测试代码后，当前为 145 处非白名单直接访问。`TodoService`、`ReminderService` 的 Planner 列表直接访问数均为 0；`EventService` 的 events 主列表已收敛，仅保留一处既有 `user_preference` 配置读取。三个 Service 的 Planner 列表读写均通过 `LegacyPlannerRepository`，写入在 `transaction.atomic()` 与 `reversion` 上下文内进行，并保留未知 JSON 字段。
+本轮还新增了 `report_planner_direct_userdata_access` 调用面报告。`TodoService`、`ReminderService` 的 Planner 列表直接访问数均为 0；`EventService` 的 events 主列表已收敛，仅保留一处既有 `user_preference` 配置读取。三个 Service 的 Planner 列表读写均通过 `LegacyPlannerRepository`，写入在 `transaction.atomic()` 与 `reversion` 上下文内进行，并保留未知 JSON 字段。
+
+Todo 的五个 Web 入口（列表、创建、更新、删除、转换为日程）也已收敛到上述 Service/repository 路径。其中“转换为日程”在同一 `transaction.atomic()` 中锁定并写入 `todos` 与 `events` 两个 legacy 列表；旧 URL、请求字段和响应 JSON 保持不变。
 
 ---
 
