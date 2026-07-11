@@ -67,6 +67,9 @@ urlpatterns = [
     path('api/events/bulk-edit/', views_events.bulk_edit_events_impl, name='bulk_edit_events'),
     path('api/v2/events/definitions/', views_planner_v2.list_event_definitions_v2, name='v2_event_definitions'),
     path('api/v2/events/occurrences/', views_planner_v2.list_event_occurrences_v2, name='v2_event_occurrences'),
+    path('api/v2/events/', views_planner_v2.create_event_v2, name='v2_event_create'),
+    path('api/v2/events/<str:event_id>/', views_planner_v2.event_command_v2, name='v2_event_command'),
+    path('api/v2/search/', views_planner_v2.search_events_v2, name='v2_planner_search'),
     
     # ===== 课表导入 API =====
     path('api/import/semesters/', views_import_events.get_semesters, name='get_semesters'),

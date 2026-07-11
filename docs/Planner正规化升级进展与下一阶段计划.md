@@ -1,9 +1,9 @@
 # Planner 正规化升级进展与下一阶段计划
 
-> 更新日期：2026-07-11  
+> 更新日期：2026-07-12
 > 对应设计：[核心日程正规化与 RRule 引擎升级方案](./核心日程正规化与RRule引擎升级方案.md)  
-> 当前阶段：P0、P1-A、P1-B、P2 完成；已进入 P3（v2 definitions/occurrences/command/search API 与入口适配）。
-> 当前存储模式：legacy JSON 仍为唯一业务事实源；normalized 表已建立经严格校验的 shadow 投影，但尚未承接任何业务流量。
+> 当前阶段：P1-A/P1-B 已交付、P2 初始迁移已交付；进入 **P1–P3 收尾**（含 MoMoJee P2-R 与 P3 全入口切换）。
+> 当前存储模式：legacy JSON 仍应是唯一业务事实源；normalized 表已建立经严格校验的 shadow 投影。**在 v2 endpoint 加入 cohort gate 前，不能将 v2 视为可对生产用户开放的入口。**
 
 ---
 
@@ -146,11 +146,76 @@ P2 已新增三条管理命令：`migrate_planner_legacy`（默认 dry-run，只
 
 P3-A 已新增仅限 verified 用户调用的 v2 读取接口：`GET /api/v2/events/definitions/?from=&to=` 与 `GET /api/v2/events/occurrences/?from=&to=`。前者输出 event definition、series、RRULE、RDATE/EXDATE 摘要和 source version；后者按半开窗口纯展开，并返回稳定的 `occurrence_ref = {entity_id, series_id, recurrence_id, occurrence_start, source_version}`。接口不回退读取 legacy、不物化正常 occurrence，也未接入现有 FullCalendar；因此旧 Web 路径仍保持无行为变化。P3-B 将补齐 versioned command/search 契约，再决定 cohort 入口适配。
 
+P3-B 已上线 event 范围内的 v2 command/search 契约：`POST /api/v2/events/`、`PATCH|DELETE /api/v2/events/{event_id}/` 与 `GET /api/v2/search/?q=&from=&to=`。命令统一经 `PlannerCommandService` 在事务中执行 `expected_version` 乐观锁、软删除或稀疏 `EventOccurrenceOverride` 写入、`CalendarCollectionVersion/CalendarChange` 递增，以及 `PlannerChangeSet` 审计；不会回写 legacy JSON 或物化正常 recurrence instance。重复 event 的 `single` 修改/删除必须提交完整 `occurrence_ref`，分别写 modified/cancelled override；`all` 修改/删除更新 master/series 或软删除二者。`this_and_future` 暂返回 `409 recurrence_split_requires_override_policy`，因为未来 override 的 keep/discard/map 策略尚未有 UI/API 选择，禁止先做可能丢历史的隐式分裂。搜索是窗口受限的服务器端 event occurrence 搜索，当前仅 `types=event`；Todo、Reminder、共享可见性和 FullCalendar 入口适配留在 P3 后续子阶段。
+
+### Quarantine 用户处置（已确认）
+
+- **MoMoJee**：必须保留原始 legacy 行和 checksum，按 P2 的“修复—重导入—严格实体校验—固定窗口 recurrence parity”流程逐项消除 issue；仅在零未解决 issue、全部 source key verified 后，才允许访问 v2 API，并在 P3 入口适配完成后进入 shadow/normalized cohort。该工作是 **P2-R（P2 迁移例外修复）**，必须在任何 MoMoJee 的 P3 流量切换之前完成，不会推迟到 P4/P5。
+- **User1、test_user、User15、User21、User22**：确认为早年无用测试数据，不做语义修复、不标记 verified、不进入任何 v2/shadow/normalized cohort。继续保持 quarantine/legacy-only，保留原始数据和 issue 审计证据；在 legacy 入口仍保留期间其旧数据不受本升级改写。若未来要重新启用其中某个账号，必须先重新进行完整 P2-R 修复与验证，不能绕过 gate。账号停用或删除属于独立的账户治理动作，不在本次数据迁移中擅自执行。
+
 ---
 
-## 4. 后续切换顺序
+## 4. P1–P3 收尾审计与下一阶段计划
 
-P2 通过后才依次进行：
+本节以原始设计的 P1/P2/P3 验收条件逐项复核，而不是把已创建的模型或部分 v2 endpoint 误当作阶段完成。下列项目完成前，**不得开始 P4 的 Agent/MCP/附件/回滚切换**。
+
+### P1-C：基础层验收补强
+
+P1 的架构边界已满足：2026-07-12 的 `report_planner_direct_userdata_access` 报告仍为 `planner_bypass_count = 0`；其余 14 个非白名单命中均是明确的非 Planner 配置/用量数据。但“完整 codec/expander unit tests”的原始验收仍有覆盖缺口，需补齐而非改动 legacy 入口行为：
+
+1. 补充 RFC 5545 契约 fixture：MONTHLY/YEARLY、`WKST`、负 `BYMONTHDAY`、序号 `BYDAY`、`BYSETPOS`、`BYWEEKNO`、`BYYEARDAY`、多 `RDATE`/`EXDATE` 与 DATE/DATE-TIME 混用拒绝。
+2. 增加有限窗口的大规则压力测试（至少 10,000 个潜在 slot），证明查询时间窗不会线性物化整条无限 series，也不产生数据库写入。
+3. 增加 ORM/command 约束测试：跨用户关系拒绝、Todo dependency 环拒绝、override 时间形状、soft-delete/version 行为与 collection change 单调递增。
+4. 在 P3 切流验收前再次运行调用面报告，结果必须继续为 `planner_bypass_count = 0`。
+
+### P2-R：MoMoJee 无损修复与隔离账户固化
+
+1. 为 MoMoJee 从生产 legacy 行生成只读问题清单（source row、legacy id、series、字段/occurrence diff、checksum）；先在一致数据库副本上复现，不直接编辑生产 legacy JSON。
+2. 仅以可审计的迁移解释、明确 mapping 或 sparse exception 修复 normalized shadow 数据；每次修复均可重跑、可清除并重新导入。
+3. 对 MoMoJee 完成 `migrate --apply`、`verify_planner_migration --strict` 与固定窗口 `verify_recurrence_parity --strict`；必须零未解决 issue、全部 source key `verified`，才允许登记 cohort。
+4. 为五个废弃测试账号写入**未解决但已处置为 retired-test-data**的审计标记/操作记录；不得把 issue 设为 resolved，也不得标记 migration state 为 verified。该标记只说明“不投入修复”，不改变 gate 行为。
+
+### P3-0：先封闭 v2 入口，消除未登记切流
+
+当前 v2 代码只检查 `is_verified_clean()`，未同时执行 `PlannerRolloutPolicy.decide(user, entrypoint)`；这意味着 verified 用户理论上可绕过全局 `legacy` 模式和未登记 cohort 直接调用 v2。该缺口必须先修复：
+
+1. 为 v2 API 定义独立入口名（例如 `api_v2`），所有 GET/POST/PATCH/DELETE/search 都以 `decide()` 作最终准入。
+2. 无 assignment、全局 legacy、entrypoint 未启用、quarantine 或未 verified 一律拒绝 v2；不得仅因“数据干净”放行。
+3. shadow cohort 只允许只读 v2 投影；任何 v2 command 仅允许 effective mode 为 `normalized`，防止一边 legacy 写、一边 normalized 写。
+4. 添加矩阵测试：legacy/shadow/normalized × assignment/issue/entrypoint × 读写请求，并验证拒绝请求零写入。
+
+### P3-C：补齐领域命令和查询范围
+
+1. **Event recurrence**：实现并测试 `this_and_future` 的原子 split；客户端必须显式选择未来 override 的 `keep_as_single`、`discard_with_audit` 或安全 `map_by_ordinal` 策略。覆盖 COUNT/UNTIL、RDATE/EXDATE、modified/cancelled override、失败回滚和 lineage。补齐 recurrence 转单次（detach/cancel recurrence）语义，不允许隐式丢失规则。
+2. **Todo**：新增 normalized v2 CRUD、group/status/filter、dependency 环校验和“Todo 转 Event”的单事务 command；旧 todo URL 仅保留 compatibility adapter。
+3. **Reminder**：新增 definitions/occurrences 查询、单次与 recurrence master CRUD，以及 `complete/dismiss/snooze/mark-sent` occurrence action；重复提醒只能写 `ReminderOccurrenceState`，不能把整个 series 误改为 completed。
+4. **Group/关系**：新增 EventGroup、tags、reminder links、share links 的 normalized command/query；校验所有跨用户关系。
+5. **搜索与冲突**：扩展 `/api/v2/search` 至 event/todo/reminder，支持时间窗、类型、group 和权限过滤；先以数据库候选筛选，再展开 recurrence。为 SQLite 实现受控 FTS5/search index 或同等可测的候选索引，不能对每个查询展开全用户所有无限 series。冲突检测必须复用同一 occurrence query。
+6. **共享与课程导入**：以 `EventShareGroup` join 查询替代 `GroupCalendarData.events_data` 作为业务事实源，并返回只读 shared ref；课程导入改走 normalized command，不再对 cohort 用户写 events JSON。
+
+### P3-D：Web 入口适配与 cohort 验收
+
+1. FullCalendar 改为固定版本、受项目管理的 occurrence-ref adapter：读取 v2 definitions/occurrences，虚拟 event 的 `extendedProps` 保存完整 ref；点击、拖拽、resize、编辑和删除提交 `{event_id, series_id, recurrence_id, scope, expected_version}`，成功后刷新窗口。禁止继续使用预生成 UUID 或浏览器手工推算未来日期。
+2. Todo、Reminder、群组、共享日程、全局搜索和课程导入 UI 在 normalized cohort 全部走 v2；旧 URL 只给 legacy cohort 使用，不得按同一请求混读/混写。
+3. 先在隔离数据库做浏览器端到端验证，再为 MoMoJee 及一个明确选定的 verified 用户逐入口登记 shadow；仅在 read diff 为零后登记 normalized 写入口。任何异常立即将该 entrypoint assignment 回退 legacy，不改写 legacy source。
+4. P3 退出测试矩阵至少覆盖：event/todo/reminder/group/import 的创建读取更新删除；single/all/this-and-future；搜索和冲突；共享只读权限；全天/DST/复杂 RRULE；刷新后版本冲突；无限 series 多次读取零增长；cohort 回退与 legacy compatibility。新增 Django 集成测试和浏览器 smoke/E2E 测试，不能只依赖当前 API 单测。
+
+### P1–P3 完成定义（P4 开始门槛）
+
+只有同时满足以下条件才把 P1–P3 标为完成并进入 P4：
+
+1. P1-C 全部测试和调用面报告通过；
+2. MoMoJee 完成 P2-R 并 verified，五个废弃测试账号具有保留 quarantine 的审计处置；
+3. 所有 v2 入口严格受 cohort gate 控制，未登记用户无法读写 normalized 数据；
+4. P3-C/D 的 event、todo、reminder、group、search、share、course-import 及 Web 入口均在至少一个 normalized cohort 端到端通过；
+5. 无限 series 的读取零增长、scope 命令原子回滚、旧 legacy cohort 兼容路径和回退路径均通过测试；
+6. 不把 Agent/MCP/CalDAV/Feed/附件或 ChangeSet 回滚执行入口提前混入本阶段；它们仍属于 P4/P5。
+
+---
+
+## 5. 后续大阶段顺序
+
+完成上节收尾后才依次进行：
 
 1. P3：v2 definitions/occurrences/command/search API、FullCalendar occurrence ref、共享日程 join 查询。
 2. P4：Agent、Quick Action、MCP、附件解析、PlannerChangeSet 精确回滚。
@@ -161,7 +226,7 @@ P2 通过后才依次进行：
 
 ---
 
-## 5. 已验证命令
+## 6. 已验证命令
 
 ```powershell
 .venv\Scripts\python.exe manage.py check

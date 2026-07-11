@@ -23,6 +23,7 @@ class PlannerTimeCodec:
 
     DEFAULT_TZID: Final[str] = 'Asia/Shanghai'
     _ICAL_DATE_RE: Final[re.Pattern[str]] = re.compile(r'^\d{8}$')
+    _ISO_DATE_RE: Final[re.Pattern[str]] = re.compile(r'^\d{4}-\d{2}-\d{2}$')
     _ICAL_DATETIME_RE: Final[re.Pattern[str]] = re.compile(r'^\d{8}T\d{6}Z?$')
 
     @classmethod
@@ -56,6 +57,12 @@ class PlannerTimeCodec:
             if not allow_date:
                 raise PlannerTimeError('此字段不允许 DATE 类型')
             return datetime.strptime(raw, '%Y%m%d').date()
+        # datetime.fromisoformat('2026-03-01') 会返回午夜 datetime；这里必须
+        # 先识别 ISO DATE，保留 RFC 5545 全天 event 的 DATE 语义。
+        if cls._ISO_DATE_RE.fullmatch(raw):
+            if not allow_date:
+                raise PlannerTimeError('此字段不允许 DATE 类型')
+            return date.fromisoformat(raw)
         if cls._ICAL_DATETIME_RE.fullmatch(raw):
             if raw.endswith('Z'):
                 return datetime.strptime(raw, '%Y%m%dT%H%M%SZ').replace(tzinfo=timezone.utc)
