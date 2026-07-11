@@ -20,6 +20,14 @@ WHITELISTED_PATHS = {
     'core/management/commands/resolve_planner_legacy_duplicates.py',
     'core/models.py',
 }
+# 这些模块只保存 Agent 配置、用量或用户偏好，并不读写 Planner 实体。
+# 它们保留在报告中，避免扫描范围被静默缩小；但不作为 P1-B 的 Planner
+# 旁路门禁。
+NON_PLANNER_PATHS = {
+    'agent_service/context_optimizer.py',
+    'agent_service/views_config_api.py',
+    'core/services/event_service.py',
+}
 
 
 class Command(BaseCommand):
@@ -36,15 +44,21 @@ class Command(BaseCommand):
                 relative_path = path.relative_to(root).as_posix()
                 if '/migrations/' in relative_path or '/tests/' in relative_path or relative_path.endswith('/__pycache__'):
                     continue
-                for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), start=1):
+                source = path.read_text(encoding='utf-8')
+                uses_compat_adapter = 'core.planner.legacy import PlannerUserDataCompat as UserData' in source
+                for number, line in enumerate(source.splitlines(), start=1):
                     matches = [name for name, pattern in PATTERNS.items() if pattern.search(line)]
                     if matches:
+                        via_compat_adapter = uses_compat_adapter
+                        out_of_planner_scope = relative_path in NON_PLANNER_PATHS
                         findings.append(
                             {
                                 'file': relative_path,
                                 'line': number,
                                 'patterns': matches,
-                                'whitelisted': relative_path in WHITELISTED_PATHS,
+                                'whitelisted': relative_path in WHITELISTED_PATHS or via_compat_adapter,
+                                'via_compat_adapter': via_compat_adapter,
+                                'out_of_planner_scope': out_of_planner_scope,
                             }
                         )
 
@@ -52,6 +66,11 @@ class Command(BaseCommand):
             'summary': {
                 'finding_count': len(findings),
                 'non_whitelisted_count': sum(not item['whitelisted'] for item in findings),
+                'out_of_planner_scope_count': sum(item['out_of_planner_scope'] for item in findings),
+                'planner_bypass_count': sum(
+                    not item['whitelisted'] and not item['out_of_planner_scope']
+                    for item in findings
+                ),
             },
             'findings': findings,
         }

@@ -664,7 +664,7 @@ def delete_event_groups(request):
 import json
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
-from .models import UserData
+from core.planner.legacy import PlannerUserDataCompat as UserData
 
 @csrf_exempt
 @api_view(['POST'])

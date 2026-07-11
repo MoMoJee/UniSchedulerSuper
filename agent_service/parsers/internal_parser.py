@@ -77,7 +77,7 @@ class InternalElementParser(BaseParser):
     @staticmethod
     def _find_in_userdata(user, key: str, element_id: str) -> Optional[dict]:
         """从 UserData JSON 列表中按 id 查找元素"""
-        from core.models import UserData
+        from core.planner.legacy import PlannerUserDataCompat as UserData
 
         class MockRequest:
             def __init__(self, u):
@@ -338,7 +338,7 @@ class InternalElementParser(BaseParser):
     @staticmethod
     def _get_all_items(user, key: str) -> list:
         """从 UserData 获取完整列表"""
-        from core.models import UserData
+        from core.planner.legacy import PlannerUserDataCompat as UserData
 
         class MockRequest:
             def __init__(self, u):

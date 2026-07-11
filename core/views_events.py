@@ -19,7 +19,8 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import reversion
-from core.models import UserData, AgentTransaction
+from core.models import AgentTransaction
+from core.planner.legacy import PlannerUserDataCompat as UserData
 
 from core.utils.validators import validate_body
 from integrated_reminder_manager import IntegratedReminderManager, UserDataStorageBackend

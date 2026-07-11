@@ -17,9 +17,9 @@ from rest_framework.permissions import IsAuthenticated
 from core.models import (
     CollaborativeCalendarGroup,
     GroupMembership,
-    GroupCalendarData,
-    UserData
+    GroupCalendarData
 )
+from core.planner.legacy import PlannerUserDataCompat as UserData
 from logger import logger
 from core.utils.validators import validate_body
 

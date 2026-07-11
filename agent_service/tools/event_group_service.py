@@ -57,16 +57,10 @@ class EventGroupService:
         
         # 从数据库获取（通过 UserData）
         try:
-            from core.models import UserData
+            from core.planner.legacy import LegacyPlannerRepository
             
-            mock_request = MockRequest(user)
-            user_data, created = UserData.objects.get_or_create(
-                user=user, 
-                key="events_groups", 
-                defaults={"value": json.dumps([])}
-            )
-            
-            groups = json.loads(user_data.value) if user_data.value else []
+            payload = LegacyPlannerRepository.read_groups(user)
+            groups = payload.value if payload else []
             
             name_to_uuid = {}
             uuid_to_info = {}
@@ -267,28 +261,19 @@ class EventGroupService:
         import uuid as uuid_module
         
         try:
-            from core.models import UserData
+            from django.db import transaction
+            from core.planner.legacy import LegacyPlannerRepository
             
-            # 获取现有组
-            user_data, created = UserData.objects.get_or_create(
-                user=user, 
-                key="events_groups", 
-                defaults={"value": json.dumps([])}
-            )
-            
-            groups = json.loads(user_data.value) if user_data.value else []
-            
-            # 创建新组
-            new_group = {
-                'id': str(uuid_module.uuid4()),
-                'name': name,
-                'description': description,
-                'color': color,
-            }
-            
-            groups.append(new_group)
-            user_data.value = json.dumps(groups)
-            user_data.save()
+            with transaction.atomic():
+                user_data, groups = LegacyPlannerRepository.get_list_for_update(user, 'events_groups')
+                new_group = {
+                    'id': str(uuid_module.uuid4()),
+                    'name': name,
+                    'description': description,
+                    'color': color,
+                }
+                groups.append(new_group)
+                LegacyPlannerRepository.replace_list(user_data, groups)
             
             # 使缓存失效
             cls.invalidate_cache(user)

@@ -2,7 +2,7 @@ import functools
 from logger import logger
 import reversion
 from agent_service.models import AgentTransaction
-from core.models import UserData
+from core.planner.legacy import LegacyPlannerRepository
 
 def agent_transaction(action_type):
     """
@@ -53,11 +53,11 @@ def agent_transaction(action_type):
                 reversion.set_comment(f"Before: {action_type}")
                 
                 # 只保存 Agent 工具会修改的 UserData keys（操作前状态）
-                user_data_objects = UserData.objects.filter(user=user, key__in=TRACKED_KEYS)
+                user_data_objects = LegacyPlannerRepository.get_rows_for_revision(user, TRACKED_KEYS)
                 for ud in user_data_objects:
                     reversion.add_to_revision(ud)
                 
-                tracked_count = user_data_objects.count()
+                tracked_count = len(user_data_objects)
             
             # 获取刚创建的快照 revision（操作前状态）
             before_revision = reversion.models.Revision.objects.filter(user=user).order_by('-date_created').first()

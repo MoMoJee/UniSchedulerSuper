@@ -14,7 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from caldav_service.auth import get_user_from_request
 from caldav_service.xml_utils import serialize_xml
-from core.models import UserData
+from core.planner.legacy import LegacyPlannerRepository
 
 from logger import logger
 
@@ -108,39 +108,23 @@ class CalDAVView(View):
 
     def load_events(self, user) -> list:
         """加载用户事件列表。"""
-        try:
-            data = UserData.objects.get(user=user, key="events")
-            events = json.loads(data.value)
-            return events if isinstance(events, list) else []
-        except UserData.DoesNotExist:
-            return []
+        payload = LegacyPlannerRepository.read_events(user)
+        return payload.value if payload else []
 
     def load_events_groups(self, user) -> list:
         """加载用户日历分组列表。"""
-        try:
-            data = UserData.objects.get(user=user, key="events_groups")
-            groups = json.loads(data.value)
-            return groups if isinstance(groups, list) else []
-        except UserData.DoesNotExist:
-            return []
+        payload = LegacyPlannerRepository.read_groups(user)
+        return payload.value if payload else []
 
     def load_todos(self, user) -> list:
         """加载用户待办列表。"""
-        try:
-            data = UserData.objects.get(user=user, key="todos")
-            todos = json.loads(data.value)
-            return todos if isinstance(todos, list) else []
-        except UserData.DoesNotExist:
-            return []
+        payload = LegacyPlannerRepository.read_todos(user)
+        return payload.value if payload else []
 
     def load_reminders(self, user) -> list:
         """加载用户提醒列表。"""
-        try:
-            data = UserData.objects.get(user=user, key="reminders")
-            reminders = json.loads(data.value)
-            return reminders if isinstance(reminders, list) else []
-        except UserData.DoesNotExist:
-            return []
+        payload = LegacyPlannerRepository.read_reminders(user)
+        return payload.value if payload else []
 
     def get_events_for_calendar(self, user, calendar_id: str) -> list:
         """

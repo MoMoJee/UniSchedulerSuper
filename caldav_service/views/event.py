@@ -27,7 +27,7 @@ from caldav_service.ical_builder import (
 from caldav_service.ical_parser import ical_to_all_event_dicts
 from core.views_calendar_subscription import UID_DOMAIN
 
-from core.models import UserData
+from core.planner.legacy import PlannerUserDataCompat as UserData
 from core.services.event_service import EventService
 
 from logger import logger

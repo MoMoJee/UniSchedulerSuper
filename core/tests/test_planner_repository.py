@@ -113,3 +113,4 @@ class PlannerRepositoryTests(TestCase):
         self.assertIn(('core/planner/legacy.py', True), findings)
         self.assertIn(('core/services/event_service.py', False), findings)
         self.assertGreater(report['summary']['non_whitelisted_count'], 0)
+        self.assertEqual(report['summary']['planner_bypass_count'], 0)

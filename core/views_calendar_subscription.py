@@ -31,7 +31,7 @@ from rest_framework.authtoken.models import Token
 
 from icalendar import Calendar, Event, Todo, Timezone, TimezoneStandard, Alarm
 
-from core.models import UserData
+from core.planner.legacy import LegacyPlannerRepository
 from logger import logger
 
 
@@ -538,12 +538,9 @@ def calendar_feed(request):
     # ========== 加载日程组映射（group_id -> group_name） ==========
     group_map: dict = {}
     try:
-        groups_data = UserData.objects.get(user=user, key="events_groups")
-        groups = json.loads(groups_data.value)
-        if isinstance(groups, list):
-            group_map = {g["id"]: g["name"] for g in groups if g.get("id") and g.get("name")}
-    except UserData.DoesNotExist:
-        pass
+        groups_payload = LegacyPlannerRepository.read_groups(user)
+        groups = groups_payload.value if groups_payload else []
+        group_map = {g["id"]: g["name"] for g in groups if g.get("id") and g.get("name")}
     except Exception as e:
         logger.warning(f"Calendar feed - failed to load events_groups for user {user.username}: {e}")
 
@@ -566,59 +563,50 @@ def calendar_feed(request):
     # ========== VEVENT（日程） ==========
     if include_events:
         try:
-            events_data = UserData.objects.get(user=user, key="events")
-            events = json.loads(events_data.value)
-            if isinstance(events, list):
-                for event in events:
-                    # 只发送主日程 + 脱离实例 + 普通日程
-                    # 跳过 RRule 系统生成的普通实例（Apple 根据 RRULE 自行展开）
-                    if not _should_include_event(event):
-                        continue
-                    ve = _build_vevent(event, group_map)
-                    if ve:
-                        cal.add_component(ve)
-                        component_count += 1
-        except UserData.DoesNotExist:
-            pass
+            events_payload = LegacyPlannerRepository.read_events(user)
+            events = events_payload.value if events_payload else []
+            for event in events:
+                # 只发送主日程 + 脱离实例 + 普通日程
+                # 跳过 RRule 系统生成的普通实例（Apple 根据 RRULE 自行展开）
+                if not _should_include_event(event):
+                    continue
+                ve = _build_vevent(event, group_map)
+                if ve:
+                    cal.add_component(ve)
+                    component_count += 1
         except Exception as e:
             logger.error(f"Calendar feed - failed to load events for user {user.username}: {e}")
 
     # ========== VEVENT — 待办（带 due_date 的转为特殊日程 + VALARM） ==========
     if include_todos:
         try:
-            todos_data = UserData.objects.get(user=user, key="todos")
-            todos = json.loads(todos_data.value)
-            if isinstance(todos, list):
-                for todo in todos:
-                    # 只发送带 due_date 的待办
-                    if not todo.get("due_date"):
-                        continue
-                    ve = _build_vevent_from_todo(todo, group_map)
-                    if ve:
-                        cal.add_component(ve)
-                        component_count += 1
-        except UserData.DoesNotExist:
-            pass
+            todos_payload = LegacyPlannerRepository.read_todos(user)
+            todos = todos_payload.value if todos_payload else []
+            for todo in todos:
+                # 只发送带 due_date 的待办
+                if not todo.get("due_date"):
+                    continue
+                ve = _build_vevent_from_todo(todo, group_map)
+                if ve:
+                    cal.add_component(ve)
+                    component_count += 1
         except Exception as e:
             logger.error(f"Calendar feed - failed to load todos for user {user.username}: {e}")
 
     # ========== VEVENT — 提醒（转为特殊日程 + VALARM） ==========
     if include_reminders:
         try:
-            reminders_data = UserData.objects.get(user=user, key="reminders")
-            reminders = json.loads(reminders_data.value)
-            if isinstance(reminders, list):
-                for reminder in reminders:
-                    # 只发送主提醒 + 脱离实例 + 普通提醒
-                    # 跳过 RRule 系统生成的普通实例
-                    if not _should_include_reminder(reminder):
-                        continue
-                    ve = _build_vevent_from_reminder(reminder)
-                    if ve:
-                        cal.add_component(ve)
-                        component_count += 1
-        except UserData.DoesNotExist:
-            pass
+            reminders_payload = LegacyPlannerRepository.read_reminders(user)
+            reminders = reminders_payload.value if reminders_payload else []
+            for reminder in reminders:
+                # 只发送主提醒 + 脱离实例 + 普通提醒
+                # 跳过 RRule 系统生成的普通实例
+                if not _should_include_reminder(reminder):
+                    continue
+                ve = _build_vevent_from_reminder(reminder)
+                if ve:
+                    cal.add_component(ve)
+                    component_count += 1
         except Exception as e:
             logger.error(f"Calendar feed - failed to load reminders for user {user.username}: {e}")
 

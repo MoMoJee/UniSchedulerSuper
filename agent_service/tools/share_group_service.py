@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from django.contrib.auth.models import User
 
 from logger import logger
+from core.planner.legacy import PlannerUserDataCompat as UserData
 
 
 class MockRequest:
@@ -242,7 +243,7 @@ class ShareGroupService:
             - members: 成员列表，包含 user_id, username, member_color
         """
         try:
-            from core.models import GroupCalendarData, GroupMembership, UserData
+            from core.models import GroupCalendarData, GroupMembership
             
             # 检查用户是否是该群组成员
             if not GroupMembership.objects.filter(

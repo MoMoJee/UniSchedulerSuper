@@ -73,3 +73,17 @@ class LegacyPlannerRepositoryTests(TestCase):
             stdout=StringIO(),
         )
         self.assertEqual(UserData.objects.filter(user=self.user, key='reminders').count(), 1)
+
+    def test_revision_snapshot_rows_are_limited_to_planner_and_export_keys(self):
+        event = UserData.objects.create(user=self.user, key='events', value='[]')
+        export = UserData.objects.create(user=self.user, key='outport_calendar_data', value='{}')
+        UserData.objects.create(user=self.user, key='agent_config', value='{}')
+
+        rows = LegacyPlannerRepository.get_rows_for_revision(
+            self.user,
+            ['events', 'outport_calendar_data'],
+        )
+
+        self.assertEqual([row.id for row in rows], [event.id, export.id])
+        with self.assertRaises(LegacyPlannerDataError):
+            LegacyPlannerRepository.get_rows_for_revision(self.user, ['agent_config'])
