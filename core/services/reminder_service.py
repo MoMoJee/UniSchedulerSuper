@@ -1,8 +1,8 @@
 import uuid
 import datetime
-from logger import logger
 import reversion
-from core.models import UserData
+from django.db import transaction
+from core.planner.legacy import LegacyPlannerRepository
 from integrated_reminder_manager import IntegratedReminderManager
 
 class MockRequest:
@@ -13,27 +13,16 @@ class MockRequest:
 class ReminderService:
     @staticmethod
     def get_reminders(user):
-        mock_request = MockRequest(user)
-        user_reminders_data, _, _ = UserData.get_or_initialize(mock_request, new_key="reminders")
-        if user_reminders_data:
-            return user_reminders_data.get_value() or []
-        return []
+        payload = LegacyPlannerRepository.read_reminders(user)
+        return payload.value if payload else []
 
     @staticmethod
     def create_reminder(user, title, content="", trigger_time="", priority="normal", rrule="", session_id=None):
         mock_request = MockRequest(user)
-        
-        with reversion.create_revision():
+        with transaction.atomic(), reversion.create_revision():
             reversion.set_user(user)
             reversion.set_comment(f"Create reminder: {title}")
-            
-            user_reminders_data, _, _ = UserData.get_or_initialize(mock_request, new_key="reminders")
-            if not user_reminders_data:
-                raise Exception("Failed to get user reminders data")
-                
-            reminders = user_reminders_data.get_value() or []
-            if not isinstance(reminders, list):
-                reminders = []
+            user_reminders_data, reminders = LegacyPlannerRepository.get_list_for_update(user, 'reminders')
                 
             reminder_data = {
                 "title": title,
@@ -51,7 +40,7 @@ class ReminderService:
                 recurring_reminder = reminder_mgr.create_recurring_reminder(reminder_data, rrule)
                 reminders.append(recurring_reminder)
                 updated_reminders = reminder_mgr.process_reminder_data(reminders)
-                user_reminders_data.set_value(updated_reminders)
+                LegacyPlannerRepository.replace_list(user_reminders_data, updated_reminders)
                 return recurring_reminder
             else:
                 reminder_data.update({
@@ -63,7 +52,7 @@ class ReminderService:
                     'is_detached': False
                 })
                 reminders.append(reminder_data)
-                user_reminders_data.set_value(reminders)
+                LegacyPlannerRepository.replace_list(user_reminders_data, reminders)
                 return reminder_data
 
     @staticmethod
@@ -75,17 +64,10 @@ class ReminderService:
             _clear_rrule: 如果为True，会清除提醒的重复规则（将rrule设为空字符串）
                          这解决了 rrule=None（不修改）和 rrule=""（清除）的歧义
         """
-        mock_request = MockRequest(user)
-        
-        with reversion.create_revision():
+        with transaction.atomic(), reversion.create_revision():
             reversion.set_user(user)
             reversion.set_comment(f"Update reminder: {reminder_id}")
-            
-            user_reminders_data, _, _ = UserData.get_or_initialize(mock_request, new_key="reminders")
-            if not user_reminders_data:
-                raise Exception("Failed to get user reminders data")
-                
-            reminders = user_reminders_data.get_value() or []
+            user_reminders_data, reminders = LegacyPlannerRepository.get_list_for_update(user, 'reminders')
             
             target_reminder = None
             for reminder in reminders:
@@ -109,27 +91,21 @@ class ReminderService:
             
             target_reminder['last_modified'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
-            user_reminders_data.set_value(reminders)
+            LegacyPlannerRepository.replace_list(user_reminders_data, reminders)
             return target_reminder
 
     @staticmethod
     def delete_reminder(user, reminder_id, session_id=None):
-        mock_request = MockRequest(user)
-        user_reminders_data, _, _ = UserData.get_or_initialize(mock_request, new_key="reminders")
-        if not user_reminders_data:
-            raise Exception("Failed to get user reminders data")
-            
-        reminders = user_reminders_data.get_value() or []
-        original_count = len(reminders)
-        
-        with reversion.create_revision():
+        with transaction.atomic(), reversion.create_revision():
             reversion.set_user(user)
             reversion.set_comment(f"Delete reminder: {reminder_id}")
+            user_reminders_data, reminders = LegacyPlannerRepository.get_list_for_update(user, 'reminders')
+            original_count = len(reminders)
             
             reminders = [r for r in reminders if r['id'] != reminder_id]
             
             if len(reminders) < original_count:
-                user_reminders_data.set_value(reminders)
+                LegacyPlannerRepository.replace_list(user_reminders_data, reminders)
                 return True
             return False
 
@@ -160,9 +136,8 @@ class ReminderService:
         from core.views_reminder import bulk_edit_reminders
         
         # 首先获取提醒信息以获取 series_id
-        mock_request = MockRequest(user)
-        user_reminders_data, _, _ = UserData.get_or_initialize(mock_request, new_key="reminders")
-        reminders = user_reminders_data.get_value() or []
+        payload = LegacyPlannerRepository.read_reminders(user)
+        reminders = payload.value if payload else []
         
         target_reminder = None
         series_id = None
@@ -224,9 +199,8 @@ class ReminderService:
     @staticmethod
     def get_reminder_by_id(user, reminder_id):
         """根据ID获取单个提醒"""
-        mock_request = MockRequest(user)
-        user_reminders_data, _, _ = UserData.get_or_initialize(mock_request, new_key="reminders")
-        reminders = user_reminders_data.get_value() or []
+        payload = LegacyPlannerRepository.read_reminders(user)
+        reminders = payload.value if payload else []
         
         for reminder in reminders:
             if reminder.get('id') == reminder_id:

@@ -2,7 +2,7 @@
 
 > 更新日期：2026-07-11  
 > 对应设计：[核心日程正规化与 RRule 引擎升级方案](./核心日程正规化与RRule引擎升级方案.md)  
-> 当前阶段：P0、P1-A 完成；P1-B（legacy 入口收敛）进行中，已完成 TodoService 首批改造。  
+> 当前阶段：P0、P1-A 完成；P1-B（legacy 入口收敛）进行中，三个 Planner Service 已完成收敛。
 > 当前存储模式：legacy JSON 为唯一业务事实源；normalized 表仅作为空的旁路结构，未切换流量。
 
 ---
@@ -51,7 +51,7 @@ events_rrule_series / rrule_series_storage
 
 隔离测试期间，Agent 图不再在导入期访问真实 MCP；MCP 配置日志也不再输出 URL（避免泄漏 query 中的密钥）。
 
-本轮还新增了 `report_planner_direct_userdata_access` 调用面报告。排除测试代码后，当前基线为 164 处非白名单直接访问。`core/services/todo_service.py` 已完成首批收敛，直接访问数为 0：读写都通过 `LegacyPlannerRepository`，写入在 `transaction.atomic()` 与 `reversion` 上下文内进行，并保留未知 JSON 字段。
+本轮还新增了 `report_planner_direct_userdata_access` 调用面报告。排除测试代码后，当前为 145 处非白名单直接访问。`TodoService`、`ReminderService` 的 Planner 列表直接访问数均为 0；`EventService` 的 events 主列表已收敛，仅保留一处既有 `user_preference` 配置读取。三个 Service 的 Planner 列表读写均通过 `LegacyPlannerRepository`，写入在 `transaction.atomic()` 与 `reversion` 上下文内进行，并保留未知 JSON 字段。
 
 ---
 

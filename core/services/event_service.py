@@ -3,7 +3,9 @@ import datetime
 from logger import logger
 import reversion
 from datetime import timedelta
+from django.db import transaction
 from core.models import UserData, AgentTransaction
+from core.planner.legacy import LegacyPlannerRepository
 from core.views_events import EventsRRuleManager 
 from core.views_share_groups import sync_group_calendar_data
 
@@ -37,7 +39,7 @@ class EventService:
         mock_request = MockRequest(user)
         manager = EventsRRuleManager(user)
         
-        with reversion.create_revision():
+        with transaction.atomic(), reversion.create_revision():
             reversion.set_user(user)
             reversion.set_comment(f"Create event: {title}")
             
@@ -63,13 +65,7 @@ class EventService:
                 event_data['ddl'] = ''
                 
             main_event = None
-            user_events_data, _, _ = UserData.get_or_initialize(mock_request, new_key="events", data=[])
-            if not user_events_data:
-                raise Exception("Failed to get user events data")
-
-            events = user_events_data.get_value() or []
-            if not isinstance(events, list):
-                events = []
+            user_events_data, events = LegacyPlannerRepository.get_list_for_update(user, 'events')
 
             if rrule:
                 rrule = rrule.strip().rstrip(';')
@@ -101,7 +97,7 @@ class EventService:
                 events.append(event_data)
                 main_event = event_data
             
-            user_events_data.set_value(events)
+            LegacyPlannerRepository.replace_list(user_events_data, events)
             
             if shared_to_groups:
                 try:
@@ -118,25 +114,16 @@ class EventService:
     @staticmethod
     def get_events(user):
         """获取用户所有日程"""
-        mock_request = MockRequest(user)
-        user_events_data, _, _ = UserData.get_or_initialize(mock_request, new_key="events", data=[])
-        if user_events_data:
-            return user_events_data.get_value() or []
-        return []
+        payload = LegacyPlannerRepository.read_events(user)
+        return payload.value if payload else []
 
     @staticmethod
     def delete_event(user, event_id, delete_scope='single', session_id=None):
         """删除日程"""
-        mock_request = MockRequest(user)
-        user_events_data, _, _ = UserData.get_or_initialize(mock_request, new_key="events", data=[])
-        if not user_events_data:
-            raise Exception("Failed to get user events data")
-            
-        events = user_events_data.get_value() or []
-        
-        with reversion.create_revision():
+        with transaction.atomic(), reversion.create_revision():
             reversion.set_user(user)
             reversion.set_comment(f"Delete event: {event_id}")
+            user_events_data, events = LegacyPlannerRepository.get_list_for_update(user, 'events')
             
             target_event = None
             for event in events:
@@ -178,7 +165,7 @@ class EventService:
                 events = [event for event in events if event.get('id') != event_id]
             
             if len(events) < original_count:
-                user_events_data.set_value(events)
+                LegacyPlannerRepository.replace_list(user_events_data, events)
                 return True
             return False
 
@@ -191,19 +178,13 @@ class EventService:
             _clear_rrule: 如果为True，会清除事件的重复规则（将rrule设为空字符串）
                          这解决了 rrule=None（不修改）和 rrule=""（清除）的歧义
         """
-        mock_request = MockRequest(user)
         manager = EventsRRuleManager(user)
         
-        user_events_data, _, _ = UserData.get_or_initialize(mock_request, new_key="events", data=[])
-        if not user_events_data:
-            raise Exception("Failed to get user events data")
-            
-        events = user_events_data.get_value() or []
-        events = EventService._convert_time_format(events)
-        
-        with reversion.create_revision():
+        with transaction.atomic(), reversion.create_revision():
             reversion.set_user(user)
             reversion.set_comment(f"Update event: {event_id}")
+            user_events_data, events = LegacyPlannerRepository.get_list_for_update(user, 'events')
+            events = EventService._convert_time_format(events)
             
             target_event = None
             old_shared_to_groups = []
@@ -274,7 +255,7 @@ class EventService:
             # 如果需要完整支持 RRule 修改，需要迁移 update_events_impl 中几百行的逻辑
             # 对于 Agent 来说，通常是简单的修改，或者删除重建
             
-            user_events_data.set_value(events)
+            LegacyPlannerRepository.replace_list(user_events_data, events)
             
             # 同步群组
             affected_groups = set(old_shared_to_groups)
@@ -317,9 +298,8 @@ class EventService:
         from core.views_events import bulk_edit_events_impl
         
         # 首先获取事件信息以获取 series_id
-        mock_request = MockRequest(user)
-        user_events_data, _, _ = UserData.get_or_initialize(mock_request, new_key="events", data=[])
-        events = user_events_data.get_value() or []
+        payload = LegacyPlannerRepository.read_events(user)
+        events = payload.value if payload else []
         
         target_event = None
         series_id = None
@@ -389,9 +369,8 @@ class EventService:
     @staticmethod
     def get_event_by_id(user, event_id):
         """根据ID获取单个日程"""
-        mock_request = MockRequest(user)
-        user_events_data, _, _ = UserData.get_or_initialize(mock_request, new_key="events", data=[])
-        events = user_events_data.get_value() or []
+        payload = LegacyPlannerRepository.read_events(user)
+        events = payload.value if payload else []
         
         for event in events:
             if event.get('id') == event_id:
