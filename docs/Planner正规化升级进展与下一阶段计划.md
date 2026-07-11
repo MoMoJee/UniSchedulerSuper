@@ -2,7 +2,7 @@
 
 > 更新日期：2026-07-11  
 > 对应设计：[核心日程正规化与 RRule 引擎升级方案](./核心日程正规化与RRule引擎升级方案.md)  
-> 当前阶段：P0、P1-A、P1-B 完成；下一阶段为 P2（历史迁移、差异校验与 cohort 开关）。
+> 当前阶段：P0、P1-A、P1-B 完成；P2-A/P2-B（可重跑导入与只读校验）已实现，尚未对生产库执行 `--apply`，也未切换任何业务流量。
 > 当前存储模式：legacy JSON 为唯一业务事实源；normalized 表仅作为空的旁路结构，未切换流量。
 
 ---
@@ -61,6 +61,8 @@ Calendar subscription 与 CalDAV 基础读取改为直接调用 `LegacyPlannerRe
 
 最终调用面报告保存为 `logs/planner-direct-userdata-access-20260711-p1b.json`：144 个结构性命中中，14 个为已标识的 Agent 配置/用量或 `user_preference` 访问（不属于 Planner 实体），`planner_bypass_count = 0`。剩余 Planner 存取仅位于 legacy adapter、审计/去重命令、模型定义或已登记兼容入口。
 
+P2 已新增三条管理命令：`migrate_planner_legacy`（默认 dry-run，只有 `--apply` 才写旁路表）、`verify_planner_migration`（实体/mapping/时间字段/occurrence 只读校验）和 `verify_recurrence_parity`（只比较 recurrence occurrence 集）。`core.0010_planner_cohort_assignment` 已应用到当前数据库；它只创建 cohort 记录表，不导入或修改任何 Planner 业务数据。`PlannerRolloutPolicy` 也已建立按用户、入口和启用时间记录 cohort 的安全门禁；全局开关或 assignment 任一条件不满足时，策略强制回退到 legacy。当前业务入口尚未接入该策略。2026-07-11 已对当前生产库执行一次 **dry-run**，没有写入任何 normalized 数据或 migration state：39 位用户中 34 位通过当前预检，5 位因历史 RRule 不可规范化或缺少 legacy item ID 被报告隔离。该数字只表示“可进入下一步 apply 演练的候选”，不是 cohort 切换授权。
+
 ---
 
 ## 2. 不可突破的阶段边界
@@ -116,11 +118,11 @@ Calendar subscription 与 CalDAV 基础读取改为直接调用 `LegacyPlannerRe
 
 验收结果：核心 Planner 调用的直接 `UserData` 访问仅保留在 legacy adapter、审计/迁移 command 与兼容 facade；调用面报告 `planner_bypass_count = 0`。全量 `core.tests` 34 项、`manage.py check`、`makemigrations --check --dry-run` 均通过。
 
-### P2：历史迁移、差异校验与 cohort 开关
+### P2：历史迁移、差异校验与 cohort 开关（进行中）
 
 目标：在新旧双轨校验期内，将数据复制到 normalized 表并证明语义一致；仍不默认切换用户流量。
 
-1. 实现管理命令：
+1. 已实现管理命令：
 
 ```powershell
 .venv\Scripts\python.exe manage.py migrate_planner_legacy --dry-run --user-id <id>
@@ -129,12 +131,14 @@ Calendar subscription 与 CalDAV 基础读取改为直接调用 `LegacyPlannerRe
 .venv\Scripts\python.exe manage.py verify_recurrence_parity --sample all --from 2020-01-01 --to 2035-01-01
 ```
 
+`migrate_planner_legacy` 对普通 event/todo/reminder、日程组、tags、reminder links、todo dependencies、分享关系、提前提醒和单规则段 recurrence 建立旁路投影及 `PlannerLegacyIdMap`。重复规则的正常预生成实例不会写成普通新 event/reminder 行；只保留 master、series、显式 EXDATE 和已发生状态。多规则段、非法 RRule、无法确定 occurrence slot、缺失历史 ID、目标冲突或精度损失均生成 issue 并使用户隔离。
+
 2. 迁移顺序：EventGroup → 非重复 Todo/Reminder/Event → tags/links/share links → recurrence series → sparse exception/state → legacy ID map。
 3. 对每个 series 用 legacy 规则和 normalized expander 在固定窗口比较 occurrence 的 recurrence_id、start/end、标题、状态、group、分享关系和 override 类型。
 4. 无法一一解释的预生成实例、规则段边界或未来 override 写入 `PlannerMigrationIssue`，该用户不得进入 normalized cohort。
 5. 加入仅迁移期开关：`PLANNER_STORAGE_MODE`、`PLANNER_DIFF_ASSERT`、`PLANNER_LEGACY_FALLBACK`、`PLANNER_CALDAV_NORMALIZED`；开关必须按 user cohort/入口记录。
 
-验收：每个进入 cohort 的 user 无未解释 semantic diff；无限 recurrence 读取不产生普通 instance 行。
+当前验收：命令默认只读/dry-run；apply 按用户单事务、checksum 幂等，测试已覆盖普通实体、关系、unknown field 保留、单规则段 recurrence、ID map、dry-run 隔离与 verifier/parity。P2-C cohort 门禁已实现但尚未被业务入口消费。下一步是先执行 `core.0010`，处理 dry-run issue、在数据库副本 `--apply`，再用 `--strict --mark-verified` 通过固定窗口 parity 后，才允许显式登记 shadow cohort。
 
 ---
 
@@ -160,6 +164,11 @@ P2 通过后才依次进行：
 .venv\Scripts\python.exe manage.py test core.tests
 .venv\Scripts\python.exe -m unittest core.tests.test_planner_time_codec core.tests.test_recurrence_expander
 .venv\Scripts\python.exe manage.py report_planner_direct_userdata_access --output logs/planner-direct-userdata-access-20260711-p1b.json
+.venv\Scripts\python.exe manage.py migrate_planner_legacy --dry-run --output logs/planner-migration-dry-run-20260711-p2a.json
+.venv\Scripts\python.exe manage.py verify_planner_migration --strict --from 2020-01-01 --to 2035-01-01
+.venv\Scripts\python.exe manage.py verify_recurrence_parity --sample all --strict --from 2020-01-01 --to 2035-01-01
+.venv\Scripts\python.exe manage.py verify_planner_migration --strict --mark-verified --user-id <id>
+.venv\Scripts\python.exe manage.py set_planner_cohort --user-id <id> --mode shadow --entrypoint web --note "staging parity passed"
 ```
 
 运行命令时可设置 `DISABLE_EXTERNAL_MCP=1`，确保维护、迁移和验证进程不在导入期连接外部 MCP 服务。

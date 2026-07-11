@@ -2354,6 +2354,27 @@ class PlannerMigrationIssue(PlannerVersionedModel):
 
 
 @reversion.register
+class PlannerCohortAssignment(PlannerVersionedModel):
+    """迁移期按用户和入口记录的 Planner 存储 cohort。"""
+
+    MODE_LEGACY = 'legacy'
+    MODE_SHADOW = 'shadow'
+    MODE_NORMALIZED = 'normalized'
+    MODE_CHOICES = [
+        (MODE_LEGACY, '旧存储'),
+        (MODE_SHADOW, '影子校验'),
+        (MODE_NORMALIZED, '正规化存储'),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='planner_cohort_assignment')
+    storage_mode = models.CharField(max_length=32, choices=MODE_CHOICES, default=MODE_LEGACY)
+    entrypoints = models.JSONField(default=dict, blank=True)
+    enabled_at = models.DateTimeField(null=True, blank=True)
+    disabled_at = models.DateTimeField(null=True, blank=True)
+    note = models.TextField(blank=True)
+
+
+@reversion.register
 class ShareGroupCalendarVersion(models.Model):
     """分享组日历的单调版本，替代 events_data JSON 副本。"""
 
