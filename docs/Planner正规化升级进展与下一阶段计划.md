@@ -144,6 +144,8 @@ P2 已新增三条管理命令：`migrate_planner_legacy`（默认 dry-run，只
 
 验收结果：命令默认只读/dry-run；apply 按用户单事务、checksum 幂等，测试覆盖普通实体、关系、unknown field 保留、单规则段 recurrence、ID map、旧式 EXDATE、可证明等价的 COUNT/UNTIL、缺 ID 兼容、隔离审计与 verifier/parity。P2-C cohort 门禁已实现但尚未被业务入口消费。通过验证的用户可以在 P3 的入口适配代码完成后才显式登记 shadow cohort；6 位 quarantine 用户继续保持 legacy-only，直到单独处置 issue。
 
+P3-A 已新增仅限 verified 用户调用的 v2 读取接口：`GET /api/v2/events/definitions/?from=&to=` 与 `GET /api/v2/events/occurrences/?from=&to=`。前者输出 event definition、series、RRULE、RDATE/EXDATE 摘要和 source version；后者按半开窗口纯展开，并返回稳定的 `occurrence_ref = {entity_id, series_id, recurrence_id, occurrence_start, source_version}`。接口不回退读取 legacy、不物化正常 occurrence，也未接入现有 FullCalendar；因此旧 Web 路径仍保持无行为变化。P3-B 将补齐 versioned command/search 契约，再决定 cohort 入口适配。
+
 ---
 
 ## 4. 后续切换顺序

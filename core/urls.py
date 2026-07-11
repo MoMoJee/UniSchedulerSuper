@@ -6,6 +6,7 @@ from . import views_share_groups
 from . import views_rollback
 from . import views_import_events
 from . import views_calendar_subscription
+from . import views_planner_v2
 from file_service import views_page as file_views
 
 urlpatterns = [
@@ -64,6 +65,8 @@ urlpatterns = [
     path("get_calendar/outport_calendar/", views.outport_calendar, name="outport_calendar"),
     path("get_calendar/check_modified_events", views.check_modified_events, name="check_modified_events"),
     path('api/events/bulk-edit/', views_events.bulk_edit_events_impl, name='bulk_edit_events'),
+    path('api/v2/events/definitions/', views_planner_v2.list_event_definitions_v2, name='v2_event_definitions'),
+    path('api/v2/events/occurrences/', views_planner_v2.list_event_occurrences_v2, name='v2_event_occurrences'),
     
     # ===== 课表导入 API =====
     path('api/import/semesters/', views_import_events.get_semesters, name='get_semesters'),
