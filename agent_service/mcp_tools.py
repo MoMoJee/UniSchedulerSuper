@@ -35,7 +35,7 @@ def _build_mcp_servers_config() -> Dict[str, Dict[str, Any]]:
             "url": amap_url,
             "transport": transport
         }
-        logger.info(f"已配置 MCP 服务: 高德地图 @ {amap_url[:50]}... ({transport})")
+        logger.info(f"已配置 MCP 服务: 高德地图 ({transport})")
     
     # ========== 12306 MCP 服务 ==========
     mcp_12306_config = APIKeyManager.get_mcp_service_config('12306')
@@ -47,7 +47,7 @@ def _build_mcp_servers_config() -> Dict[str, Dict[str, Any]]:
                 "url": mcp_12306_url,
                 "transport": transport
             }
-            logger.info(f"已配置 MCP 服务: 12306 火车票 @ {mcp_12306_url} ({transport})")
+            logger.info(f"已配置 MCP 服务: 12306 火车票 ({transport})")
     
     # 注意: VariFlight 由 variflight_tools.py 独立封装，不在此处加载
     

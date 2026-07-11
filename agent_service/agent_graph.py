@@ -3,6 +3,7 @@ UniScheduler Agent Graph - 单Agent多工具模式
 用户可选择启用的工具，Agent 根据可用工具执行任务
 """
 import os
+import sys
 import sqlite3
 import datetime
 import json
@@ -158,17 +159,21 @@ TODO_TOOLS_MAP = {
 # Skill 工具（技能管理 - Agent 可创建/列举用户技能）
 SKILL_TOOLS_MAP = SKILL_TOOLS
 
-# MCP 工具 (动态加载)
+# MCP 工具（动态加载）。隔离测试不能在导入期访问真实外部服务。
 MCP_TOOLS = {}
-try:
-    mcp_tools_list = get_mcp_tools_sync()
-    if mcp_tools_list:
-        MCP_TOOLS = {t.name: t for t in mcp_tools_list}
-        print(f"信息: 成功加载 {len(MCP_TOOLS)} 个 MCP 工具: {list(MCP_TOOLS.keys())}")
-    else:
-        print("信息: MCP 工具列表为空")
-except Exception as e:
-    print(f"警告: MCP 工具加载失败: {e}")
+_is_test_process = 'test' in sys.argv or os.environ.get('PYTEST_CURRENT_TEST') is not None
+if _is_test_process or os.environ.get('DISABLE_EXTERNAL_MCP') == '1':
+    logger.info('当前进程已禁用导入期 MCP 连接')
+else:
+    try:
+        mcp_tools_list = get_mcp_tools_sync()
+        if mcp_tools_list:
+            MCP_TOOLS = {t.name: t for t in mcp_tools_list}
+            print(f"信息: 成功加载 {len(MCP_TOOLS)} 个 MCP 工具: {list(MCP_TOOLS.keys())}")
+        else:
+            print("信息: MCP 工具列表为空")
+    except Exception as e:
+        print(f"警告: MCP 工具加载失败: {e}")
 
 # 所有工具的分类信息 (供 API 使用)
 TOOL_CATEGORIES = {

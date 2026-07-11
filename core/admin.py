@@ -4,7 +4,35 @@ from .models import (
     UserProfile, 
     CollaborativeCalendarGroup, 
     GroupMembership, 
-    GroupCalendarData
+    GroupCalendarData,
+    CalendarChange,
+    CalendarCollectionVersion,
+    CalendarEvent,
+    EventGroup,
+    EventOccurrenceOverride,
+    EventRecurrenceExDate,
+    EventRecurrenceRDate,
+    EventRecurrenceSeries,
+    EventRecurrenceSplitReview,
+    EventReminderLink,
+    EventShareGroup,
+    EventTag,
+    PlannerChangeSet,
+    PlannerLegacyIdMap,
+    PlannerMigrationIssue,
+    PlannerMigrationState,
+    Reminder,
+    ReminderAdvanceTrigger,
+    ReminderDeliveryAttempt,
+    ReminderOccurrenceState,
+    ReminderRecurrenceExDate,
+    ReminderRecurrenceRDate,
+    ReminderRecurrenceSeries,
+    ShareGroupCalendarVersion,
+    Todo,
+    TodoDependency,
+    TodoReminderLink,
+    TodoTag,
 )
 
 # 在admin界面展示、修改用户的UserData模型值
@@ -55,3 +83,36 @@ class GroupCalendarDataAdmin(admin.ModelAdmin):
             return len(obj.events_data)
         return 0
     event_count.short_description = '事件数'
+
+
+# 正规化 Planner 表在迁移期全部注册，便于核对导入、版本和稀疏 occurrence。
+admin.site.register([
+    CalendarChange,
+    CalendarCollectionVersion,
+    CalendarEvent,
+    EventGroup,
+    EventOccurrenceOverride,
+    EventRecurrenceExDate,
+    EventRecurrenceRDate,
+    EventRecurrenceSeries,
+    EventRecurrenceSplitReview,
+    EventReminderLink,
+    EventShareGroup,
+    EventTag,
+    PlannerChangeSet,
+    PlannerLegacyIdMap,
+    PlannerMigrationIssue,
+    PlannerMigrationState,
+    Reminder,
+    ReminderAdvanceTrigger,
+    ReminderDeliveryAttempt,
+    ReminderOccurrenceState,
+    ReminderRecurrenceExDate,
+    ReminderRecurrenceRDate,
+    ReminderRecurrenceSeries,
+    ShareGroupCalendarVersion,
+    Todo,
+    TodoDependency,
+    TodoReminderLink,
+    TodoTag,
+])

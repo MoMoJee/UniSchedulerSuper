@@ -4,7 +4,9 @@ from django.db import models
 from django.contrib.auth.models import User
 import json
 import datetime
+import uuid
 from django.db.utils import IntegrityError
+from django.db.models import Q
 import random
 import string
 import reversion
@@ -1776,3 +1778,633 @@ class GroupCalendarData(models.Model):
         """递增版本号"""
         self.version += 1
         self.save(update_fields=['version', 'last_updated'])
+
+
+# ==================== 正规化 Planner 模型（迁移期旁路存储） ====================
+
+
+def _planner_public_id():
+    """生成新 Planner 对象的不可变公开标识。"""
+    return str(uuid.uuid4())
+
+
+class PlannerVersionedModel(models.Model):
+    """Planner 实体共用的版本、软删除和兼容扩展字段。"""
+
+    version = models.PositiveBigIntegerField(default=1)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        abstract = True
+
+
+@reversion.register
+class EventGroup(PlannerVersionedModel):
+    """用户拥有的正规化日程组。"""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='planner_event_groups')
+    group_id = models.CharField(max_length=100, default=_planner_public_id)
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    color = models.CharField(max_length=32, default='#3498db')
+    group_type = models.CharField(max_length=32, default='other')
+    default_importance = models.CharField(max_length=32, blank=True)
+    default_urgency = models.CharField(max_length=32, blank=True)
+    default_duration_seconds = models.PositiveIntegerField(null=True, blank=True)
+    working_hours = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'group_id'], name='planner_group_user_public_uniq'),
+            models.UniqueConstraint(fields=['user', 'name'], name='planner_group_user_name_uniq'),
+        ]
+        indexes = [models.Index(fields=['user', 'deleted_at'], name='planner_group_user_del_idx')]
+
+    def __str__(self):
+        return f'{self.user.username} - {self.name}'
+
+
+@reversion.register
+class CalendarEvent(PlannerVersionedModel):
+    """单次日程或重复系列主对象；正常 occurrence 不在此表落行。"""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='planner_events')
+    event_id = models.CharField(max_length=100, default=_planner_public_id)
+    group = models.ForeignKey(
+        EventGroup,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='events',
+    )
+    title = models.CharField(max_length=500)
+    description = models.TextField(blank=True)
+    location = models.CharField(max_length=500, blank=True)
+    status = models.CharField(max_length=32, default='confirmed')
+    importance = models.CharField(max_length=32, blank=True)
+    urgency = models.CharField(max_length=32, blank=True)
+    ddl_at = models.DateTimeField(null=True, blank=True)
+    tzid = models.CharField(max_length=128, default='Asia/Shanghai')
+    is_all_day = models.BooleanField(default=False)
+    start_at = models.DateTimeField(null=True, blank=True)
+    end_at = models.DateTimeField(null=True, blank=True)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'event_id'], name='planner_event_user_public_uniq'),
+            models.CheckConstraint(
+                condition=(
+                    Q(is_all_day=True, start_date__isnull=False, end_date__isnull=False)
+                    | Q(is_all_day=False, start_at__isnull=False, end_at__isnull=False)
+                ),
+                name='planner_event_time_shape_valid',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['user', 'start_at', 'end_at'], name='planner_event_range_idx'),
+            models.Index(fields=['user', 'group', 'start_at'], name='planner_event_group_start_idx'),
+            models.Index(fields=['user', 'status', 'start_at'], name='planner_event_status_start_idx'),
+        ]
+
+    def __str__(self):
+        return self.title
+
+
+@reversion.register
+class Todo(PlannerVersionedModel):
+    """正规化待办；本期不为 Todo 引入 recurrence。"""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='planner_todos')
+    todo_id = models.CharField(max_length=100, default=_planner_public_id)
+    group = models.ForeignKey(
+        EventGroup,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='todos',
+    )
+    title = models.CharField(max_length=500)
+    description = models.TextField(blank=True)
+    status = models.CharField(max_length=32, default='pending')
+    importance = models.CharField(max_length=32, blank=True)
+    urgency = models.CharField(max_length=32, blank=True)
+    priority_score = models.IntegerField(default=0)
+    estimated_duration_seconds = models.PositiveIntegerField(null=True, blank=True)
+    tzid = models.CharField(max_length=128, default='Asia/Shanghai')
+    due_at = models.DateTimeField(null=True, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    converted_to_event = models.OneToOneField(
+        CalendarEvent,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='converted_from_todo',
+    )
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['user', 'todo_id'], name='planner_todo_user_public_uniq')]
+        indexes = [
+            models.Index(fields=['user', 'status', 'due_at'], name='planner_todo_status_due_idx'),
+            models.Index(fields=['user', 'group', 'due_at'], name='planner_todo_group_due_idx'),
+        ]
+
+    def __str__(self):
+        return self.title
+
+
+@reversion.register
+class Reminder(PlannerVersionedModel):
+    """单次提醒或重复提醒的主对象。"""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='planner_reminders')
+    reminder_id = models.CharField(max_length=100, default=_planner_public_id)
+    title = models.CharField(max_length=500)
+    content = models.TextField(blank=True)
+    priority = models.CharField(max_length=32, default='normal')
+    status = models.CharField(max_length=32, default='active')
+    tzid = models.CharField(max_length=128, default='Asia/Shanghai')
+    trigger_at = models.DateTimeField(null=True, blank=True)
+    trigger_date = models.DateField(null=True, blank=True)
+    snooze_until = models.DateTimeField(null=True, blank=True)
+    notification_sent_at = models.DateTimeField(null=True, blank=True)
+    notification_payload = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['user', 'reminder_id'], name='planner_reminder_user_public_uniq')]
+        indexes = [models.Index(fields=['user', 'status', 'trigger_at'], name='planner_rem_status_trigger_idx')]
+
+    def __str__(self):
+        return self.title
+
+
+@reversion.register
+class EventTag(models.Model):
+    """日程标签的查询友好投影。"""
+
+    event = models.ForeignKey(CalendarEvent, on_delete=models.CASCADE, related_name='tag_links')
+    tag = models.CharField(max_length=100)
+    normalized_tag = models.CharField(max_length=100)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['event', 'normalized_tag'], name='planner_event_tag_uniq')]
+
+
+@reversion.register
+class TodoTag(models.Model):
+    """待办标签的查询友好投影。"""
+
+    todo = models.ForeignKey(Todo, on_delete=models.CASCADE, related_name='tag_links')
+    tag = models.CharField(max_length=100)
+    normalized_tag = models.CharField(max_length=100)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['todo', 'normalized_tag'], name='planner_todo_tag_uniq')]
+
+
+@reversion.register
+class TodoDependency(models.Model):
+    """待办依赖边；环检测由领域服务执行。"""
+
+    todo = models.ForeignKey(Todo, on_delete=models.CASCADE, related_name='dependency_links')
+    depends_on = models.ForeignKey(Todo, on_delete=models.CASCADE, related_name='dependent_links')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['todo', 'depends_on'], name='planner_todo_dependency_uniq'),
+            models.CheckConstraint(condition=~Q(todo=models.F('depends_on')), name='planner_todo_no_self_dep'),
+        ]
+
+
+@reversion.register
+class EventReminderLink(models.Model):
+    """日程与提醒的唯一关系事实源。"""
+
+    event = models.ForeignKey(CalendarEvent, on_delete=models.CASCADE, related_name='reminder_links')
+    reminder = models.ForeignKey(Reminder, on_delete=models.CASCADE, related_name='event_links')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['event', 'reminder'], name='planner_event_reminder_uniq')]
+
+
+@reversion.register
+class TodoReminderLink(models.Model):
+    """待办与提醒的唯一关系事实源。"""
+
+    todo = models.ForeignKey(Todo, on_delete=models.CASCADE, related_name='reminder_links')
+    reminder = models.ForeignKey(Reminder, on_delete=models.CASCADE, related_name='todo_links')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['todo', 'reminder'], name='planner_todo_reminder_uniq')]
+
+
+@reversion.register
+class EventShareGroup(models.Model):
+    """日程分享关系；不再复制事件 JSON。"""
+
+    event = models.ForeignKey(CalendarEvent, on_delete=models.CASCADE, related_name='share_links')
+    share_group = models.ForeignKey(CollaborativeCalendarGroup, on_delete=models.CASCADE, related_name='planner_event_links')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['event', 'share_group'], name='planner_event_share_group_uniq')]
+
+
+@reversion.register
+class ReminderAdvanceTrigger(models.Model):
+    """每个提醒独立的提前通知配置。"""
+
+    reminder = models.ForeignKey(Reminder, on_delete=models.CASCADE, related_name='advance_triggers')
+    time_before_seconds = models.PositiveIntegerField()
+    priority = models.CharField(max_length=32, blank=True)
+    message = models.TextField(blank=True)
+    is_enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['reminder', 'time_before_seconds'],
+                name='planner_reminder_advance_uniq',
+            )
+        ]
+
+
+@reversion.register
+class EventRecurrenceSeries(PlannerVersionedModel):
+    """VEVENT 的唯一重复规则事实源。"""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='planner_event_series')
+    series_id = models.CharField(max_length=100, default=_planner_public_id)
+    master_event = models.OneToOneField(CalendarEvent, on_delete=models.CASCADE, related_name='recurrence_series')
+    ical_uid = models.CharField(max_length=255)
+    rrule = models.TextField()
+    rrule_canonical = models.TextField()
+    dtstart_at = models.DateTimeField(null=True, blank=True)
+    dtstart_date = models.DateField(null=True, blank=True)
+    tzid = models.CharField(max_length=128, default='Asia/Shanghai')
+    sequence = models.PositiveBigIntegerField(default=0)
+    parent_series = models.ForeignKey(
+        'self',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='child_series',
+    )
+    split_recurrence_id = models.CharField(max_length=64, blank=True)
+    ical_metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'series_id'], name='planner_event_series_public_uniq'),
+            models.UniqueConstraint(fields=['user', 'ical_uid'], name='planner_event_series_uid_uniq'),
+            models.CheckConstraint(
+                condition=(
+                    Q(dtstart_at__isnull=False, dtstart_date__isnull=True)
+                    | Q(dtstart_at__isnull=True, dtstart_date__isnull=False)
+                ),
+                name='planner_event_series_dtstart_shape',
+            ),
+        ]
+        indexes = [models.Index(fields=['user', 'deleted_at'], name='planner_event_series_user_idx')]
+
+
+@reversion.register
+class EventRecurrenceRDate(models.Model):
+    """显式加入 Event recurrence 的日期。"""
+
+    series = models.ForeignKey(EventRecurrenceSeries, on_delete=models.CASCADE, related_name='rdates')
+    recurrence_id = models.CharField(max_length=64)
+    starts_at = models.DateTimeField(null=True, blank=True)
+    starts_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['series', 'recurrence_id'], name='planner_event_rdate_uniq')]
+
+
+@reversion.register
+class EventRecurrenceExDate(models.Model):
+    """RFC 5545 EXDATE；不得写进 RRULE 字符串。"""
+
+    series = models.ForeignKey(EventRecurrenceSeries, on_delete=models.CASCADE, related_name='exdates')
+    recurrence_id = models.CharField(max_length=64)
+    source = models.CharField(max_length=32, default='user')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['series', 'recurrence_id'], name='planner_event_exdate_uniq')]
+
+
+@reversion.register
+class EventOccurrenceOverride(PlannerVersionedModel):
+    """人工修改或取消的稀疏 Event occurrence。"""
+
+    KIND_MODIFIED = 'modified'
+    KIND_CANCELLED = 'cancelled'
+    KIND_CHOICES = [(KIND_MODIFIED, '修改'), (KIND_CANCELLED, '取消')]
+
+    series = models.ForeignKey(EventRecurrenceSeries, on_delete=models.CASCADE, related_name='overrides')
+    recurrence_id = models.CharField(max_length=64)
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES)
+    patch = models.JSONField(default=dict, blank=True)
+    effective_start_at = models.DateTimeField(null=True, blank=True)
+    effective_end_at = models.DateTimeField(null=True, blank=True)
+    effective_start_date = models.DateField(null=True, blank=True)
+    effective_end_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['series', 'recurrence_id'], name='planner_event_override_uniq')]
+        indexes = [
+            models.Index(
+                fields=['series', 'effective_start_at', 'effective_end_at'],
+                name='planner_evt_override_range_idx',
+            )
+        ]
+
+
+@reversion.register
+class EventRecurrenceSplitReview(PlannerVersionedModel):
+    """无法自动归属的未来 override 在此隔离，未处理前禁止分裂提交。"""
+
+    series = models.ForeignKey(EventRecurrenceSeries, on_delete=models.CASCADE, related_name='split_reviews')
+    recurrence_id = models.CharField(max_length=64)
+    override_payload = models.JSONField(default=dict)
+    status = models.CharField(max_length=32, default='pending')
+    resolution = models.CharField(max_length=32, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['series', 'recurrence_id'], name='planner_event_split_review_uniq')]
+
+
+@reversion.register
+class ReminderRecurrenceSeries(PlannerVersionedModel):
+    """重复提醒的规则事实源和 lineage。"""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='planner_reminder_series')
+    series_id = models.CharField(max_length=100, default=_planner_public_id)
+    master_reminder = models.OneToOneField(Reminder, on_delete=models.CASCADE, related_name='recurrence_series')
+    ical_uid = models.CharField(max_length=255, null=True, blank=True)
+    rrule = models.TextField()
+    rrule_canonical = models.TextField()
+    dtstart_at = models.DateTimeField(null=True, blank=True)
+    dtstart_date = models.DateField(null=True, blank=True)
+    tzid = models.CharField(max_length=128, default='Asia/Shanghai')
+    sequence = models.PositiveBigIntegerField(default=0)
+    parent_series = models.ForeignKey(
+        'self',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='child_series',
+    )
+    split_recurrence_id = models.CharField(max_length=64, blank=True)
+    ical_metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'series_id'], name='planner_reminder_series_public_uniq'),
+            models.CheckConstraint(
+                condition=(
+                    Q(dtstart_at__isnull=False, dtstart_date__isnull=True)
+                    | Q(dtstart_at__isnull=True, dtstart_date__isnull=False)
+                ),
+                name='planner_reminder_series_dtstart_shape',
+            ),
+        ]
+
+
+@reversion.register
+class ReminderRecurrenceRDate(models.Model):
+    """显式加入 Reminder recurrence 的日期。"""
+
+    series = models.ForeignKey(ReminderRecurrenceSeries, on_delete=models.CASCADE, related_name='rdates')
+    recurrence_id = models.CharField(max_length=64)
+    starts_at = models.DateTimeField(null=True, blank=True)
+    starts_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['series', 'recurrence_id'], name='planner_reminder_rdate_uniq')]
+
+
+@reversion.register
+class ReminderRecurrenceExDate(models.Model):
+    """重复提醒的 RFC EXDATE。"""
+
+    series = models.ForeignKey(ReminderRecurrenceSeries, on_delete=models.CASCADE, related_name='exdates')
+    recurrence_id = models.CharField(max_length=64)
+    source = models.CharField(max_length=32, default='user')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['series', 'recurrence_id'], name='planner_reminder_exdate_uniq')]
+
+
+@reversion.register
+class ReminderOccurrenceState(PlannerVersionedModel):
+    """只在某次重复提醒发生状态变化时创建的稀疏状态。"""
+
+    series = models.ForeignKey(ReminderRecurrenceSeries, on_delete=models.CASCADE, related_name='occurrence_states')
+    recurrence_id = models.CharField(max_length=64)
+    status = models.CharField(max_length=32, default='active')
+    effective_trigger_at = models.DateTimeField(null=True, blank=True)
+    snooze_until = models.DateTimeField(null=True, blank=True)
+    notification_sent_at = models.DateTimeField(null=True, blank=True)
+    delivery_lease_until = models.DateTimeField(null=True, blank=True)
+    patch = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['series', 'recurrence_id'], name='planner_reminder_state_uniq')]
+        indexes = [
+            models.Index(
+                fields=['status', 'effective_trigger_at', 'delivery_lease_until'],
+                name='planner_reminder_delivery_idx',
+            )
+        ]
+
+
+@reversion.register
+class ReminderDeliveryAttempt(models.Model):
+    """提醒投递的幂等审计记录。"""
+
+    occurrence_state = models.ForeignKey(ReminderOccurrenceState, on_delete=models.CASCADE, related_name='delivery_attempts')
+    attempt_id = models.CharField(max_length=100, default=_planner_public_id)
+    status = models.CharField(max_length=32)
+    requested_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    detail = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['occurrence_state', 'attempt_id'], name='planner_delivery_attempt_uniq')]
+
+
+@reversion.register
+class PlannerLegacyIdMap(models.Model):
+    """legacy ID 到正规化实体或 occurrence 的兼容映射。"""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='planner_legacy_id_maps')
+    entity_type = models.CharField(max_length=32)
+    legacy_id = models.CharField(max_length=255)
+    entity_id = models.CharField(max_length=100, blank=True)
+    series_id = models.CharField(max_length=100, blank=True)
+    recurrence_id = models.CharField(max_length=64, blank=True)
+    source_row_id = models.BigIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'entity_type', 'legacy_id'],
+                name='planner_legacy_id_map_uniq',
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=['user', 'entity_type', 'entity_id'],
+                name='planner_legacy_target_idx',
+            )
+        ]
+
+
+@reversion.register
+class PlannerMigrationState(PlannerVersionedModel):
+    """每个用户与 legacy key 的可恢复迁移状态。"""
+
+    STATUS_PENDING = 'pending'
+    STATUS_AUDITED = 'audited'
+    STATUS_IMPORTED = 'imported'
+    STATUS_VERIFIED = 'verified'
+    STATUS_QUARANTINED = 'quarantined'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, '待处理'),
+        (STATUS_AUDITED, '已审计'),
+        (STATUS_IMPORTED, '已导入'),
+        (STATUS_VERIFIED, '已校验'),
+        (STATUS_QUARANTINED, '已隔离'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='planner_migration_states')
+    source_key = models.CharField(max_length=100)
+    source_row_id = models.BigIntegerField(null=True, blank=True)
+    source_checksum = models.CharField(max_length=64, blank=True)
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    imported_count = models.PositiveIntegerField(default=0)
+    issue_count = models.PositiveIntegerField(default=0)
+    last_error = models.TextField(blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['user', 'source_key'], name='planner_migration_state_uniq')]
+
+
+@reversion.register
+class PlannerMigrationIssue(PlannerVersionedModel):
+    """无法无损解释的 legacy 数据必须隔离为显式 issue。"""
+
+    state = models.ForeignKey(
+        PlannerMigrationState,
+        on_delete=models.CASCADE,
+        related_name='issues',
+        null=True,
+        blank=True,
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='planner_migration_issues')
+    source_row_id = models.BigIntegerField(null=True, blank=True)
+    source_key = models.CharField(max_length=100)
+    legacy_id = models.CharField(max_length=255, blank=True)
+    series_id = models.CharField(max_length=100, blank=True)
+    code = models.CharField(max_length=100)
+    detail = models.JSONField(default=dict, blank=True)
+    is_resolved = models.BooleanField(default=False)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=['user', 'is_resolved', 'source_key'],
+                name='planner_migration_issue_idx',
+            )
+        ]
+
+
+@reversion.register
+class ShareGroupCalendarVersion(models.Model):
+    """分享组日历的单调版本，替代 events_data JSON 副本。"""
+
+    share_group = models.OneToOneField(
+        CollaborativeCalendarGroup,
+        on_delete=models.CASCADE,
+        related_name='planner_calendar_version',
+    )
+    version = models.PositiveBigIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+@reversion.register
+class CalendarCollectionVersion(models.Model):
+    """CalDAV/Web 增量刷新的 collection 版本。"""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='planner_collection_versions')
+    collection_type = models.CharField(max_length=32)
+    collection_id = models.CharField(max_length=100)
+    version = models.PositiveBigIntegerField(default=0)
+    sync_token = models.CharField(max_length=255, default=_planner_public_id)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'collection_type', 'collection_id'],
+                name='planner_collection_version_uniq',
+            )
+        ]
+
+
+@reversion.register
+class CalendarChange(models.Model):
+    """collection 的创建、更新和 tombstone 增量日志。"""
+
+    ACTION_CREATE = 'create'
+    ACTION_UPDATE = 'update'
+    ACTION_DELETE = 'delete'
+    ACTION_CHOICES = [(ACTION_CREATE, '创建'), (ACTION_UPDATE, '更新'), (ACTION_DELETE, '删除')]
+
+    collection = models.ForeignKey(CalendarCollectionVersion, on_delete=models.CASCADE, related_name='changes')
+    token = models.PositiveBigIntegerField()
+    resource_type = models.CharField(max_length=32)
+    resource_public_id = models.CharField(max_length=100)
+    action = models.CharField(max_length=16, choices=ACTION_CHOICES)
+    etag = models.CharField(max_length=255)
+    occurred_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['collection', 'token'], name='planner_calendar_change_token_uniq')]
+        indexes = [models.Index(fields=['collection', 'occurred_at'], name='planner_calendar_change_idx')]
+
+
+@reversion.register
+class PlannerChangeSet(PlannerVersionedModel):
+    """一个 Planner command 触及对象的精确回滚载荷。"""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='planner_change_sets')
+    session_id = models.CharField(max_length=255, blank=True)
+    tool_call_id = models.CharField(max_length=255, blank=True)
+    command_type = models.CharField(max_length=100)
+    revision = models.ForeignKey(Revision, on_delete=models.SET_NULL, null=True, blank=True)
+    before_payload = models.JSONField(default=dict, blank=True)
+    after_payload = models.JSONField(default=dict, blank=True)
+    is_reverted = models.BooleanField(default=False)
+    reverted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=['user', 'session_id', 'tool_call_id'],
+                name='planner_changeset_lookup_idx',
+            )
+        ]
