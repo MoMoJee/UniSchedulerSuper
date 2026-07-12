@@ -31,6 +31,10 @@ class PlannerRolloutPolicy:
     ENTRYPOINT_WEB_SEARCH = 'web_search'
     ENTRYPOINT_WEB_SHARE = 'web_share'
     ENTRYPOINT_COURSE_IMPORT = 'course_import'
+    ENTRYPOINT_AGENT = 'agent_planner'
+    ENTRYPOINT_QUICK_ACTION = 'quick_action_planner'
+    ENTRYPOINT_MCP = 'mcp_planner'
+    ENTRYPOINT_INTERNAL_ATTACHMENT = 'internal_attachment'
 
     @classmethod
     def can_read_normalized(cls, user: User, entrypoint: str) -> PlannerStorageDecision:

@@ -157,6 +157,44 @@ def create_session(request):
     })
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def rotate_rollback_window(request, session_id):
+    """激活当前会话的新回滚窗口；activation_token 令重试幂等。"""
+    from agent_service.rollback_windows import AgentRollbackWindowService
+
+    if not session_id.startswith(f"user_{request.user.id}_"):
+        return Response({'error': '无权访问此会话'}, status=status.HTTP_403_FORBIDDEN)
+    try:
+        window = AgentRollbackWindowService.rotate(
+            user=request.user,
+            session_id=session_id,
+            floor_message_index=int(request.data.get('floor_message_index', 0)),
+            activation_token=request.data.get('activation_token'),
+        )
+    except (TypeError, ValueError) as exc:
+        return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response({
+        'window_id': str(window.window_id),
+        'session_id': session_id,
+        'floor_message_index': window.floor_message_index,
+        'generation': window.generation,
+        'status': window.status,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def close_rollback_window(request, session_id):
+    """切离会话时关闭窗口，并立即删除短期 Planner snapshot。"""
+    from agent_service.rollback_windows import AgentRollbackWindowService
+
+    if not session_id.startswith(f"user_{request.user.id}_"):
+        return Response({'error': '无权访问此会话'}, status=status.HTTP_403_FORBIDDEN)
+    AgentRollbackWindowService.close(user=request.user, session_id=session_id)
+    return Response({'status': 'closed', 'session_id': session_id})
+
+
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_session(request, session_id):
@@ -252,7 +290,7 @@ def get_history(request):
     }
     """
     from agent_service.agent_graph import app
-    from agent_service.models import AgentSession
+    from agent_service.models import AgentRollbackWindow, AgentSession
     from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
     
     user = request.user
@@ -285,15 +323,51 @@ def get_history(request):
                     "tokens": session.summary_tokens
                 }
         
+        active_window = AgentRollbackWindow.objects.filter(
+            user=user, session__session_id=session_id,
+            status=AgentRollbackWindow.STATUS_ACTIVE,
+        ).first()
+        rollback_window = ({
+            'window_id': str(active_window.window_id),
+            'floor_message_index': active_window.floor_message_index,
+            'generation': active_window.generation,
+            'status': active_window.status,
+        } if active_window else None)
+
         if not state or not state.values:
+            if active_window is None:
+                from agent_service.rollback_windows import AgentRollbackWindowService
+                active_window = AgentRollbackWindowService.ensure_active(
+                    user=user, session_id=session_id, floor_message_index=0
+                )
+                rollback_window = {
+                    'window_id': str(active_window.window_id),
+                    'floor_message_index': active_window.floor_message_index,
+                    'generation': active_window.generation,
+                    'status': active_window.status,
+                }
             return Response({
                 "session_id": session_id,
                 "messages": [],
+                "total_messages": 0,
+                "rollback_window": rollback_window,
                 "summary": summary_info,
                 "is_summarizing": is_summarizing
             })
         
         messages = state.values.get("messages", [])
+
+        if active_window is None:
+            from agent_service.rollback_windows import AgentRollbackWindowService
+            active_window = AgentRollbackWindowService.ensure_active(
+                user=user, session_id=session_id, floor_message_index=len(messages)
+            )
+            rollback_window = {
+                'window_id': str(active_window.window_id),
+                'floor_message_index': active_window.floor_message_index,
+                'generation': active_window.generation,
+                'status': active_window.status,
+            }
         
         # 格式化消息，添加索引
         formatted_messages = []
@@ -325,7 +399,9 @@ def get_history(request):
                     "content": msg.content,
                     "id": msg.id,
                     "index": idx,
-                    "can_rollback": True,  # 用户消息可以回滚
+                    "can_rollback": bool(
+                        active_window and idx >= active_window.floor_message_index
+                    ),
                     "attachments": attachments  # 附件列表（供前端渲染磁贴）
                 })
             elif isinstance(msg, AIMessage):
@@ -357,6 +433,7 @@ def get_history(request):
             "session_id": session_id,
             "messages": formatted_messages,
             "total_messages": len(messages),
+            "rollback_window": rollback_window,
             "summary": summary_info,
             "is_summarizing": is_summarizing
         })
@@ -392,57 +469,10 @@ def rollback_preview(request):
         "message": "将撤销最近 1 步操作"
     }
     """
-    from agent_service.agent_graph import app
-    from agent_service.models import AgentTransaction
-    
-    user = request.user
-    data = request.data
-    session_id = data.get("session_id", f"user_{user.id}_default")
-    steps = data.get("steps", 1)
-    
-    # 验证 session_id 归属
-    if not session_id.startswith(f"user_{user.id}_"):
-        return Response(
-            {"error": "无权访问此会话"},
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    try:
-        # 查询最近的 Agent 事务
-        transactions = AgentTransaction.objects.filter(
-            session_id=session_id
-        ).order_by('-created_at')[:steps]
-        
-        if not transactions:
-            return Response({
-                "can_rollback": False,
-                "affected_items": [],
-                "message": "没有可回滚的操作"
-            })
-        
-        # 收集受影响的项目
-        affected_items = []
-        for trans in transactions:
-            affected_items.append({
-                "type": trans.action_type,
-                "action": "rollback",
-                "revision_id": trans.revision_id,
-                "created_at": trans.created_at.isoformat()
-            })
-        
-        return Response({
-            "can_rollback": True,
-            "affected_items": affected_items,
-            "message": f"将撤销最近 {len(affected_items)} 步操作",
-            "steps": len(affected_items)
-        })
-        
-    except Exception as e:
-        logger.exception(f"预览回滚失败: {e}")
-        return Response(
-            {"error": f"预览回滚失败: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+    return Response(
+        {'error': '旧版 steps 回滚已停用，请使用当前会话的消息回滚', 'code': 'rollback_legacy_unsupported'},
+        status=status.HTTP_410_GONE,
+    )
 
 
 @api_view(['POST'])
@@ -465,67 +495,10 @@ def execute_rollback(request):
         "message": "成功回滚 1 步操作"
     }
     """
-    import reversion
-    from agent_service.models import AgentTransaction
-    
-    user = request.user
-    data = request.data
-    session_id = data.get("session_id", f"user_{user.id}_default")
-    steps = data.get("steps", 1)
-    
-    # 验证 session_id 归属
-    if not session_id.startswith(f"user_{user.id}_"):
-        return Response(
-            {"error": "无权访问此会话"},
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    try:
-        # 获取要回滚的事务
-        transactions = list(AgentTransaction.objects.filter(
-            session_id=session_id
-        ).order_by('-created_at')[:steps])
-        
-        if not transactions:
-            return Response({
-                "success": False,
-                "rolled_back": 0,
-                "message": "没有可回滚的操作"
-            })
-        
-        rolled_back = 0
-        
-        for trans in transactions:
-            if trans.revision_id:
-                try:
-                    # 使用 django-reversion 回滚
-                    revision = reversion.models.Revision.objects.get(id=trans.revision_id)
-                    revision.revert()
-                    
-                    # 标记事务为已回滚
-                    trans.is_rolled_back = True
-                    trans.save()
-                    
-                    rolled_back += 1
-                    logger.debug(f"成功回滚事务 {trans.id}, revision={trans.revision_id}")
-                    
-                except reversion.models.Revision.DoesNotExist:
-                    logger.warning(f"Revision {trans.revision_id} 不存在")
-                except Exception as e:
-                    logger.error(f"回滚事务 {trans.id} 失败: {e}")
-        
-        return Response({
-            "success": rolled_back > 0,
-            "rolled_back": rolled_back,
-            "message": f"成功回滚 {rolled_back} 步操作"
-        })
-        
-    except Exception as e:
-        logger.exception(f"执行回滚失败: {e}")
-        return Response(
-            {"error": f"执行回滚失败: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+    return Response(
+        {'error': '旧版 steps 回滚已停用，请使用当前会话的消息回滚', 'code': 'rollback_legacy_unsupported'},
+        status=status.HTTP_410_GONE,
+    )
 
 
 @api_view(['POST'])
@@ -549,10 +522,9 @@ def rollback_to_message(request):
         "message": "成功回滚"
     }
     """
-    import reversion
     from agent_service.agent_graph import app, checkpointer
     from agent_service.tools.todo_tools import rollback_todos
-    from agent_service.models import AgentTransaction
+    from agent_service.models import AgentRollbackWindow
     from langchain_core.messages import HumanMessage, AIMessage, RemoveMessage
     
     user = request.user
@@ -566,6 +538,11 @@ def rollback_to_message(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     
+    try:
+        message_index = int(message_index)
+    except (TypeError, ValueError):
+        return Response({"error": "message_index 必须为整数"}, status=status.HTTP_400_BAD_REQUEST)
+
     # 验证 session_id 归属
     if not session_id.startswith(f"user_{user.id}_"):
         return Response(
@@ -606,6 +583,37 @@ def rollback_to_message(request):
                 "success": False,
                 "message": f"无效的消息索引: {message_index} (超出范围，当前消息数: {len(current_messages)})"
             })
+
+        active_window = AgentRollbackWindow.objects.filter(
+            user=user, session__session_id=session_id,
+            status=AgentRollbackWindow.STATUS_ACTIVE,
+        ).first()
+        if active_window is None or message_index < active_window.floor_message_index:
+            return Response({
+                'error': '该消息不属于当前可回滚窗口',
+                'code': 'rollback_window_expired',
+            }, status=status.HTTP_410_GONE)
+
+        from core.planner.context import PlannerExecutionContext
+        from core.planner.rollout import PlannerRolloutPolicy
+        from core.planner.snapshots import (
+            PlannerRollbackConflict, PlannerRollbackCoordinator, PlannerSnapshotError,
+        )
+        rollback_context = PlannerExecutionContext(
+            user=user, source='websocket_agent',
+            entrypoint=PlannerRolloutPolicy.ENTRYPOINT_AGENT,
+            session_id=session_id, tool_call_id='rollback-to-message',
+            rollback_window_id=str(active_window.window_id),
+            message_index=message_index, reversible=True,
+        )
+        try:
+            reverted_change_sets = PlannerRollbackCoordinator.rollback_to_message(
+                rollback_context, message_index
+            )
+        except PlannerRollbackConflict as exc:
+            return Response({'error': str(exc), 'code': exc.code}, status=status.HTTP_409_CONFLICT)
+        except PlannerSnapshotError as exc:
+            return Response({'error': str(exc), 'code': exc.code}, status=status.HTTP_410_GONE)
         
         # 计算需要回滚的消息数量
         rolled_back_messages = len(current_messages) - message_index
@@ -740,59 +748,11 @@ def rollback_to_message(request):
             except Exception as e:
                 logger.warning(f"获取删除后状态失败: {e}")
         
-        # ====== 回滚数据库事务 ======
-        # 只回滚与被删除的 ToolMessage 对应的事务（通过 tool_call_id 匹配）
-        # 如果是清空会话（message_index=0），回滚所有事务
-        transactions = AgentTransaction.objects.filter(
-            session_id=session_id,
-            is_rolled_back=False
-        ).order_by('-created_at')
-        
-        rolled_back_transactions = 0
-        rolled_back_details = []
-        
-        # 根据 tool_call_id 匹配回滚
-        for trans in transactions:
-            # 检查是否应该回滚此事务
-            should_rollback = False
-            trans_tool_call_id = trans.metadata.get('tool_call_id') if trans.metadata else None
-            
-            if message_index == 0:
-                # 清空会话时，回滚所有事务
-                should_rollback = True
-            elif trans_tool_call_id and trans_tool_call_id in deleted_tool_call_ids:
-                # tool_call_id 匹配，回滚此事务
-                should_rollback = True
-            elif not trans_tool_call_id:
-                # 旧事务没有 tool_call_id，使用时间范围作为后备方案
-                # 暂时跳过，避免误回滚
-                continue
-            
-            if not should_rollback:
-                continue
-                
-            if trans.revision_id:
-                try:
-                    revision = reversion.models.Revision.objects.get(id=trans.revision_id)
-                    revision.revert()
-                    trans.is_rolled_back = True
-                    trans.save()
-                    rolled_back_transactions += 1
-                    rolled_back_details.append({
-                        "action": trans.action_type,
-                        "description": trans.description
-                    })
-                except reversion.models.Revision.DoesNotExist:
-                    logger.warning(f"Revision {trans.revision_id} 不存在，标记为已回滚")
-                    trans.is_rolled_back = True
-                    trans.save()
-                except Exception as e:
-                    logger.error(f"回滚事务 #{trans.id} 失败: {e}")
-            else:
-                # 没有 revision_id 的事务直接标记为已回滚
-                trans.is_rolled_back = True
-                trans.save()
-        
+        rolled_back_transactions = len(reverted_change_sets)
+        rolled_back_details = [
+            {'action': item.command_type, 'description': item.command_type}
+            for item in reverted_change_sets
+        ]
         logger.debug(f"共回滚了 {rolled_back_transactions} 个数据库事务")
 
         # ====== 清除搜索结果缓存 ======

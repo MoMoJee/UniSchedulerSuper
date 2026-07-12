@@ -143,7 +143,12 @@ class CacheManager:
                         'uuid': item_uuid,
                         'type': item_type,
                         'title': item_title,
-                        'last_seen': current_time
+                        'last_seen': current_time,
+                        'entity_id': item.get('entity_id') or item.get('occurrence_ref', {}).get('entity_id') or item.get(f'{item_type}_id'),
+                        'series_id': item.get('series_id') or item.get('occurrence_ref', {}).get('series_id'),
+                        'recurrence_id': item.get('recurrence_id') or item.get('occurrence_ref', {}).get('recurrence_id'),
+                        'source_version': item.get('source_version') or item.get('occurrence_ref', {}).get('source_version') or item.get('version'),
+                        'occurrence_ref': item.get('occurrence_ref'),
                     }
                     item_to_index[item_uuid] = existing_index
                     reused_count += 1
@@ -154,7 +159,12 @@ class CacheManager:
                         'uuid': item_uuid,
                         'type': item_type,
                         'title': item_title,
-                        'last_seen': current_time
+                        'last_seen': current_time,
+                        'entity_id': item.get('entity_id') or item.get('occurrence_ref', {}).get('entity_id') or item.get(f'{item_type}_id'),
+                        'series_id': item.get('series_id') or item.get('occurrence_ref', {}).get('series_id'),
+                        'recurrence_id': item.get('recurrence_id') or item.get('occurrence_ref', {}).get('recurrence_id'),
+                        'source_version': item.get('source_version') or item.get('occurrence_ref', {}).get('source_version') or item.get('version'),
+                        'occurrence_ref': item.get('occurrence_ref'),
                     }
                     cache.uuid_to_index[item_uuid] = new_index
                     item_to_index[item_uuid] = new_index
@@ -163,10 +173,7 @@ class CacheManager:
                 
                 # 更新标题映射
                 if item_title:
-                    cache.title_mapping[item_title] = {
-                        'uuid': item_uuid,
-                        'type': item_type
-                    }
+                    cache.title_mapping[item_title] = dict(cache.index_mapping[item_to_index[item_uuid]])
             
             # LRU 淘汰
             cache.cleanup_lru()
@@ -362,7 +369,7 @@ class CacheManager:
                 # 从 title_mapping 中移除
                 new_title_mapping: Dict[str, Dict[str, Any]] = {}
                 for title, info in cache.title_mapping.items():
-                    if info.get('uuid') != item_uuid:
+                    if info.get('uuid') != item_uuid and info.get('entity_id') != item_uuid:
                         new_title_mapping[title] = info
                     else:
                         modified = True
@@ -376,3 +383,27 @@ class CacheManager:
         except Exception as e:
             logger.error(f"[Cache] 使缓存失效失败: {e}")
             return False
+
+    @staticmethod
+    def get_normalized_ref(session_id: str, user: Any, identifier: str, preferred_type: str | None = None) -> Optional[Dict[str, Any]]:
+        """按 user + session 返回完整 normalized entity/occurrence ref。"""
+        try:
+            from agent_service.models import AgentSession, SearchResultCache
+            session = AgentSession.objects.filter(session_id=session_id, user=user).first()
+            if session is None:
+                return None
+            cache = SearchResultCache.objects.filter(session=session, user=user).order_by('-updated_at').first()
+            if cache is None:
+                return None
+            info = cache.index_mapping.get(identifier) if identifier.startswith('#') else cache.title_mapping.get(identifier)
+            if info is None and not identifier.startswith('#'):
+                for title, candidate in cache.title_mapping.items():
+                    if identifier in title or title in identifier:
+                        info = candidate
+                        break
+            if info is None or (preferred_type and info.get('type') != preferred_type):
+                return None
+            return dict(info)
+        except Exception as exc:
+            logger.error(f"[Cache] 读取 normalized ref 失败: {exc}")
+            return None

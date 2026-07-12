@@ -761,6 +761,33 @@ class SessionTodoSnapshot(models.Model):
         )
 
 
+class AgentRollbackWindow(models.Model):
+    """服务端强制的当前会话回滚资格窗口。"""
+
+    STATUS_ACTIVE = 'active'
+    STATUS_CLOSED = 'closed'
+    STATUS_CHOICES = ((STATUS_ACTIVE, '有效'), (STATUS_CLOSED, '已关闭'))
+
+    window_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='agent_rollback_windows')
+    session = models.ForeignKey(AgentSession, on_delete=models.CASCADE, related_name='rollback_windows')
+    generation = models.PositiveIntegerField(default=1)
+    floor_message_index = models.PositiveIntegerField(default=0)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_ACTIVE, db_index=True)
+    activation_token = models.CharField(max_length=100, unique=True)
+    opened_at = models.DateTimeField(auto_now_add=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['session'], condition=models.Q(status='active'),
+                name='agent_one_active_rollback_window',
+            )
+        ]
+        indexes = [models.Index(fields=['user', 'session', 'status'], name='agent_rollback_window_lookup')]
+
+
 class AgentTransaction(models.Model):
     """
     Agent 事务记录
@@ -771,6 +798,15 @@ class AgentTransaction(models.Model):
     action_type = models.CharField(max_length=100, help_text="操作类型 (create_event, delete_todo, etc.)")
     description = models.TextField(blank=True, default="", help_text="操作描述")
     revision_id = models.IntegerField(null=True, blank=True, help_text="django-reversion 的 Revision ID")
+    change_set_id = models.BigIntegerField(null=True, blank=True, db_index=True)
+    rollback_window = models.ForeignKey(
+        AgentRollbackWindow, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='transactions',
+    )
+    tool_call_id = models.CharField(max_length=255, blank=True, default='', db_index=True)
+    message_index = models.PositiveIntegerField(null=True, blank=True)
+    source = models.CharField(max_length=32, blank=True, default='legacy_agent', db_index=True)
+    state = models.CharField(max_length=24, default='applied', db_index=True)
     metadata = models.JSONField(default=dict, help_text="额外的元数据")
     is_rolled_back = models.BooleanField(default=False, help_text="是否已回滚")
     created_at = models.DateTimeField(auto_now_add=True)

@@ -12,6 +12,8 @@ from core.models import (
     CalendarEvent,
     EventGroup,
     EventRecurrenceSeries,
+    PlannerChangeSet,
+    PlannerCohortAssignment,
     PlannerLegacyIdMap,
     PlannerMigrationState,
     Reminder,
@@ -49,6 +51,17 @@ class PlannerMigrationVerifier:
         self.range_end = range_end
         self.payloads = {}
         self.differences: list[VerificationDifference] = []
+        self.post_cutover_skips: list[dict[str, Any]] = []
+        assignment = PlannerCohortAssignment.objects.filter(user=user, storage_mode='normalized').first()
+        self.cutover_at = assignment.enabled_at if assignment else None
+        self.cutover_evidence = []
+        if self.cutover_at:
+            self.cutover_evidence = [
+                f"{item.before_payload!r} {item.after_payload!r} {item.affected_refs!r}"
+                for item in PlannerChangeSet.objects.filter(
+                    user=user, created_at__gte=self.cutover_at
+                ).only('before_payload', 'after_payload', 'affected_refs')
+            ]
 
     def verify(self, *, recurrence_only: bool = False) -> dict[str, Any]:
         self._load_sources()
@@ -65,6 +78,8 @@ class PlannerMigrationVerifier:
             'username': self.user.username,
             'range': {'from': self.range_start.isoformat(), 'to': self.range_end.isoformat()},
             'difference_count': len(self.differences),
+            'post_cutover_skipped_count': len(self.post_cutover_skips),
+            'post_cutover_skips': self.post_cutover_skips,
             'cohort_eligible': not self.differences,
             'differences': [
                 {
@@ -109,6 +124,8 @@ class PlannerMigrationVerifier:
             if target is None:
                 self._diff('entity', 'normalized_target_missing', 'events_groups', legacy_id=legacy_id)
                 continue
+            if self._skip_post_cutover('events_groups', legacy_id, target, legacy_id):
+                continue
             self._field_equal('events_groups', legacy_id, 'name', row.get('name') or '', target.name)
             self._field_equal('events_groups', legacy_id, 'description', row.get('description') or '', target.description)
             self._field_equal('events_groups', legacy_id, 'color', row.get('color') or '#3498db', target.color)
@@ -119,6 +136,8 @@ class PlannerMigrationVerifier:
             target = Todo.objects.filter(user=self.user, todo_id=legacy_id).first()
             if target is None:
                 self._diff('entity', 'normalized_target_missing', 'todos', legacy_id=legacy_id)
+                continue
+            if self._skip_post_cutover('todos', legacy_id, target, legacy_id):
                 continue
             self._field_equal('todos', legacy_id, 'title', row.get('title') or '', target.title)
             self._field_equal('todos', legacy_id, 'description', row.get('description') or '', target.description)
@@ -137,6 +156,8 @@ class PlannerMigrationVerifier:
             if target is None:
                 self._diff('entity', 'normalized_target_missing', 'reminders', legacy_id=legacy_id)
                 continue
+            if self._skip_post_cutover('reminders', legacy_id, target, legacy_id):
+                continue
             self._field_equal('reminders', legacy_id, 'title', row.get('title') or '', target.title)
             self._field_equal('reminders', legacy_id, 'content', row.get('content') or '', target.content)
             self._field_equal('reminders', legacy_id, 'status', row.get('status') or 'active', target.status)
@@ -152,6 +173,8 @@ class PlannerMigrationVerifier:
             if target is None:
                 self._diff('entity', 'normalized_target_missing', 'events', legacy_id=legacy_id)
                 continue
+            if self._skip_post_cutover('events', legacy_id, target, legacy_id):
+                continue
             self._field_equal('events', legacy_id, 'title', row.get('title') or '', target.title)
             self._field_equal('events', legacy_id, 'description', row.get('description') or '', target.description)
             self._temporal_equal('events', legacy_id, 'start', self._temporal(row.get('start')), target.start_at or target.start_date)
@@ -162,6 +185,10 @@ class PlannerMigrationVerifier:
             series = EventRecurrenceSeries.objects.filter(user=self.user, series_id=series_id).select_related('master_event').first()
             if series is None:
                 self._diff('recurrence', 'normalized_series_missing', 'events', series_id=series_id)
+                continue
+            if self._skip_post_cutover(
+                'events', series_id, series, series_id, series.master_event.event_id
+            ):
                 continue
             try:
                 definition = PlannerRepository._to_recurrence_definition(series)
@@ -199,6 +226,10 @@ class PlannerMigrationVerifier:
             series = ReminderRecurrenceSeries.objects.filter(user=self.user, series_id=series_id).select_related('master_reminder').first()
             if series is None:
                 self._diff('recurrence', 'normalized_series_missing', 'reminders', series_id=series_id)
+                continue
+            if self._skip_post_cutover(
+                'reminders', series_id, series, series_id, series.master_reminder.reminder_id
+            ):
                 continue
             # reminder 没有独立 ORM repository，构造等价的 definition。
             master = series.master_reminder
@@ -280,8 +311,27 @@ class PlannerMigrationVerifier:
             self._diff('field', 'field_mismatch', source_key, legacy_id=legacy_id, series_id=series_id, detail={'field': field})
 
     def _temporal_equal(self, source_key: str, legacy_id: str, field: str, expected: date | datetime | None, actual: date | datetime | None, *, series_id: str = '') -> None:
+        if isinstance(expected, date) and not isinstance(expected, datetime) and isinstance(actual, datetime):
+            actual = PlannerTimeCodec.to_local(actual).date()
+        elif isinstance(actual, date) and not isinstance(actual, datetime) and isinstance(expected, datetime):
+            expected = PlannerTimeCodec.to_local(expected).date()
         if expected != actual:
             self._diff('field', 'temporal_mismatch', source_key, legacy_id=legacy_id, series_id=series_id, detail={'field': field})
+
+    def _skip_post_cutover(self, source_key: str, public_id: str, target, *identifiers: str) -> bool:
+        if not self.cutover_at or not getattr(target, 'updated_at', None) or target.updated_at < self.cutover_at:
+            return False
+        identifiers = tuple(str(item) for item in identifiers if item)
+        if not identifiers or not any(
+            identifier in evidence for identifier in identifiers for evidence in self.cutover_evidence
+        ):
+            return False
+        self.post_cutover_skips.append({
+            'source_key': source_key, 'public_id': public_id,
+            'reason': 'normalized_change_after_cohort_cutover',
+            'updated_at': target.updated_at.isoformat(),
+        })
+        return True
 
     def _diff(self, category: str, code: str, source_key: str, *, legacy_id: str = '', series_id: str = '', detail: dict[str, Any] | None = None) -> None:
         item = VerificationDifference(category, code, source_key, legacy_id, series_id, detail or {})

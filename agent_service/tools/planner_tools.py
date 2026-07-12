@@ -5,6 +5,7 @@ from core.services.event_service import EventService
 from core.services.todo_service import TodoService
 from core.services.reminder_service import ReminderService
 from agent_service.utils import agent_transaction
+from . import planner_application_adapter as p4_adapter
 
 # ==========================================
 # Event Tools
@@ -15,6 +16,8 @@ def get_events(config: RunnableConfig) -> str:
     """
     获取用户的所有日程列表。
     """
+    if p4_adapter.should_use_normalized(config):
+        return p4_adapter.search_normalized(config, item_type='event', limit=100)
     user = config.get("configurable", {}).get("user")
     if not user: return "Error: User not found in context."
     
@@ -45,6 +48,12 @@ def create_event(title: str, start: str, end: str, description: str = "", import
         urgency: 紧急程度 (urgent/not-urgent) (可选)
         rrule: 重复规则 (例如: FREQ=DAILY;COUNT=5) (可选)
     """
+    if p4_adapter.should_use_normalized(config):
+        return p4_adapter.create_normalized(
+            config, item_type='event', title=title, start=start, end=end,
+            description=description, importance=importance, urgency=urgency,
+            repeat=rrule or None,
+        )
     user = config.get("configurable", {}).get("user")
     if not user: return "Error: User not found in context."
     
@@ -72,6 +81,11 @@ def update_event(event_id: str, title: str = None, start: str = None, end: str =
         end: 新结束时间 (可选)
         description: 新描述 (可选)
     """
+    if p4_adapter.should_use_normalized(config):
+        return p4_adapter.update_normalized(
+            config, identifier=event_id, item_type='event', edit_scope='all',
+            title=title, start=start, end=end, description=description,
+        )
     user = config.get("configurable", {}).get("user")
     if not user: return "Error: User not found in context."
     
@@ -93,6 +107,10 @@ def delete_event(event_id: str, delete_scope: str = "single", config: RunnableCo
         event_id: 日程ID
         delete_scope: 删除范围 (single: 仅此一次, all: 所有重复, future: 此及将来)
     """
+    if p4_adapter.should_use_normalized(config):
+        return p4_adapter.delete_normalized(
+            config, identifier=event_id, item_type='event', delete_scope=delete_scope
+        )
     user = config.get("configurable", {}).get("user")
     if not user: return "Error: User not found in context."
     
@@ -109,6 +127,8 @@ def delete_event(event_id: str, delete_scope: str = "single", config: RunnableCo
 @tool
 def get_todos(config: RunnableConfig) -> str:
     """获取待办事项列表"""
+    if p4_adapter.should_use_normalized(config):
+        return p4_adapter.search_normalized(config, item_type='todo', limit=100)
     user = config.get("configurable", {}).get("user")
     if not user: return "Error: User not found."
     
@@ -128,6 +148,11 @@ def get_todos(config: RunnableConfig) -> str:
 @agent_transaction(action_type="create_todo")
 def create_todo(title: str, description: str = "", due_date: str = "", config: RunnableConfig = None) -> str:
     """创建待办事项"""
+    if p4_adapter.should_use_normalized(config):
+        return p4_adapter.create_normalized(
+            config, item_type='todo', title=title, description=description,
+            due_date=due_date or None,
+        )
     user = config.get("configurable", {}).get("user")
     if not user: return "Error: User not found."
     
@@ -141,6 +166,10 @@ def create_todo(title: str, description: str = "", due_date: str = "", config: R
 @agent_transaction(action_type="update_todo")
 def update_todo(todo_id: str, title: str = None, status: str = None, config: RunnableConfig = None) -> str:
     """更新待办事项 (标题或状态)"""
+    if p4_adapter.should_use_normalized(config):
+        return p4_adapter.update_normalized(
+            config, identifier=todo_id, item_type='todo', title=title, status=status
+        )
     user = config.get("configurable", {}).get("user")
     if not user: return "Error: User not found."
     
@@ -154,6 +183,8 @@ def update_todo(todo_id: str, title: str = None, status: str = None, config: Run
 @agent_transaction(action_type="delete_todo")
 def delete_todo(todo_id: str, config: RunnableConfig = None) -> str:
     """删除待办事项"""
+    if p4_adapter.should_use_normalized(config):
+        return p4_adapter.delete_normalized(config, identifier=todo_id, item_type='todo')
     user = config.get("configurable", {}).get("user")
     if not user: return "Error: User not found."
     
@@ -170,6 +201,8 @@ def delete_todo(todo_id: str, config: RunnableConfig = None) -> str:
 @tool
 def get_reminders(config: RunnableConfig) -> str:
     """获取提醒列表"""
+    if p4_adapter.should_use_normalized(config):
+        return p4_adapter.search_normalized(config, item_type='reminder', limit=100)
     user = config.get("configurable", {}).get("user")
     if not user: return "Error: User not found."
     
@@ -188,6 +221,11 @@ def get_reminders(config: RunnableConfig) -> str:
 @agent_transaction(action_type="create_reminder")
 def create_reminder(title: str, trigger_time: str, content: str = "", rrule: str = "", config: RunnableConfig = None) -> str:
     """创建提醒"""
+    if p4_adapter.should_use_normalized(config):
+        return p4_adapter.create_normalized(
+            config, item_type='reminder', title=title, trigger_time=trigger_time,
+            content=content, repeat=rrule or None,
+        )
     user = config.get("configurable", {}).get("user")
     if not user: return "Error: User not found."
     
@@ -201,6 +239,10 @@ def create_reminder(title: str, trigger_time: str, content: str = "", rrule: str
 @agent_transaction(action_type="delete_reminder")
 def delete_reminder(reminder_id: str, config: RunnableConfig = None) -> str:
     """删除提醒"""
+    if p4_adapter.should_use_normalized(config):
+        return p4_adapter.delete_normalized(
+            config, identifier=reminder_id, item_type='reminder', delete_scope='all'
+        )
     user = config.get("configurable", {}).get("user")
     if not user: return "Error: User not found."
     

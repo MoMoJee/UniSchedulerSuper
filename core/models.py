@@ -2442,6 +2442,11 @@ class PlannerChangeSet(PlannerVersionedModel):
     after_payload = models.JSONField(default=dict, blank=True)
     is_reverted = models.BooleanField(default=False)
     reverted_at = models.DateTimeField(null=True, blank=True)
+    source = models.CharField(max_length=32, blank=True)
+    affected_refs = models.JSONField(default=list, blank=True)
+    before_hash = models.CharField(max_length=64, blank=True)
+    after_hash = models.CharField(max_length=64, blank=True)
+    rollback_status = models.CharField(max_length=24, default='not_reversible')
 
     class Meta:
         indexes = [
@@ -2449,4 +2454,28 @@ class PlannerChangeSet(PlannerVersionedModel):
                 fields=['user', 'session_id', 'tool_call_id'],
                 name='planner_changeset_lookup_idx',
             )
+        ]
+
+
+class PlannerRollbackSnapshot(models.Model):
+    """当前 Agent rollback window 内短期保存的压缩 aggregate before-snapshot。"""
+
+    change_set = models.OneToOneField(
+        PlannerChangeSet, on_delete=models.CASCADE, related_name='rollback_snapshot'
+    )
+    rollback_window = models.ForeignKey(
+        'agent_service.AgentRollbackWindow', on_delete=models.CASCADE,
+        related_name='planner_snapshots',
+    )
+    schema_version = models.PositiveIntegerField(default=1)
+    codec = models.CharField(max_length=32, default='zlib-json-v1')
+    payload = models.BinaryField()
+    payload_sha256 = models.CharField(max_length=64)
+    uncompressed_size = models.PositiveBigIntegerField()
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['rollback_window', 'created_at'], name='planner_snapshot_window_idx')
         ]

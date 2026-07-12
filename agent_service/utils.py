@@ -34,6 +34,18 @@ def agent_transaction(action_type):
                 # 如果没有上下文，直接运行（兼容普通调用）
                 return func(*args, **kwargs)
 
+            # P4 normalized/shadow Planner 工具由 PlannerApplicationService 在领域命令
+            # 同一 transaction.atomic() 内记录 ChangeSet/短期 aggregate snapshot。
+            # 这里不得再复制六个完整 UserData JSON；shadow 写会由 application gate 拒绝。
+            try:
+                from core.planner.rollout import PlannerRolloutPolicy
+                entrypoint = configurable.get('planner_entrypoint') or PlannerRolloutPolicy.ENTRYPOINT_AGENT
+                decision = PlannerRolloutPolicy.decide(user, entrypoint)
+                if decision.effective_mode in {'shadow', 'normalized'}:
+                    return func(*args, **kwargs)
+            except Exception as exc:
+                logger.warning(f"Planner P4 rollback policy 检查失败，保持 legacy snapshot 路径: {exc}")
+
             # 2. 在执行操作之前，先保存当前状态的快照
             # 这样回滚时可以恢复到操作前的状态
             # 

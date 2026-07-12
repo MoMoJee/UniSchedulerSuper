@@ -75,6 +75,52 @@ class InternalElementParser(BaseParser):
     # ---- UserData 查找辅助 ----
 
     @staticmethod
+    def _normalized_context(user):
+        from core.planner.context import PlannerExecutionContext
+        from core.planner.rollout import PlannerRolloutPolicy
+        context = PlannerExecutionContext(
+            user=user, source='internal_attachment',
+            entrypoint=PlannerRolloutPolicy.ENTRYPOINT_INTERNAL_ATTACHMENT,
+        )
+        decision = PlannerRolloutPolicy.can_read_normalized(user, context.entrypoint)
+        return context if decision.effective_mode in {'shadow', 'normalized'} else None
+
+    @classmethod
+    def _normalized_item(cls, user, element_type: str, element_id: str) -> Optional[dict]:
+        context = cls._normalized_context(user)
+        if context is None:
+            return None
+        from core.planner.application import PlannerApplicationService
+        return PlannerApplicationService.get_attachment_item(context, element_id, element_type)
+
+    @staticmethod
+    def _normalized_result(item: dict) -> Dict[str, Any]:
+        item_type = item['type']
+        labels = {'event': '📅 日程', 'todo': '✅ 待办', 'reminder': '🔔 提醒'}
+        lines = [f"{labels[item_type]}: {item.get('title') or '无标题'}"]
+        if item_type == 'event':
+            lines.append(f"时间: {item.get('start', '?')} → {item.get('end', '?')}")
+            if item.get('location'): lines.append(f"地点: {item['location']}")
+        elif item_type == 'todo':
+            lines.append(f"状态: {item.get('status', '?')}")
+            if item.get('due_at') or item.get('due_date'):
+                lines.append(f"截止: {item.get('due_at') or item.get('due_date')}")
+        else:
+            lines.append(f"触发时间: {item.get('trigger_at', '?')}")
+            lines.append(f"状态: {item.get('status', '?')}")
+        detail = item.get('description') or item.get('content')
+        if detail: lines.append(f"描述: {detail}")
+        if item.get('rrule'): lines.append(f"重复规则: {item['rrule']}")
+        return {
+            'success': True, 'text': '\n'.join(lines),
+            'metadata': {
+                'type': item_type, 'id': item['id'], 'title': item.get('title', ''),
+                'snapshot': item,
+            },
+            'error': '',
+        }
+
+    @staticmethod
     def _find_in_userdata(user, key: str, element_id: str) -> Optional[dict]:
         """从 UserData JSON 列表中按 id 查找元素"""
         from core.planner.legacy import PlannerUserDataCompat as UserData
@@ -96,6 +142,9 @@ class InternalElementParser(BaseParser):
     # ---- 各类型解析 ----
 
     def _parse_event(self, user, event_id: str) -> Dict[str, Any]:
+        normalized = self._normalized_item(user, 'event', event_id)
+        if normalized:
+            return self._normalized_result(normalized)
         event = self._find_in_userdata(user, 'events', event_id)
         if not event:
             return self._not_found('event', event_id)
@@ -137,6 +186,9 @@ class InternalElementParser(BaseParser):
         }
 
     def _parse_todo(self, user, todo_id: str) -> Dict[str, Any]:
+        normalized = self._normalized_item(user, 'todo', todo_id)
+        if normalized:
+            return self._normalized_result(normalized)
         todo = self._find_in_userdata(user, 'todos', todo_id)
         if not todo:
             return self._not_found('todo', todo_id)
@@ -183,6 +235,9 @@ class InternalElementParser(BaseParser):
         }
 
     def _parse_reminder(self, user, reminder_id: str) -> Dict[str, Any]:
+        normalized = self._normalized_item(user, 'reminder', reminder_id)
+        if normalized:
+            return self._normalized_result(normalized)
         reminder = self._find_in_userdata(user, 'reminders', reminder_id)
         if not reminder:
             return self._not_found('reminder', reminder_id)
@@ -276,6 +331,11 @@ class InternalElementParser(BaseParser):
             list[dict]: 每项包含 id, title, subtitle, type
         """
         results = []
+
+        context = InternalElementParser._normalized_context(user)
+        if context is not None and element_type in {'event', 'todo', 'reminder'}:
+            from core.planner.application import PlannerApplicationService
+            return PlannerApplicationService.list_attachment_items(context, element_type, search)
 
         if element_type == 'event':
             items = InternalElementParser._get_all_items(user, 'events')

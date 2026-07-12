@@ -85,12 +85,12 @@ class ProjectLogger:
             backupCount=10,  # 保留10个备份文件
             encoding='utf-8'
         )
-        file_handler.setLevel(logging.INFO)
+        file_handler.setLevel(logging.DEBUG)
 
 
         # 控制台处理器
         console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(logging.DEBUG)
 
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)

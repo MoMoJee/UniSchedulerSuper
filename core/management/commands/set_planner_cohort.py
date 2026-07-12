@@ -31,13 +31,15 @@ class Command(BaseCommand):
             reversion.set_user(user)
             reversion.set_comment(f'Set Planner cohort: {mode}')
             assignment, _ = PlannerCohortAssignment.objects.get_or_create(user=user)
+            previous_mode = assignment.storage_mode
             entrypoints = dict(assignment.entrypoints or {})
             timestamp = timezone.now().isoformat()
             for entrypoint in options['entrypoint']:
                 entrypoints[entrypoint] = {'enabled_at': timestamp, 'mode': mode}
             assignment.storage_mode = mode
             assignment.entrypoints = entrypoints
-            assignment.enabled_at = timezone.now() if mode != 'legacy' else assignment.enabled_at
+            if mode != 'legacy' and (assignment.enabled_at is None or previous_mode == 'legacy'):
+                assignment.enabled_at = timezone.now()
             assignment.disabled_at = timezone.now() if mode == 'legacy' else None
             assignment.note = options['note']
             assignment.bump_version(update_fields={'storage_mode', 'entrypoints', 'enabled_at', 'disabled_at', 'note'})

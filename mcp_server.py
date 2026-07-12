@@ -20,6 +20,7 @@ import os
 import sys
 import argparse
 import contextvars
+import uuid
 
 # ============================================================
 # Django 初始化 — 必须在导入任何 Django model 之前
@@ -64,6 +65,12 @@ _stdio_user: Optional[User] = None
 _current_user_var: contextvars.ContextVar[Optional[User]] = contextvars.ContextVar(
     'mcp_current_user', default=None
 )
+_current_transport_var: contextvars.ContextVar[str] = contextvars.ContextVar(
+    'mcp_current_transport', default='mcp_stdio'
+)
+_current_request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
+    'mcp_current_request_id', default=''
+)
 
 # Token -> User 缓存（避免每次 tool 调用都查数据库）
 _token_user_cache: dict[str, User] = {}
@@ -88,6 +95,11 @@ def _get_current_user() -> User:
     if user is not None:
         return user
 
+    # HTTP 请求绝不能退回 stdio 的进程级固定用户，否则丢失/串失
+    # contextvar 时可能把请求作为另一位用户执行。
+    if _current_transport_var.get() == 'mcp_http':
+        raise ValueError("HTTP MCP 请求缺少独立认证用户")
+
     # 兜底使用 stdio 模式的全局用户
     if _stdio_user is not None:
         return _stdio_user
@@ -97,13 +109,20 @@ def _get_current_user() -> User:
 
 def _build_config(user: User) -> dict:
     """构造 LangChain RunnableConfig，注入用户信息"""
-    # 每个用户使用独立的 session_id，避免多用户共用同一缓存导致 #序号 串台
-    user_session_id = f"mcp_{user.id}"
+    source = _current_transport_var.get()
+    request_id = _current_request_id_var.get() or str(uuid.uuid4())
+    # stdio 保留固定 cache session；HTTP 按 MCP/client request session 隔离。
+    session_suffix = request_id[:64] if source == 'mcp_http' else 'stdio'
+    user_session_id = f"{source}_{user.id}_{session_suffix}"
     return {
         "configurable": {
             "user": user,
             "session_id": user_session_id,
             "thread_id": user_session_id,
+            "planner_source": source,
+            "planner_entrypoint": "mcp_planner",
+            "request_id": request_id,
+            "tool_call_id": request_id,
         }
     }
 
@@ -436,6 +455,7 @@ def _setup_http_auth():
 
                     # 将用户存入 contextvars，供工具函数读取
                     _current_user_var.set(user)
+                    _current_transport_var.set('mcp_http')
 
                     return AccessToken(
                         token=token,
@@ -518,6 +538,8 @@ def main():
         
         async def query_to_header_middleware(scope, receive, send):
             if scope["type"] == "http":
+                _current_transport_var.set('mcp_http')
+                _current_user_var.set(None)
                 # 修复某些 MCP 客户端（如 Cline/VSCode）将 URL 查询参数错误进行 URL 编码并当作 path 处理的问题
                 # 例如传来了 /sse%3Fapi_key%3Dxxx -> 被 unquote 后变成 /sse?api_key=xxx
                 raw_path = scope.get("path", "")
@@ -538,6 +560,12 @@ def main():
                 # 提取 token（从 Query 或 Header）
                 token = query_params.get("token", [None])[0] or query_params.get("api_key", [None])[0]
                 headers = list(scope.get("headers", []))
+                header_map = {k.decode('utf-8').lower(): v.decode('utf-8') for k, v in headers}
+                request_id = (
+                    header_map.get('mcp-session-id') or header_map.get('x-request-id')
+                    or str(uuid.uuid4())
+                )
+                _current_request_id_var.set(request_id)
                 
                 # 如果 URL 里没有，尝试从 headers 里拿（兼顾纯 Header 调用）
                 if not token:
@@ -583,6 +611,8 @@ def main():
     else:
         # stdio 模式
         transport = "stdio"
+        _current_transport_var.set('mcp_stdio')
+        _current_request_id_var.set('stdio')
         _init_stdio_user(args.token)
         print("🚀 UniScheduler MCP Server (stdio) 已启动", file=sys.stderr)
 

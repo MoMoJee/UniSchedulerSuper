@@ -263,12 +263,15 @@ def tool_node_wrapper(state: QuickActionState) -> Dict:
     # 获取当前的工具调用日志
     tool_calls_log = list(state.get('tool_calls_log', []))
     
-    # 构建 config（传递用户和会话信息给工具）
-    config = RunnableConfig(
+    # 构建基础 config；每个 tool call 会再注入其真实 tool_call_id。
+    base_config = RunnableConfig(
         configurable={
             "user": user,
             "thread_id": state['task_id'],
-            "session_id": state['task_id']
+            "session_id": state['task_id'],
+            "planner_source": "quick_action",
+            "planner_entrypoint": "quick_action_planner",
+            "request_id": state['task_id'],
         }
     )
     
@@ -293,7 +296,11 @@ def tool_node_wrapper(state: QuickActionState) -> Dict:
             
             # 执行工具
             tool = PLANNER_TOOLS[tool_name]
-            result = tool.invoke(tool_args, config=config)
+            call_config = RunnableConfig(configurable={
+                **base_config.get('configurable', {}),
+                "tool_call_id": tool_call_id,
+            })
+            result = tool.invoke(tool_args, config=call_config)
             
             # 处理结果
             if isinstance(result, str):

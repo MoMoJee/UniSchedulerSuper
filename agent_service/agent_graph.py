@@ -1711,10 +1711,31 @@ def create_tool_node_with_permission_check():
                 tool = all_tools_dict[tool_name]
                 # 将 tool_call_id 添加到 config 中，用于事务记录
                 tool_config = {**config}
+                message_index = next(
+                    (index for index in range(len(state.get('messages', [])) - 1, -1, -1)
+                     if isinstance(state['messages'][index], HumanMessage)),
+                    None,
+                )
+                rollback_window_id = ''
+                if user and configurable.get('thread_id') and message_index is not None:
+                    try:
+                        from agent_service.models import AgentRollbackWindow
+                        active_window = AgentRollbackWindow.objects.filter(
+                            user=user,
+                            session__session_id=configurable.get('thread_id'),
+                            status=AgentRollbackWindow.STATUS_ACTIVE,
+                        ).first()
+                        rollback_window_id = str(active_window.window_id) if active_window else ''
+                    except Exception as e:
+                        logger.warning(f"[ToolNode] 获取 rollback window 失败: {e}")
                 if "configurable" in tool_config:
                     tool_config["configurable"] = {
                         **tool_config["configurable"],
-                        "tool_call_id": tool_call_id
+                        "tool_call_id": tool_call_id,
+                        "planner_source": "websocket_agent",
+                        "session_id": configurable.get('thread_id', ''),
+                        "rollback_window_id": rollback_window_id,
+                        "message_index": message_index,
                     }
                 else:
                     tool_config["configurable"] = {"tool_call_id": tool_call_id}

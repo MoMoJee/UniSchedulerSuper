@@ -164,11 +164,22 @@ def _start_async_execution(task_id, user_id: int, text: str):
 
 def _execute_sync(task: QuickActionTask, user, text: str, timeout: int) -> Response:
     """同步执行快速操作"""
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+    from .quick_action_agent import set_task_cancelled
+
     try:
         task.mark_processing()
-        
-        # 执行
-        result = execute_quick_action_sync(user, text, str(task.task_id))
+
+        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='quick-action-sync')
+        future = executor.submit(execute_quick_action_sync, user, text, str(task.task_id))
+        try:
+            result = future.result(timeout=max(0, timeout))
+        except FutureTimeout:
+            set_task_cancelled(str(task.task_id))
+            task.mark_timeout()
+            executor.shutdown(wait=False, cancel_futures=True)
+            return Response(task.to_response_dict(), status=status.HTTP_408_REQUEST_TIMEOUT)
+        executor.shutdown(wait=False)
         
         # 获取模型信息并记录 token 使用
         model_id, _ = get_current_model_config(user)

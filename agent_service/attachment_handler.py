@@ -223,7 +223,9 @@ class AttachmentHandler:
             }
 
         # 获取快照数据
-        snapshot = AttachmentHandler._build_snapshot(user, element_type, element_id)
+        snapshot = result.get('metadata', {}).get('snapshot') or AttachmentHandler._build_snapshot(
+            user, element_type, element_id
+        )
 
         attachment = SessionAttachment(
             user=user,

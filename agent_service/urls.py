@@ -21,6 +21,8 @@ urlpatterns = [
     path('sessions/create/', views_api.create_session, name='create_session'),
     path('sessions/<str:session_id>/', views_api.delete_session, name='delete_session'),
     path('sessions/<str:session_id>/rename/', views_api.rename_session, name='rename_session'),
+    path('sessions/<str:session_id>/rollback-window/rotate/', views_api.rotate_rollback_window, name='rotate_rollback_window'),
+    path('sessions/<str:session_id>/rollback-window/close/', views_api.close_rollback_window, name='close_rollback_window'),
     
     # 历史查询
     path('history/', views_api.get_history, name='get_history'),

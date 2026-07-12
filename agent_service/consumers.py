@@ -129,7 +129,23 @@ class AgentConsumer(AsyncWebsocketConsumer):
                 messages = state.values.get("messages", [])
                 current_message_count = len(messages)
         except Exception as e:
-            logger.warning(f"[WebSocket] 获取消息数量失败: {e}")
+            logger.exception(f"[WebSocket] 获取消息数量失败，拒绝以错误 floor 建窗: {e}")
+            await self.close(code=4500)
+            return
+
+        # P4：窗口正确性不能依赖前端 rotate 请求。刷新复用当前窗口；首次连接或
+        # 旧静态页面连接时，以连接瞬间的消息末尾建立新的服务端 floor。
+        try:
+            from agent_service.rollback_windows import AgentRollbackWindowService
+            await database_sync_to_async(AgentRollbackWindowService.ensure_active)(
+                user=self.user,
+                session_id=self.session_id,
+                floor_message_index=current_message_count,
+            )
+        except Exception as e:
+            logger.exception(f"[WebSocket] 建立 rollback window 失败: {e}")
+            await self.close(code=4500)
+            return
         
         # 6. 检查会话命名状态
         is_naming = False

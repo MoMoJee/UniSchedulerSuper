@@ -27,6 +27,7 @@ class AgentChat {
         
         // 会话切换时的回滚标记起点
         this.rollbackBaseIndex = 0;
+        this.rollbackWindowId = null;
         
         // 工具选择状态
         this.availableTools = [];  // 可用工具列表（从服务器获取）
@@ -223,18 +224,41 @@ class AgentChat {
      * 获取当前会话的回滚基准点
      */
     getRollbackBaseIndex() {
-        const key = `rollback_base_${this.sessionId}`;
-        const stored = localStorage.getItem(key);
-        return stored !== null ? parseInt(stored, 10) : 0;
+        return this.rollbackBaseIndex;
     }
 
     /**
      * 保存当前会话的回滚基准点
      */
     saveRollbackBaseIndex(index) {
-        const key = `rollback_base_${this.sessionId}`;
-        localStorage.setItem(key, index.toString());
         this.rollbackBaseIndex = index;
+    }
+
+    async rotateRollbackWindow(sessionId, floorMessageIndex) {
+        const response = await fetch(`/api/agent/sessions/${encodeURIComponent(sessionId)}/rollback-window/rotate/`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrfToken},
+            body: JSON.stringify({
+                floor_message_index: floorMessageIndex,
+                activation_token: (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)
+            })
+        });
+        if (!response.ok) throw new Error(`建立回滚窗口失败: ${response.status}`);
+        const windowData = await response.json();
+        this.rollbackWindowId = windowData.window_id;
+        this.rollbackBaseIndex = windowData.floor_message_index;
+        return windowData;
+    }
+
+    async closeRollbackWindow(sessionId) {
+        if (!sessionId) return;
+        const response = await fetch(`/api/agent/sessions/${encodeURIComponent(sessionId)}/rollback-window/close/`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrfToken},
+            body: '{}'
+        });
+        if (!response.ok) throw new Error(`关闭回滚窗口失败: ${response.status}`);
+        this.rollbackWindowId = null;
     }
 
     // ==========================================
@@ -1234,7 +1258,7 @@ class AgentChat {
         
         // 用户消息添加回滚按钮（只有在回滚基准点之后的消息才显示，且仅当前会话）
         let rollbackInfo = '';
-        if (type === 'user' && messageIndex !== null && messageIndex >= this.rollbackBaseIndex) {
+        if (type === 'user' && messageIndex !== null && metadata.canRollback !== false && messageIndex >= this.rollbackBaseIndex) {
             rollbackInfo = `
                 <div class="rollback-info-wrapper">
                     <span class="rollback-info-text">可回滚此消息</span>
@@ -2475,6 +2499,14 @@ class AgentChat {
             if (response.ok) {
                 const data = await response.json();
                 const messages = data.messages || [];
+                const totalMessages = data.total_messages || messages.length;
+                let rollbackWindow = data.rollback_window;
+                if (!rollbackWindow) {
+                    rollbackWindow = await this.rotateRollbackWindow(this.sessionId, totalMessages);
+                } else {
+                    this.rollbackWindowId = rollbackWindow.window_id;
+                    this.rollbackBaseIndex = rollbackWindow.floor_message_index;
+                }
                 
                 // 清空现有消息
                 this.messagesContainer.innerHTML = '';
@@ -2483,19 +2515,7 @@ class AgentChat {
                 this.messageCount = 0;
                 
                 if (messages.length > 0) {
-                    const totalMessages = data.total_messages || messages.length;
                     this.messageCount = totalMessages;
-                    
-                    // 【关键】从 localStorage 恢复回滚基准点
-                    // 如果没有存储值，说明是首次加载或切换后首次加载，使用消息总数
-                    const storedBaseIndex = this.getRollbackBaseIndex();
-                    // 如果存储的基准点有效（<=消息总数），使用它；否则使用消息总数
-                    if (storedBaseIndex <= totalMessages) {
-                        this.rollbackBaseIndex = storedBaseIndex;
-                    } else {
-                        // 存储的值无效（可能是回滚后消息减少了），重置为消息总数
-                        this.saveRollbackBaseIndex(totalMessages);
-                    }
                     
                     // 【新增】检查是否正在总结
                     if (data.is_summarizing) {
@@ -2534,6 +2554,7 @@ class AgentChat {
                             // 用户消息
                             if (hasContent(msg.content)) {
                                 const metadata = {};
+                                metadata.canRollback = msg.can_rollback === true;
                                 // 如果消息包含附件列表，传递给 addMessage 渲染磁贴
                                 if (msg.attachments && msg.attachments.length > 0) {
                                     metadata.attachments = msg.attachments;
@@ -2773,8 +2794,8 @@ class AgentChat {
             await this.showMemoryOptimizePrompt();
         }
         
-        // 【关键】切换前，将当前会话的回滚基准点设为消息总数（使所有消息不可回滚）
-        this.saveRollbackBaseIndex(this.messageCount);
+        // 后端关闭旧窗口；直接调用旧消息回滚 API 也会被拒绝。
+        await this.closeRollbackWindow(this.sessionId);
         
         // 保存新的会话ID
         this.saveSessionId(sessionId);
@@ -2787,9 +2808,6 @@ class AgentChat {
         
         // 重新连接 WebSocket
         this.reconnect();
-        
-        // 【关键】切换后，将新会话的回滚基准点设为很大的数（稍后在 loadHistory 中会设置为实际消息数）
-        this.saveRollbackBaseIndex(999999);
         
         // 加载新会话历史
         await this.loadHistory();
@@ -2829,8 +2847,7 @@ class AgentChat {
         const confirmed = confirm('创建新会话后，当前会话的所有消息将无法回滚。是否继续？');
         if (!confirmed) return;
         
-        // 【关键】新建前，将当前会话的回滚基准点设为消息总数（使所有消息不可回滚）
-        this.saveRollbackBaseIndex(this.messageCount);
+        await this.closeRollbackWindow(this.sessionId);
         
         try {
             const response = await fetch('/api/agent/sessions/create/', {
@@ -2853,8 +2870,7 @@ class AgentChat {
                 
                 // 重置状态：新会话从0开始，所有新消息都可回滚
                 this.messageCount = 0;
-                // 【关键】新会话的回滚基准点为0，所有新消息都可回滚
-                this.saveRollbackBaseIndex(0);
+                await this.rotateRollbackWindow(data.session_id, 0);
                 
                 // 清空并显示欢迎消息
                 this.messagesContainer.innerHTML = '';

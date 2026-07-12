@@ -28,6 +28,7 @@ from .cache_manager import CacheManager
 from .repeat_parser import RepeatParser
 from .event_group_service import EventGroupService
 from .share_group_service import ShareGroupService
+from . import planner_application_adapter as p4_adapter
 from .conflict_analyzer import (
     detect_hard_conflicts,
     analyze_daily_density,
@@ -228,6 +229,16 @@ def search_items(
         - search_items(item_type="event", share_groups=[])  # 仅用户自己的日程
         - search_items(item_type="event", share_groups=["工作组"], share_groups_only=True)  # 仅搜索指定分享组
     """
+    if p4_adapter.should_use_normalized(config):
+        try:
+            return p4_adapter.search_normalized(
+                config, item_type=item_type, keyword=keyword, time_range=time_range,
+                status=status, event_group=event_group, share_groups=share_groups,
+                share_groups_only=share_groups_only, limit=limit,
+            )
+        except Exception as exc:
+            logger.error(f"normalized 搜索失败: {exc}", exc_info=True)
+            return f"❌ 搜索失败: {exc}"
     user = _get_user_from_config(config)
     session_id = _get_session_id_from_config(config)
     
@@ -625,6 +636,18 @@ def create_item(
         - create_item(item_type="todo", title="写报告", due_date="2024-01-20", priority="high")
         - create_item(item_type="reminder", title="喝水", trigger_time="2024-01-15T10:00", repeat="每天")
     """
+    if p4_adapter.should_use_normalized(config):
+        try:
+            return p4_adapter.create_normalized(
+                config, item_type=item_type, title=title, description=description,
+                start=start, end=end, event_group=event_group, importance=importance,
+                urgency=urgency, shared_to_groups=shared_to_groups, ddl=ddl,
+                due_date=due_date, priority=priority, trigger_time=trigger_time,
+                content=content, repeat=repeat,
+            )
+        except Exception as exc:
+            logger.error(f"normalized 创建失败: {exc}", exc_info=True)
+            return f"❌ 创建失败: {exc}"
     user = _get_user_from_config(config)
     session_id = _get_session_id_from_config(config)
     
@@ -806,6 +829,19 @@ def update_item(
         # 修改此实例及之后，并更改重复规则
         - update_item(identifier="#1", edit_scope="future", repeat="每周一三五;COUNT=10")
     """
+    if p4_adapter.should_use_normalized(config):
+        try:
+            return p4_adapter.update_normalized(
+                config, identifier=identifier, item_type=item_type, edit_scope=edit_scope,
+                from_time=from_time, title=title, description=description, start=start,
+                end=end, event_group=event_group, importance=importance, urgency=urgency,
+                shared_to_groups=shared_to_groups, ddl=ddl, due_date=due_date,
+                priority=priority, status=status, trigger_time=trigger_time, content=content,
+                repeat=repeat, clear_repeat=clear_repeat,
+            )
+        except Exception as exc:
+            logger.error(f"normalized 更新失败: {exc}", exc_info=True)
+            return f"❌ 更新失败: {exc}"
     user = _get_user_from_config(config)
     session_id = _get_session_id_from_config(config)
     
@@ -1046,6 +1082,14 @@ def delete_item(
         # 删除此次及之后
         - delete_item(identifier="#2", delete_scope="future")
     """
+    if p4_adapter.should_use_normalized(config):
+        try:
+            return p4_adapter.delete_normalized(
+                config, identifier=identifier, item_type=item_type, delete_scope=delete_scope
+            )
+        except Exception as exc:
+            logger.error(f"normalized 删除失败: {exc}", exc_info=True)
+            return f"❌ 删除失败: {exc}"
     user = _get_user_from_config(config)
     session_id = _get_session_id_from_config(config)
     
@@ -1165,6 +1209,9 @@ def get_event_groups(config: RunnableConfig) -> str:
         - 创建日程并指定事件组: create_item(..., event_group='#g1')
         - 按事件组搜索: search_items(event_group='工作')
     """
+    if p4_adapter.should_use_normalized(config):
+        try: return p4_adapter.groups_normalized(config)
+        except Exception as exc: return f"获取事件组失败: {exc}"
     user = _get_user_from_config(config)
     
     try:
@@ -1202,6 +1249,9 @@ def get_share_groups(config: RunnableConfig) -> str:
         - 创建日程并分享: create_item(..., shared_to_groups=['#s1'])
         - 按分享组搜索: search_items(share_groups=['#s1'], share_groups_only=True)
     """
+    if p4_adapter.should_use_normalized(config):
+        try: return p4_adapter.share_groups_normalized(config)
+        except Exception as exc: return f"获取分享组失败: {exc}"
     user = _get_user_from_config(config)
     
     try:
@@ -1234,6 +1284,9 @@ def complete_todo(config: RunnableConfig, identifier: str) -> str:
         - complete_todo(identifier="#1")
         - complete_todo(identifier="写报告")
     """
+    if p4_adapter.should_use_normalized(config):
+        try: return p4_adapter.complete_todo_normalized(config, identifier)
+        except Exception as exc: return f"❌ 完成失败: {exc}"
     user = _get_user_from_config(config)
     session_id = _get_session_id_from_config(config)
     
@@ -1299,6 +1352,14 @@ def check_schedule_conflicts(
         check_schedule_conflicts(time_range="this_week")
         check_schedule_conflicts(time_range="2024-01-15 ~ 2024-01-20", analysis_focus=["conflicts"])
     """
+    if p4_adapter.should_use_normalized(config):
+        try:
+            return p4_adapter.conflicts_normalized(
+                config, time_range=time_range, include_share_groups=include_share_groups,
+                analysis_focus=analysis_focus,
+            )
+        except Exception as exc:
+            return f"❌ 冲突检查失败: {exc}"
     user = _get_user_from_config(config)
     session_id = _get_session_id_from_config(config)
     
