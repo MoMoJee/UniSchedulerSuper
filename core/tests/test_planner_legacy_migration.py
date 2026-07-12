@@ -23,6 +23,13 @@ from core.models import (
     TodoTag,
     UserData,
 )
+from core.planner.repair import (
+    MOMOJEE_DELETED_SHARE_EVENT_ID,
+    MOMOJEE_DELETED_SHARE_GROUP_ID,
+    MOMOJEE_EVENTS_CHECKSUM,
+    MOMOJEE_MISSING_END_EVENT_ID,
+    apply_legacy_repairs,
+)
 
 
 class PlannerLegacyMigrationCommandTests(TestCase):
@@ -38,6 +45,34 @@ class PlannerLegacyMigrationCommandTests(TestCase):
         output = StringIO()
         call_command('migrate_planner_legacy', '--user-id', self.user.id, *args, stdout=output)
         return json.loads(output.getvalue())
+
+    def test_momojee_repair_manifest_is_checksum_locked_and_audited(self):
+        missing_end = apply_legacy_repairs(
+            username='MoMoJee',
+            source_key='events',
+            checksum=MOMOJEE_EVENTS_CHECKSUM,
+            row={'id': MOMOJEE_MISSING_END_EVENT_ID, 'start': '2026-04-18T23:52:00', 'end': None},
+        )
+        deleted_share = apply_legacy_repairs(
+            username='MoMoJee',
+            source_key='events',
+            checksum=MOMOJEE_EVENTS_CHECKSUM,
+            row={
+                'id': MOMOJEE_DELETED_SHARE_EVENT_ID,
+                'shared_to_groups': [MOMOJEE_DELETED_SHARE_GROUP_ID, 'keep-me'],
+            },
+        )
+        checksum_mismatch = apply_legacy_repairs(
+            username='MoMoJee',
+            source_key='events',
+            checksum='changed-source',
+            row={'id': MOMOJEE_MISSING_END_EVENT_ID, 'start': '2026-04-18T23:52:00', 'end': None},
+        )
+
+        self.assertEqual(missing_end['end'], '2026-04-19T00:52:00')
+        self.assertEqual(missing_end['_planner_migration_repairs'][0]['duration_seconds'], 3600)
+        self.assertEqual(deleted_share['shared_to_groups'], ['keep-me'])
+        self.assertIsNone(checksum_mismatch['end'])
 
     def test_dry_run_reports_plan_without_creating_normalized_rows(self):
         self._put('events_groups', [{'id': 'group-1', 'name': '学习', 'color': '#123456'}])

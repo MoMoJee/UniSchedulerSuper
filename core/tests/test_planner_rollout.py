@@ -1,9 +1,11 @@
-"""P2-C cohort 准入必须默认回退 legacy。"""
+"""P2-C cohort 准入必须默认回退 legacy，并拒绝 verified 后的源漂移。"""
+
+import hashlib
 
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 
-from core.models import PlannerCohortAssignment, PlannerMigrationIssue, PlannerMigrationState
+from core.models import PlannerCohortAssignment, PlannerMigrationIssue, PlannerMigrationState, UserData
 from core.planner.rollout import PlannerRolloutPolicy
 
 
@@ -17,11 +19,13 @@ class PlannerRolloutPolicyTests(TestCase):
         self.assertEqual(decision.effective_mode, 'legacy')
         self.assertEqual(decision.reason, 'user_not_assigned')
 
+        source = UserData.objects.create(user=self.user, key='events', value='[]')
         PlannerMigrationState.objects.create(
             user=self.user,
             source_key='events',
             status=PlannerMigrationState.STATUS_VERIFIED,
-            source_checksum='checksum',
+            source_row_id=source.id,
+            source_checksum=hashlib.sha256(b'[]').hexdigest(),
         )
         PlannerCohortAssignment.objects.create(
             user=self.user,
@@ -33,5 +37,29 @@ class PlannerRolloutPolicyTests(TestCase):
 
         PlannerMigrationIssue.objects.create(user=self.user, source_key='events', code='unresolved')
         decision = PlannerRolloutPolicy.decide(self.user, 'web')
+        self.assertEqual(decision.effective_mode, 'legacy')
+        self.assertEqual(decision.reason, 'migration_not_verified_clean')
+
+    @override_settings(PLANNER_STORAGE_MODE='normalized')
+    def test_verified_source_checksum_drift_immediately_revokes_normalized_access(self):
+        source = UserData.objects.create(user=self.user, key='events', value='[]')
+        PlannerMigrationState.objects.create(
+            user=self.user,
+            source_key='events',
+            status=PlannerMigrationState.STATUS_VERIFIED,
+            source_row_id=source.id,
+            source_checksum=hashlib.sha256(b'[]').hexdigest(),
+        )
+        PlannerCohortAssignment.objects.create(
+            user=self.user,
+            storage_mode=PlannerCohortAssignment.MODE_NORMALIZED,
+            entrypoints={'web_calendar': {'mode': 'normalized'}},
+        )
+        self.assertEqual(PlannerRolloutPolicy.decide(self.user, 'web_calendar').effective_mode, 'normalized')
+
+        source.value = '[{"id":"new-legacy-write"}]'
+        source.save(update_fields=['value'])
+
+        decision = PlannerRolloutPolicy.decide(self.user, 'web_calendar')
         self.assertEqual(decision.effective_mode, 'legacy')
         self.assertEqual(decision.reason, 'migration_not_verified_clean')

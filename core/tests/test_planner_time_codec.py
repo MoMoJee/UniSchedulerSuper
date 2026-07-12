@@ -62,3 +62,29 @@ class PlannerTimeCodecTests(unittest.TestCase):
 
         self.assertEqual(timed, 'FREQ=DAILY;UNTIL=20260320T010000Z')
         self.assertEqual(all_day, 'FREQ=DAILY;UNTIL=20260320')
+
+    def test_complex_supported_rrule_fields_are_preserved_canonically(self):
+        canonical = canonicalize_rrule(
+            'FREQ=YEARLY;WKST=SU;BYMONTH=1,12;BYWEEKNO=-1,1;BYYEARDAY=-1,1;BYSETPOS=-1,1',
+            dtstart=datetime(2026, 1, 1, 9, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(
+            canonical,
+            'BYMONTH=1,12;BYSETPOS=-1,1;BYWEEKNO=-1,1;BYYEARDAY=-1,1;FREQ=YEARLY;WKST=SU',
+        )
+
+    def test_monthly_negative_monthday_and_ordinal_byday_are_supported(self):
+        monthday = canonicalize_rrule('FREQ=MONTHLY;BYMONTHDAY=-1', dtstart=date(2026, 1, 31))
+        ordinal = canonicalize_rrule('FREQ=MONTHLY;BYDAY=1MO,-1FR', dtstart=date(2026, 1, 1))
+
+        self.assertEqual(monthday, 'BYMONTHDAY=-1;FREQ=MONTHLY')
+        self.assertEqual(ordinal, 'BYDAY=-1FR,1MO;FREQ=MONTHLY')
+
+    def test_invalid_wkst_zero_setpos_and_iso_date_for_timed_field_are_rejected(self):
+        with self.assertRaises(InvalidRRuleError):
+            canonicalize_rrule('FREQ=WEEKLY;WKST=XX', dtstart=date(2026, 1, 1))
+        with self.assertRaises(InvalidRRuleError):
+            canonicalize_rrule('FREQ=MONTHLY;BYSETPOS=0', dtstart=date(2026, 1, 1))
+        with self.assertRaises(PlannerTimeError):
+            PlannerTimeCodec.parse_value('2026-03-20', allow_date=False)

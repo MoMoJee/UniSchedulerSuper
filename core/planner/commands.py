@@ -13,17 +13,23 @@ from uuid import uuid4
 from dateutil.rrule import rruleset, rrulestr
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from core.models import (
     CalendarChange,
     CalendarCollectionVersion,
     CalendarEvent,
+    CollaborativeCalendarGroup,
     EventGroup,
     EventOccurrenceOverride,
+    EventReminderLink,
     EventRecurrenceExDate,
     EventRecurrenceRDate,
     EventRecurrenceSeries,
+    EventRecurrenceSplitReview,
+    EventShareGroup,
+    EventTag,
     PlannerChangeSet,
 )
 from core.planner.recurrence.codec import InvalidRRuleError, PlannerTimeCodec, PlannerTimeError, canonicalize_rrule
@@ -53,9 +59,21 @@ class PlannerCommandService:
 
     @classmethod
     @transaction.atomic
-    def create_event(cls, user: User, payload: Mapping[str, Any]) -> CalendarEvent:
+    def create_event(
+        cls,
+        user: User,
+        payload: Mapping[str, Any],
+        *,
+        event_id: str | None = None,
+    ) -> CalendarEvent:
         event_fields, recurrence_payload = cls._event_fields_from_payload(user, payload, creating=True)
+        if event_id is not None:
+            if not isinstance(event_id, str) or not event_id.strip() or len(event_id) > 100:
+                raise PlannerCommandError('event_id 格式无效', code='invalid_event_id')
+            event_fields['event_id'] = event_id.strip()
         event = CalendarEvent.objects.create(user=user, **event_fields)
+        if 'share_group_ids' in payload:
+            cls._replace_share_groups(user, event, payload['share_group_ids'])
         if recurrence_payload is not None:
             cls._create_series(user, event, recurrence_payload)
         cls._record_change(user, event, command_type='event.create', before={}, after=cls._snapshot(event))
@@ -76,9 +94,18 @@ class PlannerCommandService:
         event = cls._locked_event(user, event_id)
         series = cls._locked_series(event)
         if scope == 'this_and_future':
-            raise PlannerCommandError(
-                '此及以后需要先选择未来 override 的归属策略，当前 v2 命令不会进行不安全分裂',
-                code='recurrence_split_requires_override_policy',
+            if series is None:
+                raise PlannerCommandError('非重复 event 不支持 this_and_future', code='invalid_scope')
+            cls._require_source_version(expected_version, event, series)
+            recurrence_id = cls._require_occurrence_ref(event, series, occurrence_ref)
+            cls._ensure_recurrence_slot(series, recurrence_id)
+            return cls._split_event(
+                user,
+                event,
+                series,
+                recurrence_id,
+                payload,
+                override_policy=str(payload.get('override_policy') or ''),
             )
         if series is None:
             if scope not in {'single', 'all'}:
@@ -86,11 +113,18 @@ class PlannerCommandService:
             cls._require_source_version(expected_version, event)
             before = cls._snapshot(event)
             fields, recurrence_payload = cls._event_fields_from_payload(user, payload, current=event)
-            if recurrence_payload is not None:
-                raise PlannerCommandError('单次 event 不能通过 PATCH 隐式创建 recurrence，请新建重复 event', code='recurrence_transition_unsupported')
             cls._apply_event_fields(event, fields)
             event.bump_version(update_fields=fields.keys())
-            cls._record_change(user, event, command_type='event.patch', before=before, after=cls._snapshot(event))
+            if 'share_group_ids' in payload:
+                cls._replace_share_groups(user, event, payload['share_group_ids'])
+            attached_series = cls._create_series(user, event, recurrence_payload) if recurrence_payload is not None else None
+            cls._record_change(
+                user,
+                event,
+                command_type='event.attach_recurrence' if attached_series else 'event.patch',
+                before=before,
+                after=cls._snapshot(event, attached_series),
+            )
             return event
 
         if scope == 'all':
@@ -98,13 +132,21 @@ class PlannerCommandService:
             before = cls._snapshot(event, series)
             fields, recurrence_payload = cls._event_fields_from_payload(user, payload, current=event)
             cls._apply_event_fields(event, fields)
-            if fields:
+            detach_recurrence = 'recurrence' in payload and payload.get('recurrence') is None
+            if fields or detach_recurrence:
                 event.bump_version(update_fields=fields.keys())
-            if recurrence_payload is not None:
+            if detach_recurrence:
+                series.soft_delete(expected_version=series.version)
+            elif recurrence_payload is not None:
                 cls._update_series(series, event, recurrence_payload)
             elif any(key in fields for key in {'start_at', 'end_at', 'start_date', 'end_date', 'tzid', 'is_all_day'}):
                 cls._rewrite_series_for_master_time(series, event)
-            cls._record_change(user, event, command_type='event.patch_all', before=before, after=cls._snapshot(event, series))
+            if 'share_group_ids' in payload:
+                cls._replace_share_groups(user, event, payload['share_group_ids'])
+                if not fields and not detach_recurrence:
+                    event.bump_version(update_fields=[])
+            command_type = 'event.detach_recurrence_all' if detach_recurrence else 'event.patch_all'
+            cls._record_change(user, event, command_type=command_type, before=before, after=cls._snapshot(event, series))
             return event
 
         if scope != 'single':
@@ -115,8 +157,37 @@ class PlannerCommandService:
         if override is not None and override.kind == EventOccurrenceOverride.KIND_CANCELLED:
             raise PlannerCommandError('已取消的 occurrence 不能直接修改', code='occurrence_not_found')
         cls._ensure_recurrence_slot(series, recurrence_id)
+        if 'share_group_ids' in payload:
+            raise PlannerCommandError('single occurrence 不支持独立分享关系', code='unsupported_relation_scope')
         before = cls._snapshot(event, series, override)
-        patch, effective_values = cls._override_values_from_payload(user, event, payload)
+        detach = payload.get('detach') is True
+        clean_payload = {key: value for key, value in payload.items() if key != 'detach'}
+        patch, effective_values = cls._override_values_from_payload(user, event, clean_payload)
+        if detach:
+            if override is None:
+                override = EventOccurrenceOverride.objects.create(
+                    series=series,
+                    recurrence_id=recurrence_id,
+                    kind=EventOccurrenceOverride.KIND_MODIFIED,
+                    patch=patch,
+                    **effective_values,
+                )
+            else:
+                override.patch = {**override.patch, **patch}
+                cls._apply_override_effective_values(override, effective_values)
+                override.bump_version(update_fields={'patch', *effective_values.keys()})
+            detached = cls._detach_override_as_single(user, event, series, override)
+            override.kind = EventOccurrenceOverride.KIND_CANCELLED
+            override.patch = {}
+            override.bump_version(update_fields={'kind', 'patch'})
+            cls._record_change(
+                user,
+                detached,
+                command_type='event.detach_occurrence',
+                before=before,
+                after=cls._snapshot(detached, series, override),
+            )
+            return detached
         if not patch and not effective_values:
             raise PlannerCommandError('single scope 至少需要一个可修改字段', code='empty_patch')
         if override is None:
@@ -151,10 +222,13 @@ class PlannerCommandService:
         event = cls._locked_event(user, event_id)
         series = cls._locked_series(event)
         if scope == 'this_and_future':
-            raise PlannerCommandError(
-                '此及以后删除需要安全分裂策略，当前 v2 命令拒绝执行',
-                code='recurrence_split_requires_override_policy',
-            )
+            if series is None:
+                raise PlannerCommandError('非重复 event 不支持 this_and_future', code='invalid_scope')
+            cls._require_source_version(expected_version, event, series)
+            recurrence_id = cls._require_occurrence_ref(event, series, occurrence_ref)
+            cls._ensure_recurrence_slot(series, recurrence_id)
+            cls._truncate_series_from(user, event, series, recurrence_id)
+            return event
         if series is None:
             if scope not in {'single', 'all'}:
                 raise PlannerCommandError('非重复 event 仅支持 single 或 all scope', code='invalid_scope')
@@ -214,6 +288,237 @@ class PlannerCommandService:
         return max(item.version for item in objects)
 
     @classmethod
+    def _split_event(
+        cls,
+        user: User,
+        event: CalendarEvent,
+        series: EventRecurrenceSeries,
+        recurrence_id: str,
+        payload: Mapping[str, Any],
+        *,
+        override_policy: str,
+    ) -> CalendarEvent:
+        future_overrides = list(
+            EventOccurrenceOverride.objects.select_for_update()
+            .filter(series=series, recurrence_id__gte=recurrence_id, deleted_at__isnull=True)
+            .order_by('recurrence_id')
+        )
+        recurrence_specified = 'recurrence' in payload
+        custom_recurrence = recurrence_specified and payload.get('recurrence') is not None
+        detach_future = recurrence_specified and payload.get('recurrence') is None
+        if future_overrides and override_policy not in {'keep_as_single', 'discard_with_audit', 'map_by_ordinal'}:
+            raise PlannerCommandError('未来 override 存在，必须选择归属策略', code='recurrence_split_requires_override_policy')
+        if custom_recurrence and future_overrides and override_policy == 'map_by_ordinal':
+            raise PlannerCommandError('修改规则时不能证明 ordinal 映射，请选择其他策略', code='recurrence_split_requires_override_policy')
+        if detach_future and override_policy == 'map_by_ordinal':
+            raise PlannerCommandError('取消未来重复时不能映射 override', code='recurrence_split_requires_override_policy')
+
+        slot = PlannerTimeCodec.parse_recurrence_id(recurrence_id, tzid=series.tzid)
+        duration = cls._event_duration(event)
+        child = CalendarEvent(
+            user=user,
+            group=event.group,
+            title=event.title,
+            description=event.description,
+            location=event.location,
+            status=event.status,
+            importance=event.importance,
+            urgency=event.urgency,
+            ddl_at=event.ddl_at,
+            tzid=event.tzid,
+            is_all_day=event.is_all_day,
+            metadata={**event.metadata, 'split_from_series_id': series.series_id, 'split_recurrence_id': recurrence_id},
+        )
+        if event.is_all_day:
+            child.start_date = slot
+            child.end_date = slot + duration
+        else:
+            slot_utc = PlannerTimeCodec.to_utc(slot, tzid=series.tzid)
+            child.start_at = slot_utc
+            child.end_at = slot_utc + duration
+        clean_payload = {key: value for key, value in payload.items() if key != 'override_policy'}
+        fields, recurrence_payload = cls._event_fields_from_payload(user, clean_payload, current=child)
+        cls._apply_event_fields(child, fields)
+        child.save()
+
+        parent_parts = cls._rrule_parts(series.rrule_canonical or series.rrule)
+        kept_count = cls._count_slots_before(series, recurrence_id)
+        remaining_count = None
+        if 'COUNT' in parent_parts:
+            remaining_count = max(int(parent_parts['COUNT']) - kept_count, 1)
+        derived_child_parts = dict(parent_parts)
+        if remaining_count is not None:
+            derived_child_parts['COUNT'] = str(remaining_count)
+        derived_child_rule = ';'.join(f'{key}={value}' for key, value in sorted(derived_child_parts.items()))
+        if recurrence_payload is None and not detach_future:
+            recurrence_payload = {'rrule': derived_child_rule}
+        child_series = None
+        if not detach_future:
+            child_series = cls._create_series(user, child, recurrence_payload)
+            child_series.parent_series = series
+            child_series.split_recurrence_id = recurrence_id
+            child_series.save(update_fields={'parent_series', 'split_recurrence_id', 'updated_at'})
+
+        if child_series is not None and not custom_recurrence:
+            for item in list(series.rdates.filter(recurrence_id__gte=recurrence_id)):
+                EventRecurrenceRDate.objects.get_or_create(
+                    series=child_series,
+                    recurrence_id=item.recurrence_id,
+                    defaults={'starts_at': item.starts_at, 'starts_date': item.starts_date},
+                )
+            for item in list(series.exdates.filter(recurrence_id__gte=recurrence_id)):
+                EventRecurrenceExDate.objects.get_or_create(
+                    series=child_series, recurrence_id=item.recurrence_id, defaults={'source': item.source}
+                )
+
+        if override_policy == 'map_by_ordinal':
+            for override in future_overrides:
+                override.series = child_series
+                override.bump_version(update_fields={'series'})
+        elif override_policy == 'keep_as_single':
+            for override in future_overrides:
+                if child_series is not None:
+                    EventRecurrenceExDate.objects.get_or_create(
+                        series=child_series,
+                        recurrence_id=override.recurrence_id,
+                        defaults={'source': 'split_keep_as_single'},
+                    )
+                if override.kind == EventOccurrenceOverride.KIND_MODIFIED:
+                    cls._detach_override_as_single(user, event, series, override)
+                override.soft_delete(expected_version=override.version)
+        else:
+            for override in future_overrides:
+                override.soft_delete(expected_version=override.version)
+
+        if child_series is not None and not custom_recurrence:
+            original_child_start = slot if event.is_all_day else slot_utc
+            effective_child_start = child.start_date if child.is_all_day else child.start_at
+            cls._shift_series_occurrence_keys(
+                child_series,
+                effective_child_start - original_child_start,
+                old_tzid=series.tzid,
+                new_tzid=child_series.tzid,
+            )
+
+        cls._truncate_parent_rule(event, series, kept_count)
+        cls._copy_event_relations(event, child)
+        if 'share_group_ids' in payload:
+            cls._replace_share_groups(user, child, payload['share_group_ids'])
+        cls._record_change(
+            user,
+            child,
+            command_type='event.split_this_and_future',
+            before=cls._snapshot(event, series),
+            after=cls._snapshot(child, child_series),
+        )
+        return child
+
+    @classmethod
+    def _truncate_series_from(cls, user: User, event: CalendarEvent, series: EventRecurrenceSeries, recurrence_id: str) -> None:
+        kept_count = cls._count_slots_before(series, recurrence_id)
+        for override in EventOccurrenceOverride.objects.select_for_update().filter(
+            series=series, recurrence_id__gte=recurrence_id, deleted_at__isnull=True
+        ):
+            override.soft_delete(expected_version=override.version)
+        cls._truncate_parent_rule(event, series, kept_count)
+        cls._record_change(
+            user, event, command_type='event.delete_this_and_future',
+            before={'series_id': series.series_id, 'recurrence_id': recurrence_id},
+            after=cls._snapshot(event, series),
+        )
+
+    @classmethod
+    def _truncate_parent_rule(cls, event: CalendarEvent, series: EventRecurrenceSeries, kept_count: int) -> None:
+        if kept_count <= 0:
+            event.soft_delete(expected_version=event.version)
+            series.soft_delete(expected_version=series.version)
+            return
+        parts = cls._rrule_parts(series.rrule_canonical or series.rrule)
+        parts.pop('UNTIL', None)
+        parts['COUNT'] = str(kept_count)
+        rule = ';'.join(f'{key}={value}' for key, value in sorted(parts.items()))
+        dtstart = series.dtstart_at or series.dtstart_date
+        series.rrule = rule
+        series.rrule_canonical = canonicalize_rrule(rule, dtstart=dtstart, tzid=series.tzid)
+        series.sequence += 1
+        series.bump_version(update_fields={'rrule', 'rrule_canonical', 'sequence'})
+
+    @classmethod
+    def _count_slots_before(cls, series: EventRecurrenceSeries, recurrence_id: str) -> int:
+        dtstart = series.dtstart_at or series.dtstart_date
+        anchor = PlannerTimeCodec.parse_recurrence_id(recurrence_id, tzid=series.tzid)
+        is_all_day = isinstance(dtstart, date) and not isinstance(dtstart, datetime)
+        rule_start = PlannerTimeCodec.recurrence_datetime(dtstart, tzid=series.tzid)
+        anchor_dt = PlannerTimeCodec.recurrence_datetime(anchor, tzid=series.tzid)
+        if is_all_day:
+            rule_start = rule_start.replace(tzinfo=None)
+            anchor_dt = anchor_dt.replace(tzinfo=None)
+        rule = rrulestr(series.rrule_canonical or series.rrule, dtstart=rule_start)
+        return len([item for item in rule.between(rule_start, anchor_dt, inc=True) if item < anchor_dt])
+
+    @staticmethod
+    def _event_duration(event: CalendarEvent) -> timedelta:
+        start = event.start_date if event.is_all_day else event.start_at
+        end = event.end_date if event.is_all_day else event.end_at
+        if start is None or end is None or end <= start:
+            raise PlannerCommandError('event 时间范围非法', code='invalid_time_range')
+        return end - start
+
+    @staticmethod
+    def _rrule_parts(rule: str) -> dict[str, str]:
+        return {
+            key.upper(): value
+            for component in rule.removeprefix('RRULE:').split(';')
+            if '=' in component
+            for key, value in [component.split('=', 1)]
+        }
+
+    @classmethod
+    def _detach_override_as_single(
+        cls,
+        user: User,
+        master: CalendarEvent,
+        series: EventRecurrenceSeries,
+        override: EventOccurrenceOverride,
+    ) -> CalendarEvent:
+        start = override.effective_start_at or override.effective_start_date
+        end = override.effective_end_at or override.effective_end_date
+        if start is None:
+            start = PlannerTimeCodec.parse_recurrence_id(override.recurrence_id, tzid=series.tzid)
+        if end is None:
+            end = start + cls._event_duration(master)
+        patch = override.patch
+        detached = CalendarEvent.objects.create(
+            user=user, group=master.group, title=str(patch.get('title', master.title)),
+            description=str(patch.get('description', master.description)), location=str(patch.get('location', master.location)),
+            status=str(patch.get('status', master.status)), importance=str(patch.get('importance', master.importance)),
+            urgency=str(patch.get('urgency', master.urgency)), ddl_at=master.ddl_at, tzid=master.tzid,
+            is_all_day=master.is_all_day,
+            start_at=start if isinstance(start, datetime) else None,
+            end_at=end if isinstance(end, datetime) else None,
+            start_date=start if isinstance(start, date) and not isinstance(start, datetime) else None,
+            end_date=end if isinstance(end, date) and not isinstance(end, datetime) else None,
+            metadata={'detached_from_series_id': series.series_id, 'recurrence_id': override.recurrence_id},
+        )
+        cls._copy_event_relations(master, detached)
+        return detached
+
+    @staticmethod
+    def _copy_event_relations(source: CalendarEvent, target: CalendarEvent) -> None:
+        EventTag.objects.bulk_create(
+            [EventTag(event=target, tag=item.tag, normalized_tag=item.normalized_tag) for item in source.tag_links.all()],
+            ignore_conflicts=True,
+        )
+        EventReminderLink.objects.bulk_create(
+            [EventReminderLink(event=target, reminder=item.reminder) for item in source.reminder_links.all()],
+            ignore_conflicts=True,
+        )
+        EventShareGroup.objects.bulk_create(
+            [EventShareGroup(event=target, share_group=item.share_group) for item in source.share_links.all()],
+            ignore_conflicts=True,
+        )
+
+    @classmethod
     def _locked_event(cls, user: User, event_id: str) -> CalendarEvent:
         event = CalendarEvent.objects.select_for_update().filter(user=user, event_id=event_id, deleted_at__isnull=True).first()
         if event is None:
@@ -235,7 +540,9 @@ class PlannerCommandService:
     ) -> tuple[dict[str, Any], Mapping[str, Any] | None]:
         if not isinstance(payload, Mapping):
             raise PlannerCommandError('请求体必须是 JSON object')
-        known = cls._PATCHABLE_FIELDS | {'title', 'start', 'end', 'is_all_day', 'tzid', 'group_id', 'recurrence'}
+        known = cls._PATCHABLE_FIELDS | {
+            'title', 'start', 'end', 'is_all_day', 'tzid', 'group_id', 'recurrence', 'share_group_ids'
+        }
         unknown = set(payload) - known
         if unknown:
             raise PlannerCommandError(f'不支持的 event 字段: {", ".join(sorted(unknown))}', code='unsupported_field')
@@ -292,6 +599,23 @@ class PlannerCommandService:
         return fields, recurrence
 
     @staticmethod
+    def _replace_share_groups(user: User, event: CalendarEvent, raw_ids: Any) -> None:
+        if not isinstance(raw_ids, list) or any(not isinstance(item, str) or not item for item in raw_ids):
+            raise PlannerCommandError('share_group_ids 必须是非空字符串数组', code='invalid_share_groups')
+        ids = list(dict.fromkeys(raw_ids))
+        allowed = list(
+            CollaborativeCalendarGroup.objects.filter(share_group_id__in=ids)
+            .filter(Q(owner=user) | Q(memberships__user=user))
+            .distinct()
+        )
+        if len(allowed) != len(ids):
+            raise PlannerCommandError('包含不存在或无权访问的分享组', code='share_group_forbidden')
+        EventShareGroup.objects.filter(event=event).delete()
+        EventShareGroup.objects.bulk_create(
+            [EventShareGroup(event=event, share_group=group) for group in allowed]
+        )
+
+    @staticmethod
     def _parse_event_range(start_value: Any, end_value: Any, *, is_all_day: bool, tzid: str) -> tuple[date | datetime, date | datetime]:
         start = PlannerTimeCodec.parse_value(start_value, tzid=tzid, allow_date=is_all_day)
         end = PlannerTimeCodec.parse_value(end_value, tzid=tzid, allow_date=is_all_day)
@@ -337,9 +661,12 @@ class PlannerCommandService:
 
     @classmethod
     def _rewrite_series_for_master_time(cls, series: EventRecurrenceSeries, event: CalendarEvent) -> None:
+        old_dtstart = series.dtstart_date if event.is_all_day else series.dtstart_at
         dtstart = event.start_date if event.is_all_day else event.start_at
-        if dtstart is None:
+        if dtstart is None or old_dtstart is None:
             raise PlannerCommandError('event 缺少 DTSTART', code='invalid_time_range')
+        delta = dtstart - old_dtstart
+        cls._shift_series_occurrence_keys(series, delta, old_tzid=series.tzid, new_tzid=event.tzid)
         try:
             canonical = canonicalize_rrule(series.rrule, dtstart=dtstart, tzid=event.tzid)
         except InvalidRRuleError as exc:
@@ -350,6 +677,60 @@ class PlannerCommandService:
         series.tzid = event.tzid
         series.sequence += 1
         series.bump_version(update_fields={'rrule_canonical', 'dtstart_at', 'dtstart_date', 'tzid', 'sequence'})
+
+    @classmethod
+    def _shift_series_occurrence_keys(
+        cls,
+        series: EventRecurrenceSeries,
+        delta: timedelta,
+        *,
+        old_tzid: str,
+        new_tzid: str,
+    ) -> None:
+        """系列整体平移时同步稀疏关系的 RECURRENCE-ID 与显式生效时间。"""
+        if not delta:
+            return
+
+        def shifted_id(value: str) -> str:
+            slot = PlannerTimeCodec.parse_recurrence_id(value, tzid=old_tzid)
+            return PlannerTimeCodec.format_recurrence_id(slot + delta, tzid=new_tzid)
+
+        # 两阶段改键，避免日期平移后与同表相邻行的唯一约束瞬时冲突。
+        collections = (
+            list(series.overrides.select_for_update().filter(deleted_at__isnull=True)),
+            list(series.exdates.select_for_update().all()),
+            list(series.rdates.select_for_update().all()),
+            list(series.split_reviews.select_for_update().filter(deleted_at__isnull=True)),
+        )
+        remaps: list[tuple[Any, str]] = []
+        for objects in collections:
+            for item in objects:
+                remaps.append((item, shifted_id(item.recurrence_id)))
+                item.recurrence_id = f'tmp-{uuid4()}'
+                item.save(update_fields={'recurrence_id'})
+
+        for item, recurrence_id in remaps:
+            item.recurrence_id = recurrence_id
+            update_fields = {'recurrence_id'}
+            if isinstance(item, EventOccurrenceOverride):
+                if item.effective_start_at is not None:
+                    item.effective_start_at += delta
+                    item.effective_end_at += delta
+                    update_fields.update({'effective_start_at', 'effective_end_at'})
+                elif item.effective_start_date is not None:
+                    item.effective_start_date += delta
+                    item.effective_end_date += delta
+                    update_fields.update({'effective_start_date', 'effective_end_date'})
+                item.bump_version(update_fields=update_fields)
+                continue
+            if isinstance(item, EventRecurrenceRDate):
+                if item.starts_at is not None:
+                    item.starts_at += delta
+                    update_fields.add('starts_at')
+                elif item.starts_date is not None:
+                    item.starts_date += delta
+                    update_fields.add('starts_date')
+            item.save(update_fields=update_fields)
 
     @classmethod
     def _validated_recurrence_payload(cls, event: CalendarEvent, payload: Mapping[str, Any]) -> dict[str, Any]:

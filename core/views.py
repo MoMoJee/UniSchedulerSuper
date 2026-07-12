@@ -66,6 +66,8 @@ from .views_reminder import (
 from core.utils.validators import validate_body
 from core.services.todo_service import TodoService
 from core.planner.legacy import LegacyPlannerRepository
+from core.planner.rollout import PlannerRolloutPolicy
+from core.models import EventGroup
 
 # 导入 events 相关视图函数  
 from .views_events import (
@@ -205,18 +207,27 @@ def home(request):
     # 周数计算已迁移到前端JavaScript - 2025-11-02
     # 前端会根据用户设置的week_number_start自动计算并显示
 
-    # 获取事件组数据
-    user_data_groups, created = UserData.objects.get_or_create(
-        user=request.user, 
-        key="events_groups", 
-        defaults={"value": json.dumps([
-            {"id": "1", "name": "工作", "color": "#3498db"},
-            {"id": "2", "name": "学习", "color": "#2ecc71"},
-            {"id": "3", "name": "生活", "color": "#e74c3c"},
-            {"id": "4", "name": "其他", "color": "#95a5a6"}
-        ])}
-    )
-    events_groups = json.loads(user_data_groups.value)
+    calendar_mode = PlannerRolloutPolicy.decide(
+        request.user, PlannerRolloutPolicy.ENTRYPOINT_WEB_CALENDAR
+    ).effective_mode
+    if calendar_mode == 'normalized':
+        events_groups = [
+            {'id': group.group_id, 'name': group.name, 'color': group.color}
+            for group in EventGroup.objects.filter(user=request.user, deleted_at__isnull=True).order_by('created_at')
+        ]
+    else:
+        # legacy cohort 保持原初始化语义。
+        user_data_groups, created = UserData.objects.get_or_create(
+            user=request.user,
+            key="events_groups",
+            defaults={"value": json.dumps([
+                {"id": "1", "name": "工作", "color": "#3498db"},
+                {"id": "2", "name": "学习", "color": "#2ecc71"},
+                {"id": "3", "name": "生活", "color": "#e74c3c"},
+                {"id": "4", "name": "其他", "color": "#95a5a6"}
+            ])}
+        )
+        events_groups = json.loads(user_data_groups.value)
 
     # 创建一个上下文字典
     context = {
@@ -235,8 +246,9 @@ def home(request):
         }
     )
 
-    # 初始化 rrule_series_storage 。否则直接创建的时候不知道为啥会创建两个 rrule_series_storage，找半天找不到错在哪儿
-    rrule_series_storage, created, result = UserData.get_or_initialize(request, new_key="rrule_series_storage")
+    # normalized 页面不再因 GET 初始化 legacy recurrence 存储。
+    if calendar_mode != 'normalized':
+        rrule_series_storage, created, result = UserData.get_or_initialize(request, new_key="rrule_series_storage")
 
     # 添加备案信息到context
     context['beian_info'] = beian_info

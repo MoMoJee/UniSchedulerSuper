@@ -4401,7 +4401,7 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
     <script src="https://cdnjs.loli.net/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js" async></script>
     
     <!-- 群组协作功能 JavaScript -->
-    <script src="{% static 'js/share-groups.js' %}?v=20260311-001"></script>
+    <script src="{% static 'js/share-groups.js' %}?v=20260712-004"></script>
     
     <!-- 全局变量 -->
     <script>
@@ -4508,6 +4508,24 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
             // 加载所有数据
             async loadAllData() {
                 try {
+                    await window.plannerV2Client?.ready;
+                    if (window.plannerV2Client?.isNormalized('web_search')) {
+                        // normalized 会话不再下载全部 Planner JSON；仅文件仍使用文件服务。
+                        try {
+                            const filesResponse = await fetch('/api/files/pick/');
+                            const filesData = await filesResponse.json();
+                            this.searchData.files = (filesData.files || []).map(f => ({
+                                ...f, type: 'file', displayType: f.category === 'image' ? '图片' : '文档'
+                            }));
+                        } catch (error) {
+                            console.warn('[GlobalSearch] 加载文件失败:', error);
+                        }
+                        this.searchData.events = [];
+                        this.searchData.reminders = [];
+                        this.searchData.todos = [];
+                        this.searchData.shareGroupEvents = [];
+                        return;
+                    }
                     // 加载日程
                     const eventsResponse = await fetch('/get_calendar/events/');
                     const eventsData = await eventsResponse.json();
@@ -4602,7 +4620,47 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
             },
             
             // 执行搜索
-            performSearch(query) {
+            async performSearch(query) {
+                await window.plannerV2Client?.ready;
+                if (window.plannerV2Client?.isNormalized('web_search')) {
+                    try {
+                        const typeFilter = document.getElementById('searchTypeFilter').value;
+                        const types = typeFilter === 'all' ? 'event,todo,reminder' : typeFilter;
+                        if (typeFilter === 'file') {
+                            const files = this.searchData.files.filter(item => this.matchesQuery(item.filename, query)).map(item => ({
+                                ...item, title: item.filename, type: 'file', displayType: item.category === 'image' ? '图片' : '文档'
+                            }));
+                            this.displayResults(files);
+                            return;
+                        }
+                        const now = new Date();
+                        const from = new Date(now.getTime() - 30 * 86400000);
+                        const to = new Date(now.getTime() + 90 * 86400000);
+                        const payload = await window.plannerV2Client.request(
+                            `/api/v2/search/?q=${encodeURIComponent(query)}&types=${encodeURIComponent(types)}&from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}&page_size=100`
+                        );
+                        const results = (payload.results || []).map(item => {
+                            const type = item.entity_type;
+                            const normalized = {
+                                ...item,
+                                id: item.id || item.todo_id || item.reminder_id,
+                                type,
+                                displayType: type === 'event' ? '日程' : type === 'todo' ? '待办' : '提醒',
+                                trigger_time: type === 'reminder' ? item.start : undefined,
+                                due_date: type === 'todo' ? item.due : undefined,
+                            };
+                            return normalized;
+                        });
+                        this.searchData.events = results.filter(item => item.type === 'event');
+                        this.searchData.todos = results.filter(item => item.type === 'todo');
+                        this.searchData.reminders = results.filter(item => item.type === 'reminder');
+                        this.displayResults(results);
+                    } catch (error) {
+                        console.error('[GlobalSearch] v2 search failed:', error);
+                        this.displayResults([]);
+                    }
+                    return;
+                }
                 const typeFilter = document.getElementById('searchTypeFilter').value;
                 const groupFilter = document.getElementById('searchGroupFilter').value;
                 const shareGroupFilter = document.getElementById('searchShareGroupFilter').value;
@@ -5011,12 +5069,14 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
     <script src="{% static 'js/theme-manager.js' %}?v=20251107-002"></script>
     <script src="{% static 'js/settings-manager.js' %}?v=20251107-001"></script>
     <script src="{% static 'js/panel-resizer.js' %}?v=20251107-001"></script>
-    <script src="{% static 'js/reminder-manager.js' %}?v=20260311-001"></script>
+    <script src="{% static 'js/reminder-manager.js' %}?v=20260712-004"></script>
     <script src="{% static 'js/rrule-manager.js' %}?v=20251104-002"></script>
     <script src="{% static 'js/modal-manager.js' %}?v=20260311-001"></script>
-    <script src="{% static 'js/group-manager.js' %}?v=20260311-001"></script>
-    <script src="{% static 'js/event-manager.js' %}?v=20260312-002"></script>
-    <script src="{% static 'js/todo-manager.js' %}?v=20260311-001"></script>
+    <script src="{% static 'js/group-manager.js' %}?v=20260712-004"></script>
+    <script src="{% static 'js/planner-v2-client.js' %}?v=20260712-004"></script>
+    <script src="{% static 'js/planner-v2-scope.js' %}?v=20260712-005"></script>
+    <script src="{% static 'js/event-manager.js' %}?v=20260712-006"></script>
+    <script src="{% static 'js/todo-manager.js' %}?v=20260712-004"></script>
     <script src="{% static 'js/calendar-touch-swipe.js' %}?v=20251104-003"></script>
     <script src="{% static 'js/container-query-polyfill.js' %}?v=20251107-001"></script>
     
@@ -6981,6 +7041,19 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
                 }
                 
                 try {
+                    await window.plannerV2Client?.ready;
+                    if (window.plannerV2Client?.isNormalized('course_import')) {
+                        const data = await window.plannerV2Client.request(
+                            '/api/v2/groups/',
+                            window.plannerV2Client.jsonOptions('POST', { name, color, description: '' }),
+                        );
+                        showToast('日程组创建成功', 'success');
+                        await groupManager.reloadGroups();
+                        await this.loadEventGroups();
+                        if (data.group?.group_id) document.getElementById('importGroupId').value = data.group.group_id;
+                        this.toggleCreateGroupPanel();
+                        return;
+                    }
                     const response = await fetch('/get_calendar/create_events_group/', {
                         method: 'POST',
                         headers: {

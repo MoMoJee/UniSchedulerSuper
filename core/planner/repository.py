@@ -71,13 +71,18 @@ class PlannerRepository:
         *,
         range_start: datetime,
         range_end: datetime,
+        event_ids: set[str] | None = None,
     ) -> list[EventDefinitionProjection]:
         """返回与窗口相关的单次 event 和全部可展开 recurrence master。"""
         cls._validate_range(range_start, range_end)
+        singles_queryset = CalendarEvent.objects.filter(user=user, deleted_at__isnull=True, recurrence_series__isnull=True)
+        if event_ids is not None:
+            singles_queryset = singles_queryset.filter(event_id__in=event_ids)
         singles = list(
-            CalendarEvent.objects.filter(user=user, deleted_at__isnull=True, recurrence_series__isnull=True)
+            singles_queryset
             .filter(cls._event_overlap_filter(range_start, range_end))
             .select_related('group')
+            .prefetch_related('share_links__share_group')
             .order_by('start_at', 'start_date', 'id')
         )
         projections = [EventDefinitionProjection(event=event, recurrence=None, overrides=()) for event in singles]
@@ -86,6 +91,7 @@ class PlannerRepository:
             EventRecurrenceSeries.objects.filter(user=user, deleted_at__isnull=True, master_event__deleted_at__isnull=True)
             .select_related('master_event', 'master_event__group')
             .prefetch_related(
+                'master_event__share_links__share_group',
                 Prefetch('rdates', queryset=EventRecurrenceRDate.objects.order_by('recurrence_id')),
                 Prefetch('exdates', queryset=EventRecurrenceExDate.objects.order_by('recurrence_id')),
                 Prefetch(
@@ -95,6 +101,8 @@ class PlannerRepository:
             )
             .order_by('master_event__start_at', 'master_event__start_date', 'id')
         )
+        if event_ids is not None:
+            series_queryset = series_queryset.filter(master_event__event_id__in=event_ids)
         for series in series_queryset:
             definition = cls._to_recurrence_definition(series)
             overrides = tuple(cls._to_override(item) for item in series.overrides.all())
@@ -114,9 +122,12 @@ class PlannerRepository:
         *,
         range_start: datetime,
         range_end: datetime,
+        event_ids: set[str] | None = None,
     ) -> list[Occurrence]:
         """从 normalized 表读取并纯展开 event occurrence，不产生任何写入。"""
-        projections = cls.list_event_definitions(user, range_start=range_start, range_end=range_end)
+        projections = cls.list_event_definitions(
+            user, range_start=range_start, range_end=range_end, event_ids=event_ids
+        )
         occurrences: list[Occurrence] = []
         for projection in projections:
             if projection.recurrence is None:
@@ -133,6 +144,27 @@ class PlannerRepository:
                 )
             )
         return sorted(occurrences, key=lambda item: cls._occurrence_start(item))
+
+    @staticmethod
+    def search_event_candidate_ids(user: User, query: str) -> set[str]:
+        """先在数据库筛 master/override 文本，再仅展开候选 series。"""
+        if not query:
+            return set(
+                CalendarEvent.objects.filter(user=user, deleted_at__isnull=True).values_list('event_id', flat=True)
+            )
+        master_ids = CalendarEvent.objects.filter(user=user, deleted_at__isnull=True).filter(
+            Q(title__icontains=query) | Q(description__icontains=query) | Q(location__icontains=query)
+        ).values_list('event_id', flat=True)
+        # SQLite JSON 会把非 ASCII 转义，JSONField icontains 无法可靠匹配中文。
+        # override 本身是稀疏行，受控扫描其 patch 后仍只展开命中的 master。
+        override_ids = {
+            override.series.master_event.event_id
+            for override in EventOccurrenceOverride.objects.filter(
+                series__user=user, deleted_at__isnull=True
+            ).select_related('series__master_event')
+            if query.casefold() in ' '.join(str(value) for value in override.patch.values()).casefold()
+        }
+        return set(master_ids) | override_ids
 
     @classmethod
     def _to_recurrence_definition(cls, series: EventRecurrenceSeries) -> RecurrenceDefinition:

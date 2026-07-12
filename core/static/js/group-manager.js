@@ -174,6 +174,16 @@ class GroupManager {
         }
 
         try {
+            if (window.plannerV2Client?.isNormalized('web_calendar')) {
+                await window.plannerV2Client.request(
+                    '/api/v2/groups/',
+                    window.plannerV2Client.jsonOptions('POST', { name, description, color }),
+                );
+                await this.reloadGroups();
+                this.refreshGroupSelects();
+                this.showListPanel();
+                return;
+            }
             const response = await fetch('/get_calendar/create_events_group/', {
                 method: 'POST',
                 headers: {
@@ -224,6 +234,21 @@ class GroupManager {
         }
 
         try {
+            if (window.plannerV2Client?.isNormalized('web_calendar')) {
+                const current = this.groups.find(group => group.id === groupId);
+                if (!current) throw new Error('日程组已变化，请刷新');
+                await window.plannerV2Client.request(
+                    `/api/v2/groups/${encodeURIComponent(groupId)}/`,
+                    window.plannerV2Client.jsonOptions('PATCH', {
+                        expected_version: current.version, name, description, color,
+                    }),
+                );
+                await this.reloadGroups();
+                this.refreshGroupSelects();
+                window.eventManager?.calendar?.refetchEvents();
+                this.showListPanel();
+                return;
+            }
             const response = await fetch('/get_calendar/update_events_group/', {
                 method: 'POST',
                 headers: {
@@ -273,6 +298,23 @@ class GroupManager {
         const deleteEvents = document.getElementById('deleteGroupAndEvents').checked;
 
         try {
+            if (window.plannerV2Client?.isNormalized('web_calendar')) {
+                const current = this.groups.find(group => group.id === groupId);
+                if (!current) throw new Error('日程组已变化，请刷新');
+                await window.plannerV2Client.request(
+                    `/api/v2/groups/${encodeURIComponent(groupId)}/`,
+                    window.plannerV2Client.jsonOptions('DELETE', {
+                        expected_version: current.version,
+                        delete_items: deleteEvents,
+                    }),
+                );
+                await this.reloadGroups();
+                this.refreshGroupSelects();
+                window.eventManager?.calendar?.refetchEvents();
+                window.todoManager?.loadTodos();
+                this.showListPanel();
+                return;
+            }
             const response = await fetch('/get_calendar/delete_event_groups/', {
                 method: 'POST',
                 headers: {
@@ -323,12 +365,14 @@ class GroupManager {
     async reloadGroups() {
         try {
             // 使用轻量级接口只获取日程组数据，避免拉取全部events
-            const response = await fetch('/api/events/groups/');
+            await window.plannerV2Client?.ready;
+            const response = await fetch(window.plannerV2Client?.isNormalized('web_calendar') ? '/api/v2/groups/' : '/api/events/groups/');
             const data = await response.json();
-            
-            if (data.events_groups) {
-                this.groups = data.events_groups;
-                window.events_groups = data.events_groups;
+
+            const groups = data.events_groups || data.groups;
+            if (groups) {
+                this.groups = groups.map(group => ({ ...group, id: group.id || group.group_id }));
+                window.events_groups = this.groups;
             }
         } catch (error) {
             console.error('重新加载日程组失败:', error);

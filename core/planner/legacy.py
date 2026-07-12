@@ -9,12 +9,22 @@ from typing import Any
 
 from django.contrib.auth.models import User
 
-from core.models import UserData
+from core.models import PlannerCohortAssignment, UserData
 from logger import logger
 
 
 class LegacyPlannerDataError(ValueError):
     """legacy Planner 源数据不可被无损读取。"""
+
+
+class LegacyPlannerWriteDisabled(LegacyPlannerDataError):
+    """normalized cohort 禁止再写 legacy Planner JSON。"""
+
+
+def _assert_legacy_write_allowed(user: User) -> None:
+    assignment = PlannerCohortAssignment.objects.filter(user=user, deleted_at__isnull=True).first()
+    if assignment is not None and assignment.storage_mode == PlannerCohortAssignment.MODE_NORMALIZED:
+        raise LegacyPlannerWriteDisabled('用户已进入 normalized cohort，禁止写入 legacy Planner JSON')
 
 
 @dataclass(frozen=True)
@@ -115,6 +125,7 @@ class LegacyPlannerRepository:
         """在调用方事务中读取或初始化列表型 key，供兼容写路径集中使用。"""
         if key not in cls.PLANNER_KEYS:
             raise LegacyPlannerDataError(f'不是 Planner legacy key: {key}')
+        _assert_legacy_write_allowed(user)
         rows = list(UserData.objects.select_for_update().filter(user=user, key=key).order_by('id')[:2])
         if len(rows) > 1:
             logger.warning(f'用户 {user.username} 的 Planner legacy key 重复: {key}')
@@ -137,12 +148,14 @@ class LegacyPlannerRepository:
         """原样序列化列表，不执行 DATA_SCHEMA 重建或丢弃未知字段。"""
         if not isinstance(value, list):
             raise LegacyPlannerDataError('写入 legacy Planner 数据时必须提供 list')
+        _assert_legacy_write_allowed(row.user)
         row.value = json.dumps(value)
         row.save(update_fields=['value'])
 
     @staticmethod
     def replace_value(row: UserData, value: Any) -> None:
         """原样序列化任意 Planner JSON 值，用于规则段等 dict 型 legacy key。"""
+        _assert_legacy_write_allowed(row.user)
         row.value = json.dumps(value)
         row.save(update_fields=['value'])
 
@@ -186,6 +199,7 @@ class PlannerUserDataRecord:
 
     def save(self, *args, **kwargs):
         """兼容显式 save 调用。"""
+        _assert_legacy_write_allowed(self._row.user)
         return self._row.save(*args, **kwargs)
 
     def __getattr__(self, name):
@@ -219,6 +233,7 @@ class PlannerUserDataCompat:
         if rows:
             return PlannerUserDataRecord(rows[0]), False, {'status': 'success', 'message': f'Key <{new_key}> already exists.'}
 
+        _assert_legacy_write_allowed(request.user)
         initial_value = cls.DEFAULT_VALUES[new_key] if data is None else data
         row = UserData.objects.create(user=request.user, key=new_key, value=json.dumps(initial_value))
         return PlannerUserDataRecord(row), True, {'status': 'success', 'message': f'Key <{new_key}> added successfully.'}
@@ -238,6 +253,7 @@ class PlannerUserDataObjectsCompat:
             raise LegacyPlannerDataError(f'重复 legacy key: {key}')
         if rows:
             return PlannerUserDataRecord(rows[0]), False
+        _assert_legacy_write_allowed(user)
         defaults = kwargs.get('defaults') or {}
         raw_value = defaults.get('value', json.dumps(PlannerUserDataCompat.DEFAULT_VALUES[key]))
         row = UserData.objects.create(user=user, key=key, value=raw_value)

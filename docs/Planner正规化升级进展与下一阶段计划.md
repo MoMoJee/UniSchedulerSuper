@@ -2,8 +2,8 @@
 
 > 更新日期：2026-07-12
 > 对应设计：[核心日程正规化与 RRule 引擎升级方案](./核心日程正规化与RRule引擎升级方案.md)  
-> 当前阶段：P1-A/P1-B 已交付、P2 初始迁移已交付；进入 **P1–P3 收尾**（含 MoMoJee P2-R 与 P3 全入口切换）。
-> 当前存储模式：legacy JSON 仍应是唯一业务事实源；normalized 表已建立经严格校验的 shadow 投影。**在 v2 endpoint 加入 cohort gate 前，不能将 v2 视为可对生产用户开放的入口。**
+> 当前阶段：**P1–P3 已完成，下一阶段进入 P4**。
+> 当前存储模式：默认生产用户仍为 legacy；verified clean 且显式登记 entrypoint 的 cohort 可使用 shadow/normalized。v2 endpoint 已统一启用 cohort gate。
 
 ---
 
@@ -243,3 +243,10 @@ P1 的架构边界已满足：2026-07-12 的 `report_planner_direct_userdata_acc
 ```
 
 运行命令时可设置 `DISABLE_EXTERNAL_MCP=1`，确保维护、迁移和验证进程不在导入期连接外部 MCP 服务。
+## 7. 2026-07-12 P1–P3 收尾结论
+
+P1-C、P2-R、P3-0、P3-C、P3-D 已全部完成，详细实施、测试证据和生产数据处置见 [P1–P3 收尾升级详细实施与验收方案](./P1-P3收尾升级详细实施与验收方案.md)。最终 core 测试为 78/78，通过 Django check、迁移漂移检查、Planner bypass=0、MoMoJee strict/parity=0 diff 与 normalized Web Event CRUD/search 浏览器验收。下一阶段直接进入 P4。
+
+### 7.1 用户验收回开说明
+
+后续 MoMoJee 手工验收发现 P3-D 的点击范围弹窗和分享组视图仍有 legacy/adapter 漏项，因此曾暂缓“可直接进入 P4”。2026-07-12 已完成 V2 scope 路由、recurrence adapter、系列稀疏键平移、分享关系读写、分享视图过滤以及跨周/月窗口重载，并新增有限/无限作用域矩阵。MoMoJee 无写入浏览器复验已确认规则显示、范围选择与 Home 群组跨周取数；会改变数据的组合在隔离测试库覆盖。P3-D 已重新关闭，下一步可以进入 P4。

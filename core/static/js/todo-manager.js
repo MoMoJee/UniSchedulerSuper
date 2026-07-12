@@ -266,6 +266,7 @@ class TodoManager {
     // 加载待办事项
     async loadTodos() {
         try {
+            await window.plannerV2Client?.ready;
             // 构建带筛选参数的URL，在服务端进行过滤
             const params = new URLSearchParams();
             
@@ -274,11 +275,17 @@ class TodoManager {
             if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
             
             const queryString = params.toString();
-            const url = '/api/todos/' + (queryString ? `?${queryString}` : '');
+            const url = (window.plannerV2Client?.isNormalized('web_todo') ? '/api/v2/todos/' : '/api/todos/') + (queryString ? `?${queryString}` : '');
             
             const response = await fetch(url);
             const data = await response.json();
-            this.todos = data.todos || [];
+            this.todos = (data.todos || []).map(todo => window.plannerV2Client?.isNormalized('web_todo') ? {
+                ...todo,
+                id: todo.todo_id,
+                groupID: todo.group_id,
+                due_date: todo.due,
+                estimated_duration: todo.estimated_duration_seconds,
+            } : todo);
             console.log('=== 加载的 TODOs 数据 ===');
             console.log('TODOs 数量:', this.todos.length);
             if (this.todos.length > 0) {
@@ -471,6 +478,23 @@ class TodoManager {
     // 创建新待办事项
     async createTodo(todoData) {
         try {
+            if (window.plannerV2Client?.isNormalized('web_todo')) {
+                const payload = {
+                    title: todoData.title,
+                    description: todoData.description || '',
+                    importance: todoData.importance || '',
+                    urgency: todoData.urgency || '',
+                    status: todoData.status || 'pending',
+                    group_id: (todoData.group_id ?? todoData.groupID) || null,
+                    due: todoData.due ?? todoData.due_date ?? null,
+                    estimated_duration_seconds: todoData.estimated_duration_seconds ?? todoData.estimated_duration ?? null,
+                    tags: todoData.tags || [],
+                    dependencies: todoData.dependencies || [],
+                };
+                await window.plannerV2Client.request('/api/v2/todos/', window.plannerV2Client.jsonOptions('POST', payload));
+                await this.loadTodos();
+                return true;
+            }
             const response = await fetch('/api/todos/create/', {
                 method: 'POST',
                 headers: { 
@@ -501,6 +525,24 @@ class TodoManager {
     // 更新待办事项
     async updateTodo(todoId, todoData) {
         try {
+            if (window.plannerV2Client?.isNormalized('web_todo')) {
+                const current = this.todos.find(item => item.id === todoId);
+                if (!current) throw new Error('待办已变化，请刷新');
+                const payload = {
+                    ...todoData,
+                    group_id: (todoData.group_id ?? todoData.groupID) || null,
+                    due: todoData.due ?? todoData.due_date,
+                    expected_version: current.version,
+                };
+                delete payload.groupID;
+                delete payload.due_date;
+                await window.plannerV2Client.request(
+                    `/api/v2/todos/${encodeURIComponent(todoId)}/`,
+                    window.plannerV2Client.jsonOptions('PATCH', payload),
+                );
+                await this.loadTodos();
+                return true;
+            }
             const response = await fetch('/api/todos/update/', {
                 method: 'POST',
                 headers: { 
@@ -537,6 +579,16 @@ class TodoManager {
         }
 
         try {
+            if (window.plannerV2Client?.isNormalized('web_todo')) {
+                const current = this.todos.find(item => item.id === todoId);
+                if (!current) throw new Error('待办已变化，请刷新');
+                await window.plannerV2Client.request(
+                    `/api/v2/todos/${encodeURIComponent(todoId)}/`,
+                    window.plannerV2Client.jsonOptions('DELETE', { expected_version: current.version }),
+                );
+                await this.loadTodos();
+                return true;
+            }
             const response = await fetch(`/api/todos/delete/`, {
                 method: 'POST',
                 headers: {
@@ -714,6 +766,20 @@ class TodoManager {
     // 将待办事项转换为事件
     async convertToEvent(todoId, eventData) {
         try {
+            if (window.plannerV2Client?.isNormalized('web_todo')) {
+                const current = this.todos.find(item => item.id === todoId);
+                if (!current) throw new Error('待办已变化，请刷新');
+                await window.plannerV2Client.request(
+                    `/api/v2/todos/${encodeURIComponent(todoId)}/convert/`,
+                    window.plannerV2Client.jsonOptions('POST', {
+                        ...window.plannerV2Client.normalizeEventPayload(eventData),
+                        expected_version: current.version,
+                    }),
+                );
+                await this.loadTodos();
+                eventManager.refreshCalendar();
+                return true;
+            }
             const response = await fetch(`/api/todos/${todoId}/convert-to-event/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1343,6 +1409,23 @@ class TodoManager {
 
         // 只更新服务器，不重新加载
         try {
+            if (window.plannerV2Client?.isNormalized('web_todo')) {
+                const todo = this.todos.find(item => item.id === todoId);
+                if (!todo) throw new Error('待办已变化，请刷新');
+                await window.plannerV2Client.request(
+                    `/api/v2/todos/${encodeURIComponent(todoId)}/`,
+                    window.plannerV2Client.jsonOptions('PATCH', {
+                        expected_version: todo.version,
+                        importance,
+                        urgency,
+                    }),
+                );
+                todo.importance = importance;
+                todo.urgency = urgency;
+                todo.version += 1;
+                this.renderQuadrantView();
+                return;
+            }
             const response = await fetch('/api/todos/update/', {
                 method: 'POST',
                 headers: { 

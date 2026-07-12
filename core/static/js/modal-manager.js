@@ -1168,6 +1168,7 @@ class ModalManager {
                 groupID: eventData.groupID,  // 使用 groupID (大写)
                 ddl: eventData.ddl ? this.toUTC(eventData.ddl) : '',
                 shared_to_groups: eventData.shared_to_groups || [],  // 新增
+                recurrence_changed: Boolean(eventManager.pendingBulkEdit?.recurrence_changed),
                 // 始终包含rrule字段，即使为空（空字符串表示取消重复）
                 rrule: eventData.rrule || ''
             };

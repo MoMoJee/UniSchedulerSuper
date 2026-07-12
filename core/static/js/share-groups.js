@@ -271,20 +271,54 @@ const shareGroupManager = {
             sources.forEach(source => source.remove());
             calendar.removeAllEvents();
             
-            // 2. 获取群组事件数据
-            const response = await fetch(`/api/share-groups/${groupId}/events/`, {
-                credentials: 'same-origin',
-                headers: {
-                    'X-CSRFToken': window.CSRF_TOKEN
+            // 2. cohort 固定为 normalized 时按窗口读取 occurrence；legacy 用户保持原路径。
+            await window.plannerV2Client?.ready;
+            const usePlannerV2 = window.plannerV2Client?.canRead('web_share');
+            let data;
+            if (usePlannerV2) {
+                const view = calendar.view;
+                data = await window.plannerV2Client.fetchSharedCalendar(
+                    groupId,
+                    view.activeStart,
+                    view.activeEnd,
+                );
+                data.events = (data.occurrences || []).map(event => ({
+                    id: event.id,
+                    title: event.title,
+                    start: event.start,
+                    end: event.end,
+                    allDay: event.is_all_day,
+                    groupID: event.group_id,
+                    description: event.description,
+                    user_id: event.owner_id,
+                    owner_id: event.owner_id,
+                    owner_username: event.owner_username,
+                    owner_color: event.member_color,
+                    rrule: event.rrule || '',
+                    series_id: event.series_id || '',
+                    extendedProps: {
+                        occurrence_ref: event.occurrence_ref,
+                        isPlannerV2: true,
+                        is_readonly: event.read_only,
+                        rrule: event.rrule || '',
+                        series_id: event.series_id || '',
+                        is_recurring: Boolean(event.series_id),
+                        master_start: event.master_start,
+                        master_end: event.master_end,
+                        shared_to_groups: event.share_group_ids || [],
+                    },
+                }));
+            } else {
+                const response = await fetch(`/api/share-groups/${groupId}/events/`, {
+                    credentials: 'same-origin',
+                    headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+                });
+                if (!response.ok) {
+                    console.error('[ShareGroupManager] 加载群组日程失败:', response.status);
+                    return;
                 }
-            });
-
-            if (!response.ok) {
-                console.error('[ShareGroupManager] 加载群组日程失败:', response.status);
-                return;
+                data = await response.json();
             }
-
-            const data = await response.json();
             
             // 3. 更新版本号
             if (data.version) {
@@ -296,10 +330,14 @@ const shareGroupManager = {
             
             // 5. 处理事件：区分自己的事件和他人的事件
             const events = (data.events || []).map(event => {
-                const isMyEvent = event.user_id === currentUserId || event.owner_id === currentUserId;
+                const isMyEvent = usePlannerV2
+                    ? !event.extendedProps?.is_readonly
+                    : event.user_id === currentUserId || event.owner_id === currentUserId;
                 
                 // 获取日程组颜色
-                const groupColor = this.getEventGroupColor(event.groupID);
+                const groupColor = usePlannerV2
+                    ? (event.owner_color || this.getEventGroupColor(event.groupID))
+                    : this.getEventGroupColor(event.groupID);
                 
                 return {
                     ...event,
@@ -333,7 +371,9 @@ const shareGroupManager = {
             
             // 6. 应用筛选（在添加到日历之前）
             let filteredEvents = events;
-            if (window.eventManager && window.eventManager.applyCalendarFilters) {
+            // V2 分享事件的 groupID 属于事件所有者，不能用当前用户的个人日程组
+            // 可见性集合过滤，否则其他成员分享的事件会被全部误删。
+            if (!usePlannerV2 && window.eventManager && window.eventManager.applyCalendarFilters) {
                 filteredEvents = window.eventManager.applyCalendarFilters(events);
                 console.log('[ShareGroupManager] 应用筛选后:', {
                     原始: events.length,

@@ -85,6 +85,7 @@ class RecurrenceExpander:
             raise PlannerTimeError('range_start 必须早于 range_end')
 
         is_all_day = isinstance(definition.dtstart, date) and not isinstance(definition.dtstart, datetime)
+        cls._validate_value_types(definition, overrides, is_all_day=is_all_day)
         canonical = canonicalize_rrule(definition.rrule, dtstart=definition.dtstart, tzid=definition.tzid)
         rule_start, query_start, query_end = cls._rule_window(
             definition,
@@ -232,3 +233,31 @@ class RecurrenceExpander:
     @classmethod
     def _sort_key(cls, value: date | datetime, tzid: str) -> datetime:
         return PlannerTimeCodec.recurrence_datetime(value, tzid=tzid)
+
+    @classmethod
+    def _validate_value_types(
+        cls,
+        definition: RecurrenceDefinition,
+        overrides: Iterable[OccurrenceOverride],
+        *,
+        is_all_day: bool,
+    ) -> None:
+        """RFC 5545 要求 RDATE/EXDATE/RECURRENCE-ID 与 DTSTART 类型一致。"""
+
+        def is_date_value(value: date | datetime) -> bool:
+            return isinstance(value, date) and not isinstance(value, datetime)
+
+        for value in definition.rdates:
+            if is_date_value(value) != is_all_day:
+                raise PlannerTimeError('RDATE 类型必须与 DTSTART 一致')
+        for recurrence_id in definition.exdates:
+            value = PlannerTimeCodec.parse_recurrence_id(recurrence_id, tzid=definition.tzid)
+            if is_date_value(value) != is_all_day:
+                raise PlannerTimeError('EXDATE 类型必须与 DTSTART 一致')
+        for override in overrides:
+            value = PlannerTimeCodec.parse_recurrence_id(override.recurrence_id, tzid=definition.tzid)
+            if is_date_value(value) != is_all_day:
+                raise PlannerTimeError('RECURRENCE-ID 类型必须与 DTSTART 一致')
+            for effective in (override.effective_start, override.effective_end):
+                if effective is not None and is_date_value(effective) != is_all_day:
+                    raise PlannerTimeError('override 时间类型必须与 DTSTART 一致')

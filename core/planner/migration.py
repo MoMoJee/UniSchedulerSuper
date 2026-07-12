@@ -13,6 +13,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Any, Iterable
 
 import reversion
+from dateutil.rrule import rruleset, rrulestr
 from django.contrib.auth.models import User
 from django.db import transaction
 
@@ -39,6 +40,7 @@ from core.models import (
     TodoTag,
 )
 from core.planner.legacy import LegacyPlannerDataError, LegacyPlannerPayload, LegacyPlannerRepository
+from core.planner.repair import apply_legacy_repairs
 from core.planner.recurrence.codec import InvalidRRuleError, PlannerTimeCodec, PlannerTimeError, canonicalize_rrule
 from core.planner.recurrence.expander import RecurrenceDefinition, RecurrenceExpander
 from logger import logger
@@ -115,11 +117,11 @@ class PlannerLegacyMigration:
 
         return self.report(applied=False)
 
-    def apply(self) -> dict[str, Any]:
+    def apply(self, *, replace_quarantine: bool = False) -> dict[str, Any]:
         """在单一事务中写入该用户的旁路投影、state 与 issue。"""
         if not self.payloads:
             self.build_plan()
-        if self._is_already_imported():
+        if self._is_already_imported() and not replace_quarantine:
             report = self.report(applied=False)
             report['skipped'] = 'source_checksum_unchanged'
             return report
@@ -127,6 +129,8 @@ class PlannerLegacyMigration:
         with transaction.atomic(), reversion.create_revision():
             reversion.set_user(self.user)
             reversion.set_comment('Import legacy Planner JSON into normalized shadow tables')
+            if replace_quarantine:
+                self._clear_quarantine_records()
             self._import_groups()
             self._import_todos()
             self._import_reminders()
@@ -139,6 +143,19 @@ class PlannerLegacyMigration:
             f'counts={dict(self.counts)}, issues={len(self.issues)}'
         )
         return self.report(applied=True)
+
+    def _clear_quarantine_records(self) -> None:
+        """仅替换未曾导入业务投影的 quarantine 记录，并与新导入同事务。"""
+        states = PlannerMigrationState.objects.select_for_update().filter(user=self.user)
+        if not states.exists() or states.exclude(status=PlannerMigrationState.STATUS_QUARANTINED).exists():
+            raise ValueError('replace_quarantine 仅允许全部 state 均为 quarantined 的用户')
+        if any(
+            queryset.filter(user=self.user).exists()
+            for queryset in (EventGroup.objects, CalendarEvent.objects, Todo.objects, Reminder.objects, PlannerLegacyIdMap.objects)
+        ):
+            raise ValueError('quarantine 用户已存在 normalized 业务投影，拒绝自动替换')
+        PlannerMigrationIssue.objects.filter(user=self.user).delete()
+        states.delete()
 
     def record_quarantine(self) -> dict[str, Any]:
         """仅持久化隔离 state/issue，不导入任何 normalized 业务实体。"""
@@ -211,8 +228,13 @@ class PlannerLegacyMigration:
             if not isinstance(item, dict):
                 self._issue(key, 'item_not_object', detail={'index': index})
                 continue
+            item = apply_legacy_repairs(
+                username=self.user.username,
+                source_key=key,
+                checksum=payload.checksum,
+                row=item,
+            )
             if key in {'events', 'todos', 'reminders'} and not self._legacy_id(item):
-                item = dict(item)
                 item['id'] = self.synthetic_legacy_id(payload.source_row_id, key, index)
                 item['_planner_synthetic_id'] = True
                 self.counts['synthetic_ids_generated'] += 1
@@ -401,7 +423,24 @@ class PlannerLegacyMigration:
             occurrence.ref.recurrence_id
             for occurrence in RecurrenceExpander.expand(definition, range_start=range_start, range_end=range_end)
         }
-        return actual_ids == observed_ids
+        if actual_ids != observed_ids:
+            return False
+
+        # 两个候选在“最后一条已物化 occurrence”之前可能完全一致。只有候选
+        # 在该槽位之后确实没有下一次发生，才能证明它完整解释了 legacy 集合。
+        is_all_day = isinstance(dtstart, date) and not isinstance(dtstart, datetime)
+        rule_start = PlannerTimeCodec.recurrence_datetime(dtstart)
+        last_observed = max(PlannerTimeCodec.recurrence_datetime(item) for item in observed_values)
+        if is_all_day:
+            rule_start = rule_start.replace(tzinfo=None)
+            last_observed = last_observed.replace(tzinfo=None)
+        recurrence_set = rruleset()
+        recurrence_set.rrule(rrulestr(rule, dtstart=rule_start))
+        for recurrence_id in exdates:
+            value = PlannerTimeCodec.parse_recurrence_id(recurrence_id)
+            exdate = PlannerTimeCodec.recurrence_datetime(value)
+            recurrence_set.exdate(exdate.replace(tzinfo=None) if is_all_day else exdate)
+        return recurrence_set.after(last_observed, inc=False) is None
 
     def _validate_references(self) -> None:
         group_ids = {self._legacy_id(row) for row in self._items('events_groups')}

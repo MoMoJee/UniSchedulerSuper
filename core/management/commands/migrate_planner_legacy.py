@@ -19,6 +19,11 @@ class Command(BaseCommand):
         parser.add_argument('--dry-run', action='store_true', help='显式只生成迁移计划；这是默认行为。')
         parser.add_argument('--skip-quarantined', action='store_true', help='apply 时跳过计划中存在 issue 的用户。')
         parser.add_argument('--record-quarantined', action='store_true', help='仅记录隔离 state/issue，不导入隔离用户业务投影。')
+        parser.add_argument(
+            '--replace-quarantine',
+            action='store_true',
+            help='仅限 --apply --user-id：在同一事务替换无业务投影的旧 quarantine 记录。',
+        )
         parser.add_argument('--output', help='可选 JSON 报告文件。')
 
     def handle(self, *args, **options):
@@ -28,6 +33,10 @@ class Command(BaseCommand):
             raise CommandError('--apply 与 --dry-run 不可同时使用')
         if options['record_quarantined'] and not (options['apply'] and options['skip_quarantined']):
             raise CommandError('--record-quarantined 必须与 --apply --skip-quarantined 一起使用')
+        if options['replace_quarantine'] and not (options['apply'] and options.get('user_id') is not None):
+            raise CommandError('--replace-quarantine 必须与 --apply --user-id 一起使用')
+        if options['replace_quarantine'] and options['skip_quarantined']:
+            raise CommandError('--replace-quarantine 不可与 --skip-quarantined 同时使用')
         users = User.objects.order_by('id')
         if options.get('user_id') is not None:
             users = users.filter(id=options['user_id'])
@@ -45,7 +54,11 @@ class Command(BaseCommand):
                     plan['skipped'] = 'quarantined_by_plan'
                     reports.append(plan)
                 continue
-            reports.append(migration.apply() if options['apply'] else plan)
+            reports.append(
+                migration.apply(replace_quarantine=options['replace_quarantine'])
+                if options['apply']
+                else plan
+            )
 
         result = {
             'apply': options['apply'],

@@ -9,6 +9,7 @@ from core.planner.recurrence.expander import (
     RecurrenceDefinition,
     RecurrenceExpander,
 )
+from core.planner.recurrence.codec import PlannerTimeError
 
 
 SHANGHAI = ZoneInfo('Asia/Shanghai')
@@ -150,3 +151,62 @@ class RecurrenceExpanderTests(unittest.TestCase):
 
         self.assertEqual([item.start.hour for item in occurrences], [9, 9, 9])
         self.assertEqual([item.start.utcoffset().total_seconds() for item in occurrences], [-5 * 3600, -4 * 3600, -4 * 3600])
+
+    def test_monthly_yearly_and_complex_by_rules_expand_expected_slots(self):
+        monthly = RecurrenceDefinition(
+            entity_type='event', entity_id='monthly', series_id='monthly',
+            dtstart=date(2026, 1, 31), duration=timedelta(days=1),
+            rrule='FREQ=MONTHLY;COUNT=3;BYMONTHDAY=-1',
+        )
+        yearly = RecurrenceDefinition(
+            entity_type='event', entity_id='yearly', series_id='yearly',
+            dtstart=date(2026, 1, 1), duration=timedelta(days=1),
+            rrule='FREQ=YEARLY;COUNT=2;BYMONTH=3;BYDAY=1MO',
+        )
+
+        monthly_result = RecurrenceExpander.expand(
+            monthly,
+            range_start=datetime(2026, 1, 1, tzinfo=SHANGHAI),
+            range_end=datetime(2027, 1, 1, tzinfo=SHANGHAI),
+        )
+        yearly_result = RecurrenceExpander.expand(
+            yearly,
+            range_start=at(1).replace(month=1),
+            range_end=at(1).replace(year=2028, month=1),
+        )
+
+        self.assertEqual([item.start for item in monthly_result], [date(2026, 1, 31), date(2026, 2, 28), date(2026, 3, 31)])
+        self.assertEqual([item.start for item in yearly_result], [date(2026, 3, 2), date(2027, 3, 1)])
+
+    def test_rdate_exdate_and_override_types_must_match_dtstart(self):
+        with self.assertRaises(PlannerTimeError):
+            RecurrenceExpander.expand(
+                RecurrenceDefinition(
+                    **{**self.definition.__dict__, 'rdates': (date(2026, 3, 5),)}
+                ),
+                range_start=at(1),
+                range_end=at(6),
+            )
+        with self.assertRaises(PlannerTimeError):
+            RecurrenceExpander.expand(
+                RecurrenceDefinition(
+                    **{**self.definition.__dict__, 'exdates': frozenset({'20260302'})}
+                ),
+                range_start=at(1),
+                range_end=at(6),
+            )
+
+    def test_ten_thousand_slot_rule_only_returns_requested_window(self):
+        large = RecurrenceDefinition(
+            entity_type='event', entity_id='large', series_id='large',
+            dtstart=date(2000, 1, 1), duration=timedelta(days=1),
+            rrule='FREQ=DAILY;COUNT=10000',
+        )
+
+        occurrences = RecurrenceExpander.expand(
+            large,
+            range_start=datetime(2027, 5, 1, tzinfo=SHANGHAI),
+            range_end=datetime(2027, 5, 4, tzinfo=SHANGHAI),
+        )
+
+        self.assertEqual([item.start for item in occurrences], [date(2027, 5, 1), date(2027, 5, 2), date(2027, 5, 3)])

@@ -22,6 +22,7 @@ from core.planner.legacy import LegacyPlannerDataError, LegacyPlannerRepository
 from core.planner.migration import LIST_SOURCE_KEYS, SOURCE_KEYS, PlannerLegacyMigration
 from core.planner.recurrence.codec import PlannerTimeCodec
 from core.planner.recurrence.expander import RecurrenceExpander
+from core.planner.repair import apply_legacy_repairs
 from core.planner.repository import PlannerRepository
 
 
@@ -127,9 +128,9 @@ class PlannerMigrationVerifier:
             self._temporal_equal('todos', legacy_id, 'due_date', expected_due, actual_due)
 
     def _verify_reminders(self) -> None:
-        recurring = {id(row) for rows in self._recurring_groups(self._items('reminders')).values() for row in rows}
+        recurring = {self._id(row) for rows in self._recurring_groups(self._items('reminders')).values() for row in rows}
         for row in self._items('reminders'):
-            if id(row) in recurring:
+            if self._id(row) in recurring:
                 continue
             legacy_id = self._id(row)
             target = Reminder.objects.filter(user=self.user, reminder_id=legacy_id).first()
@@ -142,9 +143,9 @@ class PlannerMigrationVerifier:
             self._temporal_equal('reminders', legacy_id, 'trigger_time', self._temporal(row.get('trigger_time')), target.trigger_at or target.trigger_date)
 
     def _verify_single_events(self) -> None:
-        recurring = {id(row) for rows in self._recurring_groups(self._items('events')).values() for row in rows}
+        recurring = {self._id(row) for rows in self._recurring_groups(self._items('events')).values() for row in rows}
         for row in self._items('events'):
-            if id(row) in recurring:
+            if self._id(row) in recurring:
                 continue
             legacy_id = self._id(row)
             target = CalendarEvent.objects.filter(user=self.user, event_id=legacy_id).first()
@@ -247,8 +248,13 @@ class PlannerMigrationVerifier:
         for index, item in enumerate(payload.value):
             if not isinstance(item, dict):
                 continue
+            item = apply_legacy_repairs(
+                username=self.user.username,
+                source_key=key,
+                checksum=payload.checksum,
+                row=item,
+            )
             if key in {'events', 'todos', 'reminders'} and not self._id(item):
-                item = dict(item)
                 item['id'] = PlannerLegacyMigration.synthetic_legacy_id(payload.source_row_id, key, index)
                 item['_planner_synthetic_id'] = True
             rows.append(item)

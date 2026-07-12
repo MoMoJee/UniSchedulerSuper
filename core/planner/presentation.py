@@ -28,6 +28,7 @@ def serialize_event_definition(projection: EventDefinitionProjection) -> dict[st
         'start': _serialize_temporal(start),
         'end': _serialize_temporal(end),
         'ddl_at': _serialize_temporal(event.ddl_at),
+        'share_group_ids': [item.share_group.share_group_id for item in event.share_links.all()],
         'recurrence': None,
     }
     if projection.recurrence is not None:
@@ -49,13 +50,15 @@ def serialize_occurrence(occurrence: Occurrence) -> dict[str, Any]:
     """输出 occurrence 与复合身份，禁止把虚拟 occurrence 当作实体行。"""
     ref = occurrence.ref
     return {
-        'id': _occurrence_client_id(ref.entity_id, ref.series_id, ref.recurrence_id),
+        'id': _occurrence_client_id(ref.entity_type, ref.entity_id, ref.series_id, ref.recurrence_id),
         'entity_type': ref.entity_type,
         'title': occurrence.payload.get('title', ''),
         'start': _serialize_temporal(occurrence.start),
         'end': _serialize_temporal(occurrence.end),
         'is_all_day': bool(occurrence.payload.get('is_all_day', False)),
         'description': occurrence.payload.get('description', ''),
+        'content': occurrence.payload.get('content', ''),
+        'priority': occurrence.payload.get('priority', ''),
         'location': occurrence.payload.get('location', ''),
         'status': occurrence.payload.get('status', ''),
         'importance': occurrence.payload.get('importance', ''),
@@ -82,8 +85,8 @@ def _serialize_temporal(value: datetime | date | None) -> str | None:
     return value.isoformat() if value is not None else None
 
 
-def _occurrence_client_id(entity_id: str, series_id: str, recurrence_id: str) -> str:
+def _occurrence_client_id(entity_type: str, entity_id: str, series_id: str, recurrence_id: str) -> str:
     """仅作客户端列表 key；写命令必须使用 occurrence_ref。"""
     if not series_id:
-        return f'event:{entity_id}'
-    return f'event:{entity_id}:series:{series_id}:recurrence:{recurrence_id}'
+        return f'{entity_type}:{entity_id}'
+    return f'{entity_type}:{entity_id}:series:{series_id}:recurrence:{recurrence_id}'

@@ -302,6 +302,27 @@ class EventManager {
             // 视图变化
             datesSet: (viewInfo) => {
                 this.saveCurrentView(viewInfo.view.type, viewInfo.start, viewInfo.end);
+
+                // 群组事件源按当前可见窗口读取。原实现只在点击群组标签时
+                // 放入一份静态事件数组，翻周/月后不会重新请求，导致新窗口为空。
+                if (this.isGroupView && window.shareGroupManager) {
+                    const groupId = window.shareGroupManager.state?.currentGroupId;
+                    if (groupId) {
+                        setTimeout(() => {
+                            // 异步执行前再次确认用户仍停留在同一个群组，避免快速
+                            // 切换标签时用旧请求覆盖“我的日程”或另一个群组。
+                            const state = window.shareGroupManager?.state;
+                            if (
+                                this.isGroupView
+                                && state?.currentViewType === 'share-group'
+                                && state?.currentGroupId === groupId
+                            ) {
+                                window.shareGroupManager.loadGroupCalendar(groupId);
+                            }
+                        }, 0);
+                    }
+                }
+
                 // 视图变化后重新应用滚动设置
                 setTimeout(() => {
                     this.forceScrollable();
@@ -629,6 +650,22 @@ class EventManager {
     async fetchEvents(start, end) {
         console.log('[EventManager] fetchEvents 开始执行');
         try {
+            await window.plannerV2Client?.ready;
+            if (window.plannerV2Client?.isNormalized('web_calendar')) {
+                const normalized = await window.plannerV2Client.fetchCalendar(start, end);
+                this.events = normalized.events;
+                this.groups = normalized.groups;
+                window.events_groups = this.groups;
+                const allEvents = [
+                    ...this.events.map(event => ({
+                        ...event,
+                        backgroundColor: this.getEventColor(event.groupID),
+                        borderColor: this.getEventColor(event.groupID),
+                    })),
+                    ...normalized.reminders,
+                ];
+                return this.applyCalendarFilters(allEvents);
+            }
             // 构建带日期范围参数的URL，只获取当前视图范围内的事件
             let eventsUrl = '/get_calendar/events/';
             if (start && end) {
@@ -1166,6 +1203,37 @@ class EventManager {
      */
     async updateEventDrag(eventId, newStart, newEnd, title, description, importance, urgency, groupID, ddl, shared_to_groups = [], rruleChangeScope = 'single') {
         try {
+            if (window.plannerV2Client?.isNormalized('web_calendar')) {
+                const localEvent = this.events.find(item => item.id === eventId);
+                const ref = localEvent?.extendedProps?.occurrence_ref;
+                if (!ref) throw new Error('缺少 occurrence_ref，请刷新日历');
+                let effectiveStart = newStart;
+                let effectiveEnd = newEnd;
+                if (rruleChangeScope === 'all' || rruleChangeScope === 'future') {
+                    const dateKey = value => new Intl.DateTimeFormat('en-CA', {
+                        timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
+                    }).format(new Date(value));
+                    if (dateKey(newStart) !== dateKey(localEvent.start) || dateKey(newEnd) !== dateKey(localEvent.end)) {
+                        throw new Error('批量拖拽仅允许修改时间点和时长，不允许修改日期；可选择“仅此次”移动日期');
+                    }
+                }
+                if (rruleChangeScope === 'all' && localEvent.extendedProps.master_start) {
+                    const delta = new Date(newStart).getTime() - new Date(localEvent.start).getTime();
+                    effectiveStart = new Date(new Date(localEvent.extendedProps.master_start).getTime() + delta).toISOString();
+                    effectiveEnd = new Date(new Date(effectiveStart).getTime() + new Date(newEnd).getTime() - new Date(newStart).getTime()).toISOString();
+                }
+                await window.plannerV2Client.patchEvent(ref, rruleChangeScope, {
+                    title,
+                    description,
+                    importance,
+                    urgency,
+                    group_id: groupID || null,
+                    start: effectiveStart,
+                    end: effectiveEnd,
+                });
+                this.refreshCalendar();
+                return true;
+            }
             // 构建事件数据
             const eventData = {
                 eventId: eventId,
@@ -1218,6 +1286,25 @@ class EventManager {
     // 更新事件
     async updateEvent(eventId, newStart, newEnd, title, description, importance, urgency, groupID, ddl, rrule = '', shared_to_groups = []) {
         try {
+            if (window.plannerV2Client?.isNormalized('web_calendar')) {
+                const localEvent = this.events.find(item => item.id === eventId);
+                const ref = localEvent?.extendedProps?.occurrence_ref;
+                if (!ref) throw new Error('缺少 occurrence_ref，请刷新日历');
+                await window.plannerV2Client.patchEvent(ref, ref.series_id ? 'single' : 'all', {
+                    title,
+                    description,
+                    importance,
+                    urgency,
+                    group_id: groupID || null,
+                    start: newStart,
+                    end: newEnd,
+                    ...(ddl ? { ddl_at: ddl } : {}),
+                    ...(!ref.series_id ? { share_group_ids: shared_to_groups } : {}),
+                    ...(rrule ? { recurrence: { rrule } } : {}),
+                });
+                this.refreshCalendar();
+                return true;
+            }
             // 构建事件数据 - 使用后端期望的字段名
             const eventData = {
                 eventId: eventId,           // 后端期望 eventId
@@ -1299,6 +1386,11 @@ class EventManager {
     // 创建事件
     async createEvent(eventData) {
         try {
+            if (window.plannerV2Client?.isNormalized('web_calendar')) {
+                await window.plannerV2Client.createEvent(eventData);
+                this.refreshCalendar();
+                return true;
+            }
             // 使用新的Events RRule API
             const response = await fetch('/events/create_event/', {
                 method: 'POST',
@@ -1349,6 +1441,14 @@ class EventManager {
     // 删除事件
     async deleteEvent(eventId, scope = 'single', seriesId = null) {
         try {
+            if (window.plannerV2Client?.isNormalized('web_calendar')) {
+                const localEvent = this.events.find(item => item.id === eventId);
+                const ref = localEvent?.extendedProps?.occurrence_ref;
+                if (!ref) throw new Error('缺少 occurrence_ref，请刷新日历');
+                await window.plannerV2Client.deleteEvent(ref, scope);
+                this.refreshCalendar();
+                return true;
+            }
             // 使用bulk-edit API删除事件
             const response = await fetch('/api/events/bulk-edit/', {
                 method: 'POST',
@@ -1398,6 +1498,9 @@ class EventManager {
     // 删除重复事件
     async deleteRecurringEvent(eventId, scope) {
         try {
+            if (window.plannerV2Client?.isNormalized('web_calendar')) {
+                return this.deleteEvent(eventId, scope);
+            }
             const response = await fetch('/events/delete_events/', {
                 method: 'POST',
                 headers: { 
@@ -1736,6 +1839,7 @@ class EventManager {
     handleReminderClick(eventInfo) {
         const reminderData = eventInfo.extendedProps.reminderData;
         const reminderId = eventInfo.extendedProps.reminderId;
+        this.currentReminderOccurrenceRef = eventInfo.extendedProps.occurrence_ref || reminderData?.occurrence_ref || null;
         
         console.log('Reminder clicked:', reminderData);
         
@@ -1984,6 +2088,23 @@ class EventManager {
         const newStatus = currentReminder && currentReminder.status === targetStatus ? 'active' : targetStatus;
         
         try {
+            if (window.plannerV2Client?.isNormalized('web_reminder')) {
+                const ref = this.currentReminderOccurrenceRef;
+                if (!ref || ref.entity_id !== reminderId) throw new Error('提醒 occurrence 已变化，请刷新');
+                const action = newStatus === 'completed' ? 'complete' : newStatus === 'dismissed' ? 'dismiss' : 'reset';
+                await window.plannerV2Client.request(
+                    '/api/v2/reminders/occurrences/action/',
+                    window.plannerV2Client.jsonOptions('POST', {
+                        action,
+                        occurrence_ref: ref,
+                        expected_version: ref.source_version,
+                    }),
+                );
+                this.closeReminderDetailModal();
+                this.calendar.refetchEvents();
+                await window.reminderManager?.loadReminders();
+                return;
+            }
             const response = await fetch('/api/reminders/update-status/', {
                 method: 'POST',
                 headers: {
@@ -2020,6 +2141,27 @@ class EventManager {
         // 先关闭模态框
         this.closeReminderDetailModal();
         
+        if (window.plannerV2Client?.isNormalized('web_reminder')) {
+            const ref = this.currentReminderOccurrenceRef;
+            if (!ref || ref.entity_id !== reminderId) {
+                alert('提醒 occurrence 已变化，请刷新');
+                return;
+            }
+            const delay = duration === '15m' ? 15 * 60 * 1000 : duration === '1h' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+            const base = new Date(ref.occurrence_start) > new Date() ? new Date(ref.occurrence_start) : new Date();
+            await window.plannerV2Client.request(
+                '/api/v2/reminders/occurrences/action/',
+                window.plannerV2Client.jsonOptions('POST', {
+                    action: 'snooze',
+                    occurrence_ref: ref,
+                    expected_version: ref.source_version,
+                    snooze_until: new Date(base.getTime() + delay).toISOString(),
+                }),
+            );
+            this.calendar.refetchEvents();
+            await window.reminderManager?.loadReminders();
+            return;
+        }
         // 调用 reminderManager 的方法
         if (window.reminderManager) {
             await window.reminderManager.snoozeReminder(reminderId, duration);
@@ -2035,6 +2177,22 @@ class EventManager {
         // 先关闭模态框
         this.closeReminderDetailModal();
         
+        if (window.plannerV2Client?.isNormalized('web_reminder')) {
+            const ref = this.currentReminderOccurrenceRef;
+            if (!ref || ref.entity_id !== reminderId) {
+                alert('提醒 occurrence 已变化，请刷新');
+                return;
+            }
+            await window.plannerV2Client.request(
+                '/api/v2/reminders/occurrences/action/',
+                window.plannerV2Client.jsonOptions('POST', {
+                    action: 'reset', occurrence_ref: ref, expected_version: ref.source_version,
+                }),
+            );
+            this.calendar.refetchEvents();
+            await window.reminderManager?.loadReminders();
+            return;
+        }
         if (window.reminderManager) {
             await window.reminderManager.cancelSnooze(reminderId);
             this.calendar.refetchEvents();
@@ -2045,6 +2203,27 @@ class EventManager {
     
     // 自定义延后
     customSnoozeReminder(reminderId) {
+        if (window.plannerV2Client?.isNormalized('web_reminder')) {
+            const value = prompt('请输入延后时间（格式：YYYY-MM-DD HH:MM）：');
+            const ref = this.currentReminderOccurrenceRef;
+            if (!value || !ref || ref.entity_id !== reminderId) return;
+            const snoozeUntil = new Date(value);
+            if (Number.isNaN(snoozeUntil.getTime()) || snoozeUntil <= new Date()) {
+                alert('延后时间无效或不在未来');
+                return;
+            }
+            window.plannerV2Client.request(
+                '/api/v2/reminders/occurrences/action/',
+                window.plannerV2Client.jsonOptions('POST', {
+                    action: 'snooze', occurrence_ref: ref, expected_version: ref.source_version,
+                    snooze_until: snoozeUntil.toISOString(),
+                }),
+            ).then(() => {
+                this.calendar.refetchEvents();
+                window.reminderManager?.loadReminders();
+            });
+            return;
+        }
         if (window.reminderManager) {
             window.reminderManager.customSnooze(reminderId);
         } else {
@@ -2057,6 +2236,19 @@ class EventManager {
         modalManager.closeAllModals();
         // 调用 modal-manager 的编辑提醒方法
         if (window.modalManager) {
+            if (window.plannerV2Client?.isNormalized('web_reminder')) {
+                const reminder = window.reminderManager?.reminders.find(item => item.id === reminderId);
+                if (!reminder) {
+                    alert('提醒已变化，请刷新');
+                    return;
+                }
+                if (reminder.series_id) {
+                    window.reminderManager.showBulkEditDialog(reminder.id, reminder.series_id, 'edit');
+                } else {
+                    modalManager.openEditReminderModal(reminder);
+                }
+                return;
+            }
             // 需要先获取提醒数据
             fetch('/api/reminders/')
                 .then(res => res.json())
@@ -2093,6 +2285,18 @@ class EventManager {
         }
         
         try {
+            if (window.plannerV2Client?.isNormalized('web_reminder')) {
+                const reminder = window.reminderManager?.reminders.find(item => item.id === reminderId);
+                if (!reminder) throw new Error('提醒已变化，请刷新');
+                await window.plannerV2Client.request(
+                    `/api/v2/reminders/${encodeURIComponent(reminderId)}/`,
+                    window.plannerV2Client.jsonOptions('DELETE', { expected_version: reminder.version }),
+                );
+                modalManager.closeAllModals();
+                this.calendar.refetchEvents();
+                await window.reminderManager.loadReminders();
+                return;
+            }
             const response = await fetch('/api/reminders/delete/', {
                 method: 'POST',
                 headers: {
@@ -2359,7 +2563,8 @@ class EventManager {
                 event_id: eventId,  // 注意：使用下划线格式保持与后端一致
                 series_id: seriesId,
                 scope: scope,
-                fromTime: fromTime
+                fromTime: fromTime,
+                recurrence_changed: false,
             };
             
             console.log('Set pendingBulkEdit:', this.pendingBulkEdit);
@@ -2927,6 +3132,7 @@ class EventManager {
         // 添加点击事件
         changeRuleBtn.addEventListener('click', () => {
             console.log('Change rule button clicked');
+            if (this.pendingBulkEdit) this.pendingBulkEdit.recurrence_changed = true;
             
             // 解除重复字段的只读状态
             console.log('Before calling setRepeatFieldsReadonly(false)');
@@ -3040,6 +3246,33 @@ class EventManager {
             console.log('performBulkOperation called with:', {
                 seriesId, operation, scope, fromTime, eventId, updateData
             });
+
+            if (window.plannerV2Client?.isNormalized('web_calendar')) {
+                const candidates = this.events.filter(event =>
+                    event.extendedProps?.occurrence_ref?.series_id === seriesId
+                );
+                let anchor = candidates.find(event => event.id === eventId);
+                if (scope === 'from_time' && fromTime) {
+                    const wanted = new Date(fromTime).getTime();
+                    anchor = candidates.find(event => Math.abs(new Date(event.start).getTime() - wanted) < 1000);
+                }
+                if (!anchor) throw new Error('找不到所选重复实例，请刷新日历后重试');
+                const ref = anchor.extendedProps?.occurrence_ref;
+                if (!ref) throw new Error('缺少 occurrence_ref，请刷新日历');
+                const v2Scope = scope === 'future' || scope === 'from_time' ? 'this_and_future' : scope;
+
+                if (operation === 'delete') {
+                    await window.plannerV2Client.deleteEvent(ref, v2Scope);
+                } else if (operation === 'edit') {
+                    const changes = this.buildNormalizedScopedChanges(anchor, v2Scope, updateData);
+                    await window.plannerV2Client.patchEvent(ref, v2Scope, changes);
+                } else {
+                    throw new Error(`不支持的批量操作: ${operation}`);
+                }
+                this.pendingBulkEdit = null;
+                this.refreshCalendar();
+                return true;
+            }
             
             // 创建AbortController用于超时控制
             const controller = new AbortController();
@@ -3148,6 +3381,11 @@ class EventManager {
                 return false;
             }
         }
+    }
+
+    buildNormalizedScopedChanges(anchor, scope, updateData) {
+        if (!window.PlannerV2Scope) throw new Error('Planner V2 scope helper 未加载');
+        return window.PlannerV2Scope.buildChanges(anchor, scope, updateData);
     }
 
 

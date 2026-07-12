@@ -16,6 +16,7 @@ API 设计：
 
 import json
 import datetime
+import hashlib
 import re
 import ssl
 import requests
@@ -48,6 +49,9 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 
+from core.planner.commands import PlannerCommandService
+from core.planner.rollout import PlannerRolloutPolicy
+from core.models import CalendarEvent
 from logger import logger
 
 
@@ -641,39 +645,82 @@ def confirm_import(request):
                 'message': '没有要导入的课程'
             }, status=400)
         
-        from core.services.event_service import EventService
-        
+        decision = PlannerRolloutPolicy.decide(request.user, PlannerRolloutPolicy.ENTRYPOINT_COURSE_IMPORT)
         imported_count = 0
+        skipped_count = 0
         errors = []
-        
-        for course in courses:
+
+        if decision.effective_mode == 'normalized':
+            from django.db import transaction
+
             try:
-                event = EventService.create_event(
-                    user=request.user,
-                    title=course.get('name', course.get('title', '')),
-                    start=course.get('first_start', course.get('start', '')),
-                    end=course.get('first_end', course.get('end', '')),
-                    description=course.get('description', ''),
-                    importance=course.get('importance', ''),
-                    urgency=course.get('urgency', ''),
-                    groupID=course.get('groupID', ''),
-                    rrule=course.get('rrule', '')
-                )
-                imported_count += 1
-                
-            except Exception as e:
-                error_msg = f"导入 '{course.get('name', '未知课程')}' 失败: {str(e)}"
-                logger.error(error_msg)
-                errors.append(error_msg)
+                with transaction.atomic():
+                    for course in courses:
+                        rrule = str(course.get('rrule') or '')
+                        payload = {
+                            'title': course.get('name', course.get('title', '')),
+                            'start': course.get('first_start', course.get('start', '')),
+                            'end': course.get('first_end', course.get('end', '')),
+                            'description': course.get('description', ''),
+                            'importance': course.get('importance', ''),
+                            'urgency': course.get('urgency', ''),
+                            'group_id': course.get('groupID') or None,
+                        }
+                        if rrule:
+                            payload['recurrence'] = {'rrule': rrule}
+                        fingerprint_source = {
+                            'title': payload['title'],
+                            'start': payload['start'],
+                            'end': payload['end'],
+                            'description': payload['description'],
+                            'rrule': rrule,
+                            'group_id': payload['group_id'],
+                        }
+                        fingerprint = hashlib.sha256(
+                            json.dumps(fingerprint_source, ensure_ascii=False, sort_keys=True).encode('utf-8')
+                        ).hexdigest()[:40]
+                        event_id = f'course-{fingerprint}'
+                        if CalendarEvent.objects.filter(user=request.user, event_id=event_id).exists():
+                            skipped_count += 1
+                            continue
+                        PlannerCommandService.create_event(request.user, payload, event_id=event_id)
+                        imported_count += 1
+            except Exception as exc:
+                logger.error(f'normalized 课程批量导入失败: {exc}')
+                return JsonResponse({'status': 'error', 'message': str(exc), 'imported_count': 0}, status=422)
+        else:
+            from core.services.event_service import EventService
+
+            for course in courses:
+                try:
+                    EventService.create_event(
+                        user=request.user,
+                        title=course.get('name', course.get('title', '')),
+                        start=course.get('first_start', course.get('start', '')),
+                        end=course.get('first_end', course.get('end', '')),
+                        description=course.get('description', ''),
+                        importance=course.get('importance', ''),
+                        urgency=course.get('urgency', ''),
+                        groupID=course.get('groupID', ''),
+                        rrule=course.get('rrule', '')
+                    )
+                    imported_count += 1
+                except Exception as e:
+                    error_msg = f"导入 '{course.get('name', '未知课程')}' 失败: {str(e)}"
+                    logger.error(error_msg)
+                    errors.append(error_msg)
         
-        if imported_count > 0:
+        if imported_count > 0 or (decision.effective_mode == 'normalized' and skipped_count > 0):
             message = f"成功导入 {imported_count} 门课程"
+            if skipped_count:
+                message += f"，跳过 {skipped_count} 门已导入课程"
             if errors:
                 message += f"，{len(errors)} 门失败"
             
             return JsonResponse({
                 'status': 'success',
                 'imported_count': imported_count,
+                'skipped_count': skipped_count,
                 'message': message,
                 'errors': errors if errors else None
             })

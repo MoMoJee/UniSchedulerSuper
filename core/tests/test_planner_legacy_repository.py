@@ -7,8 +7,8 @@ from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.test import TestCase
 
-from core.models import UserData
-from core.planner.legacy import LegacyPlannerDataError, LegacyPlannerRepository
+from core.models import PlannerCohortAssignment, UserData
+from core.planner.legacy import LegacyPlannerDataError, LegacyPlannerRepository, LegacyPlannerWriteDisabled
 
 
 class LegacyPlannerRepositoryTests(TestCase):
@@ -87,3 +87,19 @@ class LegacyPlannerRepositoryTests(TestCase):
         self.assertEqual([row.id for row in rows], [event.id, export.id])
         with self.assertRaises(LegacyPlannerDataError):
             LegacyPlannerRepository.get_rows_for_revision(self.user, ['agent_config'])
+
+    def test_normalized_cohort_hard_blocks_legacy_planner_writes(self):
+        row = UserData.objects.create(user=self.user, key='events', value='[]')
+        PlannerCohortAssignment.objects.create(
+            user=self.user,
+            storage_mode=PlannerCohortAssignment.MODE_NORMALIZED,
+            entrypoints={'web_calendar': {'mode': 'normalized'}},
+        )
+
+        with self.assertRaises(LegacyPlannerWriteDisabled):
+            LegacyPlannerRepository.get_list_for_update(self.user, 'events')
+        with self.assertRaises(LegacyPlannerWriteDisabled):
+            LegacyPlannerRepository.replace_list(row, [{'id': 'must-not-write'}])
+
+        row.refresh_from_db()
+        self.assertEqual(row.value, '[]')

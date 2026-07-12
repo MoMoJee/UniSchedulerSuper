@@ -148,7 +148,9 @@ USE_L10N = True
 USE_TZ = True
 
 # Planner 正规化迁移期开关。现有入口尚未读取 normalized 数据，默认 legacy。
-PLANNER_STORAGE_MODE = os.getenv('PLANNER_STORAGE_MODE', 'legacy')
+# 未登记 cohort 的用户仍会由 PlannerRolloutPolicy 回退 legacy；默认开启
+# normalized 仅使 verified clean + 显式 entrypoint assignment 真正生效。
+PLANNER_STORAGE_MODE = os.getenv('PLANNER_STORAGE_MODE', 'normalized')
 PLANNER_DIFF_ASSERT = os.getenv('PLANNER_DIFF_ASSERT', 'false')
 PLANNER_LEGACY_FALLBACK = os.getenv('PLANNER_LEGACY_FALLBACK', 'true')
 PLANNER_CALDAV_NORMALIZED = os.getenv('PLANNER_CALDAV_NORMALIZED', 'false')
