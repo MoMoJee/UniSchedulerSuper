@@ -1854,6 +1854,8 @@ class CalendarEvent(PlannerVersionedModel):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='planner_events')
     event_id = models.CharField(max_length=100, default=_planner_public_id)
+    ical_uid = models.CharField(max_length=255, blank=True)
+    caldav_resource_name = models.CharField(max_length=255, blank=True)
     group = models.ForeignKey(
         EventGroup,
         on_delete=models.SET_NULL,
@@ -1878,6 +1880,10 @@ class CalendarEvent(PlannerVersionedModel):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['user', 'event_id'], name='planner_event_user_public_uniq'),
+            models.UniqueConstraint(fields=['user', 'ical_uid'], name='planner_event_user_ical_uid_uniq'),
+            models.UniqueConstraint(
+                fields=['user', 'caldav_resource_name'], name='planner_event_user_caldav_resource_uniq'
+            ),
             models.CheckConstraint(
                 condition=(
                     Q(is_all_day=True, start_date__isnull=False, end_date__isnull=False)
@@ -1894,6 +1900,16 @@ class CalendarEvent(PlannerVersionedModel):
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        if not self.ical_uid:
+            self.ical_uid = f'evt-{self.event_id}@unischeduler'
+        if not self.caldav_resource_name:
+            self.caldav_resource_name = self.event_id
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            kwargs['update_fields'] = set(update_fields) | {'ical_uid', 'caldav_resource_name'}
+        return super().save(*args, **kwargs)
 
 
 @reversion.register
@@ -2066,6 +2082,7 @@ class EventRecurrenceSeries(PlannerVersionedModel):
     series_id = models.CharField(max_length=100, default=_planner_public_id)
     master_event = models.OneToOneField(CalendarEvent, on_delete=models.CASCADE, related_name='recurrence_series')
     ical_uid = models.CharField(max_length=255)
+    caldav_resource_name = models.CharField(max_length=255, blank=True)
     rrule = models.TextField()
     rrule_canonical = models.TextField()
     dtstart_at = models.DateTimeField(null=True, blank=True)
@@ -2086,6 +2103,9 @@ class EventRecurrenceSeries(PlannerVersionedModel):
         constraints = [
             models.UniqueConstraint(fields=['user', 'series_id'], name='planner_event_series_public_uniq'),
             models.UniqueConstraint(fields=['user', 'ical_uid'], name='planner_event_series_uid_uniq'),
+            models.UniqueConstraint(
+                fields=['user', 'caldav_resource_name'], name='planner_event_series_resource_uniq'
+            ),
             models.CheckConstraint(
                 condition=(
                     Q(dtstart_at__isnull=False, dtstart_date__isnull=True)
@@ -2095,6 +2115,16 @@ class EventRecurrenceSeries(PlannerVersionedModel):
             ),
         ]
         indexes = [models.Index(fields=['user', 'deleted_at'], name='planner_event_series_user_idx')]
+
+    def save(self, *args, **kwargs):
+        if not self.ical_uid:
+            self.ical_uid = f'evt-series-{self.series_id}@unischeduler'
+        if not self.caldav_resource_name:
+            self.caldav_resource_name = f'evt-series-{self.series_id}'
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            kwargs['update_fields'] = set(update_fields) | {'ical_uid', 'caldav_resource_name'}
+        return super().save(*args, **kwargs)
 
 
 @reversion.register
@@ -2372,6 +2402,16 @@ class PlannerCohortAssignment(PlannerVersionedModel):
     enabled_at = models.DateTimeField(null=True, blank=True)
     disabled_at = models.DateTimeField(null=True, blank=True)
     note = models.TextField(blank=True)
+
+
+class PlannerLegacyWriteGuard(models.Model):
+    """Singleton switch consumed by SQLite triggers that seal Planner archives."""
+
+    singleton = models.BooleanField(primary_key=True, default=True, editable=False)
+    enabled = models.BooleanField(default=False)
+    enabled_at = models.DateTimeField(null=True, blank=True)
+    archive_manifest_sha256 = models.CharField(max_length=64, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
 
 
 @reversion.register

@@ -146,6 +146,7 @@ def _command_error_response(exc: Exception) -> Response:
     if isinstance(exc, PlannerApplicationAccessError):
         if exc.decision.reason == 'share_group_forbidden':
             return Response({'error': str(exc), 'code': 'share_group_forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        response_status = status.HTTP_423_LOCKED if exc.decision.reason == 'retired_quarantine' else status.HTTP_409_CONFLICT
         return Response(
             {
                 'error': str(exc),
@@ -153,7 +154,7 @@ def _command_error_response(exc: Exception) -> Response:
                 'reason': exc.decision.reason,
                 'effective_mode': exc.decision.effective_mode,
             },
-            status=status.HTTP_409_CONFLICT,
+            status=response_status,
         )
     if isinstance(exc, PlannerNotFoundError):
         return Response({'error': str(exc), 'code': 'event_not_found'}, status=status.HTTP_404_NOT_FOUND)

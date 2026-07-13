@@ -15,6 +15,8 @@ PlannerSource = Literal[
     "mcp_stdio",
     "mcp_http",
     "internal_attachment",
+    "calendar_feed",
+    "caldav",
 ]
 
 
@@ -39,4 +41,3 @@ class PlannerExecutionContext:
             raise ValueError("可回滚命令必须具有 session_id 与 tool_call_id")
         if self.message_index is not None and self.message_index < 0:
             raise ValueError("message_index 不能为负数")
-

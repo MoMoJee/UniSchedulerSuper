@@ -1,8 +1,10 @@
 # 核心日程正规化与 RRule 引擎升级方案
 
-> 状态：调研和实施设计完成，尚未开始改表。  
+> 状态：P1–P5 与 P6 功能 cutover 已于 2026-07-13 完成；P6-E 正在执行连续 7 天观察，P6-F 保留期后物理清理尚未开始。
 > 范围：`events`、`reminders`、`todos`、日程组、共享日程、Web UI/REST、全局搜索、Agent/Quick Action/MCP、附件内部元素、iCalendar 订阅、CalDAV 和 Agent 回滚。  
 > 核心决策：停止把重复实例作为业务事实存储；重复日程只保存主对象、规则和稀疏例外，按请求时间窗展开。
+
+> 当前生产状态：Event/Todo/Reminder/Group/Share/Agent/Feed/CalDAV 的唯一事实源已是 normalized ORM；157 行旧 Planner `UserData` 已按 checksum 封存并由 SQLite trigger 防写。详细证据见 `docs/P5验收报告/`、`docs/P6验收报告/`。
 
 ---
 

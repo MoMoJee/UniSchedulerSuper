@@ -24,6 +24,7 @@ import datetime
 import json
 from typing import List, Optional
 
+from django.conf import settings
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
@@ -32,6 +33,9 @@ from rest_framework.authtoken.models import Token
 from icalendar import Calendar, Event, Todo, Timezone, TimezoneStandard, Alarm
 
 from core.planner.legacy import LegacyPlannerRepository
+from core.planner.application import PlannerApplicationService
+from core.planner.context import PlannerExecutionContext
+from core.planner.rollout import PlannerRolloutPolicy
 from logger import logger
 
 
@@ -534,6 +538,31 @@ def calendar_feed(request):
     include_events = feed_type in ("all", "events")
     include_todos = feed_type in ("all", "todos")
     include_reminders = feed_type in ("all", "reminders")
+
+    # P5-B：verified + 显式 calendar_feed entrypoint 使用 normalized
+    # application/query/mapper。尚未切换的 legacy 用户继续原行为，P6 会移除该分支。
+    decision = PlannerRolloutPolicy.can_read_normalized(user, PlannerRolloutPolicy.ENTRYPOINT_CALENDAR_FEED)
+    if decision.effective_mode in {"shadow", "normalized"}:
+        context = PlannerExecutionContext(
+            user=user,
+            source="calendar_feed",
+            entrypoint=PlannerRolloutPolicy.ENTRYPOINT_CALENDAR_FEED,
+        )
+        try:
+            payload = PlannerApplicationService.build_calendar_feed(context, feed_type=feed_type)
+        except Exception as exc:
+            logger.error(f"Calendar feed V2 failed for user {user.username}: {exc}")
+            return HttpResponse("Calendar feed generation failed.", status=500)
+        response = HttpResponse(payload, content_type="text/calendar; charset=utf-8")
+        response["Content-Disposition"] = 'inline; filename="unischeduler.ics"'
+        response["Cache-Control"] = "private, max-age=300"
+        return response
+
+    # P6：全局 normalized 时任何准入失败都必须显式失败，禁止继续执行
+    # 下方仅供离线/legacy 模式保留的兼容投影。
+    if str(getattr(settings, 'PLANNER_STORAGE_MODE', 'legacy')).lower() != 'legacy':
+        status_code = 423 if decision.reason == 'retired_quarantine' else 503
+        return HttpResponse('Planner feed is unavailable for this account.', status=status_code)
 
     # ========== 加载日程组映射（group_id -> group_name） ==========
     group_map: dict = {}

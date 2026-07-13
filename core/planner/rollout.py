@@ -8,7 +8,6 @@ from django.conf import settings
 from django.contrib.auth.models import User
 
 from core.models import PlannerCohortAssignment, PlannerMigrationIssue, PlannerMigrationState
-from core.planner.legacy import LegacyPlannerDataError, LegacyPlannerRepository
 
 
 @dataclass(frozen=True)
@@ -35,6 +34,25 @@ class PlannerRolloutPolicy:
     ENTRYPOINT_QUICK_ACTION = 'quick_action_planner'
     ENTRYPOINT_MCP = 'mcp_planner'
     ENTRYPOINT_INTERNAL_ATTACHMENT = 'internal_attachment'
+    ENTRYPOINT_CALENDAR_FEED = 'calendar_feed'
+    ENTRYPOINT_CALDAV_READ = 'caldav_read'
+    ENTRYPOINT_CALDAV_WRITE = 'caldav_write'
+    ALL_ENTRYPOINTS = (
+        ENTRYPOINT_API_V2,
+        ENTRYPOINT_WEB_CALENDAR,
+        ENTRYPOINT_WEB_TODO,
+        ENTRYPOINT_WEB_REMINDER,
+        ENTRYPOINT_WEB_SEARCH,
+        ENTRYPOINT_WEB_SHARE,
+        ENTRYPOINT_COURSE_IMPORT,
+        ENTRYPOINT_AGENT,
+        ENTRYPOINT_QUICK_ACTION,
+        ENTRYPOINT_MCP,
+        ENTRYPOINT_INTERNAL_ATTACHMENT,
+        ENTRYPOINT_CALENDAR_FEED,
+        ENTRYPOINT_CALDAV_READ,
+        ENTRYPOINT_CALDAV_WRITE,
+    )
 
     @classmethod
     def can_read_normalized(cls, user: User, entrypoint: str) -> PlannerStorageDecision:
@@ -56,39 +74,32 @@ class PlannerRolloutPolicy:
 
         assignment = PlannerCohortAssignment.objects.filter(user=user, deleted_at__isnull=True).first()
         if assignment is None:
-            return PlannerStorageDecision(global_mode, 'legacy', 'user_not_assigned')
+            return PlannerStorageDecision(global_mode, 'blocked', 'user_not_assigned')
+        if str((assignment.metadata or {}).get('p6_disposition', '')).startswith('retired-test-data'):
+            return PlannerStorageDecision(global_mode, 'quarantined', 'retired_quarantine')
         if entrypoint not in assignment.entrypoints:
-            return PlannerStorageDecision(global_mode, 'legacy', 'entrypoint_not_assigned')
+            return PlannerStorageDecision(global_mode, 'blocked', 'entrypoint_not_assigned')
         if assignment.storage_mode == 'legacy':
-            return PlannerStorageDecision(global_mode, 'legacy', 'assignment_legacy')
+            return PlannerStorageDecision(global_mode, 'blocked', 'assignment_legacy')
         if not cls.is_verified_clean(user):
-            return PlannerStorageDecision(global_mode, 'legacy', 'migration_not_verified_clean')
+            return PlannerStorageDecision(global_mode, 'blocked', 'migration_not_verified_clean')
         if global_mode == 'shadow' or assignment.storage_mode == 'shadow':
             return PlannerStorageDecision(global_mode, 'shadow', 'verified_shadow_assignment')
         return PlannerStorageDecision(global_mode, 'normalized', 'verified_normalized_assignment')
 
     @staticmethod
     def is_verified_clean(user: User) -> bool:
+        """Runtime admission uses sealed cohort state and never reads legacy JSON."""
+        assignment = PlannerCohortAssignment.objects.filter(user=user, deleted_at__isnull=True).first()
+        manifest = (assignment.metadata or {}).get('p6_cutover_manifest') if assignment else None
+        if manifest:
+            if manifest.get('schema') != 1 or not isinstance(manifest.get('sources'), list):
+                return False
+            return not PlannerMigrationIssue.objects.filter(user=user, is_resolved=False).exists()
         states = list(PlannerMigrationState.objects.filter(user=user))
         if not states or any(state.status != PlannerMigrationState.STATUS_VERIFIED for state in states):
-            return False
+            # Users with no legacy source are clean and may start directly on V2.
+            return not states and not PlannerMigrationIssue.objects.filter(user=user, is_resolved=False).exists()
         if PlannerMigrationIssue.objects.filter(user=user, is_resolved=False).exists():
-            return False
-        states_by_key = {state.source_key: state for state in states}
-        try:
-            for key in LegacyPlannerRepository.PLANNER_KEYS:
-                payload = LegacyPlannerRepository.read(user, key)
-                state = states_by_key.get(key)
-                if payload is None:
-                    if state is not None:
-                        return False
-                    continue
-                if (
-                    state is None
-                    or state.source_row_id != payload.source_row_id
-                    or state.source_checksum != payload.checksum
-                ):
-                    return False
-        except LegacyPlannerDataError:
             return False
         return True

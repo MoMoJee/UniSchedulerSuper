@@ -17,6 +17,17 @@ SCANNED_DIRECTORIES = ('core', 'agent_service', 'caldav_service')
 WHITELISTED_PATHS = {
     'core/planner/legacy.py',
     'core/management/commands/audit_planner_legacy.py',
+    'core/management/commands/audit_planner_ical_identity.py',
+    # P5/P6 release smoke deliberately seeds an isolated legacy row so it can
+    # prove that normalized CalDAV writes leave the legacy checksum untouched.
+    # It is an offline verification command, never a runtime Planner path.
+    'core/management/commands/run_p5_caldav_smoke.py',
+    'core/management/commands/audit_planner_p6_readiness.py',
+    'core/management/commands/audit_legacy_planner_archive.py',
+    'core/management/commands/verify_no_legacy_planner_write.py',
+    'core/management/commands/verify_planner_release.py',
+    # Imported only by P6 release commands to classify/archive source rows.
+    'core/planner/p6.py',
     'core/management/commands/resolve_planner_legacy_duplicates.py',
     'core/models.py',
 }

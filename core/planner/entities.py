@@ -28,6 +28,7 @@ from core.models import (
     TodoTag,
 )
 from core.planner.commands import PlannerCommandError, PlannerCommandService, PlannerCommandVersionConflict
+from core.planner.calendar_changes import CalendarCollectionChangeWriter
 from core.planner.recurrence.codec import InvalidRRuleError, PlannerTimeCodec, canonicalize_rrule
 from core.planner.recurrence.expander import Occurrence, OccurrenceOverride, OccurrenceRef, RecurrenceDefinition, RecurrenceExpander
 from logger import logger
@@ -214,6 +215,10 @@ class PlannerEntityCommandService:
         if group is None:
             raise PlannerCommandError('未找到 group', code='group_not_found')
         cls._require_version(group, expected_version)
+        affected_events = list(
+            CalendarEvent.objects.filter(user=user, group=group, deleted_at__isnull=True)
+            .select_related('recurrence_series')
+        )
         if delete_items:
             now = timezone.now()
             CalendarEvent.objects.filter(user=user, group=group, deleted_at__isnull=True).update(deleted_at=now, version=models.F('version') + 1)
@@ -222,6 +227,24 @@ class PlannerEntityCommandService:
             CalendarEvent.objects.filter(user=user, group=group).update(group=None)
             Todo.objects.filter(user=user, group=group).update(group=None)
         group.soft_delete(expected_version=group.version)
+        for event in affected_events:
+            series = getattr(event, 'recurrence_series', None)
+            resource_name = (
+                series.caldav_resource_name
+                if series is not None and series.deleted_at is None
+                else event.caldav_resource_name
+            )
+            CalendarCollectionChangeWriter.record(
+                user, collection_id=group_id, resource_type='event',
+                resource_public_id=resource_name,
+                action=CalendarChange.ACTION_DELETE, etag=f'event:{resource_name}:{event.version + 1}',
+            )
+            if not delete_items:
+                CalendarCollectionChangeWriter.record(
+                    user, collection_id='default', resource_type='event',
+                    resource_public_id=resource_name,
+                    action=CalendarChange.ACTION_CREATE, etag=f'event:{resource_name}:{event.version}',
+                )
         cls._record(user, 'group', group.group_id, group.version, 'group.delete', CalendarChange.ACTION_DELETE)
         return group
 
@@ -855,4 +878,10 @@ class PlannerEntityCommandService:
             collection=collection, token=collection.version, resource_type=resource_type,
             resource_public_id=resource_id, action=action, etag=f'{resource_type}:{resource_id}:{version}'
         )
+        if resource_type == 'reminder':
+            CalendarCollectionChangeWriter.record(
+                user, collection_id='reminders', resource_type='reminder',
+                resource_public_id=resource_id, action=action,
+                etag=f'reminder:{resource_id}:{version}',
+            )
         PlannerChangeSet.objects.create(user=user, command_type=command, after_payload={resource_type: {'id': resource_id, 'version': version}})

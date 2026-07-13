@@ -33,6 +33,7 @@ from core.models import (
     PlannerChangeSet,
 )
 from core.planner.recurrence.codec import InvalidRRuleError, PlannerTimeCodec, PlannerTimeError, canonicalize_rrule
+from core.planner.calendar_changes import CalendarCollectionChangeWriter
 from core.planner.repository import PlannerNotFoundError, PlannerRepository
 from logger import logger
 
@@ -633,11 +634,13 @@ class PlannerCommandService:
     @classmethod
     def _create_series(cls, user: User, event: CalendarEvent, payload: Mapping[str, Any]) -> EventRecurrenceSeries:
         definition = cls._validated_recurrence_payload(event, payload)
+        series_id = str(payload.get('series_id') or uuid4())
         series = EventRecurrenceSeries.objects.create(
             user=user,
             master_event=event,
-            series_id=str(payload.get('series_id') or uuid4()),
-            ical_uid=str(payload.get('ical_uid') or f'{event.event_id}@planner.local'),
+            series_id=series_id,
+            ical_uid=str(payload.get('ical_uid') or f'evt-series-{series_id}@unischeduler'),
+            caldav_resource_name=str(payload.get('caldav_resource_name') or f'evt-series-{series_id}'),
             rrule=definition['rrule'],
             rrule_canonical=definition['rrule_canonical'],
             dtstart_at=event.start_at,
@@ -734,7 +737,7 @@ class PlannerCommandService:
 
     @classmethod
     def _validated_recurrence_payload(cls, event: CalendarEvent, payload: Mapping[str, Any]) -> dict[str, Any]:
-        allowed = {'rrule', 'rdates', 'exdates', 'series_id', 'ical_uid'}
+        allowed = {'rrule', 'rdates', 'exdates', 'series_id', 'ical_uid', 'caldav_resource_name'}
         unknown = set(payload) - allowed
         if unknown:
             raise PlannerCommandError(f'不支持的 recurrence 字段: {", ".join(sorted(unknown))}', code='unsupported_field')
@@ -869,7 +872,17 @@ class PlannerCommandService:
 
     @staticmethod
     def _snapshot(event: CalendarEvent, series: EventRecurrenceSeries | None = None, override: EventOccurrenceOverride | None = None) -> dict[str, Any]:
-        result: dict[str, Any] = {'event': {'event_id': event.event_id, 'version': event.version, 'deleted_at': event.deleted_at.isoformat() if event.deleted_at else None}}
+        if series is None:
+            series = EventRecurrenceSeries.objects.filter(master_event=event, deleted_at__isnull=True).first()
+        collection_id = (
+            event.group.group_id if event.group_id and event.group.deleted_at is None else 'default'
+        )
+        resource_name = series.caldav_resource_name if series is not None else event.caldav_resource_name
+        result: dict[str, Any] = {'event': {
+            'event_id': event.event_id, 'version': event.version,
+            'deleted_at': event.deleted_at.isoformat() if event.deleted_at else None,
+            'collection_id': collection_id, 'resource_name': resource_name,
+        }}
         if series is not None:
             result['series'] = {'series_id': series.series_id, 'version': series.version, 'deleted_at': series.deleted_at.isoformat() if series.deleted_at else None}
         if override is not None:
@@ -880,28 +893,45 @@ class PlannerCommandService:
     def _record_change(
         cls, user: User, event: CalendarEvent, *, command_type: str, before: dict[str, Any], after: dict[str, Any]
     ) -> None:
-        collection, _ = CalendarCollectionVersion.objects.select_for_update().get_or_create(
-            user=user,
-            collection_type='event',
-            collection_id='default',
-        )
-        collection.version += 1
-        collection.sync_token = str(uuid4())
-        collection.save(update_fields={'version', 'sync_token', 'updated_at'})
-        CalendarChange.objects.create(
-            collection=collection,
-            token=collection.version,
-            resource_type='event',
-            resource_public_id=event.event_id,
-            action=(
-                CalendarChange.ACTION_DELETE
-                if event.deleted_at
-                else CalendarChange.ACTION_CREATE
-                if command_type == 'event.create'
-                else CalendarChange.ACTION_UPDATE
-            ),
-            etag=f'event:{event.event_id}:{event.version}',
-        )
+        before_event = before.get('event', {})
+        after_event = after.get('event', {})
+        before_collection = before_event.get('collection_id')
+        after_collection = after_event.get('collection_id') or before_collection or 'default'
+        before_resource = before_event.get('resource_name') or event.caldav_resource_name or event.event_id
+        after_resource = after_event.get('resource_name') or before_resource
+        etag = f'event:{after_resource}:{event.version}'
+        if command_type == 'event.split_this_and_future':
+            CalendarCollectionChangeWriter.record(
+                user, collection_id=before_collection or after_collection,
+                resource_type='event', resource_public_id=before_resource,
+                action=CalendarChange.ACTION_UPDATE, etag=f'event:{before_resource}:{before_event.get("version", 0)}',
+            )
+            CalendarCollectionChangeWriter.record(
+                user, collection_id=after_collection, resource_type='event',
+                resource_public_id=after_resource, action=CalendarChange.ACTION_CREATE, etag=etag,
+            )
+        elif event.deleted_at:
+            CalendarCollectionChangeWriter.record(
+                user, collection_id=before_collection or after_collection,
+                resource_type='event', resource_public_id=before_resource,
+                action=CalendarChange.ACTION_DELETE, etag=etag,
+            )
+        elif before_collection and before_collection != after_collection:
+            CalendarCollectionChangeWriter.record(
+                user, collection_id=before_collection, resource_type='event',
+                resource_public_id=before_resource, action=CalendarChange.ACTION_DELETE, etag=etag,
+            )
+            CalendarCollectionChangeWriter.record(
+                user, collection_id=after_collection, resource_type='event',
+                resource_public_id=after_resource, action=CalendarChange.ACTION_CREATE, etag=etag,
+            )
+        else:
+            CalendarCollectionChangeWriter.record(
+                user, collection_id=after_collection, resource_type='event',
+                resource_public_id=after_resource,
+                action=CalendarChange.ACTION_CREATE if not before_event else CalendarChange.ACTION_UPDATE,
+                etag=etag,
+            )
         PlannerChangeSet.objects.create(
             user=user,
             command_type=command_type,

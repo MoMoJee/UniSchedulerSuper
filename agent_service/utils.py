@@ -41,9 +41,14 @@ def agent_transaction(action_type):
                 from core.planner.rollout import PlannerRolloutPolicy
                 entrypoint = configurable.get('planner_entrypoint') or PlannerRolloutPolicy.ENTRYPOINT_AGENT
                 decision = PlannerRolloutPolicy.decide(user, entrypoint)
-                if decision.effective_mode in {'shadow', 'normalized'}:
+                from django.conf import settings
+                normalized_deployment = str(getattr(settings, 'PLANNER_STORAGE_MODE', 'legacy')).lower() != 'legacy'
+                if decision.effective_mode in {'shadow', 'normalized'} or normalized_deployment:
                     return func(*args, **kwargs)
             except Exception as exc:
+                from django.conf import settings
+                if str(getattr(settings, 'PLANNER_STORAGE_MODE', 'legacy')).lower() != 'legacy':
+                    raise
                 logger.warning(f"Planner P4 rollback policy 检查失败，保持 legacy snapshot 路径: {exc}")
 
             # 2. 在执行操作之前，先保存当前状态的快照

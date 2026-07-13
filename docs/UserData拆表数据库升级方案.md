@@ -1,8 +1,10 @@
 # UserData 拆表数据库升级方案
 
 > 目标：将 `core.UserData` 中的核心业务大 JSON 拆成可查询、可索引、可回滚、可维护的正规 Django ORM 表，同时保留必要的配置型 JSON 存储。  
-> 状态：调研完成，待进入实现阶段。  
-> 最后更新：2026-06-16
+> 状态：旧阶段编号已被《核心日程正规化与 RRule 引擎升级方案》覆盖；核心 Planner 拆表和 P6 cutover 已完成，正在观察期。
+> 最后更新：2026-07-13
+
+> 注意：本文保留为早期设计背景，不再作为实施顺序。当前 Event/Todo/Reminder 等 Planner 核心数据只读写 normalized ORM；旧 `UserData` Planner key 是只读 archive。
 
 ---
 

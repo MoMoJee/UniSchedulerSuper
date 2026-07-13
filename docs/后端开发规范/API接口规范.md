@@ -1,5 +1,7 @@
 # API 接口规范
 
+> P6 现行规则（2026-07-13）：Planner Web/API/Agent/Quick/MCP/附件/Feed/CalDAV 统一调用 normalized application service。旧 URL 若保留，只能做 V2 adapter 或明确拒绝；不得直接读写 Planner `UserData`、伪造 request 调 View 或在错误时 fallback legacy。
+
 > 本文档描述 UniSchedulerSuper 后端 REST API 的设计约定。
 
 ---

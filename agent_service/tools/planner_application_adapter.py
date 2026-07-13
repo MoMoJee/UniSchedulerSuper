@@ -52,7 +52,13 @@ def build_context(config) -> PlannerExecutionContext:
 
 def should_use_normalized(config) -> bool:
     context = build_context(config)
-    return PlannerRolloutPolicy.decide(context.user, context.entrypoint).effective_mode in {'shadow', 'normalized'}
+    decision = PlannerRolloutPolicy.decide(context.user, context.entrypoint)
+    if decision.effective_mode in {'shadow', 'normalized'}:
+        return True
+    # In a P6 normalized deployment, access failures must be raised by the
+    # application gate instead of selecting a legacy tool implementation.
+    from django.conf import settings
+    return str(getattr(settings, 'PLANNER_STORAGE_MODE', 'legacy')).lower() != 'legacy'
 
 
 def _range(value: str | None):
@@ -310,4 +316,3 @@ def conflicts_normalized(config, time_range='this_week', **_kwargs) -> str:
         titles = ' / '.join(entry['title'] for entry in item['items'])
         lines.append(f"- {item['overlap']['start']} ~ {item['overlap']['end']}: {titles}")
     return '\n'.join(lines)
-

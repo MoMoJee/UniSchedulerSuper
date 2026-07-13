@@ -61,7 +61,7 @@ class PlannerV2ApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(response.json()['entrypoints']['api_v2']['mode'], 'normalized')
-        self.assertEqual(response.json()['entrypoints']['web_calendar']['mode'], 'legacy')
+        self.assertEqual(response.json()['entrypoints']['web_calendar']['mode'], 'blocked')
         self.assertEqual(before, (CalendarEvent.objects.count(), PlannerChangeSet.objects.count()))
 
     def test_normalized_home_does_not_initialize_legacy_calendar_business_rows(self):

@@ -23,7 +23,12 @@ class PlannerV2Client {
     mode(entrypoint = 'api_v2') { return this.entrypoints[entrypoint]?.mode || 'legacy'; }
     canRead(entrypoint = 'api_v2') { return Boolean(this.entrypoints[entrypoint]?.can_read_normalized); }
     canWrite(entrypoint = 'api_v2') { return Boolean(this.entrypoints[entrypoint]?.can_write_normalized); }
-    isNormalized(entrypoint = 'api_v2') { return this.mode(entrypoint) === 'normalized'; }
+    isNormalized(entrypoint = 'api_v2') {
+        const mode = this.mode(entrypoint);
+        // Quarantine/blocked users must call V2 and receive its stable denial;
+        // selecting a legacy UI branch would reopen old JSON paths.
+        return mode === 'normalized' || mode === 'quarantined' || mode === 'blocked';
+    }
 
     async request(url, options = {}) {
         await this.ready;

@@ -9,7 +9,7 @@ from typing import Any
 
 from django.contrib.auth.models import User
 
-from core.models import PlannerCohortAssignment, UserData
+from core.models import PlannerCohortAssignment, PlannerLegacyWriteGuard, UserData
 from logger import logger
 
 
@@ -17,11 +17,16 @@ class LegacyPlannerDataError(ValueError):
     """legacy Planner 源数据不可被无损读取。"""
 
 
-class LegacyPlannerWriteDisabled(LegacyPlannerDataError):
-    """normalized cohort 禁止再写 legacy Planner JSON。"""
+class LegacyPlannerWriteForbidden(LegacyPlannerDataError):
+    """P6 sealed archive or normalized cohort forbids legacy Planner writes."""
+
+
+LegacyPlannerWriteDisabled = LegacyPlannerWriteForbidden
 
 
 def _assert_legacy_write_allowed(user: User) -> None:
+    if PlannerLegacyWriteGuard.objects.filter(singleton=True, enabled=True).exists():
+        raise LegacyPlannerWriteForbidden('P6 legacy Planner 归档已封存，禁止写入')
     assignment = PlannerCohortAssignment.objects.filter(user=user, deleted_at__isnull=True).first()
     if assignment is not None and assignment.storage_mode == PlannerCohortAssignment.MODE_NORMALIZED:
         raise LegacyPlannerWriteDisabled('用户已进入 normalized cohort，禁止写入 legacy Planner JSON')

@@ -39,6 +39,7 @@ class CalDAVView(View):
         'get', 'put', 'delete', 'head', 'options',
         'propfind', 'proppatch', 'report', 'mkcalendar',
     ]
+    allow_header = 'OPTIONS, GET, HEAD, PROPFIND'
 
     def dispatch(self, request, *args, **kwargs):
         # 诊断日志：记录请求方法、路径和关键头
@@ -56,12 +57,19 @@ class CalDAVView(View):
         if method in self.http_method_names:
             handler = getattr(self, method, None)
             if handler:
-                resp = handler(request, *args, **kwargs)
+                try:
+                    resp = handler(request, *args, **kwargs)
+                except Exception as exc:
+                    from caldav_service.normalized import CalDAVPlannerAccessDenied
+                    if not isinstance(exc, CalDAVPlannerAccessDenied):
+                        raise
+                    status = 423 if exc.decision.reason == 'retired_quarantine' else 503
+                    resp = HttpResponse(str(exc), status=status, content_type='text/plain')
                 # 所有 CalDAV 响应都要带 DAV 头，让客户端识别为 CalDAV 服务器
-                resp['DAV'] = '1, 2, 3, calendar-access'
+                resp['DAV'] = '1, calendar-access'
                 return resp
         resp = self.http_method_not_allowed(request, *args, **kwargs)
-        resp['DAV'] = '1, 2, 3, calendar-access'
+        resp['DAV'] = '1, calendar-access'
         return resp
 
     # =====================================================
@@ -98,8 +106,8 @@ class CalDAVView(View):
     def options(self, request, *args, **kwargs):
         """所有 CalDAV 端点通用的 OPTIONS 响应。"""
         resp = HttpResponse(status=200)
-        resp['Allow'] = 'OPTIONS, GET, HEAD, PUT, DELETE, PROPFIND, REPORT'
-        resp['DAV'] = '1, 2, 3, calendar-access'
+        resp['Allow'] = self.allow_header
+        resp['DAV'] = '1, calendar-access'
         return resp
 
     # =====================================================

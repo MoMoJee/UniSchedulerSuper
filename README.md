@@ -45,8 +45,9 @@
 ```
 UniSchedulerSuper/
  core/                          # 核心业务：日程、提醒、待办、群组协作
-    models.py                  # UserData / 群组模型 / DATA_SCHEMA 验证
-    views_events.py            # EventsRRuleManager（RRule 引擎集成）
+    models.py                  # normalized Planner / 配置 UserData / 群组模型
+    planner/                   # application、command/query、RRULE、iCalendar、snapshot
+    views_planner_v2.py        # Planner V2 HTTP adapter
     views_reminder.py          # 提醒管理（含重复提醒）
     views_share_groups.py      # 群组协作 + 版本同步
     views_import_events.py     # iCalendar 导入
@@ -87,7 +88,7 @@ UniSchedulerSuper/
     README.md                  # API 完整文档
 
  docs/                          # 设计文档
- rrule_engine.py                # RRule 重复规则引擎
+ rrule_engine.py                # 旧 RRule 兼容代码（P6 archive，不作为事实源）
  integrated_reminder_manager.py # 集成提醒管理器
  logger.py                      # 日志配置
  requirements.txt

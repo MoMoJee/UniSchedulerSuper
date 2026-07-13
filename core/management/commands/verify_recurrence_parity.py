@@ -10,6 +10,7 @@ from django.core.management.base import BaseCommand, CommandError
 from core.models import PlannerMigrationState
 from core.planner.recurrence.codec import PlannerTimeCodec
 from core.planner.verification import PlannerMigrationVerifier
+from core.planner.p6 import RETIRED_QUARANTINE_USERS
 
 
 class Command(BaseCommand):
@@ -23,11 +24,14 @@ class Command(BaseCommand):
         parser.add_argument('--strict', action='store_true', help='存在差异时以非零状态退出。')
         parser.add_argument('--only-imported', action='store_true', help='只校验已导入 state 的用户，适合 staging 演练。')
         parser.add_argument('--output', help='可选 JSON 输出路径。')
+        parser.add_argument('--exclude-retired-quarantine', action='store_true', help='P6：排除五个已批准的退役测试账号。')
 
     def handle(self, *args, **options):
         range_start = self._window_value(options['from_value'])
         range_end = self._window_value(options['to_value'])
         users = User.objects.order_by('id')
+        if options['exclude_retired_quarantine']:
+            users = users.exclude(username__in=RETIRED_QUARANTINE_USERS)
         if options.get('user_id') is not None:
             users = users.filter(id=options['user_id'])
             if not users.exists():

@@ -1,4 +1,4 @@
-"""P2-C cohort 准入必须默认回退 legacy，并拒绝 verified 后的源漂移。"""
+"""Cohort admission and P6 sealed-manifest runtime behavior."""
 
 import hashlib
 
@@ -16,7 +16,7 @@ class PlannerRolloutPolicyTests(TestCase):
     @override_settings(PLANNER_STORAGE_MODE='normalized')
     def test_normalized_mode_requires_assignment_verified_states_and_clean_issues(self):
         decision = PlannerRolloutPolicy.decide(self.user, 'web')
-        self.assertEqual(decision.effective_mode, 'legacy')
+        self.assertEqual(decision.effective_mode, 'blocked')
         self.assertEqual(decision.reason, 'user_not_assigned')
 
         source = UserData.objects.create(user=self.user, key='events', value='[]')
@@ -37,11 +37,11 @@ class PlannerRolloutPolicyTests(TestCase):
 
         PlannerMigrationIssue.objects.create(user=self.user, source_key='events', code='unresolved')
         decision = PlannerRolloutPolicy.decide(self.user, 'web')
-        self.assertEqual(decision.effective_mode, 'legacy')
+        self.assertEqual(decision.effective_mode, 'blocked')
         self.assertEqual(decision.reason, 'migration_not_verified_clean')
 
     @override_settings(PLANNER_STORAGE_MODE='normalized')
-    def test_verified_source_checksum_drift_immediately_revokes_normalized_access(self):
+    def test_runtime_admission_does_not_rescan_legacy_checksum(self):
         source = UserData.objects.create(user=self.user, key='events', value='[]')
         PlannerMigrationState.objects.create(
             user=self.user,
@@ -61,5 +61,5 @@ class PlannerRolloutPolicyTests(TestCase):
         source.save(update_fields=['value'])
 
         decision = PlannerRolloutPolicy.decide(self.user, 'web_calendar')
-        self.assertEqual(decision.effective_mode, 'legacy')
-        self.assertEqual(decision.reason, 'migration_not_verified_clean')
+        self.assertEqual(decision.effective_mode, 'normalized')
+        self.assertEqual(decision.reason, 'verified_normalized_assignment')

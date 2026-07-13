@@ -35,6 +35,7 @@ class CalendarCollectionView(CalDAVView):
 
     处理该日历集合的 PROPFIND 和 REPORT。
     """
+    allow_header = 'OPTIONS, GET, HEAD, PROPFIND, REPORT, PROPPATCH'
 
     # --------------------------------------------------
     # PROPFIND
@@ -46,6 +47,13 @@ class CalendarCollectionView(CalDAVView):
             return err
         if user.username != username:
             return HttpResponseForbidden("Access denied.")
+
+        from caldav_service.normalized import collection_propfind, normalized_read_context
+        normalized_context = normalized_read_context(user)
+        if normalized_context is not None:
+            return collection_propfind(
+                normalized_context, username, calendar_id, request.META.get('HTTP_DEPTH', '1')
+            )
 
         depth = request.META.get('HTTP_DEPTH', '1')
         events = self.get_events_for_calendar(user, calendar_id)
@@ -132,6 +140,11 @@ class CalendarCollectionView(CalDAVView):
             return err
         if user.username != username:
             return HttpResponseForbidden("Access denied.")
+
+        from caldav_service.normalized import collection_report, normalized_read_context
+        normalized_context = normalized_read_context(user)
+        if normalized_context is not None:
+            return collection_report(normalized_context, username, calendar_id, request.body)
 
         body = request.body
         if not body:

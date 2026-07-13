@@ -116,6 +116,39 @@ class PlannerRepository:
         return projections
 
     @classmethod
+    def list_all_event_definitions(cls, user: User) -> list[EventDefinitionProjection]:
+        """返回用户全部 active Event 定义，供 Feed/CalDAV collection 使用。"""
+        singles = list(
+            CalendarEvent.objects.filter(user=user, deleted_at__isnull=True)
+            .filter(Q(recurrence_series__isnull=True) | Q(recurrence_series__deleted_at__isnull=False))
+            .select_related('group')
+            .prefetch_related('share_links__share_group')
+            .order_by('start_at', 'start_date', 'id')
+        )
+        projections = [EventDefinitionProjection(event=event, recurrence=None, overrides=()) for event in singles]
+        series_queryset = (
+            EventRecurrenceSeries.objects.filter(user=user, deleted_at__isnull=True, master_event__deleted_at__isnull=True)
+            .select_related('master_event', 'master_event__group')
+            .prefetch_related(
+                'master_event__share_links__share_group',
+                Prefetch('rdates', queryset=EventRecurrenceRDate.objects.order_by('recurrence_id')),
+                Prefetch('exdates', queryset=EventRecurrenceExDate.objects.order_by('recurrence_id')),
+                Prefetch(
+                    'overrides',
+                    queryset=EventOccurrenceOverride.objects.filter(deleted_at__isnull=True).order_by('recurrence_id'),
+                ),
+            )
+            .order_by('master_event__start_at', 'master_event__start_date', 'id')
+        )
+        for series in series_queryset:
+            projections.append(EventDefinitionProjection(
+                event=series.master_event,
+                recurrence=cls._to_recurrence_definition(series),
+                overrides=tuple(cls._to_override(item) for item in series.overrides.all()),
+            ))
+        return projections
+
+    @classmethod
     def list_event_occurrences(
         cls,
         user: User,

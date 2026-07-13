@@ -147,13 +147,11 @@ USE_I18N = True
 USE_L10N = True
 USE_TZ = True
 
-# Planner 正规化迁移期开关。现有入口尚未读取 normalized 数据，默认 legacy。
-# 未登记 cohort 的用户仍会由 PlannerRolloutPolicy 回退 legacy；默认开启
-# normalized 仅使 verified clean + 显式 entrypoint assignment 真正生效。
+# P6：生产 Planner 只允许 normalized；未登记或隔离账号显式拒绝且不得 fallback。
 PLANNER_STORAGE_MODE = os.getenv('PLANNER_STORAGE_MODE', 'normalized')
 PLANNER_DIFF_ASSERT = os.getenv('PLANNER_DIFF_ASSERT', 'false')
-PLANNER_LEGACY_FALLBACK = os.getenv('PLANNER_LEGACY_FALLBACK', 'true')
-PLANNER_CALDAV_NORMALIZED = os.getenv('PLANNER_CALDAV_NORMALIZED', 'false')
+PLANNER_LEGACY_FALLBACK = os.getenv('PLANNER_LEGACY_FALLBACK', 'false')
+PLANNER_CALDAV_NORMALIZED = os.getenv('PLANNER_CALDAV_NORMALIZED', 'true')
 
 # 设置 LOGIN_URL，指定用户未登录时跳转到的登录页面。
 LOGIN_URL = '/user_login'

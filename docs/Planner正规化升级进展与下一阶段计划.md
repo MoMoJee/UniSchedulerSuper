@@ -261,4 +261,33 @@ P4 的详细执行顺序、统一应用服务、Agent/Quick Action/MCP 适配、
 
 P4-0 至 P4-F 已全部完成并通过验收，详见 [P4-F 历史清理、压缩与生产验收报告](./P4验收报告/P4-F历史清理压缩与生产验收报告.md)。Agent、Quick Action、MCP、附件和会话回滚窗口已切换到统一 application/snapshot 架构；旧 rollback API 固定返回 410，旧 UserData/Agent reversion 历史已清理。活动 SQLite 从约 2.42 GB 压缩到 32.08 MB，业务 checksum 不变，全用户 strict/parity 为 0 diff，最终自动化 119/119 通过。
 
+2026-07-13 的 P4-G 用户验收收尾进一步修复了 Agent 内部附件首发/回滚重发、Reminder recurrence 全作用域、WebSocket ASGI 验收和 FullCalendar 同窗口并发刷新，详见 [P4-G Agent 附件与 Reminder 完整链路验收报告](./P4验收报告/P4-G-Agent附件与Reminder完整链路验收报告.md)。最终 `core.tests + agent_service.tests` 为 139/139，通过 MoMoJee strict/parity 与真实浏览器/WebSocket 验收；P1–P4 至此全部关闭。
+
 下一阶段进入 P5：统一 iCalendar mapper、Feed、CalDAV PUT/DELETE/REPORT、ETag 与 collection change。P5 不应重新引入 legacy Planner JSON 写入或第二套 recurrence/rollback 实现。
+
+## 10. P5 实施进度
+
+P5 的阶段顺序、现有 CalDAV 功能边界、统一 iCalendar mapper、Feed/CalDAV V2 调用链、UID/href 迁移、协议矩阵和停机发布流程见 [P5 Feed 与 CalDAV V2 适配升级详细方案](./P5-Feed与CalDAV-V2适配升级详细方案.md)。
+
+本阶段只适配已有功能，不扩展为完整 CalDAV 服务器：继续支持 VEVENT、default/group/read-only reminders、现有 discovery/PROPFIND/calendar-multiget/calendar-query/GET/PUT/DELETE；Todo 只在 HTTP Feed 中转为 VEVENT+VALARM。VTODO、MKCALENDAR 写入、Free/Busy、共享 CalDAV、LOCK/UNLOCK 和未实现的 sync-collection 不纳入必做范围，也不得在 capability 中虚假宣称。
+
+P5 按 `P5-0 → P5-A → P5-B → P5-C → P5-D → P5-E → P5-F` 实施，每阶段形成独立验收报告。完成 P5-F 自动矩阵、MoMoJee strict/parity、Apple Feed、Apple CalDAV 及另一类标准客户端交叉验收后，才能进入 P6。
+
+截至 2026-07-13，P5-0 至 P5-F 已全部完成：能力基线、Identity 审计、持久化 UID/href、统一 iCalendar mapper、Feed V2、CalDAV read/write、ETag/CTag/collection change、交叉入口与生产烟雾均已通过验收。最终自动化为 171/171。
+
+## 11. P6 实施与最终验收基线（已规划，须在 P5 后执行）
+
+P6 的全用户切换、五个 retired quarantine 用户处置、runtime legacy 路径关闭、数据库防写、只读归档、停机发布、观察期和保留期后清理流程见 [P6 Legacy 停写、只读归档与最终验收发布方案](./P6-Legacy停写归档与最终验收发布方案.md)。
+
+关键决策：
+
+1. 所有 verified clean 用户必须一次性登记 Web/API/Agent/Quick/MCP/附件/Feed/CalDAV 等全部 normalized entrypoint，不能只切 MoMoJee 或只切 Web。
+2. MoMoJee 继续作为完整生产验收用户；User1、test_user、User15、User21、User22 按已确认决策不修复，固化为 retired quarantine，Planner 请求明确拒绝且不得回落写 legacy。
+3. `events/todos/reminders/events_groups/events_rrule_series/rrule_series_storage` 等核心 Planner UserData 行保留为只读归档至少一个后续生产版本且连续 7 天；配置类 UserData 不受本阶段停写影响。
+4. P6 功能 cutover 以核心 Planner legacy 写入为零和全链路验收为完成门槛；保留期结束后再执行 P6-F 死代码/旧共享投影清理，归档或 LegacyIdMap 的实际删除仍需另行人工批准。
+
+### 11.1 P6 实际进度（2026-07-13）
+
+P6-0 至 P6-D 已完成：39 个用户被分类为 34 verified clean + 5 retired quarantine；全部 14 个入口已登记；运行时 fallback 已断路；`core.0013` 已在副本演练后应用生产；157 行、2,788,568 bytes 的 Planner legacy archive 已按逐行 checksum 封存；SQLite 五个 trigger 已启用。停机生产门禁的最终全量测试为 178/178。
+
+P6-E 已完成上线烟雾并从 2026-07-13 14:56 开始观察：真实 HTTP、Feed、CalDAV、Agent WebSocket、浏览器 UI 和隔离账号在线写入均通过。按既定文档，P6-E 只有在连续 7 天无未解释异常后才完成；P6-F 还要求跨过至少一个后续生产版本，因此当前状态是“功能 cutover 完成、观察中”，不能提前物理删除 legacy adapter/archive。

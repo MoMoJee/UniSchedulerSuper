@@ -1,6 +1,22 @@
 import json
 import time
+from urllib.parse import urlencode
+
 from logger import logger
+
+
+SENSITIVE_QUERY_KEYS = frozenset({'token', 'access_token', 'api_key', 'password'})
+
+
+def _sanitized_path(request):
+    """访问日志永不落地 query token，同时保留其余排障参数。"""
+    if not request.GET:
+        return request.path
+    pairs = []
+    for key, values in request.GET.lists():
+        for value in values:
+            pairs.append((key, '[REDACTED]' if key.lower() in SENSITIVE_QUERY_KEYS else value))
+    return f'{request.path}?{urlencode(pairs)}'
 
 class RequestLogMiddleware:
     """
@@ -42,7 +58,7 @@ class RequestLogMiddleware:
             # 构建日志消息（类似 Apache/Nginx 格式）
             log_message = (
                 f'{ip} - {user} - '
-                f'"{request.method} {request.get_full_path()}" '
+                f'"{request.method} {_sanitized_path(request)}" '
                 f'{response.status_code} '
                 f'{response.get("Content-Length", "-")} '
                 f'{duration:.3f}s'
@@ -82,6 +98,8 @@ class RequestDebugMiddleware:
         try:
             # 获取所有 Headers
             headers = dict(request.headers)
+            if 'Authorization' in headers:
+                headers['Authorization'] = '[REDACTED]'
             
             # 构建详细日志
             log_message = [
@@ -94,18 +112,17 @@ class RequestDebugMiddleware:
             # 特别检查 Authorization
             auth = request.headers.get('Authorization')
             if auth:
-                log_message.append(f"Authorization Header: '{auth}'")
-                if auth.startswith('Token '):
-                    token = auth.split(' ')[1]
-                    log_message.append(f"Token Value: '{token}'")
-                else:
-                    log_message.append(f"Authorization format warning: Should start with 'Token '")
+                log_message.append("Authorization Header: '[REDACTED]'")
             else:
                 log_message.append("WARNING: No Authorization header present!")
 
             # 记录 GET 参数
             if request.GET:
-                log_message.append(f"GET Params: {request.GET.dict()}")
+                params = {
+                    key: ('[REDACTED]' if key.lower() in SENSITIVE_QUERY_KEYS else value)
+                    for key, value in request.GET.dict().items()
+                }
+                log_message.append(f"GET Params: {params}")
 
             # 记录 Body (如果是 JSON)
             if request.content_type == 'application/json':

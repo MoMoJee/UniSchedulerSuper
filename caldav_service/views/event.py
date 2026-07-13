@@ -42,6 +42,13 @@ class EventObjectView(CalDAVView):
 
     单个日历对象资源。
     """
+    allow_header = 'OPTIONS, GET, HEAD, PUT, DELETE'
+
+    def options(self, request, *args, **kwargs):
+        response = super().options(request, *args, **kwargs)
+        if kwargs.get('calendar_id') == 'reminders':
+            response['Allow'] = 'OPTIONS, GET, HEAD'
+        return response
 
     # --------------------------------------------------
     # GET
@@ -53,6 +60,14 @@ class EventObjectView(CalDAVView):
             return err
         if user.username != username:
             return HttpResponseForbidden("Access denied.")
+
+        from caldav_service.normalized import event_get, normalized_read_context
+        normalized_context = normalized_read_context(user)
+        if normalized_context is not None:
+            return event_get(
+                normalized_context, calendar_id, event_uid,
+                if_none_match=request.META.get('HTTP_IF_NONE_MATCH', '').strip(),
+            )
 
         item = self._find_item(user, calendar_id, event_uid)
         if item is None:
@@ -83,6 +98,19 @@ class EventObjectView(CalDAVView):
             return err
         if user.username != username:
             return HttpResponseForbidden("Access denied.")
+
+        from caldav_service.normalized import event_put, normalized_read_context, normalized_write_context
+        normalized_context = normalized_write_context(user)
+        if normalized_context is not None:
+            if len(request.body) > MAX_PUT_BODY_SIZE:
+                return HttpResponse("Request body too large.", status=413)
+            return event_put(
+                normalized_context, username, calendar_id, event_uid, request.body,
+                if_match=request.META.get('HTTP_IF_MATCH', '').strip(),
+                if_none_match=request.META.get('HTTP_IF_NONE_MATCH', '').strip(),
+            )
+        if normalized_read_context(user) is not None:
+            return HttpResponse("CalDAV write is not enabled for this cohort.", status=503)
 
         # 提醒日历为只读
         if self.is_reminder_calendar(calendar_id):
@@ -594,6 +622,16 @@ class EventObjectView(CalDAVView):
             return err
         if user.username != username:
             return HttpResponseForbidden("Access denied.")
+
+        from caldav_service.normalized import event_delete, normalized_read_context, normalized_write_context
+        normalized_context = normalized_write_context(user)
+        if normalized_context is not None:
+            return event_delete(
+                normalized_context, calendar_id, event_uid,
+                if_match=request.META.get('HTTP_IF_MATCH', '').strip(),
+            )
+        if normalized_read_context(user) is not None:
+            return HttpResponse("CalDAV write is not enabled for this cohort.", status=503)
 
         # 提醒日历为只读
         if self.is_reminder_calendar(calendar_id):

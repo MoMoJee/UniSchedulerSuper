@@ -30,9 +30,17 @@ from core.planner.snapshots import PlannerSnapshotRecorder
 
 class PlannerApplicationAccessError(PermissionError):
     def __init__(self, *, write: bool, decision: PlannerStorageDecision):
-        self.code = "planner_normalized_write_not_enabled" if write else "planner_normalized_read_not_enabled"
+        self.code = (
+            'planner_retired_quarantine'
+            if decision.reason == 'retired_quarantine'
+            else ("planner_normalized_write_not_enabled" if write else "planner_normalized_read_not_enabled")
+        )
         self.decision = decision
-        super().__init__("当前用户或入口尚未获准访问 normalized Planner。")
+        super().__init__(
+            '该账号的历史 Planner 测试数据已隔离，当前入口不可用。'
+            if decision.reason == 'retired_quarantine'
+            else '当前用户或入口尚未获准访问 normalized Planner。'
+        )
 
 
 class PlannerApplicationService:
@@ -73,6 +81,85 @@ class PlannerApplicationService:
             "definitions": [serialize_event_definition(item) for item in items],
             "count": len(items),
         }
+
+    @classmethod
+    def build_calendar_feed(cls, context: PlannerExecutionContext, *, feed_type: str) -> bytes:
+        cls.require_access(context)
+        if feed_type not in {'all', 'events', 'todos', 'reminders'}:
+            from core.planner.commands import PlannerCommandError
+            raise PlannerCommandError('不支持的 calendar feed type', code='invalid_feed_type')
+        from core.planner.calendar_projection import NormalizedCalendarProjectionService
+        from core.planner.ical import encode_feed_calendar
+        include = lambda value: feed_type in {'all', value}
+        return encode_feed_calendar(
+            name=f'UniScheduler - {context.user.username}',
+            events=NormalizedCalendarProjectionService.event_resources(context.user, feed_titles=True) if include('events') else (),
+            todos=NormalizedCalendarProjectionService.todo_feed_resources(context.user) if include('todos') else (),
+            reminders=NormalizedCalendarProjectionService.reminder_resources(context.user, feed_titles=True) if include('reminders') else (),
+        )
+
+    @classmethod
+    def list_calendar_collections(cls, context: PlannerExecutionContext):
+        cls.require_access(context)
+        from core.planner.caldav import PlannerCalDAVQueryService
+        return PlannerCalDAVQueryService.list_collections(context.user)
+
+    @classmethod
+    def list_calendar_resources(
+        cls, context: PlannerExecutionContext, *, collection_id: str,
+        range_start: datetime | None = None, range_end: datetime | None = None,
+    ):
+        cls.require_access(context)
+        from core.planner.caldav import PlannerCalDAVQueryService
+        return PlannerCalDAVQueryService.list_resources(
+            context.user, collection_id, range_start=range_start, range_end=range_end
+        )
+
+    @classmethod
+    def get_calendar_resource(cls, context: PlannerExecutionContext, *, collection_id: str, resource_name: str):
+        cls.require_access(context)
+        from core.planner.caldav import PlannerCalDAVQueryService
+        return PlannerCalDAVQueryService.get_resource(context.user, collection_id, resource_name)
+
+    @classmethod
+    def get_calendar_collection_version(cls, context: PlannerExecutionContext, *, collection_id: str) -> str:
+        cls.require_access(context)
+        from core.planner.caldav import PlannerCalDAVQueryService
+        return PlannerCalDAVQueryService.collection_ctag(context.user, collection_id)
+
+    @classmethod
+    def apply_caldav_event_resource(
+        cls, context: PlannerExecutionContext, *, collection_id: str, resource_name: str,
+        parsed_object, if_match: str = '', if_none_match: str = '',
+    ):
+        cls.require_access(context, write=True)
+        from core.planner.caldav import PlannerCalDAVCommandService
+        return cls._mutate(
+            context,
+            command_type='caldav.event.put', resource_type='event', resource_id=resource_name,
+            operation=lambda: PlannerCalDAVCommandService.apply_event_resource(
+                context.user, collection_id=collection_id, resource_name=resource_name,
+                parsed=parsed_object, if_match=if_match, if_none_match=if_none_match,
+            ),
+            result_resource_id=lambda result: result.resource_name,
+        )
+
+    @classmethod
+    def delete_caldav_event_resource(
+        cls, context: PlannerExecutionContext, *, collection_id: str, resource_name: str,
+        if_match: str = '',
+    ) -> None:
+        cls.require_access(context, write=True)
+        from core.planner.caldav import PlannerCalDAVCommandService
+        return cls._mutate(
+            context,
+            command_type='caldav.event.delete', resource_type='event', resource_id=resource_name,
+            operation=lambda: PlannerCalDAVCommandService.delete_event_resource(
+                context.user, collection_id=collection_id, resource_name=resource_name,
+                if_match=if_match,
+            ),
+            result_resource_id=lambda result: resource_name,
+        )
 
     @classmethod
     def list_event_occurrences(cls, context: PlannerExecutionContext, *, range_start: datetime, range_end: datetime) -> dict[str, Any]:

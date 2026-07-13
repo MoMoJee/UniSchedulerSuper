@@ -90,7 +90,10 @@ class InternalElementParser(BaseParser):
             entrypoint=PlannerRolloutPolicy.ENTRYPOINT_INTERNAL_ATTACHMENT,
         )
         decision = PlannerRolloutPolicy.can_read_normalized(user, context.entrypoint)
-        return context if decision.effective_mode in {'shadow', 'normalized'} else None
+        if decision.effective_mode in {'shadow', 'normalized'}:
+            return context
+        from django.conf import settings
+        return context if str(getattr(settings, 'PLANNER_STORAGE_MODE', 'legacy')).lower() != 'legacy' else None
 
     @classmethod
     def _normalized_item(

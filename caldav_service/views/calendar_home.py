@@ -27,6 +27,7 @@ class CalendarHomeView(CalDAVView):
     PROPFIND Depth:0 → 返回目录自身属性
     PROPFIND Depth:1 → 返回目录自身 + 所有日历集合
     """
+    allow_header = 'OPTIONS, GET, HEAD, PROPFIND'
 
     def propfind(self, request, username):
         user, err = self.require_auth(request)
@@ -34,6 +35,11 @@ class CalendarHomeView(CalDAVView):
             return err
         if user.username != username:
             return HttpResponseForbidden("Access denied.")
+
+        from caldav_service.normalized import home_propfind, normalized_read_context
+        normalized_context = normalized_read_context(user)
+        if normalized_context is not None:
+            return home_propfind(normalized_context, username, request.META.get('HTTP_DEPTH', '1'))
 
         depth = request.META.get('HTTP_DEPTH', '1')
 

@@ -45,6 +45,7 @@ class _LegacySSLAdapter(HTTPAdapter):
         return super().proxy_manager_for(proxy, **proxy_kwargs)
 
 from django.http import JsonResponse
+from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -688,6 +689,12 @@ def confirm_import(request):
             except Exception as exc:
                 logger.error(f'normalized 课程批量导入失败: {exc}')
                 return JsonResponse({'status': 'error', 'message': str(exc), 'imported_count': 0}, status=422)
+        elif str(getattr(settings, 'PLANNER_STORAGE_MODE', 'legacy')).lower() != 'legacy':
+            return JsonResponse({
+                'status': 'error',
+                'code': 'planner_retired_quarantine' if decision.reason == 'retired_quarantine' else 'planner_cutover_required',
+                'message': 'Planner 入口不可用，禁止回落 legacy。',
+            }, status=423 if decision.reason == 'retired_quarantine' else 503)
         else:
             from core.services.event_service import EventService
 
