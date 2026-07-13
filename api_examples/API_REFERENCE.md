@@ -1,1053 +1,366 @@
-# UniScheduler API 接口文档
+# UniScheduler API 参考（P6 / Planner V2）
 
-> **版本**: 1.6.4  
-> **基础地址**: `http://127.0.0.1:8000`（开发环境）  
-> **更新日期**: 2026-03-12
+本文以 `core/urls.py`、`core/views_planner_v2.py`、Planner command/entity service、Agent 与 CalDAV 代码为准。时间示例均为 ISO 8601；建议显式携带时区偏移或 `tzid`。
 
----
+## 1. 认证与通用契约
 
-## 目录
+### Token
 
-1. [认证机制](#认证机制)
-2. [通用响应格式](#通用响应格式)
-3. [Events API - 日程管理](#events-api---日程管理)
-4. [Event Groups API - 日程分组](#event-groups-api---日程分组)
-5. [TODOs API - 待办事项](#todos-api---待办事项)
-6. [Reminders API - 提醒](#reminders-api---提醒)
-7. [Quick Action API - 智能操作](#quick-action-api---智能操作)
-8. [Speech-to-Text API - 语音转文字](#speech-to-text-api---语音转文字)
-9. [错误码参考](#错误码参考)
-
----
-
-## 认证机制
-
-除语音转文字接口（后期会提供更多的 parser 接口）外，所有 API 需要 Token 认证。
-
-### 获取 Token
-
-**POST** `/api/auth/login/`
-
-**请求体：**
-```json
-{
-  "username": "your_username",
-  "password": "your_password"
-}
-```
-
-**成功响应（200）：**
-```json
-{
-  "token": "9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b",
-  "user_id": 1,
-  "username": "your_username"
-}
-```
-
-**失败响应（401）：**
-```json
-{
-  "error": "用户名或密码错误"
-}
-```
-
-### 使用 Token
-
-在请求头中携带：
-
-```
-Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b
-```
-
-Python 示例：
-```python
-headers = {
-    "Authorization": f"Token {token}",
-    "Content-Type": "application/json"
-}
-```
-
----
-
-## 通用响应格式
-
-### 成功响应
-
-大多数接口返回业务数据直接包裹在响应体中，HTTP 状态码为 `200`。
-
-### 错误响应
+`POST /api/auth/login/`
 
 ```json
-{
-  "error": "错误描述",
-  "error_code": "ERROR_CODE_STRING"
-}
+{"username":"name","password":"password"}
 ```
 
-### 分页响应
+成功返回 `token`。后续请求：
 
-支持分页的列表接口：
-```json
-{
-  "count": 100,
-  "limit": 20,
-  "offset": 0,
-  "results": [...]
-}
+```http
+Authorization: Token <token>
+Content-Type: application/json
 ```
 
----
+除 Feed 的 URL Token、CalDAV Basic Auth 和公开 Speech-to-Text 外，本文接口均需认证。浏览器 Session 的非安全方法还需 CSRF；外部 Token 客户端不需要 CSRF。
 
-## Events API - 日程管理
+### Planner cohort
 
-### 获取日程列表（含日程组）
+`GET /api/v2/planner/bootstrap/` 返回各入口准入状态。V2 读写不会 fallback legacy：
 
-**GET** `/get_calendar/events/`
+| HTTP / code | 含义 |
+|---|---|
+| 409 `planner_normalized_read_not_enabled` | 当前用户/入口不能读 normalized |
+| 409 `planner_normalized_write_not_enabled` | 可读但不能写，或入口未准入 |
+| 423 `planner_retired_quarantine` | 历史测试账号已隔离 |
 
-**请求头：** `Authorization: Token <token>`
+客户端不能在这些错误后改调 V1；应停止并联系管理员修复 cohort。
 
-**可选查询参数：**
+### 时间窗与身份
 
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `start` | string | 日期范围起始（ISO 8601），仅返回此时间之后结束的日程 |
-| `end` | string | 日期范围结束（ISO 8601），与 `start` 配合使用 |
+- 所有 occurrence 窗口为半开区间 `[from, to)`；`from < to`。
+- Event definitions、Event occurrences、conflicts、search、shared occurrences 的 `from`/`to` 均必填。
+- Reminder：不带窗口列 master definitions；只要带了任一边界，就必须同时提供两者，并返回 occurrences。
+- 无限 RRULE 只能按窗口读取。服务端不物化普通重复实例，重复读取不会增加实体行。
+- `event_id`、`todo_id`、`reminder_id`、`group_id`、`series_id` 均是不透明字符串，不应转整数。
+- occurrence 响应中的复合 `id` 仅供 UI key 使用；写命令使用 `occurrence_ref.entity_id` 和完整 `occurrence_ref`。
 
-> `events_groups` 始终完整返回，不受日期过滤影响。
+### 并发
 
-**响应（200）：**
+所有 PATCH、DELETE、Todo→Event 转换和 Reminder occurrence action 都必须携带最新 `expected_version`。Event/Group/Todo/Reminder 资源写入也可用 `If-Match` 传整数版本，但 body 优先。
+
+- 缺失、非整数或 `<1`：`422 expected_version_required`。
+- 版本过期：`409 version_conflict`。
+- 收到冲突后重新 GET；不能用旧版本自动循环重试。
+
+### 严格字段
+
+V2 不接受 V1 别名或未知字段。拼错字段返回 `422 unsupported_field`，不会“成功但忽略”。例如：
+
+| 错误旧字段 | V2 字段 |
+|---|---|
+| `groupID` | `group_id` |
+| `shared_to_groups` | `share_group_ids` |
+| `ddl` | `ddl_at` |
+| `due_date` | `due` |
+| `trigger_time` | `trigger` |
+| 顶层 `rrule` | `recurrence: {"rrule": "..."}` |
+| `eventId` / body `id` | URL 中的资源 ID |
+
+## 2. Event
+
+### 路由
+
+| 方法 | 路径 | 作用 |
+|---|---|---|
+| GET | `/api/v2/events/definitions/?from=...&to=...` | 读取 master/series 定义 |
+| GET | `/api/v2/events/occurrences/?from=...&to=...` | 窗口展开日历实例 |
+| GET | `/api/v2/events/conflicts/?from=...&to=...` | 半开区间重叠检测 |
+| POST | `/api/v2/events/` | 创建单次或 recurrence master |
+| PATCH | `/api/v2/events/<event_id>/` | 按 scope 修改 |
+| DELETE | `/api/v2/events/<event_id>/` | 按 scope 删除 |
+
+### 创建字段
+
 ```json
 {
-  "events": [
-    {
-      "id": 1,
-      "title": "团队会议",
-      "start": "2026-02-10T14:00:00",
-      "end": "2026-02-10T15:00:00",
-      "importance": "important",
-      "urgency": "urgent",
-      "groupID": "2",
-      "is_recurring": false
-    }
-  ],
-  "events_groups": [
-    { "id": 1, "name": "工作", "color": "#FF6B6B", "description": "..." }
-  ]
-}
-```
-
-> 注意：日程组列表（`events_groups`）与日程列表（`events`）在同一响应中返回。如只需获取日程组数据，也可调用 `GET /api/events/groups/` 轻量接口。
-
----
-
-### 创建日程
-
-**POST** `/events/create_event/`
-
-**请求体：**
-```json
-{
-  "title": "团队会议",
-  "start": "2026-02-10T14:00:00",
-  "end": "2026-02-10T15:00:00",
-  "description": "讨论项目进度",
+  "title": "每周例会",
+  "description": "项目同步",
+  "location": "A201",
+  "status": "confirmed",
   "importance": "important",
-  "urgency": "urgent",
-  "groupID": "1",
-  "ddl": "",
-  "rrule": ""
+  "urgency": "not-urgent",
+  "start": "2026-07-13T10:00:00+08:00",
+  "end": "2026-07-13T11:00:00+08:00",
+  "is_all_day": false,
+  "tzid": "Asia/Shanghai",
+  "group_id": null,
+  "ddl_at": null,
+  "share_group_ids": [],
+  "recurrence": {"rrule": "FREQ=WEEKLY;COUNT=10", "rdates": [], "exdates": []}
 }
 ```
 
-**字段说明：**
+规则：
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `title` | string | ✅ | 日程标题 |
-| `start` | string | ✅ | 开始时间（ISO 8601，如 `2026-02-10T14:00:00`） |
-| `end` | string | ✅ | 结束时间（ISO 8601） |
-| `description` | string | ❌ | 描述 |
-| `importance` | string | ❌ | 重要性：`important` / `not-important` |
-| `urgency` | string | ❌ | 紧急度：`urgent` / `not-urgent` |
-| `groupID` | string | ❌ | 日程组 ID（字符串形式） |
-| `ddl` | string | ❌ | 截止时间（ISO 8601），空字符串表示无 |
-| `rrule` | string | ❌ | RFC 5545 重复规则，空字符串表示单次日程 |
+- `title`、`start`、`end` 必填；title 不能为空，end 必须晚于 start。
+- `start`/`end` 必须同时出现。定时 Event 必须是 DATE-TIME；全天 Event 必须 `is_all_day=true` 且使用 `YYYY-MM-DD` DATE。
+- 切换全天类型时必须同时提供 start/end。
+- `tzid` 必须是有效 IANA 时区。
+- `group_id` 必须属于当前用户，或为 `null`；跨用户/不存在返回 `group_not_found`。
+- `share_group_ids` 必须是去重前可验证的非空字符串数组，且用户必须是 owner/member；single occurrence 不能独立改变分享关系。
+- RRULE 使用 RFC 5545 内容，不带 `RRULE:` 也可；不能把 `EXDATE` 拼进 RRULE，使用 recurrence 的 `exdates` 数组。
+- 定时 series 的 rdates/exdates 必须为 DATE-TIME，全天 series 必须为 DATE。
 
-**成功响应（200）：**
+创建成功为 `201`，返回 `event` definition；它不是全部 occurrences。
+
+### occurrence_ref
+
 ```json
 {
-  "event": {
-    "id": 42,
-    "series_id": null,
-    "title": "团队会议",
-    "start": "2026-02-10T14:00:00",
-    "end": "2026-02-10T15:00:00"
-  }
+  "entity_id": "event-public-id",
+  "series_id": "series-public-id",
+  "recurrence_id": "20260713T100000",
+  "occurrence_start": "2026-07-13T02:00:00+00:00",
+  "source_version": 3
 }
 ```
 
-> 重复日程创建后，响应中 `event.series_id` 为系列 ID，`event.id` 为第一个实例的 ID。
+单次 Event 的 `series_id`/`recurrence_id` 为 null，但仍可使用 definition 的 `version` 写入。
 
----
+### scope
 
-### 更新日程
+| scope | occurrence_ref | 行为/禁止规则 |
+|---|---|---|
+| `single` | 重复系列必填 | 写稀疏 override；可改标题、描述、位置、状态、重要性、紧急度、group、起止时间；不能改 recurrence、全天类型、tzid、ddl_at、分享关系 |
+| `all` | 可省略 | 修改 master/整系列；可改每天的时刻，但不能把系列起始日期移动到另一自然日；否则 `series_date_change_forbidden` |
+| `this_and_future` | 必填 | 截断父系列并建立子系列；非重复 Event 禁止 |
 
-**POST** `/get_calendar/update_events/`
+`this_and_future` 在未来已有 override 或更换 RRULE 时，可能要求 `override_policy`：
 
-**请求体：**
+- `map_by_ordinal`：按序号映射未来例外；不能证明映射时拒绝。
+- `keep_as_single`：把无法映射的未来例外保留成独立项。
+- `discard_with_audit`：明确丢弃并留审计记录。
+
+缺策略返回 `409 recurrence_split_requires_override_policy`。不要在客户端猜默认值。
+
+删除使用相同 scope：single 取消这一 occurrence；this_and_future 截断；all 软删除整个资源。
+
+## 3. 个人 Event Group
+
+| 方法 | 路径 |
+|---|---|
+| GET/POST | `/api/v2/groups/` |
+| PATCH/DELETE | `/api/v2/groups/<group_id>/` |
+
+可写字段：`name`、`description`、`color`、`group_type`、`default_importance`、`default_urgency`、`default_duration_seconds`、`working_hours`。name 必填且同一用户唯一。
+
+PATCH/DELETE 要 `expected_version`。DELETE 可传 `delete_items`：
+
+- `false`：Event/Todo 脱离该组但保留。
+- `true`：组内 Event/Todo 一并软删除。
+
+不存在的组不能静默成功。
+
+## 4. Todo
+
+| 方法 | 路径 |
+|---|---|
+| GET/POST | `/api/v2/todos/` |
+| PATCH/DELETE | `/api/v2/todos/<todo_id>/` |
+| POST | `/api/v2/todos/<todo_id>/convert/` |
+
+GET 可按 `status`、`group_id` 精确筛选。
+
+创建/更新字段：`title`、`description`、`status`、`importance`、`urgency`、`priority_score`、`estimated_duration_seconds`、`tzid`、`due`、`group_id`、`tags`、`dependencies`。
+
+- `title` 创建时必填。
+- `due` 接受 DATE 或 DATE-TIME；`null`/空值可清空。不要发送 `due_date`。
+- tags/dependencies 必须是数组。
+- dependency 必须属于同一用户，不能依赖自身、不能形成环；否则 `invalid_dependencies` 或 `todo_dependency_cycle`。
+- Todo 当前不支持 recurrence。
+
+转换请求：
+
 ```json
 {
-  "eventId": 42,
-  "title": "更新后的标题",
-  "start": "2026-02-10T15:00:00",
-  "end": "2026-02-10T16:00:00",
-  "description": "更新后的描述",
-  "importance": "not-important",
-  "urgency": "not-urgent"
+  "expected_version": 2,
+  "start": "2026-07-14T14:00:00+08:00",
+  "end": "2026-07-14T15:00:00+08:00",
+  "tzid": "Asia/Shanghai",
+  "is_all_day": false
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `eventId` | integer | ✅ | 要更新的日程 ID |
-| `title` | string | ❌ | 新标题 |
-| `start` | string | ❌ | 新开始时间 |
-| `end` | string | ❌ | 新结束时间 |
-| `description` | string | ❌ | 新描述 |
-| `importance` | string | ❌ | `important` / `not-important` |
-| `urgency` | string | ❌ | `urgent` / `not-urgent` |
-| `rrule` | string | ❌ | 新增/修改重复规则（**注意末尾不要加分号**） |
+转换在一个事务中创建 Event，并把 Todo 标为 completed、关联 `converted_to_event_id`。同一 Todo 不能再次转换；返回 `todo_already_converted`。失败不得产生半个 Event。
 
-> 如需将单次日程转换为重复日程，只需增加 `rrule` 字段即可。
+## 5. Reminder
 
----
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET/POST | `/api/v2/reminders/` | 无窗口读 definitions；有 from/to 读 occurrences；POST 创建 |
+| PATCH/DELETE | `/api/v2/reminders/<reminder_id>/` | scope 命令 |
+| POST | `/api/v2/reminders/occurrences/action/` | complete/dismiss/snooze/mark_sent/reset |
 
-### 删除日程
+创建/更新字段：`title`、`content`、`priority`、`status`、`tzid`、`trigger`、`recurrence`。
 
-**POST** `/get_calendar/delete_event/`
-
-**请求体：**
 ```json
 {
-  "eventId": 42,
-  "delete_scope": "single"
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `eventId` | integer | ✅ | 要删除的日程 ID |
-| `delete_scope` | string | ✅ | `single`（仅此实例）/ `all`（整个系列） |
-| `series_id` | integer | ❌ | 系列 ID（`delete_scope=all` 时需要提供） |
-
----
-
-### 批量编辑重复日程
-
-**POST** `/api/events/bulk-edit/`
-
-用于对重复日程系列进行精细化编辑或删除。
-
-**请求体公共字段：**
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `operation` | string | ✅ | `edit`（编辑）或 `delete`（删除） |
-| `event_id` | integer | ✅ | 目标日程实例 ID |
-| `series_id` | integer | ✅ | 系列 ID |
-| `edit_scope` | string | ✅ | `all`（全部）/ `single`（仅此实例）/ `future`（此后所有）/ `from_time`（指定时间后） |
-
-**编辑时额外字段：** `title`、`description`、`importance`、`urgency`、`rrule`（修改重复规则会创建新系列并截断旧系列）
-
-**`edit_scope` 行为说明：**
-
-| 值 | 行为 |
-|----|------|
-| `all` | 更新系列中所有实例 |
-| `single` | 将指定实例从系列中独立出来，单独修改 |
-| `future` | 修改指定 `event_id` 及以后的所有实例 |
-| `from_time` | 从 `from_time` 时间点之后创建新系列（需同时提供 `from_time` 字段，ISO 8601） |
-
----
-
-## Event Groups API - 日程分组
-
-### 获取日程组列表（轻量接口）
-
-**GET** `/api/events/groups/`
-
-**请求头：** `Authorization: Token <token>`
-
-**响应（200）：**
-```json
-{
-  "events_groups": [
-    { "id": "1", "name": "工作", "color": "#3498db", "description": "" },
-    { "id": "2", "name": "学习", "color": "#2ecc71", "description": "" }
-  ]
-}
-```
-
-> 此接口只返回日程组列表，不包含日程数据，适合只需更新分组显示的场景。完整数据（日程 + 日程组）请使用 `GET /get_calendar/events/`。
-
----
-
-### 创建日程组
-
-**POST** `/get_calendar/create_events_group/`
-
-**请求体：**
-```json
-{
-  "name": "个人",
-  "description": "个人生活日程",
-  "color": "#4ECDC4"
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `name` | string | ✅ | 组名称 |
-| `description` | string | ❌ | 描述 |
-| `color` | string | ❌ | 十六进制颜色值（如 `#FF6B6B`） |
-
-> ⚠️ 服务端对创建失败不会报错，建议创建后调用 `GET /get_calendar/events/` 验证结果。
-
----
-
-### 更新日程组
-
-**POST** `/get_calendar/update_events_group/`
-
-**请求体：**
-```json
-{
-  "groupID": 3,
-  "title": "新组名",
-  "description": "新描述",
-  "color": "#4ECDC4"
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `groupID` | integer | ✅ | 日程组 ID |
-| `title` | string | ❌ | 新组名 |
-| `description` | string | ❌ | 新描述 |
-| `color` | string | ❌ | 新颜色 |
-
-> ⚠️ 服务端对不存在的 ID 不会报错，建议更新后验证结果。
-
----
-
-### 删除日程组
-
-**POST** `/get_calendar/delete_event_groups/`
-
-**请求体：**
-```json
-{
-  "groupIds": [3, 5],
-  "deleteEvents": false
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `groupIds` | array[integer] | ✅ | 要删除的日程组 ID 列表（支持批量） |
-| `deleteEvents` | boolean | ❌ | 是否同时删除组内所有日程（默认 `false`） |
-
-> ⚠️ 服务端对不存在的 ID 不会报错，建议删除后验证结果。
-
----
-
-## TODOs API - 待办事项
-
-### 获取待办列表
-
-**GET** `/api/todos/`
-
-**可选查询参数：**
-
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `status` | string | 按状态过滤：`pending` / `completed` / `converted`；不传或传 `all` 返回全部 |
-| `importance` | string | 按重要性：`important` / `not-important`；不传或传 `all` 返回全部 |
-| `urgency` | string | 按紧急度：`urgent` / `not-urgent`；不传或传 `all` 返回全部 |
-| `group_id` | string | 按日程组 ID 过滤；`none` 表示无日程组；不传或传 `all` 返回全部 |
-
-**响应（200）：**
-```json
-{
-  "todos": [
-    {
-      "id": 1,
-      "title": "完成报告",
-      "description": "月度工作报告",
-      "due_date": "2026-02-15",
-      "importance": "important",
-      "urgency": "urgent",
-      "status": "pending",
-      "created_at": "2026-02-01T10:00:00"
-    }
-  ]
-}
-```
-
----
-
-### 创建待办
-
-**POST** `/api/todos/create/`
-
-**请求体：**
-```json
-{
-  "title": "完成报告",
-  "description": "月度工作报告",
-  "due_date": "2026-02-15",
-  "estimated_duration": 30,
-  "importance": "important",
-  "urgency": "urgent",
-  "groupID": ""
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `title` | string | ✅ | 待办标题 |
-| `description` | string | ❌ | 详细描述 |
-| `due_date` | string (YYYY-MM-DD) | ❌ | 截止日期 |
-| `estimated_duration` | integer | ❌ | 预计耗时（分钟） |
-| `importance` | string | ❌ | `important` / `not-important` |
-| `urgency` | string | ❌ | `urgent` / `not-urgent` |
-| `groupID` | string | ❌ | 关联日程组 ID，可为空字符串 |
-
-**成功响应（200）：**
-```json
-{
-  "status": "success",
-  "todo": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "title": "完成报告",
-    "description": "月度工作报告",
-    "due_date": "2026-02-15",
-    "estimated_duration": 30,
-    "importance": "important",
-    "urgency": "urgent",
-    "groupID": "1",
-    "status": "pending",
-    "created_at": "2026-03-12 10:00:00",
-    "last_modified": "2026-03-12 10:00:00"
-  }
-}
-```
-
-> 响应中返回完整的待办对象，前端可直接用于本地更新，无需再次请求列表。
-
----
-
-### 更新待办
-
-**POST** `/api/todos/update/`
-
-**请求体：**
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "title": "新标题",
-  "importance": "not-important"
-}
-```
-
-所有字段中 `id` 为必填，其余字段均为可选，与创建时字段相同。
-
-**成功响应（200）：**
-```json
-{
-  "status": "success",
-  "todo": { "id": "...", "title": "新标题", "..." : "..." }
-}
-```
-
-> 返回更新后的完整待办对象，前端可直接应用本地更新。
-
----
-
-### 将待办转换为日程
-
-**POST** `/api/todos/convert/`
-
-**请求体：**
-```json
-{
-  "id": 10,
-  "start_time": "2026-02-15T14:00:00",
-  "end_time": "2026-02-15T16:00:00"
-}
-```
-
-**成功响应（200）：**
-```json
-{
-  "event": { "id": 42 }
-}
-```
-
-> 转换后原待办状态变为 `converted`，如需删除请手动调用删除接口。
-
----
-
-### 删除待办
-
-**POST** `/api/todos/delete/`
-
-**请求体：**
-```json
-{
-  "id": 10
-}
-```
-
----
-
-## Reminders API - 提醒
-
-### 获取提醒列表
-
-**GET** `/api/reminders/`
-
-**可选查询参数：**
-
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `status` | string | `active` / `completed` / `dismissed` / `snoozed`（匹配所有 `snoozed_*` 变体）；不传或传 `all` 返回全部 |
-| `priority` | string | `low` / `normal` / `high` / `critical`；不传或传 `all` 返回全部 |
-| `type` | string | `single`（单次）/ `recurring`（重复）/ `detached`（独立编辑实例）；不传或传 `all` 返回全部 |
-| `start` | string | 时间范围起始（ISO 8601），按 `trigger_time` 过滤，须与 `end` 同时提供 |
-| `end` | string | 时间范围结束（ISO 8601），须与 `start` 同时提供 |
-
-**响应（200）：**
-```json
-{
-  "reminders": [
-    {
-      "id": 1,
-      "title": "喝水提醒",
-      "trigger_time": "2026-02-10T10:00:00",
-      "content": "记得喝水",
-      "priority": "normal",
-      "status": "active"
-    }
-  ]
-}
-```
-
-> 时间字段名为 `trigger_time`（非 `reminder_time`）；类型字段为 `priority`（非 `reminder_type`）。
-
----
-
-### 创建提醒
-
-**POST** `/api/reminders/create/`
-
-**请求体：**
-```json
-{
-  "title": "会议提醒",
-  "trigger_time": "2026-02-10T13:30:00",
-  "content": "30分钟后有团队会议",
+  "title": "喝水",
+  "trigger": "2026-07-13T10:00:00+08:00",
+  "tzid": "Asia/Shanghai",
   "priority": "normal",
-  "rrule": ""
+  "recurrence": {"rrule": "FREQ=DAILY"}
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `title` | string | ✅ | 提醒标题 |
-| `trigger_time` | string | ✅ | 触发时间（ISO 8601，如 `2026-02-10T13:30:00`） |
-| `content` | string | ❌ | 提醒内容 |
-| `priority` | string | ❌ | 优先级：`low` / `medium` / `high` / `critical` |
-| `rrule` | string | ❌ | 重复规则（RFC 5545），空字符串表示单次提醒 |
+- 创建必须有非空 title 和 trigger。
+- 单次 Reminder 可用 `scope=all` + recurrence object 转为重复。
+- 重复 Reminder 用 `scope=all` + `recurrence:null` 转为单次。
+- `single` 只改一个 occurrence，不能改 recurrence。
+- `all` 可改每天的提醒时刻，但不能移动系列起始日期；否则 `series_date_change_forbidden`。
+- `this_and_future` 必须提供 occurrence_ref；若未来 occurrence state 存在且同时改 RRULE，返回 `409 recurrence_split_requires_override_policy`，需先明确处理状态。
 
-**成功响应（200）：**
-```json
-{
-  "status": "success",
-  "message": "提醒已创建",
-  "reminder": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "title": "会议提醒",
-    "trigger_time": "2026-02-10T13:30:00",
-    "content": "30分钟后有团队会议",
-    "priority": "normal",
-    "status": "active",
-    "rrule": "",
-    "is_detached": false
-  }
-}
-```
-
-> 返回完整的提醒对象，前端可直接用于本地更新。
-
----
-
-### 更新提醒（单次或将单次转为重复）
-
-**POST** `/api/reminders/update/`
-
-**请求体：**
-```json
-{
-  "id": 5,
-  "title": "新标题",
-  "priority": "high",
-  "status": "completed"
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `id` | integer | ✅ | 提醒 ID |
-| `title` / `content` / `trigger_time` / `priority` / `status` / `rrule` | - | ❌ | 要更新的字段 |
-| `rrule_change_scope` | string | ❌ | 将单次提醒转为重复提醒时填 `"all"` |
-
-**成功响应（200，简单更新）：**
-```json
-{
-  "status": "success",
-  "reminder": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "title": "新标题",
-    "priority": "high",
-    "status": "completed",
-    "...": "..."
-  }
-}
-```
-
-> 简单字段更新时返回完整的更新后的提醒对象；当涉及 `rrule_change_scope` 的系列修改时，返回 `{"status": "success"}`（不含 reminder 对象）。
-
-> ⚠️ 此接口仅适用于**单次提醒**的更新，或将单次提醒转为重复提醒。**复杂的重复提醒编辑**请使用 `/api/reminders/bulk-edit/`。对重复提醒单例使用此接口会导致未知后果。
-
----
-
-### 更新提醒状态
-
-**POST** `/api/reminders/update-status/`
-
-**请求体：**
-```json
-{
-  "id": 5,
-  "status": "snoozed_15m",
-  "snooze_until": "2026-02-10T11:00:00"
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `id` | integer | ✅ | 提醒 ID |
-| `status` | string | ✅ | 参见下方状态值说明 |
-| `snooze_until` | string | ❌ | 延后到的时间（status 为 `snoozed_custom` 时使用） |
-
-**`status` 可选值：**
-
-| 值 | 说明 |
-|----|------|
-| `active` | 重新激活（已暂停/忽略后恢复） |
-| `completed` | 标记为已完成 |
-| `dismissed` | 忽略此次提醒 |
-| `snoozed_15m` | 延后 15 分钟 |
-| `snoozed_1h` | 延后 1 小时 |
-| `snoozed_1d` | 延后 1 天 |
-| `snoozed_custom` | 延后到自定义时间（需同时提供 `snooze_until`） |
-
----
-
-### 批量编辑重复提醒
-
-**POST** `/api/reminders/bulk-edit/`
-
-用于对重复提醒系列进行精细化编辑或删除，支持多种作用范围。
-
-**请求体公共字段：**
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `operation` | string | ✅ | `edit`（编辑）或 `delete`（删除） |
-| `reminder_id` | integer | ✅ | 目标提醒实例 ID |
-| `series_id` | integer | ✅ | 系列 ID |
-| `edit_scope` | string | ✅ | `single` / `all` / `from_this` / `from_time` |
-
-**`edit_scope` 行为：**
-
-| 值 | 行为 |
-|----|------|
-| `single` | 将该实例从系列中独立出来（单独修改，不影响其他实例） |
-| `all` | 修改/删除整个系列的所有实例 |
-| `from_this` | 修改/删除该实例及之后的所有实例 |
-| `from_time` | 从指定 `from_time`（ISO 8601）开始，创建新系列并截断旧系列 |
-
----
-
-### 删除提醒
-
-**POST** `/api/reminders/delete/`
-
-> ⚠️ 使用 HTTP **POST**（不是 DELETE），ID 放在请求体中。
-
-**请求体：**
-```json
-{
-  "id": 5
-}
-```
-
-> 此接口仅适用于单次提醒。重复提醒系列删除请使用 `/api/reminders/bulk-edit/`（`operation: "delete"`）。
-
----
-
-## Quick Action API - 智能操作
-
-基于 LangGraph 状态机的 AI 智能操作接口，接受自然语言指令，自动执行日程/待办操作。
-
-> **认证要求**: 需要 Token  
-> **输入方式**: 文字（JSON）或音频文件（multipart/form-data），二选一
-
----
-
-### 创建快速操作任务
-
-**POST** `/api/agent/quick-action/`
-
-#### 文字输入（JSON）
-
-**Content-Type**: `application/json`
+Action：
 
 ```json
 {
-  "text": "明天下午三点开会，讨论项目进度",
-  "sync": false,
-  "timeout": 30
+  "action": "snooze",
+  "occurrence_ref": {"entity_id":"...","series_id":"...","recurrence_id":"...","source_version":4},
+  "expected_version": 4,
+  "snooze_until": "2026-07-13T10:30:00+08:00"
 }
 ```
 
-| 字段 | 类型 | 必填 | 默认 | 说明 |
-|------|------|------|------|------|
-| `text` | string | ✅* | — | 自然语言指令（最多1000字符）。与 `audio` 二选一 |
-| `sync` | boolean | ❌ | `false` | `true` 同步等待结果，`false` 异步返回 task_id |
-| `timeout` | integer | ❌ | `30` | 同步模式最大等待时长（秒） |
+- action 只允许 `complete`、`dismiss`、`snooze`、`mark_sent`、`reset`。
+- snooze 必须提供 DATE-TIME `snooze_until`。
+- 对重复 Reminder，必须操作具体 occurrence，不能只传 master ID。
 
-#### 音频输入（multipart/form-data）
+## 6. Search、冲突与共享读取
 
-**Content-Type**: `multipart/form-data`
+`GET /api/v2/search/?q=...&types=event,todo,reminder&from=...&to=...&page=1&page_size=50`
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `audio` | file | ✅* | 音频文件，≤60s，≤15MB。与 `text` 二选一 |
-| `sync` | string | ❌ | 表单字段，`"true"` 或 `"false"` |
-| `timeout` | string | ❌ | 表单字段，超时秒数字符串 |
+- types 仅允许 event/todo/reminder。
+- page ≥ 1，page_size 为 1–100。
+- 结果跨类型，仍使用各自的实体/occurrence identity。
 
-**支持音频格式**: `wav` / `mp3` / `ogg` / `flac` / `webm` / `aac` / `m4a` / `amr`
+`GET /api/v2/share-groups/<share_group_id>/occurrences/?from=...&to=...`
 
-> ⚠️ `text` 和 `audio` 不可同时提供，也不可都不提供，否则返回 400 错误。
+- 必须是 owner 或 member；否则 403 `share_group_forbidden`。
+- 他人 Event 带 `read_only:true`，不能用自己的身份修改。
+- 数据来自 normalized EventShareGroup join，不来自旧 `GroupCalendarData.events_data`。
 
-#### 响应（异步模式，**201**）
+分享组成员管理仍使用 `/api/share-groups/...` 的 create/join/leave/delete/update/members/update-member-color 端点；旧 `/api/share-groups/<id>/events/` 已停用，见第 11 节。
+
+## 7. Calendar Feed
+
+`GET /api/calendar/feed/?token=<DRF-token>&type=all|events|todos|reminders`
+
+- 为兼容订阅客户端，Token 在 URL 中；必须按凭据处理，禁止记录/转发完整 URL。
+- 缺 token：400；无效 token：403；非法 type：400。
+- 返回 `text/calendar`。重复系列输出 master RRULE 与稀疏例外，不展开无限实例。
+- Todo 仅有 due 时进入 Feed；Reminder/Todo 为兼容 Apple 订阅会投影为 VEVENT/VALARM。
+- Feed 只读，不能反向写入。
+
+## 8. CalDAV 适配边界
+
+服务根 `/caldav/`，使用 HTTP Basic Auth：username 为 Django 用户名，password 推荐 DRF Token，也可账号密码。
+
+支持项目原有能力的 V2 适配，不宣称完整 CalDAV：
+
+- OPTIONS、PROPFIND（root/principal/home/collection/resource）。
+- REPORT：`calendar-multiget`、`calendar-query`；不支持的 report 返回 403/明确错误。
+- GET/HEAD 单个 `.ics`。
+- default/个人 Event Group collection 的 Event resource PUT/DELETE。
+- reminders collection 只读；PUT/DELETE 固定 403。
+- 不允许客户端 MKCALENDAR；collection 本身不能 PUT/DELETE。
+- 单个 PUT body 最大 512KB，一个资源只允许一个 UID；不能借 PUT 改 UID/resource identity。
+
+并发：新建用 `If-None-Match: *`；更新/删除必须用最新 ETag 的 `If-Match`。过期或目标已存在返回 412。跨 collection 移动仍保持统一 normalized identity/collection change。
+
+## 9. Quick Action、Agent 附件和回滚
+
+Quick Action 端点和输入约束见 `README_QUICK_ACTION.md`。它、聊天 Agent Tool 与 MCP 均委托统一 application service，不是另一套数据库 API。
+
+Agent 附件相关 HTTP 端点位于 `/api/agent/attachments/`：
+
+- 可附加 Event/Todo/Reminder master 或带完整 occurrence_ref 的具体 occurrence。
+- 内部元素按发送时 snapshot 进入消息；源删除后历史消息仍可读 snapshot。
+- 文件/图片回滚到输入框后，重新发送前必须恢复有效 attachment 记录，不能只复用 UI 卡片 ID。
+- 附件必须属于当前用户和 session，跨用户/session ID 拒绝。
+
+Agent 回滚：
+
+- 仅当前会话当前 rollback window 内、切换/新建对话之后的消息可回滚。
+- P4 前历史和已关闭窗口返回 410；不会恢复旧 reversion 历史。
+- snapshot restore 会产生新的单调 version；回滚后继续写前必须重新读取。
+- 旧 `/api/agent/rollback/preview/` 与步骤式 `/api/agent/rollback/` 返回 410；当前消息目标使用 `/api/agent/rollback/to-message/`。
+
+## 10. Speech-to-Text
+
+`POST /api/agent/speech-to-text/`，公开接口，multipart 字段 `audio`。
+
+- 最大 15MB、60秒。
+- 支持 wav/mp3/ogg/flac/webm/aac/m4a/amr。
+- 缺字段/格式/大小问题为 400；识别链失败通常为 422。
+- 公开不等于无限制可信：客户端仍应限流，不能把 provider 字段当稳定业务枚举。
+
+## 11. Planner V1 的预期后果与迁移表
+
+P6 已封存 legacy Planner JSON。下列旧 URL 在认证通过后统一返回：
 
 ```json
 {
-  "task_id": "550e8400-e29b-41d4-a716-446655440000",
-  "status": "pending",
-  "input_type": "text",
-  "created_at": "2026-02-10T14:00:00"
+  "error": "Planner V1 API 已停用；legacy Planner 归档已封存且禁止读写。",
+  "code": "planner_v1_api_retired",
+  "requested_path": "/api/todos/create/",
+  "replacement": {"method": "POST", "path": "/api/v2/todos/"}
 }
 ```
 
-#### 响应（同步模式，200）
+HTTP 为 `410 Gone`。未认证请求仍先返回 401/403。后果是确定性的：
 
-```json
-{
-  "task_id": "550e8400-e29b-41d4-a716-446655440000",
-  "status": "success",
-  "result_type": "action_completed",
-  "input_type": "audio",
-  "result": {
-    "message": "✅ 已创建新日程：明天 15:00-16:00「开会」",
-    "tool_calls": [
-      {
-        "tool": "create_event",
-        "args": { "title": "开会", "start": "2026-02-11T15:00:00", "end": "2026-02-11T16:00:00" },
-        "result": { "event_id": 42 }
-      }
-    ]
-  },
-  "execution_time_ms": 1872,
-  "tokens": {
-    "input": 280,
-    "output": 94,
-    "cost": 0.0023,
-    "model": "gpt-4o-mini"
-  }
-}
-```
+- 请求体不会被转换、排队或部分执行。
+- legacy 归档和 normalized 表都不会发生业务写入。
+- GET 也不会返回旧快照；410 不能靠重试恢复。
+- 客户端必须读取 `replacement` 并按 V2 字段、版本和 scope 重新构造请求。
+- 旧但从未注册的 `/get_calendar/delete_event/` 保持 404，不应依赖。
 
-#### 错误响应
+| V1 URL | V2 替代 |
+|---|---|
+| GET `/get_calendar/events/` | GET `/api/v2/events/occurrences/?from=&to=` |
+| POST `/events/create_event/` | POST `/api/v2/events/` |
+| POST `/get_calendar/update_events/` | PATCH `/api/v2/events/<event_id>/` |
+| POST `/api/events/bulk-edit/` | PATCH/DELETE `/api/v2/events/<event_id>/` + scope |
+| GET `/api/events/groups/` | GET `/api/v2/groups/` |
+| POST `/get_calendar/create_events_group/` | POST `/api/v2/groups/` |
+| POST `/get_calendar/update_events_group/` | PATCH `/api/v2/groups/<group_id>/` |
+| POST `/get_calendar/delete_event_groups/` | DELETE `/api/v2/groups/<group_id>/` |
+| GET/POST `/api/todos/` | GET/POST `/api/v2/todos/` |
+| POST `/api/todos/create/` | POST `/api/v2/todos/` |
+| POST `/api/todos/update/` | PATCH `/api/v2/todos/<todo_id>/` |
+| POST `/api/todos/delete/` | DELETE `/api/v2/todos/<todo_id>/` |
+| POST `/api/todos/convert/` | POST `/api/v2/todos/<todo_id>/convert/` |
+| GET/POST `/api/reminders/` | GET/POST `/api/v2/reminders/` |
+| POST `/api/reminders/create/` | POST `/api/v2/reminders/` |
+| POST `/api/reminders/update/` | PATCH `/api/v2/reminders/<reminder_id>/` |
+| POST `/api/reminders/bulk-edit/` | PATCH/DELETE `/api/v2/reminders/<reminder_id>/` + scope |
+| POST `/api/reminders/delete/` | DELETE `/api/v2/reminders/<reminder_id>/` |
+| POST update-status/snooze/dismiss/complete/mark-sent | POST `/api/v2/reminders/occurrences/action/` |
+| POST `/api/reminders/convert-to-single/` | PATCH reminder，`scope=all, recurrence=null` |
+| pending/maintain | 窗口 GET；不再有“预生成/维护实例”命令 |
+| GET `/api/share-groups/<id>/events/` | GET `/api/v2/share-groups/<id>/occurrences/?from=&to=` |
 
-| HTTP 状态码 | 响应 `code` 字段 | 场景 |
-|------------|-------------|------|
-| 400 | `AMBIGUOUS_INPUT` | 同时提供了 `text` 和 `audio` |
-| 400 | `EMPTY_INPUT` | `text` 和 `audio` 均未提供 |
-| 400 | `TEXT_TOO_LONG` | 文字超过1000字符 |
-| 400 | `UNSUPPORTED_AUDIO_FORMAT` | 音频格式不支持 |
-| 400 | `AUDIO_TOO_LARGE` | 音频超过15MB |
-| 422 | `SPEECH_RECOGNITION_FAILED` | 语音识别全部失败（百度 + 本地均不可用） |
-| 422 | `EMPTY_SPEECH_RESULT` | 识别成功但结果为空（无法理解语音内容） |
+## 12. 错误处理
 
----
+| HTTP | 常见含义 |
+|---|---|
+| 400 | 查询边界/基础请求格式错误 |
+| 401/403 | 未认证、无资源权限 |
+| 404 | normalized 资源不存在 |
+| 409 | version conflict、cohort 状态或需显式 override policy |
+| 410 | 已废弃 API/回滚窗口永久不可用 |
+| 422 | 领域字段、时间、RRULE、scope、关系约束错误 |
+| 423 | retired quarantine 账号 |
+| 500 | 未预期服务端错误；不应被客户端当参数错误重试 |
 
-### 查询任务状态
+错误响应优先解析稳定 `code`，自然语言 `error` 仅用于展示。网络超时也不能证明写入失败；对非幂等 POST 应先重新读取或查询任务状态，避免重复创建。
 
-**GET** `/api/agent/quick-action/<task_id>/`
-
-**查询参数：**
-
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `wait` | boolean | `true` 启用长轮询（最多等 30 秒），避免频繁轮询 |
-
-**响应（200）：**
-```json
-{
-  "task_id": "550e8400-e29b-41d4-a716-446655440000",
-  "status": "success",
-  "result_type": "action_completed",
-  "result": { "message": "✅ 已创建新日程...", "tool_calls": [] },
-  "input_text": "明天下午三点开会",
-  "input_type": "text",
-  "execution_time_ms": 1872,
-  "created_at": "2026-02-10T14:00:00",
-  "completed_at": "2026-02-10T14:00:02"
-}
-```
-
-**任务状态值：**
-
-| 状态 | 说明 |
-|------|------|
-| `pending` | 等待执行 |
-| `processing` | 执行中 |
-| `success` | 执行成功 |
-| `failed` | 执行失败 |
-| `timeout` | 同步模式超时 |
-
----
-
-### 获取历史任务列表
-
-**GET** `/api/agent/quick-action/list/`
-
-**查询参数：**
-
-| 参数 | 类型 | 默认 | 说明 |
-|------|------|------|------|
-| `limit` | integer | 20 | 返回数量（最大100） |
-| `offset` | integer | 0 | 偏移量 |
-| `status` | string | — | 按状态筛选 |
-| `days` | integer | 7 | 查最近 N 天 |
-
-**响应（200）：**
-```json
-{
-  "count": 42,
-  "limit": 20,
-  "offset": 0,
-  "tasks": [
-    {
-      "task_id": "550e8400-...",
-      "status": "success",
-      "result_type": "action_completed",
-      "input_text": "明天下午三点开会",
-      "input_type": "text",
-      "created_at": "2026-02-10T14:00:00",
-      "execution_time_ms": 1872,
-      "result_preview": "✅ 已创建新日程..."
-    }
-  ]
-}
-```
-
----
-
-### 取消任务
-
-**DELETE** `/api/agent/quick-action/<task_id>/cancel/`
-
-只能取消状态为 `pending` 的任务。
-
-**响应（200）：**
-```json
-{
-  "message": "任务已取消"
-}
-```
-
-**失败（400）：**
-```json
-{
-  "error": "只能取消待执行的任务",
-  "current_status": "processing"
-}
-```
-
----
-
-### 结果类型说明
-
-| `result_type` | 含义 | 建议处理 |
-|--------------|------|----------|
-| `action_completed` | 操作已成功执行 | 直接展示 `result.message` |
-| `need_clarification` | 找到多个匹配项，需用户澄清 | 展示提示，引导用户补充说明 |
-| `error` | 操作无法完成 | 展示错误信息，提示用户修改指令 |
-
----
-
-## Speech-to-Text API - 语音转文字
-
-独立的语音识别接口，**无需任何认证**。
-
----
-
-### 语音转文字
-
-**POST** `/api/agent/speech-to-text/`
-
-**认证**: 无需（`AllowAny`）  
-**Content-Type**: `multipart/form-data`
-
-**请求字段：**
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `audio` | file | ✅ | 音频文件 |
-
-**限制：**
-- 最大文件大小：15 MB
-- 最大音频时长：60 秒
-- 支持格式：`wav` / `mp3` / `ogg` / `flac` / `webm` / `aac` / `m4a` / `amr`
-
-**成功响应（200）：**
-```json
-{
-  "success": true,
-  "text": "明天下午三点开会",
-  "duration_seconds": 3.2,
-  "provider": "baidu",
-  "filename": "voice.wav"
-}
-```
-
-| 字段 | 说明 |
-|------|------|
-| `text` | 识别到的文字 |
-| `duration_seconds` | 音频时长（秒） |
-| `provider` | 识别来源：`baidu` 或 `faster_whisper` |
-| `filename` | 上传的文件名 |
-
-**错误响应（无 `error_code` 字段）：**
-
-| HTTP 状态码 | 触发场景 |
-|------------|---------|
-| 400 | 缺少 `audio` 字段 |
-| 400 | 不支持的音频格式 |
-| 400 | 文件超过 15MB |
-| 422 | 识别失败（含超过60s、识别引擎异常等） |
-| 500 | 服务器内部错误 |
-
-**curl 示例：**
-```bash
-curl -X POST http://127.0.0.1:8000/api/agent/speech-to-text/ \
-  -F "audio=@/path/to/voice.wav"
-```
-
-**Python 示例：**
-```python
-import requests
-
-with open("voice.wav", "rb") as f:
-    resp = requests.post(
-        "http://127.0.0.1:8000/api/agent/speech-to-text/",
-        files={"audio": ("voice.wav", f, "audio/wav")}
-    )
-
-data = resp.json()
-if data["success"]:
-    print(f"识别结果: {data['text']}")
-    print(f"时长: {data['duration_seconds']}s，来源: {data['provider']}")
-else:
-    print(f"识别失败: {resp.status_code} - {data.get('error')}")
-```
-
----
-
-### 识别降级链
-
-系统按以下优先级自动选择识别方式：
-
-```
-百度 VOP pro_api（Bearer Token 认证）
-    ↓ 失败或不可用
-faster-whisper tiny（本地 CPU 推理）
-    ↓ 失败
-返回 422 错误
-```
-
-**配置位置**: `config/api_keys.json` → `speech_services`
-
-> ⚠️ 修改 `api_keys.json` 后必须重启 Django 服务，配置仅在进程启动时加载一次。
-
----
-
-## 错误码参考
-
-### 通用错误
-
-| HTTP 状态码 | 说明 |
-|------------|------|
-| 400 | 请求参数错误 |
-| 401 | 未认证或 Token 无效 |
-| 403 | 无权限访问该资源 |
-| 404 | 资源不存在 |
-| 405 | HTTP 方法不允许 |
-| 500 | 服务器内部错误 |
-
-### Quick Action 专属错误码
-
-错误响应中，错误码字段名为 **`code`**（不是 `error_code`）。
-
-| `code` | HTTP | 说明 | 解决方法 |
-|-------------|------|------|----------|
-| `AMBIGUOUS_INPUT` | 400 | 同时提供文字和音频 | 二选一 |
-| `EMPTY_INPUT` | 400 | 未提供任何输入 | 添加 `text` 或 `audio` |
-| `TEXT_TOO_LONG` | 400 | 文字 > 1000字符 | 压缩文字长度 |
-| `UNSUPPORTED_AUDIO_FORMAT` | 400 | 不支持的音频格式 | 使用 wav/mp3/ogg 等 |
-| `AUDIO_TOO_LARGE` | 400 | 音频 > 15MB | 压缩或剪短音频 |
-| `SPEECH_RECOGNITION_FAILED` | 422 | 语音识别全部失败 | 检查服务配置，重启服务 |
-| `EMPTY_SPEECH_RESULT` | 422 | 识别结果为空 | 检查音频内容是否包含语音 |
-
-### Speech-to-Text 专属错误码
-
-语音转文字接口的错误响应内容为 `{ "success": false, "error": "错误描述" }`，无字符串错误码字段。
-
-| HTTP 状态码 | 触发条件 | 解决方法 |
-|------------|-------------|----------|
-| 400 | 缺少 `audio` 字段 | 使用 `multipart/form-data` 上传 |
-| 400 | 音频格式不支持 | 使用 wav/mp3/ogg/flac 等 |
-| 400 | 文件 > 15MB | 压缩或分割文件 |
-| 422 | 识别失败（含超过60秒、识别引擎异常等） | 检查语音服务配置 |
-| 500 | 内部异常 | 查看服务器日志 |
-
----
-
-*文档版本 1.6.3 | 最后更新 2026-02-22*
+**文档版本：2.0.0｜最后更新：2026-07-13**

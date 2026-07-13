@@ -4,20 +4,22 @@
 [![Django Version](https://img.shields.io/badge/django-5.1.8-green.svg)](https://www.djangoproject.com/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 
-基于 Django + LangGraph 的全功能 Web 日程管理系统，支持日程/提醒/待办管理、群组协作，并内置 AI Agent 对话助手。
+基于 Django + LangGraph 的 Web 日程管理系统，支持日程/提醒/待办、群组协作与 AI Agent。Planner 已完成正规化升级：日程相关数据统一存储于 ORM，并通过 `/api/v2/`、Agent、Quick Action、MCP、Feed 与 CalDAV 共享同一应用服务。
 
 ---
 
 ## 核心特性
 
-- **日程管理** — 单次与重复日程，完整 RRule（RFC 5545）支持（FREQ/INTERVAL/COUNT/UNTIL/BYDAY/EXDATE）
+- **日程管理** — 单次与重复日程，RFC 5545 RRULE/RDATE/EXDATE、稀疏 override 与“单次/此后/全部”范围操作
 - **提醒系统** — 多优先级、延迟提醒、重复提醒，与日程/待办双向关联
 - **待办事项** — 艾森豪威尔四象限法，支持依赖关系与预估时长
-- **群组协作** — 多人共享日程，版本号增量同步，三级权限管理
+- **群组协作** — 多人共享日程，关系表授权、版本号与只读共享 occurrence 查询
 - **AI Agent 助手** — LangGraph 驱动，WebSocket 实时对话，支持自然语言创建/查询日程、附件理解（OCR）、联网搜索
 - **多模型支持** — 用户可绑定自有 API Key，系统级模型兜底，运行时切换
 - **iCalendar 导入/订阅** — 导入兼容标准格式；订阅 Feed 可直接添加到 Apple Calendar / Google Calendar，支持日程/待办/提醒，完整 RRULE 直通
-- **双认证** — Session（网页端）+ Token（API 端），提供详细 API 文档接口
+- **统一 Planner 内核** — Web V2、Agent、Quick Action、MCP、附件、Feed、CalDAV 复用同一 Application Service 和版本校验
+- **受限回滚** — 当前 Agent 会话窗口内使用压缩 aggregate snapshot 回滚；不保留无限增长的全量 Planner 版本历史
+- **双认证** — Session（网页/Agent WebSocket）+ Token（REST/MCP/Feed），提供详细 API 文档接口
 - **附件系统** — 支持图片/文档上传，OCR 文字识别（Tesseract / EasyOCR）
 
 ---
@@ -48,7 +50,7 @@ UniSchedulerSuper/
     models.py                  # normalized Planner / 配置 UserData / 群组模型
     planner/                   # application、command/query、RRULE、iCalendar、snapshot
     views_planner_v2.py        # Planner V2 HTTP adapter
-    views_reminder.py          # 提醒管理（含重复提醒）
+    views_planner_legacy.py    # 旧 Planner V1 固定 410 tombstone
     views_share_groups.py      # 群组协作 + 版本同步
     views_import_events.py     # iCalendar 导入
     views_token.py             # API Token 管理
@@ -89,7 +91,6 @@ UniSchedulerSuper/
 
  docs/                          # 设计文档
  rrule_engine.py                # 旧 RRule 兼容代码（P6 archive，不作为事实源）
- integrated_reminder_manager.py # 集成提醒管理器
  logger.py                      # 日志配置
  requirements.txt
  manage.py
@@ -173,7 +174,7 @@ python manage.py createsuperuser
 
 ### 启动服务
 
-**开发模式**（不支持 WebSocket）：
+**开发模式**（仅适合普通 HTTP 调试；Agent WebSocket 使用 ASGI）：
 
 ```bash
 python manage.py runserver
@@ -186,7 +187,7 @@ python manage.py runserver
 python manage.py collectstatic --noinput
 
 # 启动
-daphne -b 0.0.0.0 -p 8080 UniSchedulerSuper.asgi:application
+daphne -b 0.0.0.0 -p 8000 UniSchedulerSuper.asgi:application
 ```
 
 ### 访问
@@ -221,20 +222,23 @@ token = res.json()["token"]
 
 | 模块 | 端点前缀 |
 |------|----------|
-| 日程 | `/get_calendar/events/`（读取），`/events/`（创建），`/get_calendar/`（更新/删除/批量编辑） |
-| 提醒 | `/api/reminders/` |
-| 待办 | `/api/todos/` |
-| 日程组 | `/get_calendar/`（CRUD），`/api/events/groups/`（轻量列表接口） |
-| 群组协作 | `/api/share-groups/` |
-| Token 管理 | `/api/token/` |
+| 日程 | `/api/v2/events/`、`/api/v2/events/occurrences/`、`/api/v2/events/definitions/` |
+| 提醒 | `/api/v2/reminders/`、`/api/v2/reminders/occurrences/action/` |
+| 待办 | `/api/v2/todos/` |
+| 个人日程组 | `/api/v2/groups/` |
+| 共享日程读取 | `/api/v2/share-groups/<id>/occurrences/?from=&to=` |
+| 群组成员管理 | `/api/share-groups/` |
+| Token 管理 | `/api/auth/token/` |
 
-完整 API 文档与可运行示例：[api_examples/README.md](api_examples/README.md)
+完整 API 文档、V1 的 `410 Gone` 后果与可运行示例：[api_examples/README.md](api_examples/README.md)
+
+> Planner V1 的 `/get_calendar/events/`、`/events/create_event/`、旧 `/api/todos/*`、旧 `/api/reminders/*` 等端点已永久封存。认证请求会收到带 V2 replacement 的 `410 planner_v1_api_retired`，不会读写旧数据。V2 写命令要求 `expected_version`；重复实例操作需要服务端返回的 `occurrence_ref`。
 
 ---
 
 ## 日历订阅
 
-提供符合 RFC 5545 标准的只读 iCalendar Feed，可直接添加到 Apple Calendar、Google Calendar 等客户端。
+提供符合 RFC 5545 投影的只读 iCalendar Feed，可直接添加到 Apple Calendar、Google Calendar 等客户端。Feed 和 CalDAV 都读取 normalized Planner；CalDAV 只实现项目文档列出的有限资源与 ETag 并发能力，并非完整 CalDAV 协议实现。
 
 **订阅地址**：
 ```
@@ -262,7 +266,7 @@ https://yourserver.com/api/calendar/feed/?token=<YOUR_TOKEN>&type=all
 
 ## AI Agent
 
-Agent 基于 LangGraph 实现，通过 WebSocket 提供实时流式对话。
+Agent 基于 LangGraph 实现，通过浏览器 Session 认证的 WebSocket 提供实时流式对话。其 Planner 工具、Quick Action、MCP 与内部日程附件均经统一 Application Service，不会重新实现数据库 CRUD。
 
 **内置工具**：
 - 日程/提醒/待办的增删改查
@@ -278,7 +282,7 @@ Agent 基于 LangGraph 实现，通过 WebSocket 提供实时流式对话。
 
 ## MCP 服务器
 
-`mcp_server.py` 将日程管理工具暴露为标准 MCP 服务，可接入 Claude Desktop、VS Code Copilot 等支持 MCP 协议的客户端。
+`mcp_server.py` 将当前支持的日程管理工具暴露为 MCP 服务，可接入 Claude Desktop、VS Code Copilot 等支持 MCP 协议的客户端。它是统一 Planner 工具的薄适配层，不提供旧 Planner API 或完整 CalDAV 功能。
 
 ### stdio 模式（Claude Desktop 本地）
 

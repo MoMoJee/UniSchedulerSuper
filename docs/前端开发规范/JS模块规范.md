@@ -1,237 +1,65 @@
 # JS 模块规范
 
-> 本文档描述 UniSchedulerSuper 前端 JavaScript 代码的组织规范。
+> 现行版本：2026-07-13。前端采用无构建步骤的原生 ES6 Class；Planner 数据由 `planner-v2-client.js` 统一适配。
 
----
+## 1. 模块与初始化
 
-## 1. 模块化模式
-
-### 1.1 ES6 Class 单文件模块
-
-每个功能域对应一个 `.js` 文件，包含一个 ES6 Class：
-
-```javascript
-/**
- * 事件管理模块
- * 负责日程 CRUD + FullCalendar 集成
- */
-class EventManager {
-    constructor() {
-        this.calendar = null;
-        this.events = [];
-        this.groups = [];
-        // 状态标记
-        this._inFlightFetchKey = null;
-    }
-
-    init() {
-        this.initCalendar();
-        this.setupEventListeners();
-    }
-
-    // 私有方法使用下划线前缀
-    _parseRangeDate(s) { ... }
-}
-```
-
-**规则**：
-- 文件名 `kebab-case`，Class 名 `PascalCase`，方法名 `camelCase`。
-- 私有/内部方法以 `_` 开头，如 `_parseRangeDate`、`_inFlightFetchKey`。
-- 构造函数只做状态初始化，I/O 操作放在 `init()` 方法。
-- 不使用 ES Modules（`import/export`），无构建步骤，直接 `<script src>` 加载。
-
-### 1.2 全局暴露
-
-所有模块实例挂载到 `window` 对象，在 HTML 底部实例化：
-
-```html
-<script>
-    // 初始化顺序：依赖项先于依赖者
-    window.themeManager    = new ThemeManager();
-    window.settingsManager = new SettingsManager();
-    window.modalManager    = new ModalManager();
-    window.eventManager    = new EventManager();
-    window.todoManager     = new TodoManager();
-    window.reminderManager = new ReminderManager();
-    window.agentChat       = new AgentChat({{ user.id }}, window.CSRF_TOKEN);
-
-    // 统一调用 init()
-    window.themeManager.init();
-    window.settingsManager.init();
-    ...
-</script>
-```
-
-### 1.3 初始化顺序依赖
-
-各模块存在隐式依赖，必须按以下顺序初始化：
-
-```
-ThemeManager → SettingsManager → PanelResizer
-                    ↓
-ModalManager → EventManager → RRuleManager
-                    ↓
-             TodoManager、ReminderManager、GroupManager
-                    ↓
-             AgentChat（依赖 CSRF_TOKEN 和 userId）
-```
-
----
-
-## 2. 模块间通信
-
-### 2.1 通过 `window.xxx` 调用
-
-模块间调用统一通过 `window` 全局实例，**调用前先检查实例是否存在**：
+- 文件名使用 `kebab-case`，Class 使用 `PascalCase`，方法和字段使用 `camelCase`；内部成员以 `_` 前缀。
+- 构造函数只初始化状态和 DOM 引用；网络、订阅和事件监听放入 `init()`。
+- 全局模块实例挂在 `window`，调用前用可选链或存在性判断。
+- 依赖顺序为：主题/设置 → modal/PlannerV2Client → Event/Group/Todo/Reminder → Agent/Quick Action。
 
 ```javascript
-// ✅ 正确：防御性调用
-if (window.eventManager) {
-    window.eventManager.loadEvents();
-}
-
-// ✅ 正确：内联事件处理
-<button onclick="if(window.rruleManager) window.rruleManager.updateFrequencyOptions('edit');">
-
-// ❌ 错误：直接调用未经检查的全局变量
-eventManager.loadEvents();
+window.plannerV2Client = new PlannerV2Client();
+await window.plannerV2Client.ready;
+window.eventManager = new EventManager();
+window.eventManager.init();
 ```
 
-### 2.2 通过 `settingsManager` 共享状态
+## 2. Planner 数据流
 
-用户偏好设置（视图模式、过滤器、面板宽度等）通过 `SettingsManager` 持久化：
+`PlannerV2Client` 是页面 Planner mode 的权威入口：它 bootstrap cohort、封装 CSRF/同源凭据、将 V2 occurrence 映射给 FullCalendar，并保留 `occurrence_ref` 与 `source_version`。
 
-```javascript
-// 读取设置
-const savedMode = window.settingsManager?.settings?.todoViewMode || 'list';
+- 新代码使用其 `request()`、`jsonOptions()`、`fetchCalendar()`、`create/patch/delete` 等方法，或写同等 V2 adapter。
+- 不得根据本地缓存、自行判断 cohort 或添加旧 URL fallback。
+- 日程、提醒列表刷新必须使用有限时间窗口；异步响应返回时确认其窗口 key 仍是当前可见窗口。
+- UI 的 `id` 不是可写资源 ID。重复操作必须通过服务端给出的 `occurrence_ref`。
 
-// 通知设置变更（settingsManager 负责防抖和保存）
-if (window.settingsManager) {
-    window.settingsManager.onTodoFilterChange('priorities', selectedValues);
-}
-```
+## 3. 状态与缓存
 
-### 2.3 大对象状态与本地缓存
+- 服务端响应是资源和版本的权威来源；写入成功后合并返回对象或刷新当前窗口。
+- `localStorage` 只保存轻量 UI 偏好、当前 Agent session ID 或可恢复摘要。不得持久化完整附件、base64、LLM snapshot、Planner occurrence/ref 或敏感 token。
+- 大对象保存在模块内存。刷新后需要完整信息时调用 `/api/agent/history/`、`/api/agent/context-visualization/` 或相应 V2 只读接口。
+- 对 `QuotaExceededError` 降级为内存，不影响当前渲染。
 
-上下文快照、LLM 请求详情、附件预览等大对象必须优先放在模块内存状态中，不能把完整对象长期写入 `localStorage`。
+## 4. 异步与错误
 
-**规则**：
-- 完整调试数据只放在当前页面内存，例如 `AgentChat._contextSnapshots`。
-- `localStorage` 仅保存瘦身摘要：截断长文本、移除大体积 schema、图片/base64 用占位符替代。
-- 写入 `localStorage` 必须包裹 `try/catch`，捕获 `QuotaExceededError` 后降级为内存显示。
-- 本地缓存失败不得影响当前 UI 渲染，最多记录一次 `console.warn()`。
-- 如果需要跨刷新恢复完整数据，应从后端接口重新拉取，而不是依赖浏览器存储。
-
----
-
-## 3. 异步操作规范
-
-### 3.1 使用 async/await
-
-所有 API 调用使用 `async/await`，配合 `try/catch` 处理错误：
+所有请求使用 `async/await` + `try/catch`。写操作使用提交锁；读取使用 `_inFlightFetchKey` 或 `AbortController` 避免旧响应覆盖新窗口。
 
 ```javascript
-async loadTodos() {
+async loadEvents(start, end) {
+    const key = `${start.toISOString()}|${end.toISOString()}`;
+    if (this._inFlightFetchKey === key) return;
+    this._inFlightFetchKey = key;
     try {
-        const response = await fetch('/api/todos/');
-        const data = await response.json();
-        this.todos = data.todos || [];
-        this.renderTodos();
-    } catch (error) {
-        console.error('加载待办失败:', error);
+        const result = await window.plannerV2Client.fetchCalendar(start, end);
+        if (this._inFlightFetchKey !== key) return;
+        this.applyCalendarResult(result);
+    } finally {
+        if (this._inFlightFetchKey === key) this._inFlightFetchKey = null;
     }
 }
 ```
 
-### 3.2 防止重复请求
+业务错误必须根据 `error.code` 区分版本冲突、410、422、423；不要把所有错误显示为“网络断开”。用户可见提示使用既有 Toast/Alert，生产代码不保留大量 `console.log()`。
 
-通过状态标记防止同一时间内的重复 fetch：
+## 5. DOM 与安全
 
-```javascript
-class EventManager {
-    constructor() {
-        this._inFlightFetchKey = null;  // 格式: "startISO|endISO"
-    }
+- 缓存高频元素引用；监听器集中在 `init()` / `setupEventListeners()`，可选元素用 `?.addEventListener()`。
+- 使用 `textContent` 或可信模板构造用户输入；禁止把原始用户文本拼入 `innerHTML`。
+- 内联事件仅用于既有模板兼容场景；新增交互优先用事件监听器。
+- 不用 `document.write` 注入 CDN 或脚本。
 
-    async loadEvents(start, end) {
-        const fetchKey = `${start}|${end}`;
-        if (this._inFlightFetchKey === fetchKey) return; // 防并发重复
-        this._inFlightFetchKey = fetchKey;
-        try {
-            ...
-        } finally {
-            this._inFlightFetchKey = null;
-        }
-    }
-}
-```
+## 6. 静态资源与模块间协作
 
----
-
-## 4. DOM 操作规范
-
-### 4.1 元素引用缓存
-
-构造函数中缓存频繁使用的 DOM 元素（`AgentChat` 的做法）：
-
-```javascript
-constructor() {
-    this.messagesContainer = document.getElementById('agentMessages');
-    this.inputField = document.getElementById('agentInput');
-    this.sendBtn = document.getElementById('agentSendBtn');
-}
-```
-
-### 4.2 事件监听器管理
-
-事件监听器在 `init()` 或专属 `setupEventListeners()` 方法中集中注册：
-
-```javascript
-init() {
-    this.setupEventListeners();
-}
-
-setupEventListeners() {
-    document.addEventListener('click', (e) => { ... });
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') this.closeAllModals();
-    });
-    document.getElementById('someBtn')?.addEventListener('click', () => { ... });
-}
-```
-
-**注意**：使用可选链 `?.addEventListener` 防止元素不存在时报错。
-
----
-
-## 5. 错误处理与日志
-
-### 5.1 console 使用
-
-- `console.error()` — 网络请求失败、数据解析错误等真实错误
-- `console.warn()` — 非关键异常降级处理
-- `console.log()` — **仅在开发调试阶段使用**，生产代码应清理（注释掉或删除）
-
-### 5.2 用户可见错误提示
-
-```javascript
-// Bootstrap Toast 或 Alert（根据场景选择）
-function showError(message) {
-    // 优先使用页面已有的 toast 组件
-    const toastEl = document.getElementById('errorToast');
-    if (toastEl) {
-        toastEl.querySelector('.toast-body').textContent = message;
-        new bootstrap.Toast(toastEl).show();
-    } else {
-        alert(message);  // 降级处理
-    }
-}
-```
-
----
-
-## 6. 拖拽与触摸支持
-
-- 拖拽（DnD）使用原生 HTML5 `draggable` + `dragover/drop` 事件。
-- 移动端触摸滑动手势在 `calendar-touch-swipe.js` 中实现，基于 `touchstart/touchend`。
-- FullCalendar 日历的触摸事件由该模块负责，不在各业务模块中重复处理。
+每次修改 JS/CSS 后更新模板版本号并按部署需要收集静态文件。模块间调用先验证实例存在，例如 `window.eventManager?.loadEvents()`；不要跨模块直接修改对方的内部数组，应调用公开刷新/应用方法。

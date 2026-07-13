@@ -1,5 +1,7 @@
 # 模板与 CDN 规范
 
+> 现行版本：2026-07-13。Planner 页必须加载 `planner-v2-client.js` 并注入由后端序列化的 cohort entrypoints；不得从模板注入 legacy Planner JSON 作为写入回退。
+
 > 描述 Django 模板结构约定与 CDN 双轨加载策略。
 
 ---
@@ -42,7 +44,7 @@
     <!-- 6. 全局变量注入 + 模块初始化 -->
     <script>
         window.CSRF_TOKEN = '{{ csrf_token }}';
-        window.events_groups = {{ events_groups|safe }};
+    // Planner cohort 数据使用 JSON script 标签注入，供 PlannerV2Client 读取。
         window.eventManager = new EventManager();
     </script>
 </body>
@@ -130,12 +132,13 @@ FullCalendar 等较大的第三方库放在 `core/static/` 下本地加载，不
 ```html
 <script>
     window.CSRF_TOKEN = '{{ csrf_token }}';          // CSRF Token（必须）
-    window.events_groups = {{ events_groups|safe }};  // 初始化数据（按需）
 </script>
+{{ planner_entrypoints|json_script:"planner-entrypoints-data" }}
 ```
 
 **规则**：
-- `window.CSRF_TOKEN` 是**必须注入**的全局变量，所有 POST 请求依赖它
+- `window.CSRF_TOKEN` 是同源写请求的必须注入变量。
+- Planner 页面应以 `<script id="planner-entrypoints-data" type="application/json">` 注入由后端 JSON 序列化的 entrypoints，并由 `PlannerV2Client` bootstrap 复核；不得注入 `events/todos/reminders` legacy archive 作为事实源。
 - 使用 `|safe` 过滤器时必须确保后端已对数据进行 JSON 序列化（`json.dumps` 或 DRF 序列化器输出）
 - 不得通过模板注入原始未转义的用户输入（XSS 防护）
 

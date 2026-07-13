@@ -132,6 +132,14 @@ class PlannerCommandService:
             cls._require_source_version(expected_version, event, series)
             before = cls._snapshot(event, series)
             fields, recurrence_payload = cls._event_fields_from_payload(user, payload, current=event)
+            if 'start' in payload:
+                old_start = event.start_date if event.is_all_day else event.start_at
+                new_start = fields.get('start_date') if fields.get('is_all_day', event.is_all_day) else fields.get('start_at')
+                if new_start is not None and cls._local_date(old_start, fields.get('tzid', event.tzid)) != cls._local_date(new_start, fields.get('tzid', event.tzid)):
+                    raise PlannerCommandError(
+                        'all scope 只允许修改日程时刻，不允许修改系列起始日期',
+                        code='series_date_change_forbidden',
+                    )
             cls._apply_event_fields(event, fields)
             detach_recurrence = 'recurrence' in payload and payload.get('recurrence') is None
             if fields or detach_recurrence:
@@ -630,6 +638,10 @@ class PlannerCommandService:
         if end <= start:
             raise PlannerCommandError('end 必须晚于 start', code='invalid_time_range')
         return start, end
+
+    @staticmethod
+    def _local_date(value: date | datetime, tzid: str) -> date:
+        return PlannerTimeCodec.to_local(value, tzid=tzid).date() if isinstance(value, datetime) else value
 
     @classmethod
     def _create_series(cls, user: User, event: CalendarEvent, payload: Mapping[str, Any]) -> EventRecurrenceSeries:

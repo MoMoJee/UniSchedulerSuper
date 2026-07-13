@@ -1,382 +1,50 @@
-# UniScheduler API 使用示例
+# UniScheduler API 示例
 
-本目录包含完整的、开箱即用的 API 调用示例代码，展示如何使用 Token 认证方式调用 UniScheduler 的所有核心功能。
+本目录以 2026-07-13 的 P1–P6 接口代码为准。Planner（日程、个人日程组、待办、提醒、共享日程读取）只演示 `/api/v2/`；旧 Planner V1 URL 已返回 `410 Gone`，不会再读写封存的 JSON。
 
-## 📁 文件结构
+## 文件
 
-```
-api_examples/
-├── README.md                      # 本文件
-├── QUICKSTART.md                  # 5分钟快速上手指南
-├── README_QUICK_ACTION.md         # Quick Action & 语音接口详细文档
-├── example_events_api.py          # Events（日程）API 示例
-├── example_eventgroups_api.py     # Event Groups（日程组）API 示例
-├── example_todos_api.py           # TODOs（待办事项）API 示例
-├── example_reminders_api.py       # Reminders（提醒）API 示例
-├── example_quick_action_api.py    # Quick Action（智能操作）API 示例，含音频输入
-├── example_parser_api.py          # 语音转文字独立接口示例（无需认证）
-├── simple_quick_action_test.py    # Quick Action 简化版快速测试
-└── test_token_auth.py             # Token 认证测试
-```
+| 文件 | 内容 |
+|---|---|
+| `QUICKSTART.md` | 最短可运行流程 |
+| `API_REFERENCE.md` | 当前契约、字段、禁止规则、错误码和 V1 迁移表 |
+| `README_QUICK_ACTION.md` | Quick Action、语音输入与 Planner V2 关系 |
+| `client.py` | 示例共用的 Token 客户端 |
+| `example_events_api.py` | Event 创建、窗口读取、single 修改、all 删除 |
+| `example_eventgroups_api.py` | 个人 Event Group CRUD |
+| `example_todos_api.py` | Todo CRUD 与 Todo→Event 原子转换 |
+| `example_reminders_api.py` | 重复 Reminder、occurrence action 与 scope |
+| `example_quick_action_api.py` | Quick Action 文字/音频、同步/异步 |
+| `simple_quick_action_test.py` | 最短只读 Quick Action smoke |
+| `example_parser_api.py` | 公开语音转文字 |
+| `example_calendar_protocols.py` | Feed 与 CalDAV 只读发现 smoke |
+| `test_token_auth.py` | Token + Planner V2 只读 smoke |
 
-## 🚀 快速开始
+## 运行
 
-### 前置条件
+PowerShell：
 
-1. **确保 Django 服务已启动**
-   ```bash
-   cd D:\PROJECTS\UniSchedulerSuper
-   python manage.py runserver
-   ```
+```powershell
+$env:UNISCHEDULER_BASE_URL = 'http://127.0.0.1:8000'
+$env:UNISCHEDULER_USERNAME = 'your-user'
+$env:UNISCHEDULER_PASSWORD = 'your-password'
 
-2. **创建测试用户**（如果还没有）
-   ```bash
-   python manage.py shell
-   ```
-   
-   在 Python shell 中执行：
-   ```python
-   from django.contrib.auth.models import User
-   user = User.objects.create_user('api_demo_user', password='demo_password_123')
-   print(f"用户创建成功: {user.username}")
-   exit()
-   ```
-
-3. **安装 requests 库**（如果还没有）
-   ```bash
-   pip install requests
-   ```
-
-### 运行示例
-
-每个示例都可以独立运行，直接执行即可：
-
-```bash
-# 运行 Events 示例
-python api_examples/example_events_api.py
-
-# 运行 Event Groups 示例
-python api_examples/example_eventgroups_api.py
-
-# 运行 TODOs 示例
-python api_examples/example_todos_api.py
-
-# 运行 Reminders 示例
-python api_examples/example_reminders_api.py
-
-# 运行 Quick Action 示例（文字 + 音频输入）
-python api_examples/example_quick_action_api.py
-python api_examples/example_quick_action_api.py --audio /path/to/voice.wav
-
-# 运行语音转文字示例（无需认证）
-python api_examples/example_parser_api.py
-python api_examples/example_parser_api.py --audio /path/to/voice.wav
+.venv\Scripts\python.exe api_examples\test_token_auth.py
+.venv\Scripts\python.exe api_examples\example_events_api.py
+.venv\Scripts\python.exe api_examples\example_calendar_protocols.py
 ```
 
-## 📚 示例说明
+不要把真实账号、密码或 Token 写回示例文件。外部客户端使用 `Authorization: Token <token>`；浏览器 Session 写请求仍需 CSRF。
 
-### 1. Events API 示例 (`example_events_api.py`)
+## 最重要的 V2 规则
 
-展示日程管理的所有操作，包括：
+- Event/Reminder 的无限 RRULE 只保存主对象和规则，必须用有界 `from`/`to` 展开；不得期待服务端返回“全部实例”。
+- `occurrence.id` 仅是列表 key，写入重复实例必须原样回传 `occurrence_ref`。
+- PATCH/DELETE/Todo 转换必须带最新 `expected_version`；过期版本返回 `409 version_conflict`，客户端应重新读取，不能盲重试。
+- scope 只有 `single`、`all`、`this_and_future`。后两者对重复系列有专门约束，详见接口参考。
+- V2 字段使用 `group_id`、`trigger`、`due`、`recurrence: {rrule: ...}`；旧字段 `groupID`、`trigger_time`、`due_date`、顶层 `rrule` 不会兼容转换，而会返回 `422 unsupported_field`。
+- V1 端点返回 `410 planner_v1_api_retired`。这不是临时错误；重试不会成功，也不会修改任何数据。
 
-- ✅ **获取日程列表** - 查看所有日程
-- ✅ **创建单个日程** - 创建一次性日程
-- ✅ **创建重复日程** - 创建重复发生的日程（每周、每月等）
-- ✅ **更新日程** - 修改日程信息
-- ✅ **更新重复日程** - 更新所有重复实例
-- ✅ **更新单次实例** - 只修改重复日程的某一次
-- ✅ **转换为单次** - 将重复日程转换为独立日程
-- ✅ **删除日程** - 删除单个日程
-- ✅ **删除重复日程** - 删除重复日程的所有实例
+完整说明见 [API_REFERENCE.md](API_REFERENCE.md)。
 
-**核心功能：**
-- 支持重复日程（RRule）
-- 支持重要性和紧急度分类
-- 支持标签、参与者、位置等详细信息
-
-### 2. Event Groups API 示例 (`example_eventgroups_api.py`)
-
-展示日程组管理功能，包括：
-
-- ✅ **获取日程组列表** - 查看所有分组
-- ✅ **创建日程组** - 创建新的日程分类
-- ✅ **更新日程组** - 修改分组信息（名称、颜色、描述）
-- ✅ **删除日程组** - 删除分组（可选是否删除组内日程）
-- ✅ **批量创建分组** - 一次性创建多个相关分组
-- ✅ **日程组管理** - 完整的管理流程演示
-
-**核心功能：**
-- 用颜色区分不同类型的日程
-- 支持工作、学习、个人等分类
-- 删除分组时可选择是否保留组内日程
-
-### 3. TODOs API 示例 (`example_todos_api.py`)
-
-展示待办事项管理功能，包括：
-
-- ✅ **获取待办列表** - 查看所有待办事项
-- ✅ **创建待办** - 添加新的待办任务
-- ✅ **更新待办** - 修改待办信息
-- ✅ **完成待办** - 标记任务为完成
-- ✅ **转换为日程** - 将待办转换为具体的日程安排
-- ✅ **删除待办** - 删除待办任务
-- ✅ **批量创建** - 一次性创建多个待办
-- ✅ **工作流程** - 完整的任务管理流程
-- ✅ **优先级管理** - 基于四象限法的优先级管理
-
-**核心功能：**
-- 支持重要性和紧急度两个维度
-- 四象限时间管理方法
-- 可转换为具体的日程安排
-
-### 4. Reminders API 示例 (`example_reminders_api.py`)
-
-展示提醒功能，包括：
-
-- ✅ **获取提醒列表** - 查看所有提醒
-- ✅ **创建提醒** - 创建新的提醒
-- ✅ **创建重复提醒** - 创建每日/每周/每月重复提醒
-- ✅ **更新提醒** - 修改提醒信息
-- ✅ **更新状态** - 更改提醒状态
-- ✅ **暂停提醒** - 稍后再提醒
-- ✅ **完成提醒** - 标记为已完成
-- ✅ **忽略提醒** - 忽略此次提醒
-- ✅ **删除提醒** - 删除提醒
-- ✅ **批量创建** - 创建多个提醒
-- ✅ **工作流程** - 完整的提醒处理流程
-- ✅ **每日提醒** - 设置每日固定时间的提醒
-
-**核心功能：**
-- 支持多种提醒类型（通知、邮件、短信）
-- 支持重复提醒（每日、每周、每月、每年）
-- 灵活的状态管理（待处理、已完成、已暂停、已忽略）
-
-### 5. Quick Action API 示例 (`example_quick_action_api.py`)
-
-展示 AI 智能快速操作功能，包括：
-
-- ✅ **异步模式** - 立即返回 task_id，轮询获取结果
-- ✅ **同步模式** - 等待执行完成直接返回结果
-- ✅ **查询状态** - 轮询任务执行状态
-- ✅ **长轮询** - `?wait=true` 减少轮询次数
-- ✅ **历史任务列表** - 查看历史操作记录
-- ✅ **取消任务** - 取消待执行任务
-- ✅ **音频异步输入** - 上传音频文件（multipart/form-data）
-- ✅ **音频同步输入** - 音频 + 同步等待结果
-- ✅ **冲突输入报错** - 同时提供文字和音频时的错误处理
-- ✅ **多场景批量测试** - 多种日程/待办操作
-
-**核心功能：**
-- LangGraph 状态机驱动，支持多轮 Agent 迭代
-- 文字或音频输入二选一（不可并存）
-- 响应包含 `input_type` 标识（`"text"` 或 `"audio"`）
-
-### 6. 语音转文字 API 示例 (`example_parser_api.py`)
-
-展示独立语音转文字接口（**无需认证**），包括：
-
-- ✅ **合成测试音频** - 无需麦克风，自动生成440Hz WAV进行测试
-- ✅ **真实音频识别** - 指定 `--audio` 参数上传真实文件
-- ✅ **无 Token 访问** - 验证免认证访问
-- ✅ **超时音频拒绝** - >60s 音频返回 400
-- ✅ **格式校验** - 不支持的格式返回 400
-- ✅ **缺少字段报错** - 未上传文件时的错误格式
-
-**核心功能：**
-- 百度 VOP `pro_api` + 本地 faster-whisper 自动降级
-- 返回识别文字、音频时长、识别来源（provider）
-
-## 🔧 配置说明
-
-每个示例文件的顶部都有配置区，可以根据需要修改：
-
-```python
-# ==================== 配置区 ====================
-BASE_URL = "http://127.0.0.1:8000"  # 服务器地址
-USERNAME = "api_demo_user"           # 用户名
-PASSWORD = "demo_password_123"       # 密码
-```
-
-## 📖 示例函数说明
-
-每个示例文件都包含多个独立的示例函数，你可以：
-
-1. **运行完整示例**：直接运行文件，执行所有示例
-   ```bash
-   python api_examples/example_events_api.py
-   ```
-
-2. **单独运行某个示例**：导入并调用特定函数
-   ```python
-   from api_examples.example_events_api import *
-   
-   token = get_auth_token()
-   example_create_single_event(token)
-   ```
-
-3. **在自己的代码中使用**：复制需要的函数到你的项目中
-
-## 🎯 典型使用场景
-
-### 场景 1: 创建日程并设置提醒
-
-```python
-from api_examples.example_events_api import get_auth_token, example_create_single_event
-from api_examples.example_reminders_api import example_create_reminder
-from datetime import datetime, timedelta
-
-# 获取 Token
-token = get_auth_token()
-
-# 创建明天的会议日程
-tomorrow = datetime.now() + timedelta(days=1)
-event_id = example_create_single_event(token)
-
-# 创建会议前 30 分钟的提醒
-reminder_time = (tomorrow - timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%S")
-example_create_reminder(token, "会议提醒", reminder_time, "30分钟后有会议")
-```
-
-### 场景 2: 创建待办并转换为日程
-
-```python
-from api_examples.example_todos_api import *
-from datetime import datetime, timedelta
-
-token = get_auth_token()
-
-# 创建待办
-tomorrow = datetime.now() + timedelta(days=1)
-todo_id = example_create_todo(
-    token,
-    "完成报告",
-    "撰写月度工作报告",
-    tomorrow.strftime("%Y-%m-%d"),
-    "high",
-    "high"
-)
-
-# 将待办转换为具体的日程
-start_time = tomorrow.replace(hour=14, minute=0).strftime("%Y-%m-%dT%H:%M:%S")
-end_time = tomorrow.replace(hour=16, minute=0).strftime("%Y-%m-%dT%H:%M:%S")
-example_convert_todo_to_event(token, todo_id, start_time, end_time)
-```
-
-### 场景 3: 组织管理多个项目的日程
-
-```python
-from api_examples.example_eventgroups_api import *
-from api_examples.example_events_api import *
-
-token = get_auth_token()
-
-# 为不同项目创建日程组
-project_a_id = example_create_event_group(token, "项目A", "客户项目A", "#FF6B6B")
-project_b_id = example_create_event_group(token, "项目B", "内部项目B", "#4ECDC4")
-
-# 为每个项目创建日程...
-# （将日程的 groupID 设置为对应的项目组 ID）
-```
-
-## 🔐 认证说明
-
-所有 API 调用都使用 Token 认证：
-
-1. **获取 Token**
-   ```python
-   response = requests.post(
-       "http://127.0.0.1:8000/api/auth/login/",
-       json={"username": "your_username", "password": "your_password"}
-   )
-   token = response.json()['token']
-   ```
-
-2. **使用 Token**
-   ```python
-   headers = {
-       "Authorization": f"Token {token}",
-       "Content-Type": "application/json"
-   }
-   
-   response = requests.get(
-       "http://127.0.0.1:8000/api/events/",
-       headers=headers
-   )
-   ```
-
-## 📝 API 端点列表
-
-### 核心业务 API（需要 Token 认证）
-
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/auth/login/` | POST | 登录获取 Token |
-| `/api/events/` | GET | 获取日程列表 |
-| `/api/events/create/` | POST | 创建日程 |
-| `/api/todos/` | GET | 获取待办列表 |
-| `/api/todos/create/` | POST | 创建待办 |
-| `/api/reminders/` | GET | 获取提醒列表 |
-| `/api/reminders/create/` | POST | 创建提醒 |
-| `/api/agent/quick-action/` | POST | 快速操作（文字或音频输入） |
-| `/api/agent/quick-action/<task_id>/` | GET | 查询任务状态 |
-| `/api/agent/quick-action/list/` | GET | 历史任务列表 |
-| `/api/agent/quick-action/<task_id>/cancel/` | DELETE | 取消任务 |
-
-### 公开 API（**无需认证**）
-
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/agent/speech-to-text/` | POST | 语音转文字（音频文件上传） |
-
-> 完整路由列表参见 `docs/升级与开发文档/URL路由功能说明文档.md`
-
-## 🔍 故障排查
-
-### 问题 1: 无法获取 Token
-
-**错误信息**：`✗ 登录失败 (状态码: 401)`
-
-**解决方法**：
-1. 检查用户名和密码是否正确
-2. 确认用户是否已创建
-3. 查看配置区的 `USERNAME` 和 `PASSWORD`
-
-### 问题 2: 连接失败
-
-**错误信息**：`ConnectionError` 或 `Connection refused`
-
-**解决方法**：
-1. 确认 Django 服务已启动：`python manage.py runserver`
-2. 检查 `BASE_URL` 配置是否正确
-3. 确认端口 8000 没有被其他程序占用
-
-### 问题 3: API 返回 404
-
-**错误信息**：`✗ 创建失败: 404`
-
-**解决方法**：
-1. 确认 URL 路径是否正确
-2. 检查 Django 的 `urls.py` 配置
-3. 查看 Django 控制台的日志信息
-
-## 📞 获取帮助
-
-如果遇到问题：
-
-1. 查看示例代码中的详细注释
-2. 查看 Django 服务的控制台输出
-3. 检查 `docs/` 目录下的相关文档：
-   - `Token认证全面支持综合总结.md`
-   - `URL路由功能说明文档.md`
-   - `TODO操作Token认证修复总结.md`
-   - `EventGroup操作Token认证修复总结.md`
-
-## 📄 许可证
-
-这些示例代码是 UniScheduler 项目的一部分，遵循项目的许可证。
-
----
-
-**最后更新**: 2026-02-10
-**版本**: 1.2.0  
-**作者**: MoMoJee
+**文档版本：2.0.0｜最后更新：2026-07-13**

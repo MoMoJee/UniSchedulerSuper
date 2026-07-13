@@ -1,271 +1,91 @@
-# UniScheduler API 快速开始指南
+# UniScheduler API 快速开始
 
-5 分钟快速上手 UniScheduler API！
+## 1. 启动服务并配置凭据
 
-## 🎯 第一步：启动服务
+```powershell
+.venv\Scripts\python.exe manage.py runserver
 
-```bash
-cd D:\PROJECTS\UniSchedulerSuper
-python manage.py runserver
+$env:UNISCHEDULER_BASE_URL = 'http://127.0.0.1:8000'
+$env:UNISCHEDULER_USERNAME = 'your-user'
+$env:UNISCHEDULER_PASSWORD = 'your-password'
 ```
 
-看到类似输出表示成功：
-```
-Starting development server at http://127.0.0.1:8000/
-```
+账号必须已进入 normalized cohort。若 V2 返回 `409 planner_normalized_*_not_enabled`，这是服务端准入配置问题，不能改用 V1 绕过。
 
-## 🔐 第二步：创建用户（首次使用）
+## 2. 先运行只读 smoke
 
-打开新的命令行窗口：
-
-```bash
-cd D:\PROJECTS\UniSchedulerSuper
-python manage.py shell
+```powershell
+.venv\Scripts\python.exe api_examples\test_token_auth.py
 ```
 
-在 Python shell 中执行：
+它会验证 Token、读取 cohort bootstrap，并在一个明确时间窗内读取 Event occurrence。
 
-```python
-from django.contrib.auth.models import User
-User.objects.create_user('api_demo_user', password='demo_password_123')
-exit()
-```
-
-## 🚀 第三步：运行示例
-
-选择一个示例运行：
-
-```bash
-# Events 示例 - 日程管理
-python api_examples/example_events_api.py
-
-# Event Groups 示例 - 日程分组
-python api_examples/example_eventgroups_api.py
-
-# TODOs 示例 - 待办事项
-python api_examples/example_todos_api.py
-
-# Reminders 示例 - 提醒功能
-python api_examples/example_reminders_api.py
-
-# Quick Action 示例 - AI 智能操作（需要配置 LLM）
-python api_examples/example_quick_action_api.py
-
-# 语音转文字 示例（无需登录）
-python api_examples/example_parser_api.py
-```
-
-## 💻 第四步：编写你的第一个 API 调用
-
-创建文件 `my_first_api_call.py`：
+## 3. 第一个 V2 Event
 
 ```python
 import requests
 
-# 1. 登录获取 Token
-response = requests.post(
-    "http://127.0.0.1:8000/api/auth/login/",
+base = "http://127.0.0.1:8000"
+token = requests.post(
+    f"{base}/api/auth/login/",
+    json={"username": "your-user", "password": "your-password"},
+).json()["token"]
+headers = {"Authorization": f"Token {token}"}
+
+created = requests.post(
+    f"{base}/api/v2/events/",
+    headers=headers,
     json={
-        "username": "api_demo_user",
-        "password": "demo_password_123"
-    }
-)
-
-token = response.json()['token']
-print(f"✓ 获取 Token 成功: {token[:30]}...")
-
-# 2. 使用 Token 创建日程
-from datetime import datetime, timedelta
-
-tomorrow = datetime.now() + timedelta(days=1)
-
-response = requests.post(
-    "http://127.0.0.1:8000/api/events/create/",
-    headers={
-        "Authorization": f"Token {token}",
-        "Content-Type": "application/json"
+        "title": "接口示例",
+        "start": "2026-07-14T10:00:00+08:00",
+        "end": "2026-07-14T11:00:00+08:00",
+        "tzid": "Asia/Shanghai",
+        "recurrence": {"rrule": "FREQ=WEEKLY;COUNT=4"},
     },
+)
+created.raise_for_status()
+event = created.json()["event"]
+
+rows = requests.get(
+    f"{base}/api/v2/events/occurrences/",
+    headers=headers,
+    params={"from": "2026-07-01", "to": "2026-09-01"},
+)
+rows.raise_for_status()
+print(rows.json())
+```
+
+创建返回的是 definition；日历显示应读取 occurrences。`from`/`to` 是半开窗口 `[from, to)`，必须同时提供。
+
+## 4. 修改必须携带版本
+
+```python
+ref = rows.json()["occurrences"][0]["occurrence_ref"]
+response = requests.patch(
+    f"{base}/api/v2/events/{ref['entity_id']}/",
+    headers=headers,
     json={
-        "title": "我的第一个日程",
-        "start": tomorrow.strftime("%Y-%m-%dT10:00:00"),
-        "end": tomorrow.strftime("%Y-%m-%dT11:00:00"),
-        "description": "通过 API 创建的日程"
-    }
+        "scope": "single",
+        "occurrence_ref": ref,
+        "expected_version": ref["source_version"],
+        "description": "仅修改这一回",
+    },
 )
-
-if response.status_code == 200:
-    print("✓ 日程创建成功！")
-    print(f"  ID: {response.json()['event']['id']}")
-else:
-    print(f"✗ 创建失败: {response.status_code}")
-    print(f"  {response.text}")
+response.raise_for_status()
 ```
 
-运行：
+写下一次之前重新读取。不要缓存旧 `source_version`，不要用 occurrence 的复合 `id` 代替 `entity_id`。
 
-```bash
-python my_first_api_call.py
+## 5. 运行其他示例
+
+```powershell
+.venv\Scripts\python.exe api_examples\example_eventgroups_api.py
+.venv\Scripts\python.exe api_examples\example_todos_api.py
+.venv\Scripts\python.exe api_examples\example_reminders_api.py
+.venv\Scripts\python.exe api_examples\example_quick_action_api.py
+.venv\Scripts\python.exe api_examples\example_parser_api.py path\to\audio.wav
 ```
 
-## 🎉 完成！
+Event/Group/Todo/Reminder 示例会创建测试数据，并在正常完成时清理。中途终止可能留下带“API 示例”标题的数据，请在 UI 或 V2 API 中清理。
 
-你已经成功：
-- ✅ 启动了 UniScheduler 服务
-- ✅ 创建了 API 用户
-- ✅ 获取了认证 Token
-- ✅ 创建了第一个日程
-
-## 🎙️ 快速体验语音转文字（无需登录）
-
-语音转文字接口对外开放，不需要任何 Token：
-
-```python
-import requests
-
-with open("your_audio.wav", "rb") as f:
-    response = requests.post(
-        "http://127.0.0.1:8000/api/agent/speech-to-text/",
-        files={"audio": ("audio.wav", f, "audio/wav")}
-    )
-
-print(response.json())
-# {’success’: True, ’text’: ’识别到的文字’, ’duration_seconds’: 3.2, ’provider’: ’baidu’}
-```
-
-也可以直接运行脿乾包含的示例脚本（自动生成很短的合成音频）：
-
-```bash
-python api_examples/example_parser_api.py
-```
-
-## 🤖 快速体验 Quick Action（需要 Token）
-
-AI 接受自然语言，自动创建/修改日程和待办：
-
-```python
-import requests
-
-token = "..."  # 充填你的 Token
-response = requests.post(
-    "http://127.0.0.1:8000/api/agent/quick-action/",
-    headers={"Authorization": f"Token {token}"},
-    json={"text": "明天下午三点开会，讨论项目进度", "sync": True}
-)
-print(response.json()["result"]["message"])
-# ✅ 已创建新日程：明日 15:00-16:00「开会」
-```
-
-## 📚 下一步
-
-1. **浏览更多示例**：查看 `api_examples/` 目录下的完整示例
-2. **阅读文档**：查看 `api_examples/README.md` 了解所有功能
-3. **Quick Action 详细说明**：查看 `api_examples/README_QUICK_ACTION.md`
-4. **完整 API 参考**：查看 `api_examples/API_REFERENCE.md`
-
-## 🔥 常用代码片段
-
-### 获取 Token（复用）
-
-```python
-def get_token(username, password):
-    response = requests.post(
-        "http://127.0.0.1:8000/api/auth/login/",
-        json={"username": username, "password": password}
-    )
-    return response.json()['token']
-
-# 使用
-token = get_token("api_demo_user", "demo_password_123")
-```
-
-### 创建请求头（复用）
-
-```python
-def get_headers(token):
-    return {
-        "Authorization": f"Token {token}",
-        "Content-Type": "application/json"
-    }
-
-# 使用
-headers = get_headers(token)
-response = requests.get("http://127.0.0.1:8000/api/events/", headers=headers)
-```
-
-### 创建日程（模板）
-
-```python
-event_data = {
-    "title": "日程标题",
-    "start": "2024-12-25T10:00:00",
-    "end": "2024-12-25T11:00:00",
-    "description": "日程描述",
-    "importance": "high",  # low/medium/high
-    "urgency": "normal"    # low/normal/high
-}
-
-response = requests.post(
-    "http://127.0.0.1:8000/api/events/create/",
-    headers=get_headers(token),
-    json=event_data
-)
-```
-
-### 创建待办（模板）
-
-```python
-todo_data = {
-    "title": "待办标题",
-    "description": "待办描述",
-    "due_date": "2024-12-25",
-    "importance": "high",
-    "urgency": "high"
-}
-
-response = requests.post(
-    "http://127.0.0.1:8000/api/todos/create/",
-    headers=get_headers(token),
-    json=todo_data
-)
-```
-
-### 创建提醒（模板）
-
-```python
-reminder_data = {
-    "title": "提醒标题",
-    "reminder_time": "2024-12-25T09:00:00",
-    "description": "提醒描述",
-    "reminder_type": "notification"  # notification/email/sms
-}
-
-response = requests.post(
-    "http://127.0.0.1:8000/api/reminders/create/",
-    headers=get_headers(token),
-    json=reminder_data
-)
-```
-
-## 🆘 遇到问题？
-
-### Token 获取失败
-- 检查用户名密码是否正确
-- 确认用户已创建
-- **注意**：语音转文字接口 `/api/agent/speech-to-text/` 无需 Token，可直接调用
-
-### 连接失败
-- 确认 Django 服务已启动
-- 检查端口 8000 是否可用
-
-### API 返回 404
-- 确认 URL 路径正确
-- 查看 Django 控制台日志
-
-### 语音识别失败（422）
-- 确认 `config/api_keys.json` 中语音服务配置正确且 `enabled: true`
-- 修改配置后需**重启 Django 服务**（配置仅启动时读取一次）
-- 如果只用本地模型，确认已安装：`pip install faster-whisper`
-
----
-
-**开始你的 API 之旅吧！** 🚀
+**文档版本：2.0.0｜最后更新：2026-07-13**

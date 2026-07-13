@@ -166,11 +166,18 @@ def _expected_version(request) -> int:
     return value
 
 
-def _command_payload(request):
+def _command_payload(request, *, allowed_fields=None):
     """去掉 command 元数据，剩余字段直接作为领域 payload。"""
     if not isinstance(request.data, dict):
         raise PlannerCommandError('请求体必须是 JSON object')
-    return {key: value for key, value in request.data.items() if key not in {'scope', 'occurrence_ref', 'expected_version'}}
+    payload = {key: value for key, value in request.data.items() if key not in {'scope', 'occurrence_ref', 'expected_version'}}
+    if allowed_fields is not None:
+        unknown = set(payload) - set(allowed_fields)
+        if unknown:
+            raise PlannerCommandError(
+                f'不支持的字段: {", ".join(sorted(unknown))}', code='unsupported_field'
+            )
+    return payload
 
 
 @api_view(['POST'])
@@ -247,7 +254,11 @@ def groups_v2(request):
     try:
         if request.method == 'GET':
             return Response(PlannerApplicationService.list_groups(_web_context(request)))
-        return Response(PlannerApplicationService.create_group(_web_context(request), request.data), status=status.HTTP_201_CREATED)
+        payload = _command_payload(request, allowed_fields={
+            'name', 'description', 'color', 'group_type', 'default_importance',
+            'default_urgency', 'default_duration_seconds', 'working_hours',
+        })
+        return Response(PlannerApplicationService.create_group(_web_context(request), payload), status=status.HTTP_201_CREATED)
     except Exception as exc:
         return _command_error_response(exc)
 
@@ -258,7 +269,13 @@ def group_command_v2(request, group_id: str):
     try:
         expected = _expected_version(request)
         if request.method == 'PATCH':
-            return Response(PlannerApplicationService.patch_group(_web_context(request), group_id, _command_payload(request), expected))
+            return Response(PlannerApplicationService.patch_group(
+                _web_context(request), group_id,
+                _command_payload(request, allowed_fields={
+                    'name', 'description', 'color', 'group_type', 'default_importance',
+                    'default_urgency', 'default_duration_seconds', 'working_hours',
+                }), expected,
+            ))
         return Response(PlannerApplicationService.delete_group(
             _web_context(request), group_id, expected, delete_items=bool(request.data.get('delete_items', False))
         ))
@@ -276,7 +293,11 @@ def todos_v2(request):
                 status_value=request.query_params.get('status', ''),
                 group_id=request.query_params.get('group_id', ''),
             ))
-        return Response(PlannerApplicationService.create_todo(_web_context(request), request.data), status=status.HTTP_201_CREATED)
+        payload = _command_payload(request, allowed_fields={
+            'title', 'description', 'status', 'importance', 'urgency', 'priority_score',
+            'estimated_duration_seconds', 'tzid', 'due', 'group_id', 'tags', 'dependencies',
+        })
+        return Response(PlannerApplicationService.create_todo(_web_context(request), payload), status=status.HTTP_201_CREATED)
     except Exception as exc:
         return _command_error_response(exc)
 
@@ -287,7 +308,13 @@ def todo_command_v2(request, todo_id: str):
     try:
         expected = _expected_version(request)
         if request.method == 'PATCH':
-            return Response(PlannerApplicationService.patch_todo(_web_context(request), todo_id, _command_payload(request), expected))
+            return Response(PlannerApplicationService.patch_todo(
+                _web_context(request), todo_id,
+                _command_payload(request, allowed_fields={
+                    'title', 'description', 'status', 'importance', 'urgency', 'priority_score',
+                    'estimated_duration_seconds', 'tzid', 'due', 'group_id', 'tags', 'dependencies',
+                }), expected,
+            ))
         return Response(PlannerApplicationService.delete_todo(_web_context(request), todo_id, expected))
     except Exception as exc:
         return _command_error_response(exc)
@@ -298,7 +325,10 @@ def todo_command_v2(request, todo_id: str):
 def convert_todo_v2(request, todo_id: str):
     try:
         expected = _expected_version(request)
-        return Response(PlannerApplicationService.convert_todo(_web_context(request), todo_id, _command_payload(request), expected))
+        payload = _command_payload(request, allowed_fields={
+            'title', 'description', 'group_id', 'start', 'end', 'is_all_day', 'tzid', 'recurrence',
+        })
+        return Response(PlannerApplicationService.convert_todo(_web_context(request), todo_id, payload, expected))
     except Exception as exc:
         return _command_error_response(exc)
 
@@ -314,7 +344,10 @@ def reminders_v2(request):
                     _web_context(request), range_start=range_start, range_end=range_end
                 ))
             return Response(PlannerApplicationService.list_reminders(_web_context(request)))
-        return Response(PlannerApplicationService.create_reminder(_web_context(request), request.data), status=status.HTTP_201_CREATED)
+        payload = _command_payload(request, allowed_fields={
+            'title', 'content', 'priority', 'status', 'tzid', 'trigger', 'recurrence',
+        })
+        return Response(PlannerApplicationService.create_reminder(_web_context(request), payload), status=status.HTTP_201_CREATED)
     except Exception as exc:
         return _command_error_response(exc)
 
@@ -328,7 +361,10 @@ def reminder_command_v2(request, reminder_id: str):
         occurrence_ref = request.data.get('occurrence_ref') if isinstance(request.data, dict) else None
         if request.method == 'PATCH':
             return Response(PlannerApplicationService.patch_reminder(
-                _web_context(request), reminder_id, _command_payload(request), expected,
+                _web_context(request), reminder_id,
+                _command_payload(request, allowed_fields={
+                    'title', 'content', 'priority', 'status', 'tzid', 'trigger', 'recurrence',
+                }), expected,
                 scope=scope, occurrence_ref=occurrence_ref,
             ))
         return Response(PlannerApplicationService.delete_reminder(
@@ -343,6 +379,13 @@ def reminder_command_v2(request, reminder_id: str):
 @permission_classes([IsAuthenticated])
 def reminder_occurrence_action_v2(request):
     try:
+        if not isinstance(request.data, dict):
+            raise PlannerCommandError('请求体必须是 JSON object')
+        unknown = set(request.data) - {'action', 'occurrence_ref', 'expected_version', 'snooze_until'}
+        if unknown:
+            raise PlannerCommandError(
+                f'不支持的字段: {", ".join(sorted(unknown))}', code='unsupported_field'
+            )
         return Response(PlannerApplicationService.act_on_reminder_occurrence(_web_context(request), request.data))
     except Exception as exc:
         return _command_error_response(exc)

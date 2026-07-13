@@ -220,14 +220,15 @@ token = res.json()["token"]
 
 | 模块 | 端点前缀 |
 |------|----------|
-| 日程 | `/api/events/` |
-| 提醒 | `/api/reminders/` |
-| 待办 | `/api/todos/` |
-| 日程组 | `/api/eventgroups/` |
-| 群组协作 | `/api/share-groups/` |
-| Token 管理 | `/api/token/` |
+| 日程 | `/api/v2/events/`、`/api/v2/events/occurrences/` |
+| 提醒 | `/api/v2/reminders/`、`/api/v2/reminders/occurrences/action/` |
+| 待办 | `/api/v2/todos/` |
+| 个人日程组 | `/api/v2/groups/` |
+| 共享日程读取 | `/api/v2/share-groups/<id>/occurrences/` |
+| 群组成员管理 | `/api/share-groups/` |
+| Token 管理 | `/api/auth/token/` |
 
-完整 API 文档与可运行示例：[api_examples/README.md](api_examples/README.md)
+完整 API 文档、V1 的 410 后果与可运行示例：[api_examples/README.md](api_examples/README.md)
 
 ---
 
