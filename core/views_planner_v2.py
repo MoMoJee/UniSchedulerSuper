@@ -71,29 +71,7 @@ def _require_normalized_access(user, *, write: bool = False):
 @permission_classes([IsAuthenticated])
 def planner_bootstrap_v2(request):
     """前端一次读取本会话固定的 Planner cohort 模式；不访问业务数据。"""
-    entrypoints = [
-        PlannerRolloutPolicy.ENTRYPOINT_API_V2,
-        PlannerRolloutPolicy.ENTRYPOINT_WEB_CALENDAR,
-        PlannerRolloutPolicy.ENTRYPOINT_WEB_TODO,
-        PlannerRolloutPolicy.ENTRYPOINT_WEB_REMINDER,
-        PlannerRolloutPolicy.ENTRYPOINT_WEB_SEARCH,
-        PlannerRolloutPolicy.ENTRYPOINT_WEB_SHARE,
-        PlannerRolloutPolicy.ENTRYPOINT_COURSE_IMPORT,
-    ]
-    decisions = {name: PlannerRolloutPolicy.decide(request.user, name) for name in entrypoints}
-    return Response(
-        {
-            'entrypoints': {
-                name: {
-                    'mode': decision.effective_mode,
-                    'reason': decision.reason,
-                    'can_read_normalized': decision.effective_mode in {'shadow', 'normalized'},
-                    'can_write_normalized': decision.effective_mode == 'normalized',
-                }
-                for name, decision in decisions.items()
-            }
-        }
-    )
+    return Response({'entrypoints': PlannerRolloutPolicy.browser_entrypoint_payload(request.user)})
 
 
 @api_view(['GET'])

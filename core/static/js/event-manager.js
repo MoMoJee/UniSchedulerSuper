@@ -1389,6 +1389,7 @@ class EventManager {
     // 创建事件
     async createEvent(eventData) {
         try {
+            await window.plannerV2Client?.ready;
             if (window.plannerV2Client?.isNormalized('web_calendar')) {
                 await window.plannerV2Client.createEvent(eventData);
                 this.refreshCalendar();

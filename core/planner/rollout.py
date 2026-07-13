@@ -53,6 +53,29 @@ class PlannerRolloutPolicy:
         ENTRYPOINT_CALDAV_READ,
         ENTRYPOINT_CALDAV_WRITE,
     )
+    BROWSER_ENTRYPOINTS = (
+        ENTRYPOINT_API_V2,
+        ENTRYPOINT_WEB_CALENDAR,
+        ENTRYPOINT_WEB_TODO,
+        ENTRYPOINT_WEB_REMINDER,
+        ENTRYPOINT_WEB_SEARCH,
+        ENTRYPOINT_WEB_SHARE,
+        ENTRYPOINT_COURSE_IMPORT,
+    )
+
+    @classmethod
+    def browser_entrypoint_payload(cls, user: User) -> dict[str, dict[str, object]]:
+        """Return the single source of truth used by both HTML and bootstrap API."""
+        decisions = {name: cls.decide(user, name) for name in cls.BROWSER_ENTRYPOINTS}
+        return {
+            name: {
+                'mode': decision.effective_mode,
+                'reason': decision.reason,
+                'can_read_normalized': decision.effective_mode in {'shadow', 'normalized'},
+                'can_write_normalized': decision.effective_mode == 'normalized',
+            }
+            for name, decision in decisions.items()
+        }
 
     @classmethod
     def can_read_normalized(cls, user: User, entrypoint: str) -> PlannerStorageDecision:

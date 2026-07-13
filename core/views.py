@@ -29,6 +29,7 @@ def get_reminder_manager(request):
     return IntegratedReminderManager(request=request)
 
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.cache import never_cache
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import logout
@@ -193,6 +194,7 @@ def user_data(request):
 
 
 @login_required
+@never_cache
 def home(request):
     beian_info = get_beian_info()
     
@@ -233,7 +235,9 @@ def home(request):
     context = {
         "datetime": datetime.datetime.now(),
         'user': request.user,  # 传递用户对象，方便在模板中使用 {{ request.user.username }}
-        'events_groups': json.dumps(events_groups)  # 传递事件组数据到前端
+        'events_groups': json.dumps(events_groups),  # 传递事件组数据到前端
+        # 与 /api/v2/planner/bootstrap/ 共用同一策略计算，消除 JS 异步启动空窗。
+        'planner_entrypoints': PlannerRolloutPolicy.browser_entrypoint_payload(request.user),
     }
     # 初始化 user_planner_data
     user_planner_data, created, result = UserData.get_or_initialize(

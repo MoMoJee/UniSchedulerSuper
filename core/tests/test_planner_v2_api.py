@@ -74,6 +74,12 @@ class PlannerV2ApiTests(TestCase):
         response = self.client.get('/home/')
 
         self.assertEqual(response.status_code, 200, response.content)
+        self.assertIn('no-store', response['Cache-Control'])
+        embedded = response.context['planner_entrypoints']
+        self.assertEqual(embedded['web_calendar']['mode'], 'normalized')
+        bootstrap = self.client.get('/api/v2/planner/bootstrap/').json()['entrypoints']
+        self.assertEqual(embedded, bootstrap)
+        self.assertContains(response, 'id="planner-entrypoints-data"')
         self.assertEqual(UserData.objects.get(user=self.user, key='events').value, '[]')
         self.assertFalse(
             UserData.objects.filter(

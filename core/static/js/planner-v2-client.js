@@ -1,8 +1,19 @@
 /** Cohort-aware Planner v2 client. A page session fixes its mode after bootstrap. */
 class PlannerV2Client {
     constructor() {
-        this.entrypoints = {};
+        this.entrypoints = Object.freeze(this.readEmbeddedEntrypoints());
         this.ready = this.bootstrap();
+    }
+
+    readEmbeddedEntrypoints() {
+        const element = document.getElementById('planner-entrypoints-data');
+        if (!element) return {};
+        try {
+            return JSON.parse(element.textContent || '{}');
+        } catch (error) {
+            console.error('[PlannerV2] invalid embedded entrypoints', error);
+            return {};
+        }
     }
 
     async bootstrap() {
@@ -14,13 +25,15 @@ class PlannerV2Client {
             document.documentElement.dataset.plannerStorageMode = this.mode('web_calendar');
             console.info('[PlannerV2] fixed page-session entrypoints', this.entrypoints);
         } catch (error) {
-            console.error('[PlannerV2] bootstrap failed; keeping legacy session', error);
-            this.entrypoints = Object.freeze({});
+            // P6 has sealed legacy Planner writes. Unknown state must fail closed and
+            // continue to V2, never silently reopen a legacy JSON route.
+            console.error('[PlannerV2] bootstrap failed; blocking legacy fallback', error);
         }
+        document.documentElement.dataset.plannerStorageMode = this.mode('web_calendar');
         return this.entrypoints;
     }
 
-    mode(entrypoint = 'api_v2') { return this.entrypoints[entrypoint]?.mode || 'legacy'; }
+    mode(entrypoint = 'api_v2') { return this.entrypoints[entrypoint]?.mode || 'blocked'; }
     canRead(entrypoint = 'api_v2') { return Boolean(this.entrypoints[entrypoint]?.can_read_normalized); }
     canWrite(entrypoint = 'api_v2') { return Boolean(this.entrypoints[entrypoint]?.can_write_normalized); }
     isNormalized(entrypoint = 'api_v2') {
@@ -237,3 +250,4 @@ class PlannerV2Client {
 }
 
 window.plannerV2Client = new PlannerV2Client();
+window.PlannerV2Client = PlannerV2Client;

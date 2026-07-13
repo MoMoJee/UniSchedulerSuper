@@ -15,6 +15,7 @@ VariFlight 飞常准航班查询工具封装
 """
 
 import asyncio
+import ast
 import json
 import threading
 from datetime import datetime, timedelta
@@ -189,8 +190,32 @@ def parse_mcp_result(result: Any) -> dict:
     """
     import re
     
+    if isinstance(result, dict) and result.get('type') == 'text' and isinstance(result.get('text'), str):
+        return parse_mcp_result(result['text'])
+
     if isinstance(result, dict):
         return result
+
+    if isinstance(result, list):
+        # langchain-mcp-adapters returns MCP content as a list of text blocks.
+        # Older adapter versions returned the text directly.
+        if result and all(
+            isinstance(block, dict)
+            and block.get('type') == 'text'
+            and isinstance(block.get('text'), str)
+            for block in result
+        ):
+            parsed_blocks = [parse_mcp_result(block['text']) for block in result]
+            if len(parsed_blocks) == 1:
+                return parsed_blocks[0]
+            if all(isinstance(block.get('data'), list) for block in parsed_blocks):
+                return {
+                    'code': 200,
+                    'data': [item for block in parsed_blocks for item in block['data']],
+                }
+            return parsed_blocks[0]
+        # A provider may also return the data array directly.
+        return {'code': 200, 'data': result}
     
     if not isinstance(result, str):
         return {'error': f'返回格式异常 (类型: {type(result).__name__})', 'raw': str(result)}
@@ -211,7 +236,7 @@ def parse_mcp_result(result: Any) -> dict:
         try:
             # Python dict 字符串格式转 JSON（单引号转双引号）
             # 注意：这是简化处理，可能不适用于所有情况
-            parsed = eval(json_str)  # 安全风险较低，因为数据来自可信 MCP
+            parsed = ast.literal_eval(json_str)
             if isinstance(parsed, dict):
                 return parsed
         except:
