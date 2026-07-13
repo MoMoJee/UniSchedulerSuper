@@ -345,9 +345,17 @@ def reminders_v2(request):
 def reminder_command_v2(request, reminder_id: str):
     try:
         expected = _expected_version(request)
+        scope = request.data.get('scope', 'all') if isinstance(request.data, dict) else 'all'
+        occurrence_ref = request.data.get('occurrence_ref') if isinstance(request.data, dict) else None
         if request.method == 'PATCH':
-            return Response(PlannerApplicationService.patch_reminder(_web_context(request), reminder_id, _command_payload(request), expected))
-        return Response(PlannerApplicationService.delete_reminder(_web_context(request), reminder_id, expected))
+            return Response(PlannerApplicationService.patch_reminder(
+                _web_context(request), reminder_id, _command_payload(request), expected,
+                scope=scope, occurrence_ref=occurrence_ref,
+            ))
+        return Response(PlannerApplicationService.delete_reminder(
+            _web_context(request), reminder_id, expected,
+            scope=scope, occurrence_ref=occurrence_ref,
+        ))
     except Exception as exc:
         return _command_error_response(exc)
 

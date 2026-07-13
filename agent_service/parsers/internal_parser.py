@@ -35,6 +35,7 @@ class InternalElementParser(BaseParser):
         """
         element_type = kwargs.get('element_type')
         element_id = kwargs.get('element_id')
+        occurrence_ref = kwargs.get('occurrence_ref')
         user = kwargs.get('user')
 
         if not all([element_type, element_id, user]):
@@ -62,6 +63,12 @@ class InternalElementParser(BaseParser):
             }
 
         try:
+            if occurrence_ref and element_type in {'event', 'reminder'}:
+                normalized = self._normalized_item(
+                    user, element_type, element_id, occurrence_ref=occurrence_ref
+                )
+                if normalized:
+                    return self._normalized_result(normalized)
             return handler(user, element_id)
         except Exception as e:
             logger.error(f"内部元素解析失败 [{element_type}:{element_id}]: {e}")
@@ -86,12 +93,17 @@ class InternalElementParser(BaseParser):
         return context if decision.effective_mode in {'shadow', 'normalized'} else None
 
     @classmethod
-    def _normalized_item(cls, user, element_type: str, element_id: str) -> Optional[dict]:
+    def _normalized_item(
+        cls, user, element_type: str, element_id: str,
+        occurrence_ref: Optional[dict] = None,
+    ) -> Optional[dict]:
         context = cls._normalized_context(user)
         if context is None:
             return None
         from core.planner.application import PlannerApplicationService
-        return PlannerApplicationService.get_attachment_item(context, element_id, element_type)
+        return PlannerApplicationService.get_attachment_item(
+            context, element_id, element_type, occurrence_ref=occurrence_ref
+        )
 
     @staticmethod
     def _normalized_result(item: dict) -> Dict[str, Any]:

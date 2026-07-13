@@ -767,12 +767,20 @@ def rollback_to_message(request):
         # ====== 软删除回滚消息对应的附件 ======
         # 将 message_index 及之后消息的附件标记为软删除，防止附件引用悬空
         attachments_soft_deleted = 0
+        requeued_attachments = []
         try:
             from agent_service.attachment_handler import AttachmentHandler
-            attachments_soft_deleted = AttachmentHandler.soft_delete_by_rollback(session_id, message_index)
-            logger.debug(f"[回滚] 附件软删除: {attachments_soft_deleted} 个 (from_msg={message_index})")
+            attachment_result = AttachmentHandler.requeue_target_and_delete_later(
+                session_id, message_index
+            )
+            requeued_attachments = attachment_result['requeued']
+            attachments_soft_deleted = attachment_result['deleted_later_count']
+            logger.debug(
+                f"[回滚] 附件退回待发送: {len(requeued_attachments)} 个, "
+                f"软删除后续: {attachments_soft_deleted} 个"
+            )
         except Exception as e:
-            logger.warning(f"附件软删除失败: {e}")
+            logger.warning(f"附件回滚状态更新失败: {e}")
 
         # ====== 同步回滚 TODO 列表 ======
         todo_rolled_back = False
@@ -841,6 +849,7 @@ def rollback_to_message(request):
             "todo_rolled_back": todo_rolled_back,
             "summary_rolled_back": summary_rolled_back,
             "attachments_soft_deleted": attachments_soft_deleted,
+            "requeued_attachments": requeued_attachments,
             "token_snapshot": token_snapshot,  # 返回 token 快照数据（前端可直接使用）
             "remaining_messages": len(new_messages),
             "message": f"成功回滚，删除了 {rolled_back_messages} 条消息，撤销了 {rolled_back_transactions} 个操作"
@@ -1403,9 +1412,18 @@ def format_attachment_content(request):
     # ---------- 新逻辑：基于 SessionAttachment ----------
     attachment_ids = request.data.get('attachment_ids', [])
     if attachment_ids:
+        session_id = str(request.data.get('session_id') or '')
+        if not session_id:
+            return Response({'error': '缺少 session_id'}, status=status.HTTP_400_BAD_REQUEST)
         sa_qs = SessionAttachment.objects.filter(
-            id__in=attachment_ids, user=user, is_deleted=False
+            id__in=attachment_ids, user=user, session_id=session_id,
+            is_deleted=False, message_index__isnull=True,
         )
+        if sa_qs.count() != len(set(attachment_ids)) or len(attachment_ids) != len(set(attachment_ids)):
+            return Response(
+                {'error': '附件不存在、已发送或不属于当前会话，请重新选择'},
+                status=status.HTTP_409_CONFLICT,
+            )
         supports_vision = ModelCapabilities.supports_vision(user)
         content_blocks = AttachmentHandler.format_for_message(
             sa_qs, user=user, model_supports_vision=supports_vision
@@ -1636,6 +1654,7 @@ def attach_internal(request):
     session_id = request.data.get('session_id', '')
     element_type = request.data.get('element_type', '')
     element_id = request.data.get('element_id', '')
+    occurrence_ref = request.data.get('occurrence_ref')
 
     if not all([session_id, element_type, element_id]):
         return Response(
@@ -1649,7 +1668,9 @@ def attach_internal(request):
             status=status.HTTP_403_FORBIDDEN
         )
 
-    result = AttachmentHandler.handle_internal(user, session_id, element_type, element_id)
+    result = AttachmentHandler.handle_internal(
+        user, session_id, element_type, element_id, occurrence_ref=occurrence_ref
+    )
 
     if result['success']:
         return Response({

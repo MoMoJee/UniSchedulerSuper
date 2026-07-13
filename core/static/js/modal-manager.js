@@ -1709,36 +1709,31 @@ class ModalManager {
                 // 先重置所有字段，但不清理自定义控件
                 this.enableAllEditFieldsWithoutCleanup();
                 
-                // 所有提醒：禁用重复规则，但保持显示，禁用日期部分，只允许修改时间
+                // 所有提醒：系列起始日期锁定；时刻和重复规则可以修改。
                 const allRepeatCheckbox = document.getElementById('reminderRepeat');
                 const allRepeatOptions = document.getElementById('editRepeatOptions');
 
                 console.log('allRepeatCheckbox:', allRepeatCheckbox);
                 console.log('allRepeatOptions:', allRepeatOptions);
 
-                // 禁用重复开关但保持原状态
                 if (allRepeatCheckbox) {
-                    allRepeatCheckbox.disabled = true;
-                    allRepeatCheckbox.style.opacity = '0.5';
-                    allRepeatCheckbox.title = '编辑整个系列时不可修改重复规则';
-                    console.log('Disabled repeat checkbox for all mode');
+                    allRepeatCheckbox.disabled = false;
+                    allRepeatCheckbox.style.opacity = '';
+                    allRepeatCheckbox.title = '可修改或关闭整个系列的重复规则';
                 }
 
-                // 禁用所有重复选项控件但保持显示
                 if (allRepeatOptions) {
                     const repeatControls = allRepeatOptions.querySelectorAll('select, input, button');
                     repeatControls.forEach(control => {
-                        control.disabled = true;
-                        control.style.opacity = '0.5';
+                        control.disabled = false;
+                        control.style.opacity = '';
                     });
-                    console.log('Disabled all repeat controls');
                 }
 
-                // 禁用重复标签
                 const allRepeatLabel = document.querySelector('label[for="reminderRepeat"]');
                 if (allRepeatLabel) {
-                    allRepeatLabel.style.opacity = '0.5';
-                    allRepeatLabel.style.color = '#6c757d';
+                    allRepeatLabel.style.opacity = '';
+                    allRepeatLabel.style.color = '';
                 }
 
                 // 锁定日期部分，但允许修改时间

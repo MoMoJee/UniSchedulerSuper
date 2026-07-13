@@ -410,7 +410,7 @@
                             
                             <!-- 时间范围筛选 -->
                             <select id="searchTimeFilter" class="search-filter-select" onchange="globalSearch.applyFilters()">
-                                <option value="all">全部时间</option>
+                                <option value="all">前90天至未来一年</option>
                                 <option value="past">过去</option>
                                 <option value="today">今天</option>
                                 <option value="week">本周</option>
@@ -598,7 +598,7 @@
                                 <option value="month">本月</option>
                                 <option value="quarter">本季度</option>
                                 <option value="year">一年内</option>
-                                <option value="all">全部时间</option>
+                                <option value="all">前90天至未来一年</option>
                             </select>
                         </div>
                         <div class="col-6">
@@ -5069,19 +5069,19 @@ curl -H "Authorization: Token YOUR_TOKEN_HERE" \\
     <script src="{% static 'js/theme-manager.js' %}?v=20251107-002"></script>
     <script src="{% static 'js/settings-manager.js' %}?v=20251107-001"></script>
     <script src="{% static 'js/panel-resizer.js' %}?v=20251107-001"></script>
-    <script src="{% static 'js/reminder-manager.js' %}?v=20260712-004"></script>
+    <script src="{% static 'js/reminder-manager.js' %}?v=20260713-003"></script>
     <script src="{% static 'js/rrule-manager.js' %}?v=20251104-002"></script>
-    <script src="{% static 'js/modal-manager.js' %}?v=20260311-001"></script>
+    <script src="{% static 'js/modal-manager.js' %}?v=20260713-001"></script>
     <script src="{% static 'js/group-manager.js' %}?v=20260712-004"></script>
-    <script src="{% static 'js/planner-v2-client.js' %}?v=20260712-004"></script>
+    <script src="{% static 'js/planner-v2-client.js' %}?v=20260713-001"></script>
     <script src="{% static 'js/planner-v2-scope.js' %}?v=20260712-005"></script>
-    <script src="{% static 'js/event-manager.js' %}?v=20260712-006"></script>
+    <script src="{% static 'js/event-manager.js' %}?v=20260713-002"></script>
     <script src="{% static 'js/todo-manager.js' %}?v=20260712-004"></script>
     <script src="{% static 'js/calendar-touch-swipe.js' %}?v=20251104-003"></script>
     <script src="{% static 'js/container-query-polyfill.js' %}?v=20251107-001"></script>
     
     <!-- AI Agent 模块 -->
-    <script src="{% static 'js/agent-chat.js' %}?v=20260524-003"></script>
+    <script src="{% static 'js/agent-chat.js' %}?v=20260713-001"></script>
     <script src="{% static 'js/agent-config.js' %}?v=20260523-001"></script>
     <script src="{% static 'js/agent-skills.js' %}?v=20260312-001"></script>
     <!-- Quick Action 快速操作模块 -->

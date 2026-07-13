@@ -2,6 +2,7 @@
 class ReminderManager {
     constructor() {
         this.reminders = [];
+        this.reminderDefinitions = new Map();
         this.reminderContainer = null;
         this.pendingBulkEdit = null;  // 初始化为null
     }
@@ -30,28 +31,28 @@ class ReminderManager {
         if (timeRangeSelect) {
             timeRangeSelect.addEventListener('change', () => {
                 console.log('提醒时间范围筛选变化:', timeRangeSelect.value);
-                this.applyFilters();
+                this.refreshReminderViews();
             });
         }
 
         if (statusSelect) {
             statusSelect.addEventListener('change', () => {
                 console.log('提醒状态筛选变化:', statusSelect.value);
-                this.applyFilters();
+                this.refreshReminderViews();
             });
         }
 
         if (prioritySelect) {
             prioritySelect.addEventListener('change', () => {
                 console.log('提醒优先级筛选变化:', prioritySelect.value);
-                this.applyFilters();
+                this.refreshReminderViews();
             });
         }
 
         if (typeSelect) {
             typeSelect.addEventListener('change', () => {
                 console.log('提醒类型筛选变化:', typeSelect.value);
-                this.applyFilters();
+                this.refreshReminderViews();
             });
         }
 
@@ -63,6 +64,38 @@ class ReminderManager {
     async loadReminders() {
         try {
             await window.plannerV2Client?.ready;
+            if (window.plannerV2Client?.isNormalized('web_reminder')) {
+                const definitionsData = await window.plannerV2Client.request('/api/v2/reminders/');
+                const definitions = definitionsData.reminders || [];
+                this.reminderDefinitions = new Map(definitions.map(item => [item.reminder_id, item]));
+                const timeRange = document.getElementById('reminderTimeRange')?.value || 'today';
+                const range = this.getFilterRange(timeRange);
+                const occurrenceData = await window.plannerV2Client.request(
+                    `/api/v2/reminders/?from=${encodeURIComponent(range.start.toISOString())}` +
+                    `&to=${encodeURIComponent(range.end.toISOString())}`
+                );
+                this.reminders = (occurrenceData.occurrences || []).map(item => {
+                        const definition = this.reminderDefinitions.get(item.occurrence_ref.entity_id) || {};
+                        return {
+                            ...definition,
+                            id: item.occurrence_ref.entity_id,
+                            occurrence_key: item.id,
+                            occurrence_ref: item.occurrence_ref,
+                            title: item.title,
+                            content: item.content,
+                            trigger_time: item.start,
+                            priority: item.priority,
+                            status: item.status,
+                            rrule: definition.recurrence?.rrule || '',
+                            series_id: item.occurrence_ref.series_id || '',
+                            source_version: item.occurrence_ref.source_version,
+                            is_detached: Boolean(item.is_override),
+                        };
+                    });
+                this._lastFetched = Date.now();
+                this.applyFilters();
+                return;
+            }
             // 构建带筛选参数的URL，在服务端进行过滤
             const params = new URLSearchParams();
             const statusFilter = document.getElementById('reminderStatusFilter')?.value;
@@ -209,9 +242,9 @@ class ReminderManager {
                     <span class="reminder-title ${isOverdue ? 'overdue' : ''}">${this.escapeHtml(reminder.title)}</span>
                     <div class="reminder-actions">
                         ${this.renderStatusButtons(reminder)}
-                        <button class="btn-small" onclick="reminderManager.editReminder('${reminder.id}', '${reminder.series_id}')">编辑</button>
+                        <button class="btn-small" onclick="reminderManager.editReminder('${reminder.id}', '${reminder.series_id}', '${reminder.occurrence_key || ''}')">编辑</button>
                         ${this.renderSnoozeButton(reminder)}
-                        <button class="btn-small btn-danger" onclick="reminderManager.deleteReminder('${reminder.id}', '${reminder.series_id}')">删除</button>
+                        <button class="btn-small btn-danger" onclick="reminderManager.deleteReminder('${reminder.id}', '${reminder.series_id}', '${reminder.occurrence_key || ''}')">删除</button>
                     </div>
                 </div>
                 ${reminder.content ? `<div class="reminder-content-text">${this.escapeHtml(reminder.content)}</div>` : ''}
@@ -255,6 +288,7 @@ class ReminderManager {
                 type: 'reminder',
                 id: reminder.id,
                 title: reminder.title,
+                occurrence_ref: reminder.occurrence_ref || null,
             }));
             e.target.style.opacity = '0.5';
         });
@@ -295,10 +329,10 @@ class ReminderManager {
         const dismissedClass = status === 'dismissed' ? 'btn-secondary active' : 'btn-outline-secondary';
         
         return `
-            <button class="btn-small ${completedClass}" onclick="reminderManager.toggleStatus('${reminder.id}', 'completed')" title="标记为完成">
+            <button class="btn-small ${completedClass}" onclick="reminderManager.toggleStatus('${reminder.id}', 'completed', '${reminder.occurrence_key || ''}')" title="标记为完成">
                 ✓
             </button>
-            <button class="btn-small ${dismissedClass}" onclick="reminderManager.toggleStatus('${reminder.id}', 'dismissed')" title="标记为忽略">
+            <button class="btn-small ${dismissedClass}" onclick="reminderManager.toggleStatus('${reminder.id}', 'dismissed', '${reminder.occurrence_key || ''}')" title="标记为忽略">
                 ✕
             </button>
         `;
@@ -338,19 +372,19 @@ class ReminderManager {
             return `
                 <div class="snooze-group">
                     <button class="btn-small btn-warning active" disabled>${snoozeText}</button>
-                    <button class="btn-small btn-outline-warning" onclick="reminderManager.cancelSnooze('${reminder.id}')" title="取消延后">✕</button>
+                    <button class="btn-small btn-outline-warning" onclick="reminderManager.cancelSnooze('${reminder.id}', '${reminder.occurrence_key || ''}')" title="取消延后">✕</button>
                 </div>
             `;
         } else {
             // 显示延后选项按钮
             return `
                 <div class="dropdown d-inline">
-                    <button class="btn-small btn-info" onclick="reminderManager.toggleSnoozeMenu('${reminder.id}')">延后▼</button>
-                    <div class="snooze-menu" id="snoozeMenu_${reminder.id}" style="display: none;">
-                        <button class="dropdown-item" onclick="reminderManager.snoozeReminder('${reminder.id}', '15m')">15分钟后</button>
-                        <button class="dropdown-item" onclick="reminderManager.snoozeReminder('${reminder.id}', '1h')">1小时后</button>
-                        <button class="dropdown-item" onclick="reminderManager.snoozeReminder('${reminder.id}', '1d')">一天后</button>
-                        <button class="dropdown-item" onclick="reminderManager.customSnooze('${reminder.id}')">自定义</button>
+                    <button class="btn-small btn-info" onclick="reminderManager.toggleSnoozeMenu('${reminder.occurrence_key || reminder.id}')">延后▼</button>
+                    <div class="snooze-menu" id="snoozeMenu_${reminder.occurrence_key || reminder.id}" style="display: none;">
+                        <button class="dropdown-item" onclick="reminderManager.snoozeReminder('${reminder.id}', '15m', '${reminder.occurrence_key || ''}')">15分钟后</button>
+                        <button class="dropdown-item" onclick="reminderManager.snoozeReminder('${reminder.id}', '1h', '${reminder.occurrence_key || ''}')">1小时后</button>
+                        <button class="dropdown-item" onclick="reminderManager.snoozeReminder('${reminder.id}', '1d', '${reminder.occurrence_key || ''}')">一天后</button>
+                        <button class="dropdown-item" onclick="reminderManager.customSnooze('${reminder.id}', '${reminder.occurrence_key || ''}')">自定义</button>
                     </div>
                 </div>
             `;
@@ -388,13 +422,15 @@ class ReminderManager {
     }
 
     // 取消延后
-    async cancelSnooze(reminderId) {
-        return await this.updateReminderStatus(reminderId, 'active', '');
+    async cancelSnooze(reminderId, occurrenceKey = '') {
+        return await this.updateReminderStatus(reminderId, 'active', '', occurrenceKey);
     }
 
     // 切换状态
-    async toggleStatus(reminderId, targetStatus) {
-        const reminder = this.reminders.find(r => r.id === reminderId);
+    async toggleStatus(reminderId, targetStatus, occurrenceKey = '') {
+        const reminder = this.reminders.find(r =>
+            r.id === reminderId && (!occurrenceKey || r.occurrence_key === occurrenceKey)
+        ) || this.findReminder(reminderId);
         if (!reminder) return;
         
         // 如果当前状态与目标状态相同，则切换为active
@@ -402,7 +438,7 @@ class ReminderManager {
         
         try {
             if (window.plannerV2Client?.isNormalized('web_reminder')) {
-                return this.updateReminderStatus(reminderId, newStatus);
+                return this.updateReminderStatus(reminderId, newStatus, '', occurrenceKey);
             }
             const response = await fetch('/api/reminders/update-status/', {
                 method: 'POST',
@@ -820,8 +856,7 @@ class ReminderManager {
                     ...(reminderData.rrule ? { recurrence: { rrule: reminderData.rrule } } : {}),
                 };
                 await window.plannerV2Client.request('/api/v2/reminders/', window.plannerV2Client.jsonOptions('POST', payload));
-                await this.loadReminders();
-                window.eventManager?.calendar?.refetchEvents();
+                await this.refreshReminderViews();
                 return true;
             }
             const response = await fetch('/api/reminders/create/', {
@@ -858,24 +893,28 @@ class ReminderManager {
         
         try {
             if (window.plannerV2Client?.isNormalized('web_reminder')) {
-                const current = this.reminders.find(item => item.id === reminderId);
-                if (!current) throw new Error('提醒已变化，请刷新');
-                if (current.series_id && reminderData.rrule && reminderData.rrule !== current.rrule) {
-                    alert('重复提醒规则变更将在下一阶段的 recurrence split 对话框中处理');
-                    return false;
+                const definition = this.reminderDefinitions.get(reminderId);
+                if (!definition) throw new Error('提醒已变化，请刷新');
+                const currentRrule = definition.recurrence?.rrule || '';
+                const ref = {
+                    entity_id: reminderId,
+                    series_id: definition.recurrence?.series_id || '',
+                    recurrence_id: '',
+                    occurrence_start: definition.trigger,
+                    source_version: definition.recurrence?.source_version || definition.version,
+                };
+                const changes = {
+                    title: reminderData.title,
+                    content: reminderData.content || reminderData.description || '',
+                    priority: reminderData.priority,
+                    trigger: reminderData.trigger || reminderData.trigger_time,
+                };
+                const newRrule = reminderData.rrule || '';
+                if (newRrule !== currentRrule) {
+                    changes.recurrence = newRrule ? { rrule: newRrule } : null;
                 }
-                await window.plannerV2Client.request(
-                    `/api/v2/reminders/${encodeURIComponent(reminderId)}/`,
-                    window.plannerV2Client.jsonOptions('PATCH', {
-                        expected_version: current.version,
-                        title: reminderData.title,
-                        content: reminderData.content || reminderData.description || '',
-                        priority: reminderData.priority,
-                        trigger: reminderData.trigger || reminderData.trigger_time,
-                    }),
-                );
-                await this.loadReminders();
-                window.eventManager?.calendar?.refetchEvents();
+                await window.plannerV2Client.patchReminder(ref, 'all', changes);
+                await this.refreshReminderViews();
                 return true;
             }
             // 检查是否有待处理的批量编辑（来自模态框管理器）
@@ -1090,11 +1129,13 @@ class ReminderManager {
     
 
     // 编辑提醒
-    editReminder(reminderId, seriesId) {
+    editReminder(reminderId, seriesId, occurrenceKey = '') {
         console.log('=== editReminder called ===');
         console.log('reminderId:', reminderId, 'seriesId:', seriesId);
         
-        const reminder = this.reminders.find(r => r.id === reminderId);
+        const reminder = this.reminders.find(r =>
+            r.id === reminderId && (!occurrenceKey || r.occurrence_key === occurrenceKey)
+        ) || this.findReminder(reminderId);
         if (!reminder) return;
         
         console.log('Found reminder:', reminder);
@@ -1108,7 +1149,7 @@ class ReminderManager {
         if (hasRrule && !reminder.is_detached) {
             // 这是重复提醒，显示选择对话框（即使只有一个实例）
             console.log('Showing bulk edit dialog for recurring reminder');
-            this.showBulkEditDialog(reminderId, seriesId, 'edit');
+            this.showBulkEditDialog(reminderId, seriesId, 'edit', reminder.occurrence_ref);
         } else {
             // 单独提醒，直接编辑
             console.log('Opening edit modal for single reminder');
@@ -1118,8 +1159,10 @@ class ReminderManager {
     
 
     // 删除提醒
-    deleteReminder(reminderId, seriesId) {
-        const reminder = this.reminders.find(r => r.id === reminderId);
+    deleteReminder(reminderId, seriesId, occurrenceKey = '') {
+        const reminder = this.reminders.find(r =>
+            r.id === reminderId && (!occurrenceKey || r.occurrence_key === occurrenceKey)
+        ) || this.findReminder(reminderId);
         if (!reminder) return;
         
         // 检查是否是重复提醒 - 改进逻辑：有rrule就认为是重复提醒
@@ -1128,7 +1171,7 @@ class ReminderManager {
         
         if (hasRrule && !reminder.is_detached) {
             // 这是重复提醒，显示选择对话框（即使只有一个实例）
-            this.showBulkEditDialog(reminderId, seriesId, 'delete');
+            this.showBulkEditDialog(reminderId, seriesId, 'delete', reminder.occurrence_ref);
         } else {
             // 单独提醒，直接删除
             if (confirm('确定要删除这个提醒吗？')) {
@@ -1138,16 +1181,20 @@ class ReminderManager {
     }
 
     // 显示批量编辑对话框
-    showBulkEditDialog(reminderId, seriesId, operation) {
-        const reminder = this.reminders.find(r => r.id === reminderId);
+    showBulkEditDialog(reminderId, seriesId, operation, occurrenceRef = null) {
+        const reminder = this.findReminder(reminderId, occurrenceRef);
         const seriesReminders = this.reminders.filter(r => r.series_id === seriesId).sort((a, b) => new Date(a.trigger_time) - new Date(b.trigger_time));
+        this.bulkEditContext = {
+            reminderId, seriesId, operation,
+            occurrence_ref: occurrenceRef || reminder?.occurrence_ref || null,
+        };
         
         // 生成未来时间点选项
         const futureOptions = seriesReminders
             .filter(r => new Date(r.trigger_time) >= new Date())
             .slice(0, 10) // 最多显示10个选项
             .map(r => ({
-                value: r.trigger_time,
+                value: r.occurrence_key || r.trigger_time,
                 label: this.formatTriggerTime(r.trigger_time)
             }));
         
@@ -1378,12 +1425,6 @@ class ReminderManager {
         
         this.renderReminders(filters);
         
-        // 同步刷新日历视图中的提醒显示
-        if (window.eventManager && window.eventManager.calendar) {
-            console.log('刷新日历视图中的提醒');
-            window.eventManager.calendar.refetchEvents();
-        }
-        
         console.log('=== 提醒筛选器 applyFilters() 方法执行完成 ===');
     }
 
@@ -1401,10 +1442,17 @@ class ReminderManager {
         }
         
         let fromTime = '';
+        let occurrenceRef = this.bulkEditContext?.occurrence_ref || null;
         if (scope === 'from_time') {
-            fromTime = document.getElementById('timeSelect')?.value;
+            const selectedKey = document.getElementById('timeSelect')?.value;
+            const selected = this.reminders.find(r => r.occurrence_key === selectedKey);
+            fromTime = selected?.trigger_time || '';
+            occurrenceRef = selected?.occurrence_ref || occurrenceRef;
         } else if (scope === 'from_this') {
-            const reminder = this.reminders.find(r => r.id === reminderId);
+            const reminder = this.reminders.find(r =>
+                r.id === reminderId && (!occurrenceRef?.recurrence_id
+                    || r.occurrence_ref?.recurrence_id === occurrenceRef.recurrence_id)
+            );
             fromTime = reminder?.trigger_time;
         }
         
@@ -1416,53 +1464,72 @@ class ReminderManager {
             this.closeBulkEditModal();
             
             // 保存批量编辑信息到临时变量
-            this.pendingBulkEdit = { reminderId, seriesId, scope, fromTime };
+            this.pendingBulkEdit = { reminderId, seriesId, scope, fromTime, occurrence_ref: occurrenceRef };
             console.log('Set pendingBulkEdit:', this.pendingBulkEdit);
             
             // 打开编辑对话框
-            const reminder = this.reminders.find(r => r.id === reminderId);
+            const definition = this.reminderDefinitions.get(reminderId);
+            const reminder = scope === 'all'
+                ? (definition ? this.normalizeReminderDefinition(definition) : null)
+                : this.findReminder(reminderId, occurrenceRef);
+            if (!reminder) {
+                alert('提醒已变化，请刷新后重试');
+                this.pendingBulkEdit = null;
+                return;
+            }
             console.log('Opening edit reminder modal with reminder:', reminder);
             modalManager.openEditReminderModal(reminder);
         } else if (operation === 'delete') {
             if (confirm(`确定要删除选定范围的提醒吗？`)) {
-                await this.performBulkOperation(seriesId, operation, scope, fromTime, reminderId);
+                await this.performBulkOperation(
+                    seriesId, operation, scope, fromTime, reminderId, {}, occurrenceRef
+                );
                 this.closeBulkEditModal();
             }
         }
     }
 
     // 执行批量操作
-    async performBulkOperation(seriesId, operation, scope, fromTime, reminderId, updateData = {}) {
+    async performBulkOperation(
+        seriesId, operation, scope, fromTime, reminderId, updateData = {}, occurrenceRef = null
+    ) {
         console.log(updateData)
         try {
             if (window.plannerV2Client?.isNormalized('web_reminder')) {
-                const reminder = this.reminders.find(item => item.id === reminderId);
+                const reminder = this.findReminder(
+                    reminderId,
+                    occurrenceRef || this.pendingBulkEdit?.occurrence_ref
+                        || this.bulkEditContext?.occurrence_ref
+                );
                 if (!reminder) throw new Error('提醒已变化，请刷新');
-                if (scope !== 'all') {
-                    this.showMessage('新版重复提醒的单次/未来范围编辑尚未开放，请选择全部系列', 'error');
-                    return false;
-                }
+                const definition = this.reminderDefinitions.get(reminderId);
+                const ref = occurrenceRef || this.pendingBulkEdit?.occurrence_ref
+                    || this.bulkEditContext?.occurrence_ref || reminder.occurrence_ref || {
+                        entity_id: reminderId,
+                        series_id: definition?.recurrence?.series_id || '',
+                        recurrence_id: '',
+                        occurrence_start: definition?.trigger,
+                        source_version: definition?.recurrence?.source_version || definition?.version,
+                    };
                 if (operation === 'delete') {
-                    await window.plannerV2Client.request(
-                        `/api/v2/reminders/${encodeURIComponent(reminderId)}/`,
-                        window.plannerV2Client.jsonOptions('DELETE', { expected_version: reminder.version }),
-                    );
+                    await window.plannerV2Client.deleteReminder(ref, scope);
                 } else {
                     const payload = {
-                        expected_version: reminder.version,
                         title: updateData.title,
                         content: updateData.content || updateData.description || '',
                         priority: updateData.priority,
                         trigger: updateData.trigger_time,
                     };
                     Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
-                    await window.plannerV2Client.request(
-                        `/api/v2/reminders/${encodeURIComponent(reminderId)}/`,
-                        window.plannerV2Client.jsonOptions('PATCH', payload),
-                    );
+                    if (scope !== 'this_only' && Object.prototype.hasOwnProperty.call(updateData, 'rrule')) {
+                        const currentRule = definition?.recurrence?.rrule || '';
+                        if ((updateData.rrule || '') !== currentRule) {
+                            payload.recurrence = updateData.rrule ? { rrule: updateData.rrule } : null;
+                        }
+                    }
+                    await window.plannerV2Client.patchReminder(ref, scope, payload);
                 }
-                await this.loadReminders();
-                window.eventManager?.calendar?.refetchEvents();
+                await this.refreshReminderViews();
                 return true;
             }
             const response = await fetch('/api/reminders/bulk-edit/', {
@@ -1563,8 +1630,24 @@ class ReminderManager {
     async convertRecurringToSingle(seriesId, reminderId, updateData) {
         try {
             if (window.plannerV2Client?.isNormalized('web_reminder')) {
-                this.showMessage('新版重复提醒转单次将在 reminder scope 命令开放后提供', 'error');
-                return false;
+                const definition = this.reminderDefinitions.get(reminderId);
+                if (!definition) throw new Error('提醒已变化，请刷新');
+                const ref = {
+                    entity_id: reminderId,
+                    series_id: definition.recurrence?.series_id || seriesId || '',
+                    recurrence_id: '',
+                    occurrence_start: definition.trigger,
+                    source_version: definition.recurrence?.source_version || definition.version,
+                };
+                await window.plannerV2Client.patchReminder(ref, 'all', {
+                    title: updateData.title,
+                    content: updateData.content || updateData.description || '',
+                    priority: updateData.priority,
+                    trigger: updateData.trigger || updateData.trigger_time || definition.trigger,
+                    recurrence: null,
+                });
+                await this.refreshReminderViews();
+                return true;
             }
             const response = await fetch('/api/reminders/convert-to-single/', {
                 method: 'POST',
@@ -1598,9 +1681,11 @@ class ReminderManager {
     }
 
     // 新的延后功能
-    async snoozeReminder(reminderId, snoozeType) {
+    async snoozeReminder(reminderId, snoozeType, occurrenceKey = '') {
         // 找到要延后的提醒
-        const reminder = this.reminders.find(r => r.id === reminderId);
+        const reminder = this.reminders.find(r =>
+            r.id === reminderId && (!occurrenceKey || r.occurrence_key === occurrenceKey)
+        ) || this.findReminder(reminderId);
         if (!reminder) {
             this.showMessage('未找到提醒', 'error');
             return false;
@@ -1633,7 +1718,9 @@ class ReminderManager {
         
         try {
             if (window.plannerV2Client?.isNormalized('web_reminder')) {
-                return this._v2ReminderAction(reminderId, 'snooze', snoozeUntil.toISOString());
+                return this._v2ReminderAction(
+                    reminderId, 'snooze', snoozeUntil.toISOString(), occurrenceKey
+                );
             }
             const response = await fetch('/api/reminders/update-status/', {
                 method: 'POST',
@@ -1682,13 +1769,15 @@ class ReminderManager {
     }
 
     // 自定义延后时间
-    customSnooze(reminderId) {
+    customSnooze(reminderId, occurrenceKey = '') {
         const timeInput = prompt('请输入延后时间（格式：YYYY-MM-DD HH:MM）：');
         if (timeInput) {
             try {
                 const snoozeUntil = new Date(timeInput);
                 if (snoozeUntil > new Date()) {
-                    return this.updateReminderStatus(reminderId, 'snoozed_custom', snoozeUntil.toISOString());
+                    return this.updateReminderStatus(
+                        reminderId, 'snoozed_custom', snoozeUntil.toISOString(), occurrenceKey
+                    );
                 } else {
                     alert('延后时间必须在未来');
                 }
@@ -1762,12 +1851,13 @@ class ReminderManager {
     }
 
     // 通用的状态更新方法
-    async updateReminderStatus(reminderId, status, snoozeUntil = '') {
+    async updateReminderStatus(reminderId, status, snoozeUntil = '', occurrenceKey = '') {
         try {
             if (window.plannerV2Client?.isNormalized('web_reminder')) {
-                if (status === 'completed') return this._v2ReminderAction(reminderId, 'complete');
-                if (status === 'dismissed') return this._v2ReminderAction(reminderId, 'dismiss');
-                if (status.startsWith('snoozed_')) return this._v2ReminderAction(reminderId, 'snooze', snoozeUntil);
+                if (status === 'completed') return this._v2ReminderAction(reminderId, 'complete', '', occurrenceKey);
+                if (status === 'dismissed') return this._v2ReminderAction(reminderId, 'dismiss', '', occurrenceKey);
+                if (status.startsWith('snoozed_')) return this._v2ReminderAction(reminderId, 'snooze', snoozeUntil, occurrenceKey);
+                if (status === 'active') return this._v2ReminderAction(reminderId, 'reset', '', occurrenceKey);
                 const current = this.reminders.find(item => item.id === reminderId);
                 if (!current || current.series_id) {
                     alert('重复提醒必须选择具体 occurrence 后操作');
@@ -1819,8 +1909,87 @@ class ReminderManager {
         return false;
     }
 
-    async _v2ReminderAction(reminderId, action, snoozeUntil = '') {
-        const reminder = this.reminders.find(item => item.id === reminderId);
+    normalizeReminderDefinition(reminder) {
+        return {
+            ...reminder,
+            id: reminder.reminder_id,
+            trigger_time: reminder.trigger,
+            rrule: reminder.recurrence?.rrule || '',
+            series_id: reminder.recurrence?.series_id || '',
+            source_version: reminder.recurrence?.source_version || reminder.version,
+            occurrence_ref: {
+                entity_id: reminder.reminder_id,
+                series_id: reminder.recurrence?.series_id || '',
+                recurrence_id: '',
+                occurrence_start: reminder.trigger,
+                source_version: reminder.recurrence?.source_version || reminder.version,
+            },
+        };
+    }
+
+    findReminder(reminderId, occurrenceRef = null) {
+        const existing = this.reminders.find(item =>
+            item.id === reminderId && (!occurrenceRef?.recurrence_id
+                || item.occurrence_ref?.recurrence_id === occurrenceRef.recurrence_id)
+        );
+        if (existing) return existing;
+        const definition = this.reminderDefinitions.get(reminderId);
+        if (!definition) return null;
+        const normalized = this.normalizeReminderDefinition(definition);
+        if (occurrenceRef) {
+            normalized.occurrence_ref = occurrenceRef;
+            normalized.occurrence_key = occurrenceRef.recurrence_id || reminderId;
+            normalized.trigger_time = occurrenceRef.occurrence_start || normalized.trigger_time;
+            normalized.source_version = occurrenceRef.source_version;
+        }
+        return normalized;
+    }
+
+    getFilterRange(value) {
+        const now = new Date();
+        const start = new Date(now);
+        const end = new Date(now);
+        if (value === 'today') {
+            start.setHours(0, 0, 0, 0);
+            end.setHours(24, 0, 0, 0);
+        } else if (value === 'week') {
+            const offset = (now.getDay() + 6) % 7;
+            start.setDate(now.getDate() - offset);
+            start.setHours(0, 0, 0, 0);
+            end.setTime(start.getTime());
+            end.setDate(end.getDate() + 7);
+        } else if (value === 'month') {
+            start.setDate(1); start.setHours(0, 0, 0, 0);
+            end.setMonth(start.getMonth() + 1, 1); end.setHours(0, 0, 0, 0);
+        } else if (value === 'quarter') {
+            const month = Math.floor(now.getMonth() / 3) * 3;
+            start.setMonth(month, 1); start.setHours(0, 0, 0, 0);
+            end.setMonth(month + 3, 1); end.setHours(0, 0, 0, 0);
+        } else if (value === 'year') {
+            start.setHours(0, 0, 0, 0);
+            end.setFullYear(end.getFullYear() + 1);
+        } else {
+            start.setDate(start.getDate() - 90);
+            start.setHours(0, 0, 0, 0);
+            end.setFullYear(end.getFullYear() + 1);
+        }
+        return { start, end };
+    }
+
+    async refreshReminderViews() {
+        this._refreshingReminderViews = true;
+        try {
+            await this.loadReminders();
+        } finally {
+            this._refreshingReminderViews = false;
+        }
+        window.eventManager?.calendar?.refetchEvents();
+    }
+
+    async _v2ReminderAction(reminderId, action, snoozeUntil = '', occurrenceKey = '') {
+        const reminder = this.reminders.find(item =>
+            item.id === reminderId && (!occurrenceKey || item.occurrence_key === occurrenceKey)
+        ) || this.findReminder(reminderId);
         if (!reminder) return false;
         if (reminder.series_id && !reminder.occurrence_ref) {
             alert('重复提醒必须从日历中的具体 occurrence 执行该操作');
@@ -1843,8 +2012,7 @@ class ReminderManager {
             '/api/v2/reminders/occurrences/action/',
             window.plannerV2Client.jsonOptions('POST', body),
         );
-        await this.loadReminders();
-        window.eventManager?.calendar?.refetchEvents();
+        await this.refreshReminderViews();
         return true;
     }
 

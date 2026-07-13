@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 from typing import Any, Mapping
 from uuid import uuid4
 
+from dateutil.rrule import rrulestr
 from django.contrib.auth.models import User
 from django.db import models, transaction
 from django.db.models import Q
@@ -20,6 +21,7 @@ from core.models import (
     Reminder,
     ReminderOccurrenceState,
     ReminderRecurrenceExDate,
+    ReminderRecurrenceRDate,
     ReminderRecurrenceSeries,
     Todo,
     TodoDependency,
@@ -113,7 +115,9 @@ class PlannerEntityQueryService:
     def list_reminder_occurrences(cls, user: User, *, range_start: datetime, range_end: datetime) -> list[Occurrence]:
         results: list[Occurrence] = []
         singles = Reminder.objects.filter(
-            user=user, deleted_at__isnull=True, recurrence_series__isnull=True
+            user=user, deleted_at__isnull=True,
+        ).filter(
+            Q(recurrence_series__isnull=True) | Q(recurrence_series__deleted_at__isnull=False)
         ).filter(Q(trigger_at__gte=range_start, trigger_at__lt=range_end) | Q(trigger_date__gte=range_start.date(), trigger_date__lt=range_end.date()))
         for reminder in singles:
             start = reminder.trigger_at or reminder.trigger_date
@@ -331,30 +335,143 @@ class PlannerEntityCommandService:
     @classmethod
     @transaction.atomic
     def patch_reminder(cls, user: User, reminder_id: str, payload: Mapping[str, Any], expected_version: int) -> Reminder:
-        reminder = cls._reminder(user, reminder_id, lock=True)
-        cls._require_version(reminder, expected_version)
-        scalar = {'title', 'content', 'priority', 'status'}
-        fields = set(payload) & scalar
-        for field in fields:
-            setattr(reminder, field, payload[field])
-        if 'trigger' in payload:
-            reminder.trigger_at, reminder.trigger_date, reminder.tzid = cls._parse_optional_temporal(payload['trigger'], payload.get('tzid') or reminder.tzid)
-            fields.update({'trigger_at', 'trigger_date', 'tzid'})
-        if fields:
-            reminder.bump_version(update_fields=fields)
-        cls._record(user, 'reminder', reminder.reminder_id, reminder.version, 'reminder.patch', CalendarChange.ACTION_UPDATE)
-        return reminder
+        return cls.patch_reminder_scope(
+            user, reminder_id, payload, expected_version,
+            scope=str(payload.get('scope') or 'all'),
+            occurrence_ref=payload.get('occurrence_ref'),
+        )
 
     @classmethod
     @transaction.atomic
     def delete_reminder(cls, user: User, reminder_id: str, expected_version: int) -> Reminder:
+        return cls.delete_reminder_scope(user, reminder_id, expected_version, scope='all', occurrence_ref=None)
+
+    @classmethod
+    @transaction.atomic
+    def patch_reminder_scope(
+        cls, user: User, reminder_id: str, payload: Mapping[str, Any], expected_version: int,
+        *, scope: str, occurrence_ref: Mapping[str, Any] | None,
+    ) -> Reminder:
         reminder = cls._reminder(user, reminder_id, lock=True)
-        cls._require_version(reminder, expected_version)
-        reminder.soft_delete(expected_version=reminder.version)
-        series = ReminderRecurrenceSeries.objects.select_for_update().filter(master_reminder=reminder, deleted_at__isnull=True).first()
-        if series:
+        series = cls._reminder_series(reminder)
+        if series is None:
+            if scope not in {'single', 'all'}:
+                raise PlannerCommandError('非重复 reminder 仅支持 single 或 all scope', code='invalid_scope')
+            cls._require_version(reminder, expected_version)
+            fields = cls._apply_reminder_master_fields(reminder, payload)
+            recurrence = payload.get('recurrence') if 'recurrence' in payload else None
+            if fields or recurrence is not None:
+                reminder.bump_version(update_fields=fields)
+            if recurrence is not None:
+                cls._create_reminder_series(user, reminder, recurrence)
+            cls._record(user, 'reminder', reminder.reminder_id, reminder.version,
+                        'reminder.attach_recurrence' if recurrence is not None else 'reminder.patch',
+                        CalendarChange.ACTION_UPDATE)
+            return reminder
+
+        if scope == 'all':
+            cls._require_reminder_source_version(expected_version, reminder, series)
+            old_trigger = reminder.trigger_at or reminder.trigger_date
+            fields = cls._apply_reminder_master_fields(reminder, payload)
+            new_trigger = reminder.trigger_at or reminder.trigger_date
+            if 'trigger' in payload and cls._local_date(old_trigger, reminder.tzid) != cls._local_date(new_trigger, reminder.tzid):
+                raise PlannerCommandError('all scope 只允许修改提醒时刻，不允许修改系列起始日期', code='series_date_change_forbidden')
+            recurrence_specified = 'recurrence' in payload
+            recurrence = payload.get('recurrence')
+            if fields or recurrence_specified:
+                reminder.bump_version(update_fields=fields)
+            if recurrence_specified and recurrence is None:
+                series.soft_delete(expected_version=series.version)
+            elif recurrence_specified:
+                cls._update_reminder_series(series, reminder, recurrence)
+            elif 'trigger' in payload:
+                cls._rewrite_reminder_series_time(series, reminder, old_trigger)
+            cls._record(user, 'reminder', reminder.reminder_id, reminder.version,
+                        'reminder.patch_all', CalendarChange.ACTION_UPDATE)
+            return reminder
+
+        recurrence_id = cls._require_reminder_occurrence_ref(reminder, series, occurrence_ref)
+        state = ReminderOccurrenceState.objects.select_for_update().filter(
+            series=series, recurrence_id=recurrence_id, deleted_at__isnull=True
+        ).first()
+        cls._require_reminder_source_version(expected_version, reminder, series, state)
+        cls._ensure_reminder_slot(series, recurrence_id)
+        if scope == 'this_and_future':
+            return cls._split_reminder(user, reminder, series, recurrence_id, payload)
+        if scope != 'single':
+            raise PlannerCommandError('scope 必须是 single、all 或 this_and_future', code='invalid_scope')
+        if 'recurrence' in payload:
+            raise PlannerCommandError('single occurrence 不支持修改 recurrence', code='unsupported_relation_scope')
+        patch = {key: payload[key] for key in {'title', 'content', 'priority'} if key in payload}
+        effective = None
+        if 'trigger' in payload:
+            effective, trigger_date, _ = cls._parse_optional_temporal(payload['trigger'], payload.get('tzid') or reminder.tzid)
+            if effective is None or trigger_date is not None:
+                raise PlannerCommandError('Reminder occurrence trigger 必须是 DATE-TIME', code='invalid_time_range')
+        if not patch and effective is None and 'status' not in payload:
+            raise PlannerCommandError('single scope 至少需要一个可修改字段', code='empty_patch')
+        if state is None:
+            state = ReminderOccurrenceState.objects.create(
+                series=series, recurrence_id=recurrence_id,
+                status=str(payload.get('status') or 'active'), patch=patch,
+                effective_trigger_at=effective,
+            )
+        else:
+            state.patch = {**state.patch, **patch}
+            if effective is not None:
+                state.effective_trigger_at = effective
+            if 'status' in payload:
+                state.status = str(payload['status'])
+            state.bump_version(update_fields={'patch', 'effective_trigger_at', 'status'})
+        cls._record(user, 'reminder', reminder.reminder_id, state.version,
+                    'reminder.patch_single', CalendarChange.ACTION_UPDATE)
+        return reminder
+
+    @classmethod
+    @transaction.atomic
+    def delete_reminder_scope(
+        cls, user: User, reminder_id: str, expected_version: int,
+        *, scope: str, occurrence_ref: Mapping[str, Any] | None,
+    ) -> Reminder:
+        reminder = cls._reminder(user, reminder_id, lock=True)
+        series = cls._reminder_series(reminder)
+        if series is None:
+            if scope not in {'single', 'all'}:
+                raise PlannerCommandError('非重复 reminder 不支持 future scope', code='invalid_scope')
+            cls._require_version(reminder, expected_version)
+            reminder.soft_delete(expected_version=reminder.version)
+            cls._record(user, 'reminder', reminder.reminder_id, reminder.version, 'reminder.delete', CalendarChange.ACTION_DELETE)
+            return reminder
+        recurrence_id = None
+        state = None
+        if scope != 'all':
+            recurrence_id = cls._require_reminder_occurrence_ref(reminder, series, occurrence_ref)
+            state = ReminderOccurrenceState.objects.select_for_update().filter(
+                series=series, recurrence_id=recurrence_id, deleted_at__isnull=True
+            ).first()
+        cls._require_reminder_source_version(expected_version, reminder, series, state)
+        if scope == 'all':
+            reminder.soft_delete(expected_version=reminder.version)
             series.soft_delete(expected_version=series.version)
-        cls._record(user, 'reminder', reminder.reminder_id, reminder.version, 'reminder.delete', CalendarChange.ACTION_DELETE)
+            command = 'reminder.delete_all'
+        elif scope == 'this_and_future':
+            cls._ensure_reminder_slot(series, recurrence_id)
+            cls._truncate_reminder_series(reminder, series, recurrence_id)
+            command = 'reminder.delete_this_and_future'
+        elif scope == 'single':
+            cls._ensure_reminder_slot(series, recurrence_id)
+            if state is None:
+                ReminderOccurrenceState.objects.create(
+                    series=series, recurrence_id=recurrence_id, status='cancelled'
+                )
+            else:
+                state.status = 'cancelled'
+                state.patch = {}
+                state.bump_version(update_fields={'status', 'patch'})
+            command = 'reminder.delete_single'
+        else:
+            raise PlannerCommandError('scope 必须是 single、all 或 this_and_future', code='invalid_scope')
+        cls._record(user, 'reminder', reminder.reminder_id, reminder.version, command, CalendarChange.ACTION_DELETE)
         return reminder
 
     @classmethod
@@ -403,6 +520,243 @@ class PlannerEntityCommandService:
         state.bump_version(update_fields={'status', 'snooze_until', 'effective_trigger_at', 'notification_sent_at'})
         cls._record(user, 'reminder', reminder.reminder_id, state.version, f'reminder.{action}_occurrence', CalendarChange.ACTION_UPDATE)
         return {'reminder_id': reminder.reminder_id, 'series_id': series.series_id, 'recurrence_id': state.recurrence_id, 'source_version': max(reminder.version, series.version, state.version), 'action': action}
+
+    @classmethod
+    def _apply_reminder_master_fields(cls, reminder: Reminder, payload: Mapping[str, Any]) -> set[str]:
+        fields = set(payload) & {'title', 'content', 'priority', 'status'}
+        if 'title' in fields and not str(payload['title']).strip():
+            raise PlannerCommandError('title 不能为空', code='invalid_title')
+        for field in fields:
+            setattr(reminder, field, str(payload[field]))
+        if 'trigger' in payload:
+            reminder.trigger_at, reminder.trigger_date, reminder.tzid = cls._parse_optional_temporal(
+                payload['trigger'], payload.get('tzid') or reminder.tzid
+            )
+            if reminder.trigger_at is None and reminder.trigger_date is None:
+                raise PlannerCommandError('trigger 不能为空', code='invalid_time_range')
+            fields.update({'trigger_at', 'trigger_date', 'tzid'})
+        return fields
+
+    @classmethod
+    def _create_reminder_series(
+        cls, user: User, reminder: Reminder, recurrence: Mapping[str, Any]
+    ) -> ReminderRecurrenceSeries:
+        if not isinstance(recurrence, Mapping):
+            raise PlannerCommandError('recurrence 必须是 object', code='invalid_recurrence')
+        dtstart = reminder.trigger_at or reminder.trigger_date
+        try:
+            canonical = canonicalize_rrule(str(recurrence.get('rrule') or ''), dtstart=dtstart, tzid=reminder.tzid)
+        except InvalidRRuleError as exc:
+            raise PlannerCommandError(str(exc), code='invalid_rrule') from exc
+        return ReminderRecurrenceSeries.objects.create(
+            user=user, master_reminder=reminder,
+            series_id=str(recurrence.get('series_id') or uuid4()),
+            ical_uid=str(recurrence.get('ical_uid') or f'{reminder.reminder_id}@planner.local'),
+            rrule=str(recurrence['rrule']), rrule_canonical=canonical,
+            dtstart_at=reminder.trigger_at, dtstart_date=reminder.trigger_date, tzid=reminder.tzid,
+        )
+
+    @classmethod
+    def _update_reminder_series(
+        cls, series: ReminderRecurrenceSeries, reminder: Reminder, recurrence: Mapping[str, Any]
+    ) -> None:
+        if not isinstance(recurrence, Mapping):
+            raise PlannerCommandError('recurrence 必须是 object', code='invalid_recurrence')
+        dtstart = reminder.trigger_at or reminder.trigger_date
+        try:
+            canonical = canonicalize_rrule(str(recurrence.get('rrule') or ''), dtstart=dtstart, tzid=reminder.tzid)
+        except InvalidRRuleError as exc:
+            raise PlannerCommandError(str(exc), code='invalid_rrule') from exc
+        series.rrule = str(recurrence['rrule'])
+        series.rrule_canonical = canonical
+        series.dtstart_at = reminder.trigger_at
+        series.dtstart_date = reminder.trigger_date
+        series.tzid = reminder.tzid
+        series.sequence += 1
+        series.bump_version(update_fields={
+            'rrule', 'rrule_canonical', 'dtstart_at', 'dtstart_date', 'tzid', 'sequence'
+        })
+
+    @classmethod
+    def _rewrite_reminder_series_time(
+        cls, series: ReminderRecurrenceSeries, reminder: Reminder, old_trigger: date | datetime
+    ) -> None:
+        new_trigger = reminder.trigger_at or reminder.trigger_date
+        delta = new_trigger - old_trigger
+        states = list(series.occurrence_states.select_for_update().filter(deleted_at__isnull=True))
+        exdates = list(series.exdates.select_for_update().all())
+        rdates = list(series.rdates.select_for_update().all())
+        for row in [*states, *exdates, *rdates]:
+            old_slot = PlannerTimeCodec.parse_recurrence_id(row.recurrence_id, tzid=series.tzid)
+            row.recurrence_id = PlannerTimeCodec.format_recurrence_id(old_slot + delta, tzid=reminder.tzid)
+            if isinstance(row, ReminderOccurrenceState) and row.effective_trigger_at:
+                row.effective_trigger_at += delta
+                row.snooze_until = row.snooze_until + delta if row.snooze_until else None
+                row.bump_version(update_fields={'recurrence_id', 'effective_trigger_at', 'snooze_until'})
+            else:
+                if hasattr(row, 'starts_at') and row.starts_at:
+                    row.starts_at += delta
+                row.save()
+        try:
+            canonical = canonicalize_rrule(series.rrule, dtstart=new_trigger, tzid=reminder.tzid)
+        except InvalidRRuleError as exc:
+            raise PlannerCommandError(str(exc), code='invalid_rrule') from exc
+        series.rrule_canonical = canonical
+        series.dtstart_at = reminder.trigger_at
+        series.dtstart_date = reminder.trigger_date
+        series.tzid = reminder.tzid
+        series.sequence += 1
+        series.bump_version(update_fields={
+            'rrule_canonical', 'dtstart_at', 'dtstart_date', 'tzid', 'sequence'
+        })
+
+    @classmethod
+    def _split_reminder(
+        cls, user: User, reminder: Reminder, series: ReminderRecurrenceSeries,
+        recurrence_id: str, payload: Mapping[str, Any],
+    ) -> Reminder:
+        slot = PlannerTimeCodec.parse_recurrence_id(recurrence_id, tzid=series.tzid)
+        slot_utc = PlannerTimeCodec.to_utc(slot, tzid=series.tzid) if isinstance(slot, datetime) else None
+        child = Reminder.objects.create(
+            user=user, title=reminder.title, content=reminder.content, priority=reminder.priority,
+            status=reminder.status, tzid=reminder.tzid,
+            trigger_at=slot_utc, trigger_date=slot if not isinstance(slot, datetime) else None,
+        )
+        clean_payload = {key: value for key, value in payload.items() if key not in {'scope', 'occurrence_ref'}}
+        fields = cls._apply_reminder_master_fields(child, clean_payload)
+        if fields:
+            child.bump_version(update_fields=fields)
+
+        kept_count = cls._count_reminder_slots_before(series, recurrence_id)
+        parts = cls._rrule_parts(series.rrule_canonical or series.rrule)
+        remaining_count = max(int(parts['COUNT']) - kept_count, 1) if 'COUNT' in parts else None
+        child_parts = dict(parts)
+        if remaining_count is not None:
+            child_parts['COUNT'] = str(remaining_count)
+        derived_rule = ';'.join(f'{key}={value}' for key, value in sorted(child_parts.items()))
+        recurrence_specified = 'recurrence' in clean_payload
+        recurrence = clean_payload.get('recurrence') if recurrence_specified else {'rrule': derived_rule}
+        future_states = list(series.occurrence_states.select_for_update().filter(
+            recurrence_id__gte=recurrence_id, deleted_at__isnull=True
+        ))
+        if recurrence_specified and recurrence is not None and future_states:
+            raise PlannerCommandError(
+                '未来 occurrence state 存在，修改 RRULE 前需先清理状态',
+                code='recurrence_split_requires_override_policy',
+            )
+        child_series = cls._create_reminder_series(user, child, recurrence) if recurrence is not None else None
+        if child_series:
+            child_series.parent_series = series
+            child_series.split_recurrence_id = recurrence_id
+            child_series.save(update_fields={'parent_series', 'split_recurrence_id', 'updated_at'})
+            for state in future_states:
+                state.series = child_series
+                state.bump_version(update_fields={'series'})
+            for item in list(series.exdates.filter(recurrence_id__gte=recurrence_id)):
+                ReminderRecurrenceExDate.objects.get_or_create(
+                    series=child_series, recurrence_id=item.recurrence_id,
+                    defaults={'source': item.source},
+                )
+            for item in list(series.rdates.filter(recurrence_id__gte=recurrence_id)):
+                ReminderRecurrenceRDate.objects.get_or_create(
+                    series=child_series, recurrence_id=item.recurrence_id,
+                    defaults={'starts_at': item.starts_at, 'starts_date': item.starts_date},
+                )
+        else:
+            for state in future_states:
+                state.soft_delete(expected_version=state.version)
+        cls._truncate_reminder_parent(reminder, series, kept_count)
+        cls._record(user, 'reminder', child.reminder_id, child.version,
+                    'reminder.split_this_and_future', CalendarChange.ACTION_UPDATE)
+        return child
+
+    @classmethod
+    def _truncate_reminder_series(
+        cls, reminder: Reminder, series: ReminderRecurrenceSeries, recurrence_id: str
+    ) -> None:
+        kept_count = cls._count_reminder_slots_before(series, recurrence_id)
+        for state in series.occurrence_states.select_for_update().filter(
+            recurrence_id__gte=recurrence_id, deleted_at__isnull=True
+        ):
+            state.soft_delete(expected_version=state.version)
+        cls._truncate_reminder_parent(reminder, series, kept_count)
+
+    @classmethod
+    def _truncate_reminder_parent(
+        cls, reminder: Reminder, series: ReminderRecurrenceSeries, kept_count: int
+    ) -> None:
+        if kept_count <= 0:
+            reminder.soft_delete(expected_version=reminder.version)
+            series.soft_delete(expected_version=series.version)
+            return
+        parts = cls._rrule_parts(series.rrule_canonical or series.rrule)
+        parts.pop('UNTIL', None)
+        parts['COUNT'] = str(kept_count)
+        rule = ';'.join(f'{key}={value}' for key, value in sorted(parts.items()))
+        series.rrule = rule
+        series.rrule_canonical = canonicalize_rrule(
+            rule, dtstart=series.dtstart_at or series.dtstart_date, tzid=series.tzid
+        )
+        series.sequence += 1
+        series.bump_version(update_fields={'rrule', 'rrule_canonical', 'sequence'})
+
+    @classmethod
+    def _count_reminder_slots_before(cls, series: ReminderRecurrenceSeries, recurrence_id: str) -> int:
+        dtstart = series.dtstart_at or series.dtstart_date
+        anchor = PlannerTimeCodec.parse_recurrence_id(recurrence_id, tzid=series.tzid)
+        rule_start = PlannerTimeCodec.recurrence_datetime(dtstart, tzid=series.tzid)
+        anchor_dt = PlannerTimeCodec.recurrence_datetime(anchor, tzid=series.tzid)
+        rule = rrulestr(series.rrule_canonical or series.rrule, dtstart=rule_start)
+        return len([item for item in rule.between(rule_start, anchor_dt, inc=True) if item < anchor_dt])
+
+    @staticmethod
+    def _rrule_parts(rule: str) -> dict[str, str]:
+        return {
+            key.upper(): value for component in rule.removeprefix('RRULE:').split(';')
+            if '=' in component for key, value in [component.split('=', 1)]
+        }
+
+    @classmethod
+    def _ensure_reminder_slot(cls, series: ReminderRecurrenceSeries, recurrence_id: str) -> None:
+        anchor = PlannerTimeCodec.parse_recurrence_id(recurrence_id, tzid=series.tzid)
+        anchor_dt = PlannerTimeCodec.recurrence_datetime(anchor, tzid=series.tzid)
+        rule_start = PlannerTimeCodec.recurrence_datetime(
+            series.dtstart_at or series.dtstart_date, tzid=series.tzid
+        )
+        rule = rrulestr(series.rrule_canonical or series.rrule, dtstart=rule_start)
+        if not rule.between(anchor_dt, anchor_dt, inc=True):
+            raise PlannerCommandError('occurrence 不属于 reminder series', code='occurrence_not_found')
+
+    @staticmethod
+    def _require_reminder_occurrence_ref(
+        reminder: Reminder, series: ReminderRecurrenceSeries,
+        occurrence_ref: Mapping[str, Any] | None,
+    ) -> str:
+        if not isinstance(occurrence_ref, Mapping):
+            raise PlannerCommandError('occurrence_ref 为必填', code='occurrence_not_found')
+        if str(occurrence_ref.get('entity_id') or '') != reminder.reminder_id \
+                or str(occurrence_ref.get('series_id') or '') != series.series_id:
+            raise PlannerCommandError('occurrence_ref 不属于 reminder series', code='occurrence_not_found')
+        recurrence_id = str(occurrence_ref.get('recurrence_id') or '')
+        if not recurrence_id:
+            raise PlannerCommandError('recurrence_id 为必填', code='occurrence_not_found')
+        return recurrence_id
+
+    @staticmethod
+    def _require_reminder_source_version(expected: int, *objects: Any) -> None:
+        actual = max(item.version for item in objects if item is not None)
+        if expected != actual:
+            raise PlannerCommandVersionConflict(f'版本冲突: expected={expected}, actual={actual}')
+
+    @staticmethod
+    def _local_date(value: date | datetime, tzid: str) -> date:
+        return PlannerTimeCodec.to_local(value, tzid=tzid).date() if isinstance(value, datetime) else value
+
+    @staticmethod
+    def _reminder_series(reminder: Reminder) -> ReminderRecurrenceSeries | None:
+        return ReminderRecurrenceSeries.objects.select_for_update().filter(
+            master_reminder=reminder, deleted_at__isnull=True
+        ).first()
 
     @staticmethod
     def _required_datetime(value: Any, tzid: str) -> datetime:

@@ -271,13 +271,60 @@ class PlannerApplicationService:
 
     @classmethod
     def get_attachment_item(
-        cls, context: PlannerExecutionContext, identifier: str, item_type: str
+        cls, context: PlannerExecutionContext, identifier: str, item_type: str,
+        occurrence_ref: Mapping[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         """返回内部附件使用的、可持久化的规范化实体快照。"""
         cls.require_access(context)
 
         def encoded(value):
             return value.isoformat() if isinstance(value, (date, datetime)) else value
+
+        if occurrence_ref is not None:
+            if not isinstance(occurrence_ref, Mapping):
+                return None
+            if str(occurrence_ref.get('entity_id') or '') != identifier:
+                return None
+            recurrence_id = str(occurrence_ref.get('recurrence_id') or '')
+            series_id = str(occurrence_ref.get('series_id') or '')
+            if recurrence_id and series_id and item_type in {'event', 'reminder'}:
+                from core.planner.recurrence.codec import PlannerTimeCodec
+                anchor = PlannerTimeCodec.parse_recurrence_id(recurrence_id)
+                anchor_dt = PlannerTimeCodec.recurrence_datetime(anchor)
+                items = (
+                    PlannerRepository.list_event_occurrences(
+                        context.user, range_start=anchor_dt - timedelta(days=1),
+                        range_end=anchor_dt + timedelta(days=2),
+                    ) if item_type == 'event' else
+                    PlannerEntityQueryService.list_reminder_occurrences(
+                        context.user, range_start=anchor_dt - timedelta(days=1),
+                        range_end=anchor_dt + timedelta(days=2),
+                    )
+                )
+                occurrence = next((
+                    item for item in items
+                    if item.ref.entity_id == identifier
+                    and item.ref.series_id == series_id
+                    and item.ref.recurrence_id == recurrence_id
+                ), None)
+                if occurrence is None:
+                    return None
+                item = serialize_occurrence(occurrence)
+                payload = occurrence.payload
+                return {
+                    'type': item_type, 'id': identifier,
+                    'title': payload.get('title', ''),
+                    'description': payload.get('description', ''),
+                    'content': payload.get('content', ''),
+                    'location': payload.get('location', ''),
+                    'status': payload.get('status', ''),
+                    'priority': payload.get('priority', ''),
+                    'start': item['start'], 'end': item['end'],
+                    'trigger_at': item['start'],
+                    'version': item['occurrence_ref']['source_version'],
+                    'series_id': series_id, 'recurrence_id': recurrence_id,
+                    'occurrence_ref': item['occurrence_ref'],
+                }
 
         if item_type == 'event':
             item = CalendarEvent.objects.filter(
@@ -462,20 +509,37 @@ class PlannerApplicationService:
         )
 
     @classmethod
-    def patch_reminder(cls, context: PlannerExecutionContext, reminder_id: str, payload: Mapping[str, Any], expected_version: int) -> dict[str, Any]:
+    def patch_reminder(
+        cls, context: PlannerExecutionContext, reminder_id: str, payload: Mapping[str, Any],
+        expected_version: int, *, scope: str = 'all',
+        occurrence_ref: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
         cls.require_access(context, write=True)
         return cls._mutate(
             context, command_type='reminder.patch', resource_type='reminder', resource_id=reminder_id,
-            operation=lambda: {"reminder": serialize_reminder(PlannerEntityCommandService.patch_reminder(context.user, reminder_id, payload, expected_version))},
+            operation=lambda: {"reminder": serialize_reminder(
+                PlannerEntityCommandService.patch_reminder_scope(
+                    context.user, reminder_id, payload, expected_version,
+                    scope=scope, occurrence_ref=occurrence_ref,
+                )
+            )},
             result_resource_id=lambda result: result['reminder']['reminder_id'],
         )
 
     @classmethod
-    def delete_reminder(cls, context: PlannerExecutionContext, reminder_id: str, expected_version: int) -> dict[str, Any]:
+    def delete_reminder(
+        cls, context: PlannerExecutionContext, reminder_id: str, expected_version: int,
+        *, scope: str = 'all', occurrence_ref: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
         cls.require_access(context, write=True)
         return cls._mutate(
             context, command_type='reminder.delete', resource_type='reminder', resource_id=reminder_id,
-            operation=lambda: {"reminder": serialize_reminder(PlannerEntityCommandService.delete_reminder(context.user, reminder_id, expected_version)), "deleted": True},
+            operation=lambda: {"reminder": serialize_reminder(
+                PlannerEntityCommandService.delete_reminder_scope(
+                    context.user, reminder_id, expected_version,
+                    scope=scope, occurrence_ref=occurrence_ref,
+                )
+            ), "deleted": True},
             result_resource_id=lambda result: result['reminder']['reminder_id'],
         )
 

@@ -5,7 +5,7 @@ class EventManager {
         this.events = [];
         this.groups = [];
         this.isGroupView = false;  // 新增：标记当前是否是群组视图
-        this._inFlightFetchKey = null;  // 防止同一日期范围并发重复请求，格式 "startISO|endISO"
+        this._inFlightFetches = new Map();  // 相同窗口共享 Promise，绝不以空数组覆盖有效结果。
     }
 
     // 初始化事件管理器
@@ -267,13 +267,16 @@ class EventManager {
             // 拖拽开始：记录当前拖拽的事件，供拖入 Agent 面板时使用；同时显示 Agent 面板视觉提示
             eventDragStart: (info) => {
                 const isReminder = info.event.extendedProps.isReminder;
-                // 保留原始字符串 ID，不做 parseInt（事件 ID 可能是 UUID）
+                const occurrenceRef = info.event.extendedProps.occurrence_ref || null;
+                // normalized occurrence 的 FullCalendar id 仅是渲染 key，附件必须使用 master entity_id。
                 const rawId = info.event.id;
-                const elementId = isReminder ? rawId.replace('reminder_', '') : rawId;
+                const elementId = occurrenceRef?.entity_id
+                    || (isReminder ? rawId.replace('reminder_', '') : rawId);
                 window._fcDraggedEvent = {
                     type: isReminder ? 'reminder' : 'event',
                     id: elementId,
                     title: info.event.title,
+                    occurrence_ref: occurrenceRef,
                 };
                 // 直接给 Agent 面板加 element-drag-over class，提供视觉反馈
                 const agentPanel = document.querySelector('.agent-panel-content');
@@ -401,16 +404,21 @@ class EventManager {
                 
                 // 防止同一日期范围的并发重复请求（FullCalendar 多次渲染时会触发多次回调）
                 const fetchKey = `${info.start?.toISOString()}|${info.end?.toISOString()}`;
-                if (this._inFlightFetchKey === fetchKey) {
-                    console.log('[EventManager] 相同范围已在加载中，跳过重复调用');
-                    successCallback([]);
-                    return;
+                let fetchPromise = this._inFlightFetches.get(fetchKey);
+                if (!fetchPromise) {
+                    console.log('[EventManager] 执行初始事件加载');
+                    fetchPromise = this.fetchEvents(info.start, info.end);
+                    this._inFlightFetches.set(fetchKey, fetchPromise);
+                    const clearFetch = () => {
+                        if (this._inFlightFetches.get(fetchKey) === fetchPromise) {
+                            this._inFlightFetches.delete(fetchKey);
+                        }
+                    };
+                    fetchPromise.then(clearFetch, clearFetch);
+                } else {
+                    console.log('[EventManager] 相同范围加载中，复用同一个请求结果');
                 }
-                this._inFlightFetchKey = fetchKey;
-                
-                // 初始加载
-                console.log('[EventManager] 执行初始事件加载');
-                this.fetchEvents(info.start, info.end)
+                fetchPromise
                     .then(events => {
                         console.log(`[EventManager] 初始加载完成，返回 ${events.length} 个事件`);
                         successCallback(events);
@@ -418,11 +426,6 @@ class EventManager {
                     .catch(error => {
                         console.error('[EventManager] 初始加载失败:', error);
                         failureCallback(error);
-                    })
-                    .finally(() => {
-                        if (this._inFlightFetchKey === fetchKey) {
-                            this._inFlightFetchKey = null;
-                        }
                     });
             },
             
@@ -789,7 +792,7 @@ class EventManager {
             return allEvents;
         } catch (error) {
             console.error('Error fetching events:', error);
-            return [];
+            throw error;
         }
     }
     
@@ -1607,7 +1610,7 @@ class EventManager {
         if (myCalendarSource) {
             // 如果有 my-calendar 事件源，直接刷新
             console.log('[EventManager] 找到 my-calendar 事件源，刷新');
-            this.calendar.refetchEvents();
+            myCalendarSource.refetch();
         } else {
             // 如果没有事件源，重新加载（可能是初始状态）
             console.log('[EventManager] 未找到 my-calendar 事件源，使用 shareGroupManager 重新加载');
@@ -1850,6 +1853,8 @@ class EventManager {
     // 打开提醒详情模态框（统一方法，从日历或列表调用）
     openReminderDetailModal(reminderData, reminderId) {
         console.log('Opening reminder detail modal:', reminderData);
+        this.currentReminderOccurrenceRef = reminderData?.occurrence_ref || null;
+        this.currentReminderData = reminderData || null;
         
         const modal = document.getElementById('reminderDetailModal');
         if (!modal) {
@@ -2081,8 +2086,9 @@ class EventManager {
     // 切换提醒状态（完成/忽略）
     async toggleReminderStatus(reminderId, targetStatus) {
         // 先获取当前提醒数据，判断是否需要切换为 active
-        const currentReminder = window.reminderManager ? 
-            window.reminderManager.reminders.find(r => r.id === reminderId) : null;
+        const currentReminder = this.currentReminderData?.id === reminderId
+            ? this.currentReminderData
+            : window.reminderManager?.findReminder(reminderId, this.currentReminderOccurrenceRef);
         
         // 如果当前状态与目标状态相同，则切换为 active（取消标记）
         const newStatus = currentReminder && currentReminder.status === targetStatus ? 'active' : targetStatus;
@@ -2101,8 +2107,7 @@ class EventManager {
                     }),
                 );
                 this.closeReminderDetailModal();
-                this.calendar.refetchEvents();
-                await window.reminderManager?.loadReminders();
+                await window.reminderManager?.refreshReminderViews();
                 return;
             }
             const response = await fetch('/api/reminders/update-status/', {
@@ -2158,8 +2163,7 @@ class EventManager {
                     snooze_until: new Date(base.getTime() + delay).toISOString(),
                 }),
             );
-            this.calendar.refetchEvents();
-            await window.reminderManager?.loadReminders();
+            await window.reminderManager?.refreshReminderViews();
             return;
         }
         // 调用 reminderManager 的方法
@@ -2189,8 +2193,7 @@ class EventManager {
                     action: 'reset', occurrence_ref: ref, expected_version: ref.source_version,
                 }),
             );
-            this.calendar.refetchEvents();
-            await window.reminderManager?.loadReminders();
+            await window.reminderManager?.refreshReminderViews();
             return;
         }
         if (window.reminderManager) {
@@ -2218,10 +2221,7 @@ class EventManager {
                     action: 'snooze', occurrence_ref: ref, expected_version: ref.source_version,
                     snooze_until: snoozeUntil.toISOString(),
                 }),
-            ).then(() => {
-                this.calendar.refetchEvents();
-                window.reminderManager?.loadReminders();
-            });
+            ).then(() => window.reminderManager?.refreshReminderViews());
             return;
         }
         if (window.reminderManager) {
@@ -2237,13 +2237,17 @@ class EventManager {
         // 调用 modal-manager 的编辑提醒方法
         if (window.modalManager) {
             if (window.plannerV2Client?.isNormalized('web_reminder')) {
-                const reminder = window.reminderManager?.reminders.find(item => item.id === reminderId);
+                const reminder = window.reminderManager?.findReminder(
+                    reminderId, this.currentReminderOccurrenceRef
+                );
                 if (!reminder) {
                     alert('提醒已变化，请刷新');
                     return;
                 }
                 if (reminder.series_id) {
-                    window.reminderManager.showBulkEditDialog(reminder.id, reminder.series_id, 'edit');
+                    window.reminderManager.showBulkEditDialog(
+                        reminder.id, reminder.series_id, 'edit', this.currentReminderOccurrenceRef
+                    );
                 } else {
                     modalManager.openEditReminderModal(reminder);
                 }
@@ -2280,23 +2284,25 @@ class EventManager {
     
     // 删除提醒
     async deleteReminderFromCalendar(reminderId) {
-        if (!confirm('确定要删除这个提醒吗？')) {
-            return;
-        }
-        
         try {
             if (window.plannerV2Client?.isNormalized('web_reminder')) {
-                const reminder = window.reminderManager?.reminders.find(item => item.id === reminderId);
-                if (!reminder) throw new Error('提醒已变化，请刷新');
-                await window.plannerV2Client.request(
-                    `/api/v2/reminders/${encodeURIComponent(reminderId)}/`,
-                    window.plannerV2Client.jsonOptions('DELETE', { expected_version: reminder.version }),
+                const reminder = window.reminderManager?.findReminder(
+                    reminderId, this.currentReminderOccurrenceRef
                 );
+                if (!reminder) throw new Error('提醒已变化，请刷新');
+                if (reminder.series_id) {
+                    window.reminderManager.showBulkEditDialog(
+                        reminder.id, reminder.series_id, 'delete', this.currentReminderOccurrenceRef
+                    );
+                    return;
+                }
+                if (!confirm('确定要删除这个提醒吗？')) return;
+                await window.plannerV2Client.deleteReminder(reminder.occurrence_ref, 'all');
                 modalManager.closeAllModals();
-                this.calendar.refetchEvents();
-                await window.reminderManager.loadReminders();
+                await window.reminderManager.refreshReminderViews();
                 return;
             }
+            if (!confirm('确定要删除这个提醒吗？')) return;
             const response = await fetch('/api/reminders/delete/', {
                 method: 'POST',
                 headers: {

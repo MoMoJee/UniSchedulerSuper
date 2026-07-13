@@ -200,6 +200,35 @@ class PlannerV2Client {
             }),
         );
     }
+
+    patchReminder(ref, scope, changes) {
+        const normalizedScope = scope === 'from_this' || scope === 'from_time' || scope === 'future'
+            ? 'this_and_future'
+            : (scope === 'this_only' ? 'single' : scope);
+        return this.request(
+            `/api/v2/reminders/${encodeURIComponent(ref.entity_id)}/`,
+            this.jsonOptions('PATCH', {
+                ...changes,
+                scope: normalizedScope,
+                occurrence_ref: ref,
+                expected_version: ref.source_version,
+            }),
+        );
+    }
+
+    deleteReminder(ref, scope) {
+        const normalizedScope = scope === 'from_this' || scope === 'from_time' || scope === 'future'
+            ? 'this_and_future'
+            : (scope === 'this_only' ? 'single' : scope);
+        return this.request(
+            `/api/v2/reminders/${encodeURIComponent(ref.entity_id)}/`,
+            this.jsonOptions('DELETE', {
+                scope: normalizedScope,
+                occurrence_ref: ref,
+                expected_version: ref.source_version,
+            }),
+        );
+    }
 }
 
 window.plannerV2Client = new PlannerV2Client();

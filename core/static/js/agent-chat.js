@@ -600,7 +600,9 @@ class AgentChat {
                         const rawData = e.dataTransfer.getData('text/plain');
                         const data = JSON.parse(rawData);
                         if (data.type && data.id !== undefined && data.title !== undefined) {
-                            this.toggleAttachmentMulti(data.type, String(data.id), data.title);
+                            this.toggleAttachmentMulti(
+                                data.type, String(data.id), data.title, data.occurrence_ref || null
+                            );
                             this.showNotification(`已附加${data.type === 'todo' ? '待办' : '提醒'}: ${data.title}`, 'success');
                         }
                     } catch (err) {
@@ -613,7 +615,9 @@ class AgentChat {
             agentPanelEl.addEventListener('fcEventDropped', (e) => {
                 const data = e.detail;
                 if (data && data.type && data.id !== undefined && data.title !== undefined) {
-                    this.toggleAttachmentMulti(data.type, String(data.id), data.title);
+                    this.toggleAttachmentMulti(
+                        data.type, String(data.id), data.title, data.occurrence_ref || null
+                    );
                     this.showNotification(`已附加${data.type === 'reminder' ? '提醒' : '日程'}: ${data.title}`, 'success');
                 }
             });
@@ -1112,38 +1116,42 @@ class AgentChat {
     async sendMessage() {
         const message = this.inputField.value.trim();
         if (!message || !this.isConnected || this.isProcessing) return;
-        
-        // 清空输入
-        this.inputField.value = '';
-        this.saveDraft();
-        this.autoResize();
-        this.updateSendButton();
-        
-        // 隐藏欢迎消息
-        const welcome = this.messagesContainer.querySelector('.agent-welcome');
-        if (welcome) welcome.style.display = 'none';
-        
+
         // 获取附件内容（如果有）
         let attachmentIds = [];
         let attachmentsList = [];  // 用于前端显示磁贴
         if (this.selectedAttachments.length > 0) {
-            const attachmentResult = await this.getFormattedAttachmentContent();
-            attachmentIds = attachmentResult.sa_ids || [];
-            // 保存附件列表供前端渲染磁贴
-            attachmentsList = this.selectedAttachments.map(att => ({
-                sa_id: att.sa_id,
+            try {
+                const attachmentResult = await this.getFormattedAttachmentContent();
+                attachmentIds = attachmentResult.sa_ids;
+                attachmentsList = attachmentResult.attachments.map(att => ({
+                sa_id: att.sa_id || att.id,
                 type: att.type,
-                id: att.id || att.internal_id,
-                name: att.name,
+                id: att.internal_id || att.id,
+                name: att.name || att.filename,
                 filename: att.filename || att.name,
                 thumbnail_url: att.thumbnail_url,
                 file_url: att.file_url || (att._full_data && att._full_data.file_url),
                 mime_type: att.mime_type,
-                internal_type: att.internal_type
-            }));
-            // 清空已选附件
-            this.clearSelectedAttachments();
+                internal_type: att.internal_type,
+                internal_id: att.internal_id,
+                occurrence_ref: att.occurrence_ref,
+                }));
+            } catch (error) {
+                console.error('附件准备失败:', error);
+                this.showNotification(`附件发送失败: ${error.message}`, 'error');
+                return;
+            }
         }
+
+        // 只有附件服务端合同确认成功后，才清空输入和待发送附件。
+        this.inputField.value = '';
+        this.clearSelectedAttachments();
+        this.autoResize();
+        this.updateSendButton();
+
+        const welcome = this.messagesContainer.querySelector('.agent-welcome');
+        if (welcome) welcome.style.display = 'none';
         
         // 添加用户消息（带消息索引 - 这是后端 LangGraph 中的索引）
         // messageCount 在发送前表示后端消息列表的当前长度，也就是新消息的索引
@@ -3591,27 +3599,27 @@ class AgentChat {
                     this.inputField.focus();
                 }
                 
-                // 恢复附件到待发送栏
-                if (attachments && attachments.length > 0) {
-                    // 将附件数据转换为 selectedAttachments 格式
-                    this.selectedAttachments = attachments.map(att => {
+                // 恢复附件到待发送栏：只信任服务端已退回 pending 的 DTO。
+                const restoredAttachments = data.requeued_attachments || [];
+                if (restoredAttachments.length > 0) {
+                    this.selectedAttachments = restoredAttachments.map(att => {
                         const internalTypes = ['event', 'todo', 'reminder', 'workflow'];
                         const isInternal = att.type === 'internal' || internalTypes.includes(att.type);
-                        // 统一为原始选择格式: {type, id, name}
                         if (isInternal) {
                             return {
                                 type: att.internal_type || att.type,
                                 id: att.internal_id || att.id,
-                                name: att.name || att.filename || '未命名'
+                                name: att.name || att.filename || '未命名',
+                                sa_id: att.id || att.sa_id,
                             };
                         }
-                        // 文件类型：保留完整信息
                         return {
                             type: att.type,
                             id: att.id,
                             name: att.name || att.filename,
-                            sa_id: att.sa_id,
+                            sa_id: att.id || att.sa_id,
                             thumbnail_url: att.thumbnail_url,
+                            file_url: att.file_url,
                             mime_type: att.mime_type,
                             filename: att.filename
                         };
@@ -4756,7 +4764,7 @@ class AgentChat {
     /**
      * 切换附件选择状态（多选模式）
      */
-    toggleAttachmentMulti(type, id, name) {
+    toggleAttachmentMulti(type, id, name, occurrenceRef = null) {
         const idx = this.selectedAttachments.findIndex(
             a => a.type === type && String(a.id) === String(id)
         );
@@ -4766,7 +4774,10 @@ class AgentChat {
             this.selectedAttachments.splice(idx, 1);
         } else {
             // 添加选择
-            this.selectedAttachments.push({ type, id, name });
+            this.selectedAttachments.push({
+                type, id, name,
+                ...(occurrenceRef ? { occurrence_ref: occurrenceRef } : {}),
+            });
         }
 
         this.updateAttachmentBadge();
@@ -4935,11 +4946,13 @@ class AgentChat {
         try {
             const sessionId = this.sessionId || `user_${this.userId}_default`;
             const saIds = [];
+            const resolvedAttachments = [];
 
             // 1. 收集已有 sa_id 的附件（文件上传的）
             for (const att of this.selectedAttachments) {
                 if (att.sa_id) {
                     saIds.push(att.sa_id);
+                    resolvedAttachments.push(att);
                 }
             }
 
@@ -4957,15 +4970,27 @@ class AgentChat {
                             session_id: sessionId,
                             element_type: att.type,
                             element_id: String(att.id),
+                            ...(att.occurrence_ref ? { occurrence_ref: att.occurrence_ref } : {}),
                         }),
                     });
                     const data = await resp.json();
-                    if (data.success && data.attachment) {
-                        saIds.push(data.attachment.id);
+                    if (!resp.ok || !data.success || !data.attachment) {
+                        throw new Error(data.error || `创建${att.name || att.type}附件失败`);
                     }
+                    saIds.push(data.attachment.id);
+                    resolvedAttachments.push({
+                        ...data.attachment,
+                        sa_id: data.attachment.id,
+                        name: data.attachment.filename,
+                        occurrence_ref: att.occurrence_ref,
+                    });
                 } catch (e) {
-                    console.warn('创建内部附件失败:', att, e);
+                    throw new Error(`${att.name || att.type}: ${e.message}`);
                 }
+            }
+
+            if (saIds.length !== this.selectedAttachments.length) {
+                throw new Error('附件数量校验失败，请重新选择');
             }
 
             // 3. 用 attachment_ids 获取格式化文本（用于用户侧显示）
@@ -4978,20 +5003,27 @@ class AgentChat {
                             'Content-Type': 'application/json',
                             'X-CSRFToken': this.csrfToken,
                         },
-                        body: JSON.stringify({ attachment_ids: saIds }),
+                        body: JSON.stringify({ attachment_ids: saIds, session_id: sessionId }),
                     });
                     const data = await resp.json();
+                    if (!resp.ok || data.count !== saIds.length) {
+                        throw new Error(data.error || '附件格式化数量不一致');
+                    }
                     displayText = data.formatted_content || '';
                 } catch (e) {
-                    console.warn('获取附件格式化内容失败:', e);
+                    throw e;
                 }
             }
 
-            return { sa_ids: saIds, formatted_content: displayText };
+            return {
+                sa_ids: saIds,
+                attachments: resolvedAttachments,
+                formatted_content: displayText,
+            };
 
         } catch (error) {
             console.error('获取附件内容失败:', error);
-            return { sa_ids: [], formatted_content: '' };
+            throw error;
         }
     }
 

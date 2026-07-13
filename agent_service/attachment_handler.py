@@ -14,6 +14,7 @@ from typing import Dict, Any, List, Optional
 
 from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
+from django.db import transaction
 from django.utils import timezone
 
 from logger import logger
@@ -185,6 +186,7 @@ class AttachmentHandler:
         session_id: str,
         element_type: str,
         element_id: str,
+        occurrence_ref: Optional[dict] = None,
     ) -> Dict[str, Any]:
         """
         将内部元素绑定为附件。
@@ -213,6 +215,7 @@ class AttachmentHandler:
             element_type=element_type,
             element_id=element_id,
             user=user,
+            occurrence_ref=occurrence_ref,
         )
 
         if not result.get('success'):
@@ -380,37 +383,44 @@ class AttachmentHandler:
     # ================================================================
 
     @staticmethod
-    def soft_delete_by_rollback(session_id: str, message_index: int):
-        """
-        回滚操作：软删除该消息索引及之后的所有附件。
-
-        Args:
-            session_id: 会话 ID
-            message_index: 回滚到的消息索引
-        """
+    @transaction.atomic
+    def requeue_target_and_delete_later(session_id: str, message_index: int):
+        """目标消息附件退回 pending；目标之后消息的附件软删除。"""
         from agent_service.models import SessionAttachment
 
-        attachments = SessionAttachment.objects.filter(
-            session_id=session_id,
-            is_deleted=False,
-            message_index__gte=message_index,
+        target = SessionAttachment.objects.select_for_update().filter(
+            session_id=session_id, is_deleted=False, message_index=message_index,
         )
+        requeued = list(target.order_by('id'))
+        if requeued:
+            target.update(message_index=None, sent_at=None, sent_with_model='')
+            for item in requeued:
+                item.message_index = None
+                item.sent_at = None
+                item.sent_with_model = ''
 
-        count = attachments.count()
-        if count > 0:
-            now = timezone.now()
-            attachments.update(
+        later = SessionAttachment.objects.select_for_update().filter(
+            session_id=session_id, is_deleted=False, message_index__gt=message_index,
+        )
+        deleted_count = later.count()
+        if deleted_count:
+            later.update(
                 is_deleted=True,
-                deleted_at=now,
+                deleted_at=timezone.now(),
                 deleted_reason='rollback',
                 deleted_with_message_index=message_index,
             )
-            logger.info(
-                f"回滚软删除 {count} 个附件 "
-                f"(session={session_id}, from_msg={message_index})"
-            )
+        return {
+            'requeued': [item.to_api_dict() for item in requeued],
+            'requeued_count': len(requeued),
+            'deleted_later_count': deleted_count,
+        }
 
-        return count
+    @staticmethod
+    def soft_delete_by_rollback(session_id: str, message_index: int):
+        """兼容旧调用；返回从消息历史移除关联的附件总数。"""
+        result = AttachmentHandler.requeue_target_and_delete_later(session_id, message_index)
+        return result['requeued_count'] + result['deleted_later_count']
 
     @staticmethod
     def restore_by_rollback(session_id: str, message_index: int) -> int:
@@ -499,16 +509,28 @@ class AttachmentHandler:
         )
 
     @staticmethod
-    def mark_sent(attachment_ids: list, message_index: int, model_id: str = ''):
+    def mark_sent(
+        attachment_ids: list, message_index: int, model_id: str = '',
+        *, user=None, session_id: str = '',
+    ):
         """标记附件为已发送"""
         from agent_service.models import SessionAttachment
 
         now = timezone.now()
-        SessionAttachment.objects.filter(id__in=attachment_ids).update(
+        queryset = SessionAttachment.objects.filter(
+            id__in=attachment_ids, is_deleted=False, message_index__isnull=True,
+        )
+        if user is not None:
+            queryset = queryset.filter(user=user)
+        if session_id:
+            queryset = queryset.filter(session_id=session_id)
+        updated = queryset.update(
             message_index=message_index,
             sent_at=now,
             sent_with_model=model_id,
         )
+        if updated != len(set(attachment_ids)):
+            raise ValueError('附件状态已变化，请重新选择附件')
 
     # ================================================================
     # 多模态切换支持

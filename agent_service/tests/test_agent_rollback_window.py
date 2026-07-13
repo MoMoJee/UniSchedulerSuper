@@ -9,7 +9,7 @@ from django.utils import timezone
 from langchain_core.messages import AIMessage, HumanMessage
 from rest_framework.test import APIClient
 
-from agent_service.models import AgentRollbackWindow, AgentSession
+from agent_service.models import AgentRollbackWindow, AgentSession, SessionAttachment
 from agent_service.rollback_windows import AgentRollbackWindowService
 from core.models import (
     CalendarEvent, PlannerChangeSet, PlannerCohortAssignment, PlannerMigrationState,
@@ -135,6 +135,34 @@ class AgentRollbackWindowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['rolled_back_transactions'], 0)
         self.assertTrue(mocked_app.update_state.called)
+
+    @patch('agent_service.agent_graph.app')
+    def test_rollback_response_requeues_only_target_message_attachments(self, mocked_app):
+        AgentRollbackWindowService.ensure_active(
+            user=self.user, session_id=self.first.session_id, floor_message_index=2
+        )
+        target = SessionAttachment.objects.create(
+            user=self.user, session_id=self.first.session_id, type='word',
+            filename='target.docx', parsed_text='target', parse_status='completed', message_index=2,
+        )
+        later = SessionAttachment.objects.create(
+            user=self.user, session_id=self.first.session_id, type='image',
+            filename='later.png', parsed_text='later', parse_status='completed', message_index=4,
+        )
+        mocked_app.get_state.return_value = SimpleNamespace(values={'messages': [
+            HumanMessage(content='旧', id='h0'), AIMessage(content='回复', id='a1'),
+            HumanMessage(content='带附件', id='h2'), AIMessage(content='附件回复', id='a3'),
+            HumanMessage(content='之后', id='h4'), AIMessage(content='之后回复', id='a5'),
+        ]})
+        response = self.client.post('/api/agent/rollback/to-message/', {
+            'session_id': self.first.session_id, 'message_index': 2,
+        }, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item['id'] for item in response.data['requeued_attachments']], [target.id])
+        target.refresh_from_db(); later.refresh_from_db()
+        self.assertIsNone(target.message_index)
+        self.assertFalse(target.is_deleted)
+        self.assertTrue(later.is_deleted)
 
     @patch('agent_service.agent_graph.app')
     def test_closed_or_pre_floor_message_is_rejected_with_410(self, mocked_app):

@@ -339,15 +339,13 @@ class AgentConsumer(AsyncWebsocketConsumer):
             # 异步查询附件
             attachments = await database_sync_to_async(
                 lambda: list(SessionAttachment.objects.filter(
-                    id__in=attachment_ids, user=self.user, is_deleted=False
+                    id__in=attachment_ids, user=self.user, session_id=self.session_id,
+                    is_deleted=False, message_index__isnull=True,
                 ))
             )()
             
-            if not attachments:
-                return [HumanMessage(
-                    content=content,
-                    additional_kwargs={'runtime_context': runtime_context},
-                )]
+            if len(attachments) != len(set(attachment_ids)):
+                raise ValueError('附件不存在、已发送或不属于当前会话，请重新选择')
             
             # 构建附件元数据（供前端历史渲染）
             attachments_metadata = []
@@ -376,7 +374,10 @@ class AgentConsumer(AsyncWebsocketConsumer):
             if not content_blocks:
                 await database_sync_to_async(
                     AttachmentHandler.mark_sent
-                )([a.id for a in attachments], message_index=message_index)
+                )(
+                    [a.id for a in attachments], message_index=message_index,
+                    user=self.user, session_id=self.session_id,
+                )
                 return [HumanMessage(
                     content=content,
                     additional_kwargs={
@@ -393,7 +394,10 @@ class AgentConsumer(AsyncWebsocketConsumer):
             att_ids = [a.id for a in attachments]
             await database_sync_to_async(
                 AttachmentHandler.mark_sent
-            )(att_ids, message_index=message_index)
+            )(
+                att_ids, message_index=message_index,
+                user=self.user, session_id=self.session_id,
+            )
 
             logger.debug(f"[附件] 冻结附件上下文: {len(attachments)} 个, 上下文 {len(attachments_context)} 字符")
 
@@ -411,11 +415,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
             
         except Exception as e:
             logger.error(f"[多模态] 构建多模态消息失败: {e}", exc_info=True)
-            # 降级为纯文本
-            return [HumanMessage(
-                content=content,
-                additional_kwargs={'runtime_context': runtime_context},
-            )]
+            raise
 
     async def _build_human_message(self, content: str, attachment_ids: list = None) -> HumanMessage:
         """兼容旧调用：返回本轮最后一条 HumanMessage。"""
@@ -510,7 +510,7 @@ class AgentConsumer(AsyncWebsocketConsumer):
             input_messages = await self._build_input_messages(
                 content,
                 attachment_ids,
-                message_index=current_message_count + (2 if attachment_ids else 1),
+                message_index=current_message_count,
             )
             
             input_state = {
