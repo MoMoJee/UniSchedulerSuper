@@ -1,0 +1,18 @@
+{% load static frontend_assets %}
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ frontend_bootstrap.csrfToken }}">
+    <meta name="color-scheme" content="light dark">
+    <title>UniSchedulerSuper</title>
+    <link rel="icon" type="image/png" href="{% static 'faction.png' %}">
+    {% vite_entry 'index.html' %}
+</head>
+<body data-frontend-mode="react">
+    <noscript>UniSchedulerSuper 的新版界面需要启用 JavaScript。</noscript>
+    <main id="root" aria-live="polite"></main>
+    {{ frontend_bootstrap|json_script:"frontend-bootstrap" }}
+</body>
+</html>

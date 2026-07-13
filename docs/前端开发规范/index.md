@@ -1,6 +1,6 @@
 # 前端开发规范 · 索引
 
-> 现行版本：2026-07-13。Planner 已完成 P6 切换，浏览器端日程、待办、提醒与日程组必须使用 normalized Planner V2。
+> 现行版本：2026-07-14。Planner 已完成 P6 切换；前端现代化已完成 FR-0 工程基座，浏览器端日程、待办、提醒与日程组必须使用 normalized Planner V2。
 
 ## 规范目录
 
@@ -11,6 +11,7 @@
 | [WebSocket 通信规范](./WebSocket通信规范.md) | Agent 会话、附件、流式状态、回滚窗口 |
 | [模板与 CDN 规范](./模板与CDN规范.md) | 模板注入、CDN 与静态资源缓存版本 |
 | [样式规范](./样式规范.md) | Bootstrap、主题变量与 Agent 用量可视化 |
+| [React 工程与构建规范](./React工程与构建规范.md) | Vite 工程、Django manifest、入口开关、质量命令与发布回退 |
 
 ## 当前前端边界
 
@@ -24,11 +25,11 @@
 
 | 层次 | 技术 |
 |---|---|
-| 渲染 | Django Template + 原生 ES6 Class |
+| 渲染（过渡期） | Django Template + 原生 ES6 Class（默认 legacy）与 React + TypeScript + Vite（FR-0 就绪） |
 | UI | Bootstrap 5、FullCalendar 6、Font Awesome |
 | 实时对话 | Django Channels WebSocket |
 | Planner 客户端 | `planner-v2-client.js` + `/api/v2/` |
-| 构建 | 无构建步骤，静态 JS/CSS 直接加载 |
+| 构建 | 原生静态资源直接加载；React 使用 Vite hash bundle + Django manifest |
 
 ## 基础约定
 
@@ -36,3 +37,4 @@
 2. 先等待 `window.plannerV2Client.ready`，再发起 Planner 调用；bootstrap 失败时保持 fail-closed，不调用旧接口。
 3. 所有写请求携带 CSRF；外部 Token 客户端使用 `Authorization: Token <token>` 且不依赖 Cookie。
 4. 页面状态必须以服务端响应为准。创建、编辑、删除成功后合并服务端返回值或重新加载当前有限窗口，不能只修改本地对象。
+5. React 代码只能放在 `frontend/`，通过 `FRONTEND_MODE=react` 显式启用；在 FR-8 默认切换前，`legacy` 仍是默认入口。React 不得调用原生 manager 或 legacy Planner API。

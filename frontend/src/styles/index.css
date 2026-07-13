@@ -1,0 +1,88 @@
+:root {
+  color: #172033;
+  background: #f4f7fb;
+  font-family:
+    Inter,
+    "Noto Sans SC",
+    "Microsoft YaHei",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.frontend-shell {
+  display: grid;
+  min-height: 100vh;
+  place-content: center;
+  padding: clamp(1.5rem, 5vw, 4rem);
+}
+
+.frontend-shell__header,
+.frontend-shell__content {
+  width: min(100%, 44rem);
+  padding: 1.5rem 2rem;
+  background: #fff;
+  border: 1px solid #d8e1ee;
+}
+
+.frontend-shell__header {
+  border-radius: 1rem 1rem 0 0;
+  border-bottom: 0;
+}
+
+.frontend-shell__content {
+  border-radius: 0 0 1rem 1rem;
+}
+
+.frontend-shell__eyebrow {
+  color: #1769e0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0.5rem 0 0;
+  font-size: clamp(1.6rem, 4vw, 2.5rem);
+}
+
+.frontend-shell__hint {
+  color: #52647f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #edf4ff;
+    background: #131a27;
+  }
+
+  .frontend-shell__header,
+  .frontend-shell__content {
+    background: #1d283a;
+    border-color: #34445e;
+  }
+
+  .frontend-shell__hint {
+    color: #b7c5d9;
+  }
+}

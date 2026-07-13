@@ -10,9 +10,11 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
-from pathlib import Path
 import os
 import datetime
+from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -152,6 +154,19 @@ PLANNER_STORAGE_MODE = os.getenv('PLANNER_STORAGE_MODE', 'normalized')
 PLANNER_DIFF_ASSERT = os.getenv('PLANNER_DIFF_ASSERT', 'false')
 PLANNER_LEGACY_FALLBACK = os.getenv('PLANNER_LEGACY_FALLBACK', 'false')
 PLANNER_CALDAV_NORMALIZED = os.getenv('PLANNER_CALDAV_NORMALIZED', 'true')
+
+# FR-0：前端入口只决定模板/静态资源，绝不改变 Planner 的 V2-only 数据路径。
+# 默认保留成熟的原生界面，React 入口仅在完成各阶段验收后通过环境变量显式启用。
+FRONTEND_MODE = os.getenv('FRONTEND_MODE', 'legacy').strip().lower()
+if FRONTEND_MODE not in {'legacy', 'react'}:
+    raise ImproperlyConfigured(
+        "FRONTEND_MODE 必须为 'legacy' 或 'react'，不能使用未定义的前端入口。"
+    )
+
+# 仅开发环境允许直接从 Vite dev server 加载模块。生产必须使用 collectstatic 后的 manifest。
+VITE_DEV_SERVER_URL = os.getenv('VITE_DEV_SERVER_URL', '').strip().rstrip('/')
+if VITE_DEV_SERVER_URL and not DEBUG:
+    raise ImproperlyConfigured('生产环境禁止设置 VITE_DEV_SERVER_URL，请构建并发布前端静态资源。')
 
 # 设置 LOGIN_URL，指定用户未登录时跳转到的登录页面。
 LOGIN_URL = '/user_login'

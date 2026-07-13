@@ -28,6 +28,9 @@ db.sqlite3
 
 __pycache__
 node_modules/
+/frontend/playwright-report/
+/frontend/test-results/
+/core/static/react/
 
 # 开发文档 (本地保留)
 TEST_ACCOUNT.md

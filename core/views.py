@@ -36,6 +36,8 @@ from django.contrib.auth import logout
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.conf import settings
+from django.middleware.csrf import get_token
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from rest_framework.decorators import api_view, permission_classes
@@ -257,7 +259,20 @@ def home(request):
     # 添加备案信息到context
     context['beian_info'] = beian_info
 
-    return render(request, 'home.html', context)
+    # React 壳只接收启动所需的非敏感配置；Planner/Agent 真相仍从其既有 V2/WS 接口读取。
+    # get_token() 同时确保同源写请求在前端迁移期间具备可用的 CSRF cookie/token。
+    context['frontend_bootstrap'] = {
+        'mode': settings.FRONTEND_MODE,
+        'user': {'username': request.user.get_username()},
+        'csrfToken': get_token(request),
+        'endpoints': {
+            'home': '/home/',
+            'agentWebSocketPath': '/ws/agent/',
+        },
+    }
+
+    template_name = 'home_react.html' if settings.FRONTEND_MODE == 'react' else 'home.html'
+    return render(request, template_name, context)
 
 
 @login_required

@@ -1,8 +1,27 @@
 # 模板与 CDN 规范
 
-> 现行版本：2026-07-13。Planner 页必须加载 `planner-v2-client.js` 并注入由后端序列化的 cohort entrypoints；不得从模板注入 legacy Planner JSON 作为写入回退。
+> 现行版本：2026-07-14。原生 Planner 页必须加载 `planner-v2-client.js` 并注入由后端序列化的 cohort entrypoints；React 入口使用 Vite manifest。两种入口均不得从模板注入 legacy Planner JSON 作为写入回退。
 
 > 描述 Django 模板结构约定与 CDN 双轨加载策略。
+
+---
+
+## 0. React/Vite 迁移入口（FR-0 起）
+
+React 页面不是把 Vite CDN 标签塞进旧 `home.html`，而是通过 Django 开关选择独立模板：
+
+```text
+FRONTEND_MODE=legacy  # 默认：现有 home.html
+FRONTEND_MODE=react   # 仅在已构建、已验收环境启用：home_react.html
+```
+
+- `home_react.html` 只包含 `#root`、`frontend-bootstrap` JSON、CSRF meta 和 `{% vite_entry 'index.html' %}`；禁止加入原生 manager、Planner JSON 或业务内联脚本。
+- 开发时可在 `DEBUG=True` 下设置 `VITE_DEV_SERVER_URL=http://127.0.0.1:5173`。生产环境设置该变量会被 Django 拒绝，必须使用 `npm run build` 的产物。
+- Vite 的入口 manifest 固定为 `core/static/react/manifest.json`。禁止使用 `.vite/manifest.json`，因为 `collectstatic` 默认跳过隐藏目录。
+- React 资源带内容 hash，由 manifest 指向；不要为它们增加手工 `?v=YYYYMMDD-NNN`，也不要把 React 依赖重新接入 CDN 双轨逻辑。
+- 回退只需将 `FRONTEND_MODE` 改回 `legacy` 后重启服务；它不回退数据库，不得借此恢复 Planner V1 写入。
+
+完整本地命令、测试和发布顺序见 [React 工程与构建规范](./React工程与构建规范.md)。
 
 ---
 
