@@ -1,11 +1,12 @@
 import { resolve } from "node:path";
 
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   base: "/static/react/",
-  plugins: [react()],
+  plugins: [tailwindcss(), react()],
   build: {
     outDir: resolve(__dirname, "../core/static/react"),
     assetsDir: "assets",

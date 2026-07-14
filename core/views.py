@@ -38,6 +38,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.middleware.csrf import get_token
+from django.http import Http404
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from rest_framework.decorators import api_view, permission_classes
@@ -197,7 +198,11 @@ def user_data(request):
 
 @login_required
 @never_cache
-def home(request):
+def home(request, frontend_path: str = ''):
+    # React 的 BrowserRouter 允许在 /home 下直达子路由；旧工作台没有
+    # SPA fallback，故在 legacy 模式明确返回 404，避免改变原有 URL 语义。
+    if frontend_path and settings.FRONTEND_MODE != 'react':
+        raise Http404('Legacy home does not provide frontend subroutes.')
     beian_info = get_beian_info()
     
     user_preference_data :'UserData'

@@ -48,6 +48,18 @@ class ReactFrontendShellTests(TestCase):
         self.assertContains(response, 'js/planner-v2-client.js')
 
     @override_settings(FRONTEND_MODE='react', VITE_DEV_SERVER_URL='http://127.0.0.1:5173')
+    def test_react_home_supports_direct_spa_routes_but_legacy_does_not(self):
+        self.client.force_login(self.user)
+        react_response = self.client.get('/home/todos/')
+
+        self.assertEqual(react_response.status_code, 200)
+        self.assertTemplateUsed(react_response, 'home_react.html')
+
+        with self.settings(FRONTEND_MODE='legacy'):
+            legacy_response = self.client.get('/home/todos/')
+        self.assertEqual(legacy_response.status_code, 404)
+
+    @override_settings(FRONTEND_MODE='react', VITE_DEV_SERVER_URL='http://127.0.0.1:5173')
     def test_react_shell_issues_csrf_cookie_for_same_origin_writes(self):
         csrf_client = Client(enforce_csrf_checks=True)
         csrf_client.force_login(self.user)

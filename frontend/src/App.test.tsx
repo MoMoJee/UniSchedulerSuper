@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { App } from "./App";
 
 describe("App", () => {
-  it("renders the isolated FR-0 shell without planner data access", () => {
+  it("renders the FR-2 app shell without planner data access", () => {
     render(
       <App
         bootstrap={{
@@ -16,12 +16,12 @@ describe("App", () => {
       />,
     );
 
+    expect(screen.getByText("UniSchedulerSuper")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "React 工程基座已就绪" }),
-    ).toBeInTheDocument();
+      screen.getAllByRole("heading", { name: "日程工作区" }).length,
+    ).toBeGreaterThan(0);
     expect(
-      screen.getByText("你好，测试用户。现有工作台仍保持默认入口。"),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/不会读取或写入 Planner 数据/)).toBeInTheDocument();
+      screen.getAllByText(/当前页面不读取、不写入任何业务数据/).length,
+    ).toBeGreaterThan(0);
   });
 });

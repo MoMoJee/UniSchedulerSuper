@@ -16,6 +16,7 @@ urlpatterns = [
     path('about/', views.about, name='about'),
     path('contact/', views.contact, name='contact'),
     path('home/', views.home, name='home'),
+    path('home/<path:frontend_path>/', views.home, name='react_home_route'),
     path('user_register/', views.user_register, name='user_register'),
     path('user_login/', views.user_login, name='user_login'),
     path('user_logout/', views.user_logout, name='user_logout'),

@@ -1,22 +1,18 @@
+import { RouterProvider } from "react-router-dom";
+
+import { AppErrorBoundary } from "./app/error-boundary";
+import { createAppRouter } from "./app/routes";
+import { AppProviders } from "./app/providers";
+import { ThemeController } from "./app/theme-controller";
 import type { FrontendBootstrap } from "./bootstrap";
 
-interface AppProps {
-  bootstrap: FrontendBootstrap;
-}
-
-export function App({ bootstrap }: AppProps) {
+export function App({ bootstrap }: { bootstrap: FrontendBootstrap }) {
   return (
-    <div className="frontend-shell">
-      <header className="frontend-shell__header">
-        <span className="frontend-shell__eyebrow">UniSchedulerSuper</span>
-        <h1>React 工程基座已就绪</h1>
-      </header>
-      <main className="frontend-shell__content">
-        <p>你好，{bootstrap.user.username}。现有工作台仍保持默认入口。</p>
-        <p className="frontend-shell__hint">
-          FR-1 将接入类型化 V2 API；当前页面不会读取或写入 Planner 数据。
-        </p>
-      </main>
-    </div>
+    <AppProviders>
+      <ThemeController />
+      <AppErrorBoundary>
+        <RouterProvider router={createAppRouter(bootstrap)} />
+      </AppErrorBoundary>
+    </AppProviders>
   );
 }
