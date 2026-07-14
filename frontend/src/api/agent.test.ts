@@ -16,15 +16,18 @@ describe("Agent API contracts", () => {
       kind: "event",
       label: "答辩",
       resourceId: "event-12",
+      occurrenceRef: null,
       previewUrl: null,
+      preview: null,
+      parseStatus: null,
       isAvailable: true,
     });
   });
 
   it("accepts known stream frames and safely ignores an unknown frame", () => {
     expect(
-      parseAgentWsEvent({ type: "partial", content: "正在" }),
-    ).toMatchObject({ type: "partial", content: "正在" });
+      parseAgentWsEvent({ type: "stream_chunk", content: "正在" }),
+    ).toMatchObject({ type: "stream_chunk", content: "正在" });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     expect(
       parseAgentWsEvent({ type: "future_protocol", sequence: 9 }),

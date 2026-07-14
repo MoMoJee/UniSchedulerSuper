@@ -20,6 +20,7 @@ import { Button } from "../components/ui/button";
 import { Tooltip } from "../components/ui/tooltip";
 import { cn } from "../lib/cn";
 import { useUiStore } from "../stores/ui-store";
+import { AgentWorkspace } from "../features/agent/agent-workspace";
 
 const navigation = [
   { to: "/", label: "日程", icon: CalendarDays },
@@ -56,27 +57,6 @@ function Navigation({ compact = false }: { compact?: boolean }) {
         </NavLink>
       ))}
     </nav>
-  );
-}
-
-function AgentPlaceholder() {
-  return (
-    <aside
-      aria-label="Agent 面板"
-      className="h-full border-l border-[var(--border)] bg-[var(--surface)] p-4"
-    >
-      <div className="flex items-center gap-2">
-        <Sparkles
-          aria-hidden="true"
-          className="text-[var(--accent)]"
-          size={20}
-        />
-        <h2 className="font-semibold">智能助手</h2>
-      </div>
-      <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
-        Agent 会话、附件和回滚界面将在 FR-5 接入当前已验证的服务端协议。
-      </p>
-    </aside>
   );
 }
 
@@ -153,7 +133,7 @@ export function AppShell({ bootstrap }: { bootstrap: FrontendBootstrap }) {
       </header>
 
       {!isMobile ? (
-        <div className="app-shell__desktop">
+        <main aria-label="主工作区布局" className="app-shell__desktop">
           <Group
             defaultLayout={panelLayout}
             id="main-workspace"
@@ -175,14 +155,16 @@ export function AppShell({ bootstrap }: { bootstrap: FrontendBootstrap }) {
               id="navigation-workspace"
             />
             <Panel id="workspace" minSize="24rem">
-              <motion.main
+              <motion.div
                 animate={{ opacity: 1, y: 0 }}
+                aria-label="当前页面内容"
                 className="h-full overflow-auto bg-[var(--surface-canvas)] p-4 md:p-6"
                 initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+                role="region"
                 transition={{ duration: reduceMotion ? 0 : 0.16 }}
               >
                 <Outlet />
-              </motion.main>
+              </motion.div>
             </Panel>
             <Separator
               aria-label="调整 Agent 面板宽度"
@@ -190,10 +172,13 @@ export function AppShell({ bootstrap }: { bootstrap: FrontendBootstrap }) {
               id="workspace-agent"
             />
             <Panel id="agent" minSize="16rem">
-              <AgentPlaceholder />
+              <AgentWorkspace
+                username={bootstrap.user.username}
+                webSocketPath={bootstrap.endpoints.agentWebSocketPath}
+              />
             </Panel>
           </Group>
-        </div>
+        </main>
       ) : (
         <div className="app-shell__mobile">
           {leftPanelOpen ? (
@@ -210,7 +195,10 @@ export function AppShell({ bootstrap }: { bootstrap: FrontendBootstrap }) {
           </main>
           {agentPanelOpen ? (
             <div className="mobile-panel">
-              <AgentPlaceholder />
+              <AgentWorkspace
+                username={bootstrap.user.username}
+                webSocketPath={bootstrap.endpoints.agentWebSocketPath}
+              />
               <Button onClick={() => setAgentPanelOpen(false)}>
                 <ChevronRight aria-hidden="true" />
                 关闭助手

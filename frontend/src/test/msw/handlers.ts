@@ -1,6 +1,27 @@
 import { http, HttpResponse } from "msw";
 
 export const handlers = [
+  http.get("*/api/agent/sessions/", () =>
+    HttpResponse.json({
+      sessions: [
+        {
+          session_id: "user_1_test",
+          name: "测试会话",
+          message_count: 0,
+          updated_at: "2026-07-14T00:00:00+08:00",
+        },
+      ],
+      current_session_id: "user_1_test",
+    }),
+  ),
+  http.get("*/api/agent/history/", ({ request }) =>
+    HttpResponse.json({
+      session_id:
+        new URL(request.url).searchParams.get("session_id") ?? "user_1_test",
+      messages: [],
+      rollback_window: { status: "active", floor_message_index: 0 },
+    }),
+  ),
   http.get("*/api/v2/planner/bootstrap/", () =>
     HttpResponse.json({
       entrypoints: {

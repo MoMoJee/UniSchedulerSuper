@@ -27,6 +27,14 @@ export interface FileRecord {
   folderId: number | null;
   parseStatus: string;
   fileUrl: string | null;
+  textPreview: string | null;
+}
+
+export interface FileFolder {
+  id: number;
+  name: string;
+  path: string;
+  parentId?: number | null;
 }
 
 export function mapFileRecord(value: unknown): FileRecord {
@@ -50,11 +58,13 @@ export function mapFileRecord(value: unknown): FileRecord {
     parseStatus:
       typeof wire.parse_status === "string" ? wire.parse_status : "unknown",
     fileUrl: typeof wire.file_url === "string" ? wire.file_url : null,
+    textPreview:
+      typeof wire.text_preview === "string" ? wire.text_preview : null,
   };
 }
 
 export const filesApi = {
-  list: (folderId?: number, signal?: AbortSignal) => {
+  list: (folderId?: number | null, signal?: AbortSignal) => {
     const query = folderId
       ? `?${new URLSearchParams({ folder_id: String(folderId) })}`
       : "";
@@ -62,13 +72,78 @@ export const filesApi = {
   },
   get: (fileId: number, signal?: AbortSignal) =>
     apiClient.request<JsonObject>(`/api/files/${fileId}/`, { signal }),
-  upload: (files: File[], folderId?: number) => {
-    const form = new FormData();
-    files.forEach((file) => form.append("files", file));
-    if (folderId) form.append("folder_id", String(folderId));
+  upload: (files: File[], folderId?: number | null) => {
+    const body = new FormData();
+    files.forEach((file) => body.append("files", file));
+    if (folderId) body.append("folder_id", String(folderId));
     return apiClient.request<JsonObject>("/api/files/upload/", {
       method: "POST",
-      body: form,
+      body,
     });
   },
+  uploadUrl: (url: string, folderId?: number | null) =>
+    apiClient.request<JsonObject>("/api/files/upload-url/", {
+      method: "POST",
+      body: { url, ...(folderId ? { folder_id: folderId } : {}) },
+    }),
+  remove: (fileId: number) =>
+    apiClient.request<JsonObject>(`/api/files/${fileId}/`, {
+      method: "DELETE",
+    }),
+  rename: (fileId: number, filename: string) =>
+    apiClient.request<JsonObject>(`/api/files/${fileId}/rename/`, {
+      method: "PUT",
+      body: { filename },
+    }),
+  move: (fileId: number, folderId: number | null) =>
+    apiClient.request<JsonObject>(`/api/files/${fileId}/move/`, {
+      method: "PUT",
+      body: { folder_id: folderId },
+    }),
+  createFolder: (name: string, parentId: number | null) =>
+    apiClient.request<JsonObject>("/api/files/folders/", {
+      method: "POST",
+      body: { name, parent_id: parentId },
+    }),
+  renameFolder: (folderId: number, name: string) =>
+    apiClient.request<JsonObject>(`/api/files/folders/${folderId}/rename/`, {
+      method: "PUT",
+      body: { name },
+    }),
+  removeFolder: (folderId: number) =>
+    apiClient.request<JsonObject>(`/api/files/folders/${folderId}/`, {
+      method: "DELETE",
+    }),
+  search: (query: string, signal?: AbortSignal) =>
+    apiClient.request<{ results: JsonObject[] }>(
+      `/api/files/search/?${new URLSearchParams({ q: query })}`,
+      { signal },
+    ),
+  pick: (
+    params: {
+      query?: string;
+      category?: string;
+      folderId?: number | null;
+    } = {},
+    signal?: AbortSignal,
+  ) =>
+    apiClient.request<{ folders: FileFolder[]; files: JsonObject[] }>(
+      `/api/files/pick/?${new URLSearchParams({ ...(params.query ? { q: params.query } : {}), ...(params.category ? { category: params.category } : {}), ...(params.folderId ? { folder_id: String(params.folderId) } : {}) })}`,
+      { signal },
+    ),
+  getMarkdown: (fileId: number) =>
+    apiClient.request<{
+      id: number;
+      filename: string;
+      parsed_markdown: string;
+      markdown_edited: boolean;
+      parse_status: string;
+    }>(`/api/files/${fileId}/markdown/`),
+  saveMarkdown: (fileId: number, content: string) =>
+    apiClient.request<JsonObject>(`/api/files/${fileId}/markdown/`, {
+      method: "PUT",
+      body: { content },
+    }),
+  downloadUrl: (fileId: number, markdown = false) =>
+    `/api/files/${fileId}/${markdown ? "download-md" : "download"}/`,
 };

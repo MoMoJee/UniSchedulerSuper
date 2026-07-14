@@ -24,6 +24,7 @@ describe("file API contracts", () => {
       folderId: null,
       parseStatus: "ready",
       fileUrl: "/media/7",
+      textPreview: null,
     });
   });
 });

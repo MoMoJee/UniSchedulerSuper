@@ -116,6 +116,21 @@ export const plannerApi = {
       `/api/v2/share-groups/${encodeURIComponent(shareGroupId)}/occurrences/?${rangeParams(from, to)}`,
       { signal },
     ),
+  search: (
+    query: string,
+    from: string,
+    to: string,
+    types: Array<"event" | "todo" | "reminder"> = ["event", "todo", "reminder"],
+    signal?: AbortSignal,
+  ) =>
+    apiClient.request<{
+      results?: JsonObject[];
+      items?: JsonObject[];
+      total?: number;
+    }>(
+      `/api/v2/search/?${new URLSearchParams({ q: query, from, to, types: types.join(","), page: "1", page_size: "50" })}`,
+      { signal },
+    ),
 
   createEvent: (payload: JsonObject) =>
     apiClient.request<JsonObject>("/api/v2/events/", {
