@@ -1,5 +1,5 @@
 import axe from "axe-core";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { App } from "../App";
@@ -12,23 +12,29 @@ const bootstrap = {
 };
 
 describe("FR-2 app shell", () => {
-  it("provides labelled navigation and mobile panel controls", () => {
+  it("provides labelled desktop navigation and panel controls", async () => {
     render(<App bootstrap={bootstrap} />);
 
     expect(
-      screen.getByRole("navigation", { name: "主导航" }),
+      await screen.findByRole("navigation", { name: "主导航" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("complementary", { name: "Agent 面板" }),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "打开导航" }));
     expect(
-      screen.getByRole("button", { name: "关闭导航" }),
+      screen.getByRole("button", { name: "打开导航" }),
     ).toBeInTheDocument();
   });
 
   it("has no serious axe violations in the initial desktop shell", async () => {
     const { container } = render(<App bootstrap={bootstrap} />);
+    expect(
+      (
+        await within(container).findAllByRole("navigation", {
+          name: "主导航",
+        })
+      ).length,
+    ).toBeGreaterThan(0);
     const result = await axe.run(container, {
       rules: { "color-contrast": { enabled: false } },
     });

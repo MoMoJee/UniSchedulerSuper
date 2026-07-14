@@ -7,6 +7,7 @@ export interface OccurrenceRefWire {
   entity_id: string;
   series_id?: string | null;
   recurrence_id?: string | null;
+  occurrence_start?: string | null;
   source_version: number;
 }
 
@@ -105,6 +106,16 @@ export const plannerApi = {
         : "/api/v2/reminders/",
       { signal },
     ),
+  listSharedOccurrences: (
+    shareGroupId: string,
+    from: string,
+    to: string,
+    signal?: AbortSignal,
+  ) =>
+    apiClient.request<PlannerListWire>(
+      `/api/v2/share-groups/${encodeURIComponent(shareGroupId)}/occurrences/?${rangeParams(from, to)}`,
+      { signal },
+    ),
 
   createEvent: (payload: JsonObject) =>
     apiClient.request<JsonObject>("/api/v2/events/", {
@@ -150,6 +161,20 @@ export const plannerApi = {
       },
     );
   },
+  deleteGroup: (
+    groupId: string,
+    expectedVersion: number,
+    deleteItems = false,
+  ) => {
+    assertExpectedVersion(expectedVersion);
+    return apiClient.request<JsonObject>(
+      `/api/v2/groups/${encodeURIComponent(groupId)}/`,
+      {
+        method: "DELETE",
+        body: { expected_version: expectedVersion, delete_items: deleteItems },
+      },
+    );
+  },
   createTodo: (payload: JsonObject) =>
     apiClient.request<JsonObject>("/api/v2/todos/", {
       method: "POST",
@@ -170,6 +195,20 @@ export const plannerApi = {
     return apiClient.request<JsonObject>(
       `/api/v2/todos/${encodeURIComponent(todoId)}/`,
       { method: "DELETE", body: { expected_version: expectedVersion } },
+    );
+  },
+  convertTodo: (
+    todoId: string,
+    payload: JsonObject,
+    expectedVersion: number,
+  ) => {
+    assertExpectedVersion(expectedVersion);
+    return apiClient.request<JsonObject>(
+      `/api/v2/todos/${encodeURIComponent(todoId)}/convert/`,
+      {
+        method: "POST",
+        body: { ...payload, expected_version: expectedVersion },
+      },
     );
   },
   createReminder: (payload: JsonObject) =>
@@ -194,4 +233,24 @@ export const plannerApi = {
       `/api/v2/reminders/${encodeURIComponent(reminderId)}/`,
       { method: "DELETE", body: commandMetadata(options) },
     ),
+  actOnReminderOccurrence: (
+    action: "complete" | "dismiss" | "snooze" | "mark_sent" | "reset",
+    occurrenceRef: OccurrenceRefWire,
+    expectedVersion: number,
+    snoozeUntil?: string,
+  ) => {
+    assertExpectedVersion(expectedVersion);
+    return apiClient.request<JsonObject>(
+      "/api/v2/reminders/occurrences/action/",
+      {
+        method: "POST",
+        body: {
+          action,
+          occurrence_ref: occurrenceRef,
+          expected_version: expectedVersion,
+          ...(snoozeUntil ? { snooze_until: snoozeUntil } : {}),
+        },
+      },
+    );
+  },
 };

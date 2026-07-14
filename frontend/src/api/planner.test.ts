@@ -106,4 +106,61 @@ describe("plannerApi", () => {
       expected_version: 3,
     });
   });
+
+  it("uses V2-only Todo conversion and Reminder occurrence-action contracts", async () => {
+    document.body.innerHTML = `<script id="frontend-bootstrap" type="application/json">{"mode":"react","user":{"username":"测试用户"},"csrfToken":"csrf-123","endpoints":{"home":"/home/","agentWebSocketPath":"/ws/agent/"}}</script>`;
+    const calls: Array<{ path: string; body: unknown }> = [];
+    server.use(
+      http.post("*/api/v2/todos/todo-1/convert/", async ({ request }) => {
+        calls.push({
+          path: new URL(request.url).pathname,
+          body: await request.json(),
+        });
+        return HttpResponse.json({ event_id: "event-2" });
+      }),
+      http.post(
+        "*/api/v2/reminders/occurrences/action/",
+        async ({ request }) => {
+          calls.push({
+            path: new URL(request.url).pathname,
+            body: await request.json(),
+          });
+          return HttpResponse.json({ action: "complete" });
+        },
+      ),
+    );
+    await plannerApi.convertTodo(
+      "todo-1",
+      {
+        start: "2026-07-14T09:00:00+08:00",
+        end: "2026-07-14T10:00:00+08:00",
+        title: "转换",
+      },
+      4,
+    );
+    await plannerApi.actOnReminderOccurrence(
+      "complete",
+      {
+        entity_id: "reminder-1",
+        series_id: "series-r",
+        recurrence_id: "20260714T110000",
+        source_version: 5,
+      },
+      5,
+    );
+    expect(calls).toEqual([
+      {
+        path: "/api/v2/todos/todo-1/convert/",
+        body: expect.objectContaining({ expected_version: 4 }),
+      },
+      {
+        path: "/api/v2/reminders/occurrences/action/",
+        body: expect.objectContaining({
+          action: "complete",
+          expected_version: 5,
+          occurrence_ref: expect.any(Object),
+        }),
+      },
+    ]);
+  });
 });

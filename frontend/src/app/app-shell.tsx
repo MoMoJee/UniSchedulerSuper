@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
@@ -79,9 +80,26 @@ function AgentPlaceholder() {
   );
 }
 
+function useMobileLayout() {
+  const query = "(max-width: 1023px)";
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia?.(query).matches,
+  );
+  useEffect(() => {
+    const media = window.matchMedia?.(query);
+    if (!media) return undefined;
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  return isMobile;
+}
+
 export function AppShell({ bootstrap }: { bootstrap: FrontendBootstrap }) {
   const location = useLocation();
   const reduceMotion = useReducedMotion();
+  const isMobile = useMobileLayout();
   const {
     panelLayout,
     setPanelLayout,
@@ -134,71 +152,73 @@ export function AppShell({ bootstrap }: { bootstrap: FrontendBootstrap }) {
         </div>
       </header>
 
-      <div className="app-shell__desktop">
-        <Group
-          defaultLayout={panelLayout}
-          id="main-workspace"
-          onLayoutChanged={(layout) => setPanelLayout(layout)}
-          orientation="horizontal"
-          resizeTargetMinimumSize={{ coarse: 32, fine: 16 }}
-        >
-          <Panel id="navigation" minSize="13rem">
-            <aside
-              aria-label="导航与筛选"
-              className="h-full border-r border-[var(--border)] bg-[var(--surface)]"
-            >
+      {!isMobile ? (
+        <div className="app-shell__desktop">
+          <Group
+            defaultLayout={panelLayout}
+            id="main-workspace"
+            onLayoutChanged={(layout) => setPanelLayout(layout)}
+            orientation="horizontal"
+            resizeTargetMinimumSize={{ coarse: 32, fine: 16 }}
+          >
+            <Panel id="navigation" minSize="13rem">
+              <aside
+                aria-label="导航与筛选"
+                className="h-full border-r border-[var(--border)] bg-[var(--surface)]"
+              >
+                <Navigation />
+              </aside>
+            </Panel>
+            <Separator
+              aria-label="调整导航宽度"
+              className="panel-separator"
+              id="navigation-workspace"
+            />
+            <Panel id="workspace" minSize="24rem">
+              <motion.main
+                animate={{ opacity: 1, y: 0 }}
+                className="h-full overflow-auto bg-[var(--surface-canvas)] p-4 md:p-6"
+                initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+                transition={{ duration: reduceMotion ? 0 : 0.16 }}
+              >
+                <Outlet />
+              </motion.main>
+            </Panel>
+            <Separator
+              aria-label="调整 Agent 面板宽度"
+              className="panel-separator"
+              id="workspace-agent"
+            />
+            <Panel id="agent" minSize="16rem">
+              <AgentPlaceholder />
+            </Panel>
+          </Group>
+        </div>
+      ) : (
+        <div className="app-shell__mobile">
+          {leftPanelOpen ? (
+            <aside className="mobile-panel">
               <Navigation />
+              <Button onClick={() => setLeftPanelOpen(false)}>
+                <ChevronLeft aria-hidden="true" />
+                关闭导航
+              </Button>
             </aside>
-          </Panel>
-          <Separator
-            aria-label="调整导航宽度"
-            className="panel-separator"
-            id="navigation-workspace"
-          />
-          <Panel id="workspace" minSize="24rem">
-            <motion.main
-              animate={{ opacity: 1, y: 0 }}
-              className="h-full overflow-auto bg-[var(--surface-canvas)] p-4 md:p-6"
-              initial={reduceMotion ? false : { opacity: 0, y: 4 }}
-              transition={{ duration: reduceMotion ? 0 : 0.16 }}
-            >
-              <Outlet />
-            </motion.main>
-          </Panel>
-          <Separator
-            aria-label="调整 Agent 面板宽度"
-            className="panel-separator"
-            id="workspace-agent"
-          />
-          <Panel id="agent" minSize="16rem">
-            <AgentPlaceholder />
-          </Panel>
-        </Group>
-      </div>
-
-      <div className="app-shell__mobile">
-        {leftPanelOpen ? (
-          <aside className="mobile-panel">
-            <Navigation />
-            <Button onClick={() => setLeftPanelOpen(false)}>
-              <ChevronLeft aria-hidden="true" />
-              关闭导航
-            </Button>
-          </aside>
-        ) : null}
-        <main className="overflow-auto bg-[var(--surface-canvas)] p-4">
-          <Outlet />
-        </main>
-        {agentPanelOpen ? (
-          <div className="mobile-panel">
-            <AgentPlaceholder />
-            <Button onClick={() => setAgentPanelOpen(false)}>
-              <ChevronRight aria-hidden="true" />
-              关闭助手
-            </Button>
-          </div>
-        ) : null}
-      </div>
+          ) : null}
+          <main className="overflow-auto bg-[var(--surface-canvas)] p-4">
+            <Outlet />
+          </main>
+          {agentPanelOpen ? (
+            <div className="mobile-panel">
+              <AgentPlaceholder />
+              <Button onClick={() => setAgentPanelOpen(false)}>
+                <ChevronRight aria-hidden="true" />
+                关闭助手
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

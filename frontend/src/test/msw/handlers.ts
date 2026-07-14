@@ -38,10 +38,49 @@ export const handlers = [
       count: 1,
     });
   }),
+  http.get("*/api/v2/events/definitions/", () =>
+    HttpResponse.json({
+      definitions: [
+        {
+          event_id: "event-1",
+          recurrence: { rrule: "FREQ=WEEKLY;BYDAY=MO" },
+        },
+      ],
+      count: 1,
+    }),
+  ),
   http.patch("*/api/v2/events/version-conflict/", () =>
     HttpResponse.json(
       { error: "版本冲突", code: "version_conflict" },
       { status: 409 },
     ),
   ),
+  http.get("*/api/v2/groups/", () =>
+    HttpResponse.json({
+      groups: [
+        { group_id: "group-1", name: "工作", color: "#1769e0", version: 2 },
+      ],
+      count: 1,
+    }),
+  ),
+  http.get("*/api/v2/reminders/", ({ request }) => {
+    const url = new URL(request.url);
+    if (url.searchParams.get("from") && url.searchParams.get("to")) {
+      return HttpResponse.json({
+        occurrences: [
+          {
+            id: "reminder:1",
+            entity_type: "reminder",
+            title: "测试提醒",
+            start: "2026-07-14T11:00:00+08:00",
+            end: null,
+            content: "按时完成",
+            occurrence_ref: { entity_id: "reminder-1", source_version: 2 },
+          },
+        ],
+        count: 1,
+      });
+    }
+    return HttpResponse.json({ reminders: [], count: 0 });
+  }),
 ];

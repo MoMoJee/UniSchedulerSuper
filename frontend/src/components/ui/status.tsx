@@ -23,7 +23,7 @@ export function Badge({
 export function Skeleton({ className }: { className?: string }) {
   return (
     <div
-      aria-label="加载中"
+      aria-hidden="true"
       className={cn(
         "animate-pulse rounded-md bg-[var(--surface-muted)]",
         className,

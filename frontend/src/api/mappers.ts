@@ -5,6 +5,7 @@ export interface OccurrenceRef {
   entityId: string;
   seriesId: string | null;
   recurrenceId: string | null;
+  occurrenceStart: string | null;
   sourceVersion: number;
 }
 
@@ -14,7 +15,17 @@ export interface PlannerOccurrence {
   start: string;
   end: string | null;
   type: "event" | "reminder" | "unknown";
+  description: string;
+  status: string;
+  groupId: string | null;
+  isAllDay: boolean;
+  isOverride: boolean;
+  readOnly: boolean;
+  ownerUsername: string | null;
+  shareGroupId: string | null;
   occurrenceRef: OccurrenceRef | null;
+  /** Present when the matching definition endpoint supplied the RRule. */
+  recurrenceRRule?: string | null;
 }
 
 function asRecord(value: unknown, message: string): JsonObject {
@@ -48,13 +59,20 @@ export function mapOccurrenceRef(value: unknown): OccurrenceRef | null {
     seriesId: typeof wire.series_id === "string" ? wire.series_id : null,
     recurrenceId:
       typeof wire.recurrence_id === "string" ? wire.recurrence_id : null,
+    occurrenceStart:
+      typeof wire.occurrence_start === "string" ? wire.occurrence_start : null,
     sourceVersion: wire.source_version,
   };
 }
 
 export function mapPlannerOccurrence(value: unknown): PlannerOccurrence {
   const record = asRecord(value, "日程实例必须是对象。");
-  const rawType = typeof record.type === "string" ? record.type : "event";
+  const rawType =
+    typeof record.entity_type === "string"
+      ? record.entity_type
+      : typeof record.type === "string"
+        ? record.type
+        : "event";
   return {
     id:
       typeof record.id === "string"
@@ -64,6 +82,21 @@ export function mapPlannerOccurrence(value: unknown): PlannerOccurrence {
     start: requiredString(record, "start"),
     end: typeof record.end === "string" ? record.end : null,
     type: rawType === "event" || rawType === "reminder" ? rawType : "unknown",
+    description:
+      typeof record.description === "string"
+        ? record.description
+        : typeof record.content === "string"
+          ? record.content
+          : "",
+    status: typeof record.status === "string" ? record.status : "",
+    groupId: typeof record.group_id === "string" ? record.group_id : null,
+    isAllDay: record.is_all_day === true,
+    isOverride: record.is_override === true,
+    readOnly: record.read_only === true,
+    ownerUsername:
+      typeof record.owner_username === "string" ? record.owner_username : null,
+    shareGroupId:
+      typeof record.share_group_id === "string" ? record.share_group_id : null,
     occurrenceRef: mapOccurrenceRef(record.occurrence_ref),
   };
 }

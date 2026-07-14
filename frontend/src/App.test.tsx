@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { App } from "./App";
 
 describe("App", () => {
-  it("renders the FR-2 app shell without planner data access", () => {
+  it("renders the FR-4 shell and starts its V2 projection", async () => {
     render(
       <App
         bootstrap={{
@@ -16,12 +16,10 @@ describe("App", () => {
       />,
     );
 
-    expect(screen.getByText("UniSchedulerSuper")).toBeInTheDocument();
+    expect(await screen.findByText("UniSchedulerSuper")).toBeInTheDocument();
     expect(
-      screen.getAllByRole("heading", { name: "日程工作区" }).length,
+      (await screen.findAllByRole("heading", { name: "日程工作区" })).length,
     ).toBeGreaterThan(0);
-    expect(
-      screen.getAllByText(/当前页面不读取、不写入任何业务数据/).length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByText("FR-4 日程工作区").length).toBeGreaterThan(0);
   });
 });

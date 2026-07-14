@@ -45,12 +45,28 @@ export function createAppRouter(bootstrap: FrontendBootstrap) {
         element: <AppShell bootstrap={bootstrap} />,
         children: [
           {
-            path: "/",
-            element: <MigrationPlaceholder phase="FR-3" title="日程工作区" />,
+            index: true,
+            lazy: async () => {
+              const { PlannerWorkspace } =
+                await import("../features/planner/planner-workspace");
+              return {
+                Component: () => (
+                  <PlannerWorkspace username={bootstrap.user.username} />
+                ),
+              };
+            },
           },
           {
             path: "/todos",
-            element: <MigrationPlaceholder phase="FR-4B" title="待办工作区" />,
+            lazy: async () => {
+              const { TodoWorkspace } =
+                await import("../features/planner/todo-workspace");
+              return {
+                Component: () => (
+                  <TodoWorkspace username={bootstrap.user.username} />
+                ),
+              };
+            },
           },
           {
             path: "/search",
