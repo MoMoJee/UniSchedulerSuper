@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useUiStore, type ThemePreference } from "../../stores/ui-store";
 
 import { settingsApi, type UserPreferences } from "../../api/settings";
 import { Button } from "../../components/ui/button";
@@ -155,12 +156,20 @@ function AgentOptimization({
   );
 }
 
-export function SettingsWorkspace() {
+export function SettingsWorkspace({
+  embedded = false,
+  onRequestClose,
+}: { embedded?: boolean; onRequestClose?: () => void } = {}) {
+  const setUiTheme = useUiStore((state) => state.setTheme);
+  const [activeTab, setActiveTab] = useState<
+    "basic" | "calendar" | "display" | "reminders" | "ai" | "mine"
+  >("basic");
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [agent, setAgent] = useState<Record<string, unknown> | null>(null);
   const [skills, setSkills] = useState<Array<Record<string, unknown>>>([]);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const openingTheme = useRef(useUiStore.getState().theme);
   useEffect(() => {
     void Promise.all([
       settingsApi.getPreferences(),
@@ -181,8 +190,11 @@ export function SettingsWorkspace() {
     setSaving(true);
     try {
       await settingsApi.savePreferences(preferences);
-      document.documentElement.dataset.theme =
-        preferences.theme === "dark" ? "dark" : "light";
+      setUiTheme(
+        (typeof preferences.theme === "string"
+          ? preferences.theme
+          : "light") as ThemePreference,
+      );
       setMessage("设置已保存。");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "保存失败。");
@@ -197,101 +209,222 @@ export function SettingsWorkspace() {
   const optimization = object(agent?.optimization);
   const tokenUsage = object(agent?.token_usage);
   return (
-    <section aria-labelledby="settings-title" className="settings-workspace">
-      <h1 id="settings-title">设置</h1>
+    <section
+      aria-labelledby="settings-title"
+      className={`settings-workspace${embedded ? " settings-workspace--embedded" : ""}`}
+      data-active-tab={activeTab}
+    >
+      <header className="settings-workspace__header">
+        <div>
+          <span className="workspace-eyebrow">用户设置</span>
+          <h1 id="settings-title">设置中心</h1>
+          <p>
+            显示、日程偏好、提醒与 Agent
+            配置集中在同一处；保存按钮只提交相应配置。
+          </p>
+        </div>
+        <nav aria-label="设置分类" className="settings-tabs">
+          {(
+            [
+              ["basic", "基本设置"],
+              ["calendar", "日程偏好"],
+              ["display", "显示偏好"],
+              ["reminders", "提醒设置"],
+              ["ai", "AI 设置"],
+              ["mine", "我的"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              aria-current={activeTab === id ? "page" : undefined}
+              key={id}
+              onClick={() => setActiveTab(id)}
+              type="button"
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+      </header>
       {!preferences ? (
         <p>正在加载设置…</p>
       ) : (
-        <>
-          <div className="settings-grid">
-            <label>
-              主题
-              <select
-                aria-label="主题"
-                onChange={(event) =>
-                  setPreferences({ ...preferences, theme: event.target.value })
-                }
-                value={
-                  typeof preferences.theme === "string"
-                    ? preferences.theme
-                    : "light"
-                }
-              >
-                <option value="light">浅色</option>
-                <option value="dark">深色</option>
-              </select>
-            </label>
-            <label>
-              默认日历视图
-              <select
-                aria-label="默认日历视图"
-                onChange={(event) =>
-                  setPreferences({
-                    ...preferences,
-                    calendar_view_default: event.target.value,
-                  })
-                }
-                value={
-                  typeof preferences.calendar_view_default === "string"
-                    ? preferences.calendar_view_default
-                    : "dayGridMonth"
-                }
-              >
-                <option value="dayGridMonth">月视图</option>
-                <option value="timeGridWeek">周视图</option>
-                <option value="timeGridDay">日视图</option>
-              </select>
-            </label>
-            <label>
-              默认日程时长（分钟）
-              <input
-                aria-label="默认日程时长"
-                min="5"
-                onChange={(event) =>
-                  setPreferences({
-                    ...preferences,
-                    default_event_duration: Number(event.target.value),
-                  })
-                }
-                type="number"
-                value={
-                  typeof preferences.default_event_duration === "number"
-                    ? preferences.default_event_duration
-                    : 60
-                }
-              />
-            </label>
-            {(
-              [
-                "show_week_number",
-                "reminder_enabled",
-                "reminder_sound",
-                "ai_enabled",
-                "ai_auto_suggest",
-              ] as const
-            ).map((key) => (
-              <label className="settings-check" key={key}>
-                <input
-                  checked={preferences[key] === true}
-                  onChange={(event) =>
-                    setPreferences({
-                      ...preferences,
-                      [key]: event.target.checked,
-                    })
-                  }
-                  type="checkbox"
-                />
+        <section
+          className="settings-section settings-panel settings-panel--preferences"
+          id="settings-display"
+        >
+          <h2>
+            {
+              (
                 {
-                  {
-                    show_week_number: "显示周数",
-                    reminder_enabled: "启用提醒",
-                    reminder_sound: "提醒声音",
-                    ai_enabled: "启用 AI",
-                    ai_auto_suggest: "AI 自动建议",
-                  }[key]
-                }
-              </label>
-            ))}
+                  basic: "基本设置",
+                  calendar: "日程偏好",
+                  display: "显示偏好",
+                  reminders: "提醒设置",
+                } as Record<string, string>
+              )[activeTab]
+            }
+          </h2>
+          <div className="settings-grid">
+            {activeTab === "basic" ? (
+              <>
+                <label>
+                  语言
+                  <select aria-label="语言" defaultValue="zh-CN">
+                    <option value="zh-CN">简体中文</option>
+                  </select>
+                </label>
+                <label>
+                  时区
+                  <select aria-label="时区" defaultValue="Asia/Shanghai">
+                    <option value="Asia/Shanghai">
+                      Asia/Shanghai（UTC+8）
+                    </option>
+                  </select>
+                </label>
+                <label className="settings-check">
+                  <input disabled type="checkbox" /> 云端多设备同步（即将推出）
+                </label>
+              </>
+            ) : null}
+            {activeTab === "display" ? (
+              <>
+                <label>
+                  主题
+                  <select
+                    aria-label="主题"
+                    onChange={(event) => {
+                      const theme = event.target.value as ThemePreference;
+                      setPreferences({ ...preferences, theme });
+                      // 旧版主题选择是即时可见的；保存仅负责持久化到服务器。
+                      setUiTheme(theme);
+                    }}
+                    value={
+                      typeof preferences.theme === "string"
+                        ? preferences.theme
+                        : "light"
+                    }
+                  >
+                    <option value="light">浅色</option>
+                    <option value="dark">深色</option>
+                    <option value="china-red">中国红</option>
+                    <option value="warm-pastel">暖调粉彩</option>
+                    <option value="cool-pastel">冷调粉彩</option>
+                    <option value="macaron">马卡龙</option>
+                    <option value="dopamine">多巴胺</option>
+                    <option value="forest">森林</option>
+                    <option value="sunset">落日</option>
+                    <option value="ocean">海洋</option>
+                    <option value="sakura">樱花</option>
+                    <option value="cyberpunk">赛博朋克</option>
+                    <option value="system">跟随系统</option>
+                  </select>
+                </label>
+                <label className="settings-check">
+                  <input
+                    checked={preferences.use_gold_theme === true}
+                    onChange={(event) =>
+                      setPreferences({
+                        ...preferences,
+                        use_gold_theme: event.target.checked,
+                      })
+                    }
+                    type="checkbox"
+                  />{" "}
+                  启用金色主题装饰
+                </label>
+              </>
+            ) : null}
+            {activeTab === "calendar" ? (
+              <>
+                <label>
+                  默认日历视图
+                  <select
+                    aria-label="默认日历视图"
+                    onChange={(event) =>
+                      setPreferences({
+                        ...preferences,
+                        calendar_view_default: event.target.value,
+                      })
+                    }
+                    value={
+                      typeof preferences.calendar_view_default === "string"
+                        ? preferences.calendar_view_default
+                        : "dayGridMonth"
+                    }
+                  >
+                    <option value="dayGridMonth">月视图</option>
+                    <option value="timeGridWeek">周视图</option>
+                    <option value="timeGridTwoDay">2 日视图</option>
+                  </select>
+                </label>
+                <label>
+                  默认日程时长（分钟）
+                  <input
+                    aria-label="默认日程时长"
+                    min="5"
+                    onChange={(event) =>
+                      setPreferences({
+                        ...preferences,
+                        default_event_duration: Number(event.target.value),
+                      })
+                    }
+                    type="number"
+                    value={
+                      typeof preferences.default_event_duration === "number"
+                        ? preferences.default_event_duration
+                        : 60
+                    }
+                  />
+                </label>
+                <label className="settings-check">
+                  <input
+                    checked={preferences.show_week_number === true}
+                    onChange={(event) =>
+                      setPreferences({
+                        ...preferences,
+                        show_week_number: event.target.checked,
+                      })
+                    }
+                    type="checkbox"
+                  />
+                  显示周数
+                </label>
+              </>
+            ) : null}
+            {activeTab === "reminders" ? (
+              <>
+                <label className="settings-check">
+                  <input
+                    checked={preferences.reminder_enabled === true}
+                    onChange={(event) =>
+                      setPreferences({
+                        ...preferences,
+                        reminder_enabled: event.target.checked,
+                      })
+                    }
+                    type="checkbox"
+                  />{" "}
+                  启用提醒
+                </label>
+                <label className="settings-check">
+                  <input
+                    checked={preferences.reminder_sound === true}
+                    onChange={(event) =>
+                      setPreferences({
+                        ...preferences,
+                        reminder_sound: event.target.checked,
+                      })
+                    }
+                    type="checkbox"
+                  />{" "}
+                  提醒声音
+                </label>
+                <label className="settings-check">
+                  <input disabled type="checkbox" />{" "}
+                  系统通知高级规则（即将推出）
+                </label>
+              </>
+            ) : null}
           </div>
           <Button
             disabled={saving}
@@ -300,9 +433,12 @@ export function SettingsWorkspace() {
           >
             保存设置
           </Button>
-        </>
+        </section>
       )}
-      <section className="settings-section">
+      <section
+        className="settings-section settings-panel settings-panel--ai"
+        id="settings-agent"
+      >
         <h2>Agent 配置</h2>
         {agent ? (
           <>
@@ -363,23 +499,31 @@ export function SettingsWorkspace() {
         )}
       </section>
       {agent ? (
-        <AgentOptimization
-          onSave={async (body) => {
-            try {
-              await settingsApi.updateOptimization(body);
-              setAgent(object(await settingsApi.getAgentConfig()));
-              setMessage("上下文优化配置已保存；仅影响之后的 Agent 请求。");
-            } catch (error) {
-              setMessage(
-                error instanceof Error ? error.message : "保存优化配置失败。",
-              );
-            }
-          }}
-          value={optimization}
-        />
+        <div
+          className="settings-panel settings-panel--ai"
+          id="settings-context"
+        >
+          <AgentOptimization
+            onSave={async (body) => {
+              try {
+                await settingsApi.updateOptimization(body);
+                setAgent(object(await settingsApi.getAgentConfig()));
+                setMessage("上下文优化配置已保存；仅影响之后的 Agent 请求。");
+              } catch (error) {
+                setMessage(
+                  error instanceof Error ? error.message : "保存优化配置失败。",
+                );
+              }
+            }}
+            value={optimization}
+          />
+        </div>
       ) : null}
       {agent ? (
-        <section className="settings-section">
+        <section
+          className="settings-section settings-panel settings-panel--ai"
+          id="settings-usage"
+        >
           <h2>本月 Token 用量</h2>
           <p>
             {String(tokenUsage.current_month ?? "当前月份")}：已使用{" "}
@@ -404,7 +548,10 @@ export function SettingsWorkspace() {
           </ul>
         </section>
       ) : null}
-      <section className="settings-section">
+      <section
+        className="settings-section settings-panel settings-panel--mine"
+        id="settings-skills"
+      >
         <h2>Skills</h2>
         {skills.map((skill) => (
           <label className="settings-check" key={String(skill.id)}>
@@ -438,11 +585,32 @@ export function SettingsWorkspace() {
           </label>
         ))}
       </section>
-      <CourseImporter />
+      <div className="settings-panel settings-panel--mine" id="settings-course">
+        <CourseImporter />
+      </div>
       {message ? (
         <p aria-live="polite" className="agent-status">
           {message}
         </p>
+      ) : null}
+      {embedded ? (
+        <footer className="settings-workspace__footer">
+          <Button
+            onClick={() => {
+              setUiTheme(openingTheme.current);
+              onRequestClose?.();
+            }}
+          >
+            取消
+          </Button>
+          <Button
+            disabled={saving || !preferences}
+            onClick={() => void save()}
+            variant="primary"
+          >
+            {saving ? "保存中…" : "保存设置"}
+          </Button>
+        </footer>
       ) : null}
     </section>
   );

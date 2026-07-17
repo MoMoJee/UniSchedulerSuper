@@ -9,6 +9,7 @@ export interface UserPreferences extends JsonObject {
   ai_enabled?: boolean;
   ai_auto_suggest?: boolean;
   default_event_duration?: number;
+  use_gold_theme?: boolean;
 }
 
 export const settingsApi = {

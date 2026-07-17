@@ -58,23 +58,27 @@ export function useCalendarProjection(
       "projection",
     ],
     queryFn: async ({ signal }): Promise<CalendarProjection> => {
-      const [
-        events,
-        eventDefinitions,
-        reminders,
-        reminderDefinitions,
-        groups,
-        shared,
-      ] = await Promise.all([
-        plannerApi.listEventOccurrences(from, to, signal),
-        plannerApi.listEventDefinitions(from, to, signal),
-        plannerApi.listReminders(from, to, signal),
-        plannerApi.listReminders(undefined, undefined, signal),
-        plannerApi.listGroups(signal),
-        shareGroupId
-          ? plannerApi.listSharedOccurrences(shareGroupId, from, to, signal)
-          : Promise.resolve(null),
-      ]);
+      if (shareGroupId) {
+        const [groups, shared] = await Promise.all([
+          plannerApi.listGroups(signal),
+          plannerApi.listSharedOccurrences(shareGroupId, from, to, signal),
+        ]);
+        return {
+          occurrences: (shared.occurrences ?? []).map((value) =>
+            withDefinitionRule(value, new Map()),
+          ),
+          reminders: [],
+          groups: mapGroups(groups.groups ?? []),
+        };
+      }
+      const [events, eventDefinitions, reminders, reminderDefinitions, groups] =
+        await Promise.all([
+          plannerApi.listEventOccurrences(from, to, signal),
+          plannerApi.listEventDefinitions(from, to, signal),
+          plannerApi.listReminders(from, to, signal),
+          plannerApi.listReminders(undefined, undefined, signal),
+          plannerApi.listGroups(signal),
+        ]);
       const eventRules = recurrenceRulesByEntity(
         eventDefinitions.definitions ?? [],
         "event_id",
@@ -84,31 +88,37 @@ export function useCalendarProjection(
         "reminder_id",
       );
       return {
-        occurrences: [
-          ...(events.occurrences ?? []),
-          ...(shared?.occurrences ?? []),
-        ].map((value) => withDefinitionRule(value, eventRules)),
+        // A shared scope is a separate projection, never an additive overlay.
+        // Falling back to personal data here previously made every share tab look
+        // like "我的日程" and could expose unrelated personal occurrences.
+        occurrences: (events.occurrences ?? []).map((value) =>
+          withDefinitionRule(value, eventRules),
+        ),
         reminders: (reminders.occurrences ?? []).map((value) =>
           withDefinitionRule(value, reminderRules),
         ),
-        groups: (groups.groups ?? []).flatMap((item) => {
-          if (
-            typeof item.group_id !== "string" ||
-            typeof item.name !== "string"
-          )
-            return [];
-          return [
-            {
-              id: item.group_id,
-              name: item.name,
-              color: typeof item.color === "string" ? item.color : "#1769e0",
-              version: typeof item.version === "number" ? item.version : 1,
-            },
-          ];
-        }),
+        groups: mapGroups(groups.groups ?? []),
       };
     },
-    staleTime: 0,
+    // 日历切换、面板重渲染不应重复拉取六个投影端点；显式刷新、编辑成功和
+    // Agent 工具完成都会主动失效该 query，因而这里仍然保持及时一致。
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+function mapGroups(items: Array<Record<string, unknown>>) {
+  return items.flatMap((item) => {
+    if (typeof item.group_id !== "string" || typeof item.name !== "string")
+      return [];
+    return [
+      {
+        id: item.group_id,
+        name: item.name,
+        color: typeof item.color === "string" ? item.color : "#1769e0",
+        version: typeof item.version === "number" ? item.version : 1,
+      },
+    ];
   });
 }
 

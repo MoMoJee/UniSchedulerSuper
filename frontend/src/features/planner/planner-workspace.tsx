@@ -11,19 +11,21 @@ import type {
   EventInput,
 } from "@fullcalendar/core";
 import timeGridPlugin from "@fullcalendar/timegrid";
-import { CalendarDays, RefreshCw } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { CalendarDays, Check, Filter, RefreshCw, Users } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import type { PlannerOccurrence } from "../../api/mappers";
 import { plannerApi } from "../../api/planner";
+import { apiClient } from "../../api/http";
 import { ApiErrorNotice } from "../../components/shared/api-error-notice";
 import { Button } from "../../components/ui/button";
-import { Sheet } from "../../components/ui/sheet";
+import { CenteredModal } from "../../components/ui/centered-modal";
 import { Badge, Skeleton } from "../../components/ui/status";
+import { Popover } from "../../components/ui/overlays";
 import { useCalendarProjection } from "./hooks";
-import { EventEditor } from "./event-editor";
+import { EventEditor, type NewEventDraft } from "./event-editor";
 import { GroupManager } from "./group-manager";
 import { ReminderPanel } from "./reminder-panel";
 
@@ -99,7 +101,7 @@ function DetailSheet({
   onEdit: (item: PlannerOccurrence) => void;
 }) {
   return (
-    <Sheet
+    <CenteredModal
       onOpenChange={(open) => !open && onClose()}
       open={item !== null}
       title={item?.title ?? "详情"}
@@ -116,6 +118,18 @@ function DetailSheet({
             <strong>类型：</strong>
             {item.type === "reminder" ? "提醒" : "日程"}；{recurrenceText(item)}
           </p>
+          {item.ddlAt ? (
+            <p>
+              <strong>DDL：</strong>
+              {item.ddlAt}
+            </p>
+          ) : null}
+          {item.importance || item.urgency ? (
+            <p>
+              <strong>四象限：</strong>
+              {item.importance || "未设重要性"} / {item.urgency || "未设紧急性"}
+            </p>
+          ) : null}
           {item.readOnly ? (
             <Badge>共享只读：{item.ownerUsername ?? "其他成员"}</Badge>
           ) : (
@@ -141,30 +155,73 @@ function DetailSheet({
           ) : null}
         </div>
       ) : null}
-    </Sheet>
+    </CenteredModal>
   );
 }
 
 export function PlannerWorkspace({ username }: { username: string }) {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const date = params.get("date") ?? new Date().toISOString().slice(0, 10);
   const view = params.get("view") ?? "dayGridMonth";
   const shareGroupId = params.get("share") ?? undefined;
+  const recurrenceFilter = params.get("repeat") ?? "all";
+  const ddlFilter = params.get("ddl") ?? "all";
   const [range, setRange] = useState(() => initialRange(date));
   const [selected, setSelected] = useState<PlannerOccurrence | null>(null);
+  const [newEventDraft, setNewEventDraft] = useState<NewEventDraft | null>(
+    null,
+  );
   const [editorOpen, setEditorOpen] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
   const [groupsOpen, setGroupsOpen] = useState(false);
   const [showReminders, setShowReminders] = useState(
     params.get("reminders") !== "0",
   );
-  const [groupId, setGroupId] = useState(params.get("group") ?? "");
+  const [groupIds, setGroupIds] = useState<string[]>(() =>
+    (params.get("groups") ?? "").split(",").filter(Boolean),
+  );
   const projection = useCalendarProjection(
     username,
     range.from,
     range.to,
     shareGroupId,
   );
+  const selectedFromUrl = useMemo(() => {
+    const selectedId = params.get("selected");
+    if (!selectedId || !projection.data) return null;
+    return (
+      [...projection.data.occurrences, ...projection.data.reminders].find(
+        (item) =>
+          item.id === selectedId || item.occurrenceRef?.entityId === selectedId,
+      ) ?? null
+    );
+  }, [params, projection.data]);
+  const effectiveSelected = selected ?? selectedFromUrl;
+  const shareGroups = useQuery({
+    queryKey: ["share-groups", "planner-tabs"],
+    queryFn: async () => {
+      const result = await apiClient.request<{
+        groups?: Array<Record<string, unknown>>;
+      }>("/api/share-groups/my-groups/");
+      return (result.groups ?? []).flatMap((group) =>
+        typeof group.share_group_id === "string" &&
+        typeof group.share_group_name === "string"
+          ? [
+              {
+                id: group.share_group_id,
+                name: group.share_group_name,
+                color:
+                  typeof group.share_group_color === "string"
+                    ? group.share_group_color
+                    : "var(--accent)",
+              },
+            ]
+          : [],
+      );
+    },
+    staleTime: 30_000,
+  });
   const client = useQueryClient();
   const moveEvent = useMutation({
     mutationFn: async ({
@@ -217,7 +274,23 @@ export function PlannerWorkspace({ username }: { username: string }) {
       ? [...projection.data.occurrences, ...projection.data.reminders]
       : projection.data.occurrences;
     return all
-      .filter((item) => !groupId || item.groupId === groupId)
+      .filter(
+        (item) => !groupIds.length || groupIds.includes(item.groupId ?? ""),
+      )
+      .filter((item) =>
+        recurrenceFilter === "recurring"
+          ? Boolean(item.occurrenceRef?.seriesId)
+          : recurrenceFilter === "single"
+            ? !item.occurrenceRef?.seriesId
+            : true,
+      )
+      .filter((item) =>
+        ddlFilter === "with"
+          ? Boolean(item.ddlAt)
+          : ddlFilter === "without"
+            ? !item.ddlAt
+            : true,
+      )
       .map((item) => ({
         id: item.id,
         title: `${item.type === "reminder" ? "提醒：" : ""}${item.title}`,
@@ -229,10 +302,20 @@ export function PlannerWorkspace({ username }: { username: string }) {
           ? "#7b8798"
           : item.type === "reminder"
             ? "#a05bd5"
-            : "#1769e0",
+            : (projection.data?.groups.find(
+                (group) => group.id === item.groupId,
+              )?.color ?? "#4f86c6"),
         extendedProps: { occurrence: item },
       }));
-  }, [groupId, projection.data, showReminders]);
+  }, [ddlFilter, groupIds, projection.data, recurrenceFilter, showReminders]);
+
+  const toggleGroup = (nextId: string) => {
+    const next = groupIds.includes(nextId)
+      ? groupIds.filter((id) => id !== nextId)
+      : [...groupIds, nextId];
+    setGroupIds(next);
+    updateUrl({ groups: next.length ? next.join(",") : null });
+  };
 
   const updateUrl = (next: Record<string, string | null>) => {
     const copy = new URLSearchParams(params);
@@ -246,13 +329,14 @@ export function PlannerWorkspace({ username }: { username: string }) {
     <section className="planner-workspace" aria-label="Planner 工作区">
       <div className="planner-toolbar">
         <div>
-          <Badge>FR-4 日程工作区</Badge>
-          <h1 className="mt-2 text-2xl font-semibold">日程工作区</h1>
+          <span className="workspace-eyebrow">日程工作区</span>
+          <h1 className="mt-1 text-2xl font-semibold">我的日程</h1>
         </div>
         <div className="flex gap-2">
           <Button
             onClick={() => {
               setSelected(null);
+              setNewEventDraft(null);
               setEditorOpen(true);
             }}
             variant="primary"
@@ -278,38 +362,137 @@ export function PlannerWorkspace({ username }: { username: string }) {
           </Button>
         </div>
       </div>
-      <div className="planner-filters" aria-label="日程筛选">
-        <label>
-          <input
-            checked={showReminders}
-            onChange={(event) => {
-              setShowReminders(event.target.checked);
-              updateUrl({ reminders: event.target.checked ? null : "0" });
-            }}
-            type="checkbox"
-          />{" "}
-          显示提醒
-        </label>
-        <label>
-          日程组
-          <select
-            aria-label="按日程组筛选"
-            value={groupId}
-            onChange={(event) => {
-              setGroupId(event.target.value);
-              updateUrl({ group: event.target.value || null });
-            }}
-          >
-            <option value="">全部日程组</option>
-            {projection.data?.groups.map((group) => (
-              <option key={group.id} value={group.id}>
-                {group.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        {shareGroupId ? <Badge>共享组投影</Badge> : null}
+      <div className="planner-toolbar__secondary">
+        <Popover
+          trigger={
+            <Button aria-label="打开日程筛选" variant="secondary">
+              <Filter aria-hidden="true" size={16} /> 筛选
+              {groupIds.length ? ` (${groupIds.length})` : ""}
+            </Button>
+          }
+        >
+          <div className="planner-filter-popover" aria-label="日程筛选">
+            <label>
+              <input
+                checked={showReminders}
+                onChange={(event) => {
+                  setShowReminders(event.target.checked);
+                  updateUrl({ reminders: event.target.checked ? null : "0" });
+                }}
+                type="checkbox"
+              />{" "}
+              显示提醒
+            </label>
+            <label>
+              重复
+              <select
+                aria-label="重复筛选"
+                onChange={(event) =>
+                  updateUrl({
+                    repeat:
+                      event.target.value === "all" ? null : event.target.value,
+                  })
+                }
+                value={recurrenceFilter}
+              >
+                <option value="all">全部</option>
+                <option value="recurring">仅重复</option>
+                <option value="single">仅单次</option>
+              </select>
+            </label>
+            <label>
+              DDL
+              <select
+                aria-label="DDL 筛选"
+                onChange={(event) =>
+                  updateUrl({
+                    ddl:
+                      event.target.value === "all" ? null : event.target.value,
+                  })
+                }
+                value={ddlFilter}
+              >
+                <option value="all">全部</option>
+                <option value="with">有 DDL</option>
+                <option value="without">无 DDL</option>
+              </select>
+            </label>
+            <fieldset className="group-filter-list">
+              <legend>日程组（可多选）</legend>
+              {projection.data?.groups.map((group) => (
+                <label key={group.id}>
+                  <input
+                    checked={groupIds.includes(group.id)}
+                    onChange={() => toggleGroup(group.id)}
+                    type="checkbox"
+                  />
+                  <span
+                    className="group-color-dot"
+                    style={{ background: group.color }}
+                  />
+                  {group.name}
+                  {groupIds.includes(group.id) ? (
+                    <Check aria-hidden="true" size={14} />
+                  ) : null}
+                </label>
+              ))}
+              {!projection.data?.groups.length ? (
+                <small>暂无个人日程组</small>
+              ) : null}
+            </fieldset>
+            {groupIds.length ||
+            recurrenceFilter !== "all" ||
+            ddlFilter !== "all" ||
+            !showReminders ? (
+              <Button
+                onClick={() => {
+                  setGroupIds([]);
+                  setShowReminders(true);
+                  updateUrl({
+                    groups: null,
+                    reminders: null,
+                    repeat: null,
+                    ddl: null,
+                  });
+                }}
+                variant="ghost"
+              >
+                重置筛选
+              </Button>
+            ) : null}
+            {shareGroupId ? <Badge>共享组投影</Badge> : null}
+          </div>
+        </Popover>
+        <Button onClick={() => setGroupsOpen(true)} variant="ghost">
+          <Users aria-hidden="true" size={16} /> 日程组
+        </Button>
       </div>
+      <nav aria-label="日历范围" className="planner-scope-tabs">
+        <Button
+          aria-pressed={!shareGroupId}
+          onClick={() => updateUrl({ share: null })}
+          variant={!shareGroupId ? "primary" : "ghost"}
+        >
+          我的日程
+        </Button>
+        {shareGroups.data?.map((group) => (
+          <Button
+            aria-pressed={shareGroupId === group.id}
+            key={group.id}
+            onClick={() => updateUrl({ share: group.id })}
+            variant={shareGroupId === group.id ? "primary" : "ghost"}
+          >
+            <span
+              className="group-color-dot"
+              style={{ background: group.color }}
+            />{" "}
+            {group.name}
+          </Button>
+        ))}
+        <Button onClick={() => navigate("/?surface=share")} variant="ghost">
+          管理分享组
+        </Button>
+      </nav>
       {projection.isLoading ? <Skeleton className="h-[36rem]" /> : null}
       {projection.error ? (
         <ApiErrorNotice
@@ -337,12 +520,22 @@ export function PlannerWorkspace({ username }: { username: string }) {
           eventResize={onDragOrResize}
           events={events}
           firstDay={1}
+          select={(arg) => {
+            setSelected(null);
+            setNewEventDraft({
+              start: arg.start.toISOString(),
+              end: arg.end.toISOString(),
+              isAllDay: arg.allDay,
+              groupId: groupIds.length === 1 ? groupIds[0] : null,
+            });
+            setEditorOpen(true);
+          }}
           headerToolbar={{
             left: "prev,next today",
             center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
+            right: "dayGridMonth,timeGridWeek,timeGridTwoDay,listWeek",
           }}
-          height="auto"
+          height="100%"
           initialDate={date}
           initialView={view}
           locale="zh-cn"
@@ -352,7 +545,15 @@ export function PlannerWorkspace({ username }: { username: string }) {
             listPlugin,
             interactionPlugin,
           ]}
-          selectable={false}
+          selectable
+          selectMirror
+          views={{
+            timeGridTwoDay: {
+              type: "timeGrid",
+              duration: { days: 2 },
+              buttonText: "2日",
+            },
+          }}
         />
       ) : null}
       {!projection.isLoading && !projection.error && events.length === 0 ? (
@@ -362,19 +563,26 @@ export function PlannerWorkspace({ username }: { username: string }) {
         </div>
       ) : null}
       <DetailSheet
-        item={selected}
-        onClose={() => setSelected(null)}
-        onEdit={(item) =>
-          item.type === "reminder" ? setReminderOpen(true) : setEditorOpen(true)
-        }
+        item={effectiveSelected}
+        onClose={() => {
+          setSelected(null);
+          if (params.get("selected")) updateUrl({ selected: null });
+        }}
+        onEdit={(item) => {
+          setSelected(item);
+          if (item.type === "reminder") setReminderOpen(true);
+          else setEditorOpen(true);
+        }}
       />
       <EventEditor
         groups={projection.data?.groups ?? []}
-        key={selected?.id ?? "new-event"}
+        initialDraft={newEventDraft}
+        key={selected?.id ?? newEventDraft?.start ?? "new-event"}
         item={selected}
         onClose={() => {
           setEditorOpen(false);
           setSelected(null);
+          setNewEventDraft(null);
         }}
         open={editorOpen}
       />

@@ -175,7 +175,7 @@ export function AgentWorkspace({
   const connect = useCallback(
     (sessionId: string, nextActiveTools = activeToolsRef.current) => {
       transport.current?.disconnect();
-      dispatch({ type: "connect" });
+      dispatch({ type: "connect", sessionId });
       transport.current = new AgentTransport({
         url: wsUrl(webSocketPath, sessionId, nextActiveTools),
         onEvent: (event) => {
@@ -683,10 +683,22 @@ export function AgentWorkspace({
             </p>
           ) : null}
           {state.error ? (
-            <p className="agent-error">
+            <div className="agent-error">
               <CircleAlert aria-hidden="true" size={16} />
-              {state.error}
-            </p>
+              <span>{state.error}</span>
+              {activeSessionId ? (
+                <Button
+                  disabled={
+                    state.connection === "connecting" ||
+                    state.connection === "reconnecting"
+                  }
+                  onClick={() => connect(activeSessionId)}
+                  variant="ghost"
+                >
+                  重试
+                </Button>
+              ) : null}
+            </div>
           ) : null}
           <div ref={end} />
         </section>

@@ -12,11 +12,11 @@ const bootstrap = {
 };
 
 describe("FR-2 app shell", () => {
-  it("provides labelled desktop navigation and panel controls", async () => {
+  it("provides labelled legacy-style home sidebars and panel controls", async () => {
     render(<App bootstrap={bootstrap} />);
 
     expect(
-      await screen.findByRole("navigation", { name: "主导航" }),
+      await screen.findByRole("complementary", { name: "待办与提醒" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("complementary", { name: "Agent 面板" }),
@@ -30,8 +30,8 @@ describe("FR-2 app shell", () => {
     const { container } = render(<App bootstrap={bootstrap} />);
     expect(
       (
-        await within(container).findAllByRole("navigation", {
-          name: "主导航",
+        await within(container).findAllByRole("complementary", {
+          name: "待办与提醒",
         })
       ).length,
     ).toBeGreaterThan(0);

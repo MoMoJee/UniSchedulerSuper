@@ -84,6 +84,25 @@ export const handlers = [
       count: 1,
     }),
   ),
+  http.get("*/api/v2/todos/", () =>
+    HttpResponse.json({
+      todos: [
+        {
+          todo_id: "todo-1",
+          version: 1,
+          title: "测试待办",
+          description: "",
+          status: "pending",
+          importance: "high",
+          urgency: "high",
+        },
+      ],
+      count: 1,
+    }),
+  ),
+  http.get("*/api/share-groups/my-groups/", () =>
+    HttpResponse.json({ groups: [] }),
+  ),
   http.get("*/api/v2/reminders/", ({ request }) => {
     const url = new URL(request.url);
     if (url.searchParams.get("from") && url.searchParams.get("to")) {

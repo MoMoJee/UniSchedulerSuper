@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 import { agentApi, type AgentToolCategory } from "../../api/agent";
 import { Button } from "../../components/ui/button";
-import { Sheet } from "../../components/ui/sheet";
+import { CenteredModal } from "../../components/ui/centered-modal";
 
 export function ToolPicker({
   activeTools,
@@ -61,10 +61,11 @@ export function ToolPicker({
       >
         <Wrench aria-hidden="true" size={18} />
       </Button>
-      <Sheet
+      <CenteredModal
         onOpenChange={setOpen}
         open={open}
         title={`选择 Agent 工具（${selected.length}）`}
+        size="lg"
       >
         <p className="text-sm text-[var(--text-muted)]">
           变更会重连当前会话，之后的请求仅可调用勾选工具；不会改写历史消息。
@@ -96,7 +97,7 @@ export function ToolPicker({
             完成
           </Button>
         </div>
-      </Sheet>
+      </CenteredModal>
     </>
   );
 }

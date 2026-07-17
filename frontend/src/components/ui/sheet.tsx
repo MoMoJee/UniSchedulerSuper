@@ -1,4 +1,5 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
 import type { ReactNode } from "react";
 
 export function Sheet({
@@ -20,9 +21,14 @@ export function Sheet({
           aria-describedby={undefined}
           className="sheet-content"
         >
-          <DialogPrimitive.Title className="text-lg font-semibold">
-            {title}
-          </DialogPrimitive.Title>
+          <div className="sheet-header">
+            <DialogPrimitive.Title className="text-lg font-semibold">
+              {title}
+            </DialogPrimitive.Title>
+            <DialogPrimitive.Close aria-label="关闭" className="sheet-close">
+              <X aria-hidden="true" size={18} />
+            </DialogPrimitive.Close>
+          </div>
           {children}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

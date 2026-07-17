@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { LayoutGrid, List, Plus } from "lucide-react";
 import { useState } from "react";
 
 import { plannerApi } from "../../api/planner";
@@ -50,6 +51,11 @@ function todoPayload(item: TodoItem) {
 }
 
 export function TodoWorkspace({ username }: { username: string }) {
+  const [view, setView] = useState<"quadrant" | "list">(() =>
+    window.localStorage.getItem("unischedulersuper-todo-view") === "list"
+      ? "list"
+      : "quadrant",
+  );
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [due, setDue] = useState("");
@@ -139,8 +145,36 @@ export function TodoWorkspace({ username }: { username: string }) {
     <section className="planner-workspace">
       <div className="planner-toolbar">
         <div>
-          <Badge>FR-4B Todo</Badge>
-          <h1 className="mt-2 text-2xl font-semibold">待办</h1>
+          <span className="workspace-eyebrow">待办工作区</span>
+          <h1 className="mt-1 text-2xl font-semibold">四象限待办</h1>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            aria-pressed={view === "quadrant"}
+            onClick={() => {
+              setView("quadrant");
+              window.localStorage.setItem(
+                "unischedulersuper-todo-view",
+                "quadrant",
+              );
+            }}
+            variant="ghost"
+          >
+            <LayoutGrid size={16} /> 四象限
+          </Button>
+          <Button
+            aria-pressed={view === "list"}
+            onClick={() => {
+              setView("list");
+              window.localStorage.setItem(
+                "unischedulersuper-todo-view",
+                "list",
+              );
+            }}
+            variant="ghost"
+          >
+            <List size={16} /> 列表
+          </Button>
         </div>
       </div>
       <form
@@ -189,7 +223,7 @@ export function TodoWorkspace({ username }: { username: string }) {
           value={urgency}
         />
         <Button disabled={create.isPending} type="submit" variant="primary">
-          新增
+          <Plus size={16} /> 新增待办
         </Button>
       </form>
       <div className="planner-filters mt-3">
@@ -214,101 +248,192 @@ export function TodoWorkspace({ username }: { username: string }) {
       {todos.isLoading ? (
         <Skeleton className="h-60" />
       ) : (
-        <ul className="mt-4 space-y-2">
-          {todos.data?.map((item) => (
-            <li className="planner-filters" key={item.id}>
-              <div className="flex-1">
-                {editing?.id === item.id ? (
-                  <div className="space-y-2">
-                    <Input
-                      aria-label="编辑待办标题"
-                      onChange={(event) =>
-                        setEditing({ ...editing, title: event.target.value })
-                      }
-                      value={editing.title}
-                    />
-                    <Textarea
-                      aria-label="编辑待办描述"
-                      onChange={(event) =>
-                        setEditing({
-                          ...editing,
-                          description: event.target.value,
-                        })
-                      }
-                      value={editing.description}
-                    />
-                    <Input
-                      aria-label="编辑截止时间"
-                      onChange={(event) =>
-                        setEditing({
-                          ...editing,
-                          due: event.target.value
-                            ? new Date(event.target.value).toISOString()
-                            : null,
-                        })
-                      }
-                      type="datetime-local"
-                      value={editing.due?.slice(0, 16) ?? ""}
-                    />
-                    <div className="flex gap-2">
+        <div className={view === "quadrant" ? "todo-quadrants" : "todo-list"}>
+          {view === "quadrant" ? (
+            [
+              {
+                key: "high-high",
+                label: "重要且紧急",
+                description: "立即处理",
+                filter: (item: TodoItem) =>
+                  item.importance === "high" && item.urgency === "high",
+              },
+              {
+                key: "high-rest",
+                label: "重要不紧急",
+                description: "安排计划",
+                filter: (item: TodoItem) =>
+                  item.importance === "high" && item.urgency !== "high",
+              },
+              {
+                key: "rest-high",
+                label: "紧急不重要",
+                description: "尽快处理",
+                filter: (item: TodoItem) =>
+                  item.importance !== "high" && item.urgency === "high",
+              },
+              {
+                key: "rest-rest",
+                label: "其他待办",
+                description: "稍后处理",
+                filter: (item: TodoItem) =>
+                  item.importance !== "high" && item.urgency !== "high",
+              },
+            ].map((quadrant) => (
+              <section className="todo-quadrant" key={quadrant.key}>
+                <header>
+                  <strong>{quadrant.label}</strong>
+                  <small>{quadrant.description}</small>
+                </header>
+                <ul>
+                  {todos.data?.filter(quadrant.filter).map((item) => (
+                    <li className="todo-card" key={item.id}>
+                      <div className="flex-1">
+                        {editing?.id === item.id ? (
+                          <div className="space-y-2">
+                            <Input
+                              aria-label="编辑待办标题"
+                              onChange={(event) =>
+                                setEditing({
+                                  ...editing,
+                                  title: event.target.value,
+                                })
+                              }
+                              value={editing.title}
+                            />
+                            <Textarea
+                              aria-label="编辑待办描述"
+                              onChange={(event) =>
+                                setEditing({
+                                  ...editing,
+                                  description: event.target.value,
+                                })
+                              }
+                              value={editing.description}
+                            />
+                            <Input
+                              aria-label="编辑截止时间"
+                              onChange={(event) =>
+                                setEditing({
+                                  ...editing,
+                                  due: event.target.value
+                                    ? new Date(event.target.value).toISOString()
+                                    : null,
+                                })
+                              }
+                              type="datetime-local"
+                              value={editing.due?.slice(0, 16) ?? ""}
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                disabled={edit.isPending}
+                                onClick={() => edit.mutate(editing)}
+                                variant="primary"
+                              >
+                                保存编辑
+                              </Button>
+                              <Button
+                                disabled={edit.isPending}
+                                onClick={() => setEditing(null)}
+                              >
+                                取消
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <strong>{item.title}</strong>
+                            <p>{item.description}</p>
+                            {item.due ? <small>{item.due}</small> : null}
+                          </>
+                        )}
+                      </div>
+                      <Badge>{item.status}</Badge>
                       <Button
-                        disabled={edit.isPending}
-                        onClick={() => edit.mutate(editing)}
-                        variant="primary"
+                        disabled={patch.isPending}
+                        onClick={() =>
+                          patch.mutate({
+                            item,
+                            status:
+                              item.status === "completed"
+                                ? "pending"
+                                : "completed",
+                          })
+                        }
                       >
-                        保存编辑
+                        {item.status === "completed" ? "恢复" : "完成"}
                       </Button>
                       <Button
                         disabled={edit.isPending}
-                        onClick={() => setEditing(null)}
+                        onClick={() => setEditing(item)}
                       >
-                        取消
+                        编辑
                       </Button>
+                      <Button
+                        disabled={convert.isPending}
+                        onClick={() => convert.mutate(item)}
+                      >
+                        转为日程
+                      </Button>
+                      <Button
+                        disabled={remove.isPending}
+                        onClick={() => remove.mutate(item)}
+                        variant="danger"
+                      >
+                        删除
+                      </Button>
+                    </li>
+                  ))}
+                  {!todos.data?.some(quadrant.filter) ? (
+                    <li className="todo-card todo-card--empty">暂无待办</li>
+                  ) : null}
+                </ul>
+              </section>
+            ))
+          ) : (
+            <section className="todo-quadrant todo-quadrant--list">
+              <ul>
+                {todos.data?.map((item) => (
+                  <li className="todo-card" key={item.id}>
+                    <div className="flex-1">
+                      <strong>{item.title}</strong>
+                      <p>{item.description}</p>
+                      {item.due ? <small>{item.due}</small> : null}
                     </div>
-                  </div>
-                ) : (
-                  <>
-                    <strong>{item.title}</strong>
-                    <p>{item.description}</p>
-                    {item.due ? <small>{item.due}</small> : null}
-                  </>
-                )}
-              </div>
-              <Badge>{item.status}</Badge>
-              <Button
-                disabled={patch.isPending}
-                onClick={() =>
-                  patch.mutate({
-                    item,
-                    status:
-                      item.status === "completed" ? "pending" : "completed",
-                  })
-                }
-              >
-                {item.status === "completed" ? "恢复" : "完成"}
-              </Button>
-              <Button
-                disabled={edit.isPending}
-                onClick={() => setEditing(item)}
-              >
-                编辑
-              </Button>
-              <Button
-                disabled={convert.isPending}
-                onClick={() => convert.mutate(item)}
-              >
-                转为日程
-              </Button>
-              <Button
-                disabled={remove.isPending}
-                onClick={() => remove.mutate(item)}
-                variant="danger"
-              >
-                删除
-              </Button>
-            </li>
-          ))}
-        </ul>
+                    <Badge>{item.status}</Badge>
+                    <Button
+                      disabled={patch.isPending}
+                      onClick={() =>
+                        patch.mutate({
+                          item,
+                          status:
+                            item.status === "completed"
+                              ? "pending"
+                              : "completed",
+                        })
+                      }
+                    >
+                      {item.status === "completed" ? "恢复" : "完成"}
+                    </Button>
+                    <Button
+                      disabled={edit.isPending}
+                      onClick={() => setEditing(item)}
+                    >
+                      编辑
+                    </Button>
+                    <Button
+                      disabled={remove.isPending}
+                      onClick={() => remove.mutate(item)}
+                      variant="danger"
+                    >
+                      删除
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
       )}
     </section>
   );

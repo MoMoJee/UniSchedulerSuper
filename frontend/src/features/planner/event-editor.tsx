@@ -6,7 +6,7 @@ import { plannerApi, type PlannerScope } from "../../api/planner";
 import { ApiErrorNotice } from "../../components/shared/api-error-notice";
 import { Button } from "../../components/ui/button";
 import { Input, Select, Textarea } from "../../components/ui/form";
-import { Sheet } from "../../components/ui/sheet";
+import { CenteredModal } from "../../components/ui/centered-modal";
 import {
   buildRRule,
   parseRRule,
@@ -15,6 +15,13 @@ import {
 } from "./recurrence-editor";
 import type { EditableGroup } from "./group-manager";
 
+export interface NewEventDraft {
+  start: string;
+  end: string;
+  isAllDay: boolean;
+  groupId: string | null;
+}
+
 function localDateTime(value?: string | null) {
   return value ? value.slice(0, 16) : new Date().toISOString().slice(0, 16);
 }
@@ -22,20 +29,33 @@ function localDateTime(value?: string | null) {
 export function EventEditor({
   open,
   item,
+  initialDraft,
   groups,
   onClose,
 }: {
   open: boolean;
   item: PlannerOccurrence | null;
+  initialDraft?: NewEventDraft | null;
   groups: EditableGroup[];
   onClose: () => void;
 }) {
   const [title, setTitle] = useState(item?.title ?? "");
   const [description, setDescription] = useState(item?.description ?? "");
-  const [start, setStart] = useState(localDateTime(item?.start));
-  const [end, setEnd] = useState(localDateTime(item?.end));
-  const [allDay, setAllDay] = useState(item?.isAllDay ?? false);
-  const [groupId, setGroupId] = useState(item?.groupId ?? "");
+  const [start, setStart] = useState(
+    localDateTime(item?.start ?? initialDraft?.start),
+  );
+  const [end, setEnd] = useState(localDateTime(item?.end ?? initialDraft?.end));
+  const [allDay, setAllDay] = useState(
+    item?.isAllDay ?? initialDraft?.isAllDay ?? false,
+  );
+  const [groupId, setGroupId] = useState(
+    item?.groupId ?? initialDraft?.groupId ?? "",
+  );
+  const [importance, setImportance] = useState(item?.importance ?? "");
+  const [urgency, setUrgency] = useState(item?.urgency ?? "");
+  const [ddlAt, setDdlAt] = useState(
+    item?.ddlAt ? localDateTime(item.ddlAt) : "",
+  );
   const [recurrence, setRecurrence] = useState<RecurrenceDraft>(() =>
     parseRRule(item?.recurrenceRRule),
   );
@@ -56,6 +76,9 @@ export function EventEditor({
         tzid: "Asia/Shanghai",
         is_all_day: allDay,
         group_id: groupId || null,
+        importance,
+        urgency,
+        ddl_at: ddlAt ? new Date(ddlAt).toISOString() : null,
         ...(!item || recurrenceChanged
           ? { recurrence: recurrenceRule ? { rrule: recurrenceRule } : null }
           : {}),
@@ -108,10 +131,11 @@ export function EventEditor({
   });
   const recurring = Boolean(item?.occurrenceRef?.seriesId);
   return (
-    <Sheet
+    <CenteredModal
       onOpenChange={(nextOpen) => !nextOpen && onClose()}
       open={open}
       title={item ? "编辑日程" : "创建日程"}
+      size="lg"
     >
       <form
         className="mt-4 space-y-3"
@@ -174,6 +198,43 @@ export function EventEditor({
             ))}
           </select>
         </label>
+        <div className="planner-editor-quadrant">
+          <label>
+            重要性
+            <select
+              aria-label="重要性"
+              onChange={(event) => setImportance(event.target.value)}
+              value={importance}
+            >
+              <option value="">未设置</option>
+              <option value="low">低</option>
+              <option value="medium">中</option>
+              <option value="high">高</option>
+            </select>
+          </label>
+          <label>
+            紧急性
+            <select
+              aria-label="紧急性"
+              onChange={(event) => setUrgency(event.target.value)}
+              value={urgency}
+            >
+              <option value="">未设置</option>
+              <option value="low">低</option>
+              <option value="medium">中</option>
+              <option value="high">高</option>
+            </select>
+          </label>
+        </div>
+        <label>
+          DDL（可选）
+          <Input
+            aria-label="DDL 时间"
+            onChange={(event) => setDdlAt(event.target.value)}
+            type="datetime-local"
+            value={ddlAt}
+          />
+        </label>
         <RecurrenceEditor
           draft={recurrence}
           label="重复规则"
@@ -222,6 +283,6 @@ export function EventEditor({
           ) : null}
         </div>
       </form>
-    </Sheet>
+    </CenteredModal>
   );
 }

@@ -3,18 +3,25 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { plannerApi } from "../../api/planner";
+import { apiClient } from "../../api/http";
 import { Button } from "../../components/ui/button";
 
 const DAY = 86_400_000;
-function range(): { from: string; to: string } {
+function range(days: number): { from: string; to: string } {
   const now = new Date();
   return {
     from: new Date(now.getTime() - 180 * DAY).toISOString(),
-    to: new Date(now.getTime() + 365 * DAY).toISOString(),
+    to: new Date(now.getTime() + days * DAY).toISOString(),
   };
 }
 
-export function SearchWorkspace() {
+export function SearchWorkspace({
+  embedded = false,
+  onRequestClose,
+}: {
+  embedded?: boolean;
+  onRequestClose?: () => void;
+} = {}) {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [types, setTypes] = useState<Array<"event" | "todo" | "reminder">>([
@@ -23,9 +30,45 @@ export function SearchWorkspace() {
     "reminder",
   ]);
   const [results, setResults] = useState<Array<Record<string, unknown>>>([]);
+  const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([]);
+  const [shareGroups, setShareGroups] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [groupId, setGroupId] = useState("");
+  const [shareGroupId, setShareGroupId] = useState("");
+  const [rangeDays, setRangeDays] = useState(365);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
+  useEffect(() => {
+    const controller = new AbortController();
+    void Promise.all([
+      plannerApi.listGroups(controller.signal),
+      apiClient.request<{ groups?: Array<Record<string, unknown>> }>(
+        "/api/share-groups/my-groups/",
+        { signal: controller.signal },
+      ),
+    ])
+      .then(([personal, shared]) => {
+        setGroups(
+          (personal.groups ?? []).flatMap((item) =>
+            typeof item.group_id === "string" && typeof item.name === "string"
+              ? [{ id: item.group_id, name: item.name }]
+              : [],
+          ),
+        );
+        setShareGroups(
+          (shared.groups ?? []).flatMap((item) =>
+            typeof item.share_group_id === "string" &&
+            typeof item.share_group_name === "string"
+              ? [{ id: item.share_group_id, name: item.share_group_name }]
+              : [],
+          ),
+        );
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
   useEffect(() => {
     const text = query.trim();
     if (text.length < 2 || !types.length) {
@@ -34,7 +77,7 @@ export function SearchWorkspace() {
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       setState("loading");
-      const windowRange = range();
+      const windowRange = range(rangeDays);
       void plannerApi
         .search(
           text,
@@ -45,10 +88,15 @@ export function SearchWorkspace() {
         )
         .then((response) => {
           if (!controller.signal.aborted) {
+            const values = (response.results ?? response.items ?? []) as Array<
+              Record<string, unknown>
+            >;
             setResults(
-              (response.results ?? response.items ?? []) as Array<
-                Record<string, unknown>
-              >,
+              values.filter(
+                (item) =>
+                  (!groupId || item.group_id === groupId) &&
+                  (!shareGroupId || item.share_group_id === shareGroupId),
+              ),
             );
             setActiveIndex(-1);
             setState("idle");
@@ -65,7 +113,7 @@ export function SearchWorkspace() {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [query, types]);
+  }, [groupId, query, rangeDays, shareGroupId, types]);
   const toggle = (type: "event" | "todo" | "reminder") =>
     setTypes((values) =>
       values.includes(type)
@@ -74,18 +122,30 @@ export function SearchWorkspace() {
     );
   const jump = (result: Record<string, unknown>) => {
     const kind = result.type;
-    if (kind === "todo") navigate("/todos");
+    onRequestClose?.();
+    if (kind === "todo")
+      navigate(
+        `/?dialog=todo&entity=${encodeURIComponent(String(result.entity_id ?? result.id ?? ""))}`,
+      );
     else
       navigate(
-        `/?selected=${encodeURIComponent(String(result.entity_id ?? result.id ?? ""))}`,
+        `/?selected=${encodeURIComponent(String(result.entity_id ?? result.id ?? ""))}${typeof result.start === "string" ? `&date=${encodeURIComponent(result.start.slice(0, 10))}` : ""}`,
       );
   };
   return (
-    <section aria-labelledby="search-title" className="search-workspace">
-      <h1 id="search-title">全局搜索</h1>
-      <p className="text-[var(--text-muted)]">
-        搜索当前与未来窗口内的日程、待办和提醒；输入至少两个字符。
-      </p>
+    <section
+      aria-label={embedded ? "全局搜索" : undefined}
+      aria-labelledby={embedded ? undefined : "search-title"}
+      className="search-workspace"
+    >
+      {!embedded ? (
+        <>
+          <h1 id="search-title">全局搜索</h1>
+          <p className="text-[var(--text-muted)]">
+            搜索当前与未来窗口内的日程、待办和提醒；输入至少两个字符。
+          </p>
+        </>
+      ) : null}
       <label className="search-input">
         <Search aria-hidden="true" size={19} />
         <input
@@ -143,6 +203,48 @@ export function SearchWorkspace() {
           </label>
         ))}
       </fieldset>
+      <div className="search-advanced">
+        <label>
+          个人日程组
+          <select
+            value={groupId}
+            onChange={(event) => setGroupId(event.target.value)}
+          >
+            <option value="">全部</option>
+            {groups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          分享组
+          <select
+            value={shareGroupId}
+            onChange={(event) => setShareGroupId(event.target.value)}
+          >
+            <option value="">全部</option>
+            {shareGroups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          时间范围
+          <select
+            value={rangeDays}
+            onChange={(event) => setRangeDays(Number(event.target.value))}
+          >
+            <option value={30}>未来 30 天</option>
+            <option value={180}>未来半年</option>
+            <option value={365}>未来一年</option>
+            <option value={1095}>未来三年</option>
+          </select>
+        </label>
+      </div>
       {state === "loading" ? <p>正在搜索…</p> : null}
       {state === "error" ? <p className="agent-error">{error}</p> : null}
       {query.trim().length >= 2 && state === "idle" && !results.length ? (

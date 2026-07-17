@@ -5,12 +5,15 @@ import {
   FolderOpen,
   FolderPlus,
   Image,
+  LayoutGrid,
+  List,
   Link,
   MoreHorizontal,
   Move,
   Pencil,
   Trash2,
   Upload,
+  Search,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
@@ -18,6 +21,7 @@ import { useRef, useState } from "react";
 import { filesApi, mapFileRecord, type FileRecord } from "../../api/files";
 import { fileKeys } from "../../api/queryKeys";
 import { Button } from "../../components/ui/button";
+import { CenteredModal } from "../../components/ui/centered-modal";
 import { ConfirmDialog, TextInputDialog } from "../../components/ui/dialog";
 import { DropdownMenu, DropdownMenuItem } from "../../components/ui/overlays";
 import { Sheet } from "../../components/ui/sheet";
@@ -56,12 +60,13 @@ function FileMoveSheet({
     queryFn: ({ signal }) => filesApi.list(folderId, signal),
   });
   return (
-    <Sheet
+    <CenteredModal
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
       open={file !== null}
       title={`移动 ${file?.filename ?? "文件"}`}
+      size="md"
     >
       <p className="text-sm text-[var(--text-muted)]">
         选择目标目录后确认；不会复制文件。
@@ -94,7 +99,7 @@ function FileMoveSheet({
           移动到此处
         </Button>
       </div>
-    </Sheet>
+    </CenteredModal>
   );
 }
 
@@ -183,7 +188,9 @@ function MarkdownEditor({
   );
 }
 
-export function FilesWorkspace() {
+export function FilesWorkspace({
+  embedded = false,
+}: { embedded?: boolean } = {}) {
   const client = useQueryClient();
   const [folderId, setFolderId] = useState<number | null>(null);
   const [pendingDelete, setPendingDelete] = useState<FileRecord | null>(null);
@@ -201,10 +208,21 @@ export function FilesWorkspace() {
   const [urlDialog, setUrlDialog] = useState(false);
   const [message, setMessage] = useState("");
   const [name, setName] = useState("");
+  const [query, setQuery] = useState("");
+  const [view, setView] = useState<"grid" | "list">(() =>
+    window.localStorage.getItem("unischedulersuper-files-view") === "list"
+      ? "list"
+      : "grid",
+  );
   const input = useRef<HTMLInputElement>(null);
   const listing = useQuery({
     queryKey: fileKeys.list(folderId),
     queryFn: ({ signal }) => filesApi.list(folderId, signal),
+  });
+  const rootListing = useQuery({
+    enabled: folderId !== null,
+    queryKey: fileKeys.list(null),
+    queryFn: ({ signal }) => filesApi.list(null, signal),
   });
   const refresh = () => client.invalidateQueries({ queryKey: fileKeys.all });
   const showError = (error: unknown, fallback: string) =>
@@ -233,8 +251,26 @@ export function FilesWorkspace() {
     }
   };
   const files = (listing.data?.files ?? []).map(mapFileRecord);
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const visibleFolders = (listing.data?.folders ?? []).filter(
+    (folder) =>
+      !normalizedQuery ||
+      folder.name.toLocaleLowerCase().includes(normalizedQuery),
+  );
+  const visibleFiles = files.filter(
+    (file) =>
+      !normalizedQuery ||
+      file.filename.toLocaleLowerCase().includes(normalizedQuery),
+  );
+  const rootFolders =
+    folderId === null
+      ? (listing.data?.folders ?? [])
+      : (rootListing.data?.folders ?? []);
   return (
-    <section aria-labelledby="files-title" className="files-workspace">
+    <section
+      aria-labelledby="files-title"
+      className={`files-workspace${embedded ? " files-workspace--embedded" : ""}`}
+    >
       <header>
         <div>
           <h1 id="files-title">文件管理</h1>
@@ -266,147 +302,232 @@ export function FilesWorkspace() {
           />
         </div>
       </header>
-      <div className="files-toolbar">
-        <input
-          aria-label="新文件夹名称"
-          onChange={(event) => setName(event.target.value)}
-          placeholder="新文件夹名称"
-          value={name}
-        />
-        <Button disabled={!name.trim()} onClick={() => void createFolder()}>
-          <FolderPlus aria-hidden="true" size={16} /> 创建文件夹
-        </Button>
-        <span>
-          已用 {formatSize(listing.data?.quota.used_bytes ?? 0)} /{" "}
-          {formatSize(listing.data?.quota.max_storage_bytes ?? 0)}
-        </span>
-      </div>
-      <div
-        className="files-grid"
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault();
-          void upload(event.dataTransfer.files);
-        }}
-      >
-        {listing.data?.folders.map((folder) => (
-          <article className="file-card file-card--folder" key={folder.id}>
-            <button
-              aria-label={`打开文件夹 ${folder.name}`}
-              className="file-card__open"
+      <div className="files-layout">
+        <aside aria-label="文件夹树" className="files-tree">
+          <strong>文件夹</strong>
+          <Button
+            aria-current={folderId === null ? "page" : undefined}
+            onClick={() => setFolderId(null)}
+            variant="ghost"
+          >
+            <FolderOpen size={16} /> 根目录
+          </Button>
+          {rootFolders.map((folder) => (
+            <Button
+              aria-current={folderId === folder.id ? "page" : undefined}
+              key={folder.id}
               onClick={() => setFolderId(folder.id)}
-              type="button"
+              variant="ghost"
             >
-              <FilePlus2 aria-hidden="true" size={22} />
-              <strong>{folder.name}</strong>
-              <small>{folder.file_count} 个文件</small>
-            </button>
-            <DropdownMenu
-              trigger={
-                <Button
-                  aria-label={`文件夹操作 ${folder.name}`}
-                  variant="ghost"
-                >
-                  <MoreHorizontal aria-hidden="true" size={16} />
-                </Button>
-              }
-            >
-              <DropdownMenuItem
-                className="menu-item"
-                onSelect={() => setRenameFolder(folder)}
-              >
-                <Pencil size={15} /> 重命名
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="menu-item"
-                onSelect={() => setPendingFolderDelete(folder)}
-              >
-                <Trash2 size={15} /> 删除
-              </DropdownMenuItem>
-            </DropdownMenu>
-          </article>
-        ))}
-        {files.map((file) => (
-          <article className="file-card" key={file.id}>
-            <button
-              aria-label={`预览文件 ${file.filename}`}
-              className="file-card__open"
-              disabled={!isPreviewable(file)}
-              onClick={() => setPreviewFile(file)}
-              type="button"
-            >
-              {file.category === "image" ? (
-                <Image aria-hidden="true" size={22} />
-              ) : (
-                <FilePenLine aria-hidden="true" size={22} />
+              <FolderOpen size={16} /> {folder.name}
+              <small>{folder.file_count}</small>
+            </Button>
+          ))}
+          <p>
+            存储空间
+            <br />
+            <strong>
+              {formatSize(
+                listing.data?.quota.used_bytes ??
+                  rootListing.data?.quota.used_bytes ??
+                  0,
               )}
-              <strong>{file.filename}</strong>
-              <small>
-                {file.category} · {formatSize(file.fileSize)} ·{" "}
-                {file.parseStatus}
-              </small>
-            </button>
-            <DropdownMenu
-              trigger={
-                <Button
-                  aria-label={`文件操作 ${file.filename}`}
-                  variant="ghost"
+            </strong>{" "}
+            /{" "}
+            {formatSize(
+              listing.data?.quota.max_storage_bytes ??
+                rootListing.data?.quota.max_storage_bytes ??
+                0,
+            )}
+          </p>
+        </aside>
+        <div className="files-content">
+          <div className="files-toolbar">
+            <label className="files-search">
+              <Search aria-hidden="true" size={16} />
+              <input
+                aria-label="搜索当前文件夹"
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="搜索当前文件夹"
+                value={query}
+              />
+            </label>
+            <input
+              aria-label="新文件夹名称"
+              onChange={(event) => setName(event.target.value)}
+              placeholder="新文件夹名称"
+              value={name}
+            />
+            <Button disabled={!name.trim()} onClick={() => void createFolder()}>
+              <FolderPlus aria-hidden="true" size={16} /> 创建文件夹
+            </Button>
+            <span>
+              已用 {formatSize(listing.data?.quota.used_bytes ?? 0)} /{" "}
+              {formatSize(listing.data?.quota.max_storage_bytes ?? 0)}
+            </span>
+            <div className="files-view-toggle" aria-label="文件视图">
+              <Button
+                aria-pressed={view === "grid"}
+                onClick={() => {
+                  setView("grid");
+                  window.localStorage.setItem(
+                    "unischedulersuper-files-view",
+                    "grid",
+                  );
+                }}
+                variant="ghost"
+              >
+                <LayoutGrid size={16} /> 网格
+              </Button>
+              <Button
+                aria-pressed={view === "list"}
+                onClick={() => {
+                  setView("list");
+                  window.localStorage.setItem(
+                    "unischedulersuper-files-view",
+                    "list",
+                  );
+                }}
+                variant="ghost"
+              >
+                <List size={16} /> 列表
+              </Button>
+            </div>
+          </div>
+          <div
+            className={`files-grid files-grid--${view}`}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              void upload(event.dataTransfer.files);
+            }}
+          >
+            {visibleFolders.map((folder) => (
+              <article className="file-card file-card--folder" key={folder.id}>
+                <button
+                  aria-label={`打开文件夹 ${folder.name}`}
+                  className="file-card__open"
+                  onClick={() => setFolderId(folder.id)}
+                  type="button"
                 >
-                  <MoreHorizontal aria-hidden="true" size={16} />
-                </Button>
-              }
-            >
-              {isPreviewable(file) ? (
-                <DropdownMenuItem
-                  className="menu-item"
-                  onSelect={() => setPreviewFile(file)}
+                  <FilePlus2 aria-hidden="true" size={22} />
+                  <strong>{folder.name}</strong>
+                  <small>{folder.file_count} 个文件</small>
+                </button>
+                <DropdownMenu
+                  trigger={
+                    <Button
+                      aria-label={`文件夹操作 ${folder.name}`}
+                      variant="ghost"
+                    >
+                      <MoreHorizontal aria-hidden="true" size={16} />
+                    </Button>
+                  }
                 >
-                  <FilePenLine size={15} /> 预览 / 编辑
-                </DropdownMenuItem>
-              ) : null}
-              <DropdownMenuItem
-                className="menu-item"
-                onSelect={() =>
-                  window.open(
-                    filesApi.downloadUrl(file.id),
-                    "_blank",
-                    "noopener",
-                  )
-                }
-              >
-                <Download size={15} /> 下载
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="menu-item"
-                onSelect={() => setRenameFile(file)}
-              >
-                <Pencil size={15} /> 重命名
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="menu-item"
-                onSelect={() => setMoveFile(file)}
-              >
-                <Move size={15} /> 移动
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="menu-item"
-                onSelect={() => setPendingDelete(file)}
-              >
-                <Trash2 size={15} /> 删除
-              </DropdownMenuItem>
-            </DropdownMenu>
-          </article>
-        ))}
+                  <DropdownMenuItem
+                    className="menu-item"
+                    onSelect={() => setRenameFolder(folder)}
+                  >
+                    <Pencil size={15} /> 重命名
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="menu-item"
+                    onSelect={() => setPendingFolderDelete(folder)}
+                  >
+                    <Trash2 size={15} /> 删除
+                  </DropdownMenuItem>
+                </DropdownMenu>
+              </article>
+            ))}
+            {visibleFiles.map((file) => (
+              <article className="file-card" key={file.id}>
+                <button
+                  aria-label={`预览文件 ${file.filename}`}
+                  className="file-card__open"
+                  disabled={!isPreviewable(file)}
+                  onClick={() => setPreviewFile(file)}
+                  type="button"
+                >
+                  {file.category === "image" ? (
+                    <Image aria-hidden="true" size={22} />
+                  ) : (
+                    <FilePenLine aria-hidden="true" size={22} />
+                  )}
+                  <strong>{file.filename}</strong>
+                  <small>
+                    {file.category} · {formatSize(file.fileSize)} ·{" "}
+                    {file.parseStatus}
+                  </small>
+                </button>
+                <DropdownMenu
+                  trigger={
+                    <Button
+                      aria-label={`文件操作 ${file.filename}`}
+                      variant="ghost"
+                    >
+                      <MoreHorizontal aria-hidden="true" size={16} />
+                    </Button>
+                  }
+                >
+                  {isPreviewable(file) ? (
+                    <DropdownMenuItem
+                      className="menu-item"
+                      onSelect={() => setPreviewFile(file)}
+                    >
+                      <FilePenLine size={15} /> 预览 / 编辑
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem
+                    className="menu-item"
+                    onSelect={() =>
+                      window.open(
+                        filesApi.downloadUrl(file.id),
+                        "_blank",
+                        "noopener",
+                      )
+                    }
+                  >
+                    <Download size={15} /> 下载
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="menu-item"
+                    onSelect={() => setRenameFile(file)}
+                  >
+                    <Pencil size={15} /> 重命名
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="menu-item"
+                    onSelect={() => setMoveFile(file)}
+                  >
+                    <Move size={15} /> 移动
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="menu-item"
+                    onSelect={() => setPendingDelete(file)}
+                  >
+                    <Trash2 size={15} /> 删除
+                  </DropdownMenuItem>
+                </DropdownMenu>
+              </article>
+            ))}
+          </div>
+          {listing.isLoading ? <p>正在加载文件…</p> : null}
+          {!listing.isLoading &&
+          !visibleFolders.length &&
+          !visibleFiles.length ? (
+            <p className="empty-state">
+              {normalizedQuery
+                ? "没有匹配的文件或文件夹。"
+                : "当前文件夹为空。可拖入文件或创建文件夹。"}
+            </p>
+          ) : null}
+          {message ? (
+            <p aria-live="polite" className="agent-status">
+              {message}
+            </p>
+          ) : null}
+        </div>
       </div>
-      {listing.isLoading ? <p>正在加载文件…</p> : null}
-      {!listing.isLoading && !listing.data?.folders.length && !files.length ? (
-        <p className="empty-state">当前文件夹为空。可拖入文件或创建文件夹。</p>
-      ) : null}
-      {message ? (
-        <p aria-live="polite" className="agent-status">
-          {message}
-        </p>
-      ) : null}
       <ConfirmDialog
         confirmLabel="删除"
         description={`删除 ${pendingDelete?.filename ?? "文件"} 后，不能再作为附件发送。`}

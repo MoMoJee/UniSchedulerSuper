@@ -28,7 +28,7 @@ export const initialAgentTransportState: AgentTransportState = {
 };
 
 export type AgentTransportAction =
-  | { type: "connect"; reconnecting?: boolean }
+  | { type: "connect"; reconnecting?: boolean; sessionId?: string }
   | { type: "connected"; sessionId: string; activeTools: string[] }
   | { type: "history"; sessionId: string; messages: AgentMessage[] }
   | { type: "event"; event: AgentWsEvent }
@@ -74,6 +74,7 @@ export function agentTransportReducer(
       return {
         ...state,
         connection: action.reconnecting ? "reconnecting" : "connecting",
+        sessionId: action.sessionId ?? state.sessionId,
         error: null,
       };
     case "connected":

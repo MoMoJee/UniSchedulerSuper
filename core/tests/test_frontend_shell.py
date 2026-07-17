@@ -98,19 +98,15 @@ class ReactFrontendShellTests(TestCase):
                 }),
                 encoding='utf-8',
             )
-            frontend_assets._load_manifest.cache_clear()
             with patch('core.templatetags.frontend_assets.finders.find', return_value=str(manifest_path)):
                 rendered = Template(
                     '{% load frontend_assets %}{% vite_entry "index.html" %}'
                 ).render(Context())
 
-        frontend_assets._load_manifest.cache_clear()
         self.assertIn('/static/react/assets/main-456.css', rendered)
         self.assertIn('/static/react/assets/main-123.js', rendered)
 
     def test_missing_production_manifest_fails_closed(self):
-        frontend_assets._load_manifest.cache_clear()
         with patch('core.templatetags.frontend_assets.finders.find', return_value=None):
             with self.assertRaises(TemplateSyntaxError):
                 Template('{% load frontend_assets %}{% vite_entry "index.html" %}').render(Context())
-        frontend_assets._load_manifest.cache_clear()

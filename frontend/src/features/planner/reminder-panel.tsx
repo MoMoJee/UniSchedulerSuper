@@ -6,7 +6,7 @@ import { plannerApi } from "../../api/planner";
 import { ApiErrorNotice } from "../../components/shared/api-error-notice";
 import { Button } from "../../components/ui/button";
 import { Input, Textarea } from "../../components/ui/form";
-import { Sheet } from "../../components/ui/sheet";
+import { CenteredModal } from "../../components/ui/centered-modal";
 import {
   buildRRule,
   parseRRule,
@@ -96,10 +96,11 @@ export function ReminderPanel({
     },
   });
   return (
-    <Sheet
+    <CenteredModal
       onOpenChange={(nextOpen) => !nextOpen && onClose()}
       open={open}
       title={item ? "编辑提醒（整个系列）" : "创建提醒"}
+      size="lg"
     >
       <form
         className="mt-4 space-y-3"
@@ -170,6 +171,6 @@ export function ReminderPanel({
           ) : null}
         </div>
       </form>
-    </Sheet>
+    </CenteredModal>
   );
 }

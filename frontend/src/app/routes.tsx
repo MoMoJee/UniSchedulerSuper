@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import type { FrontendBootstrap } from "../bootstrap";
 import { AppShell } from "./app-shell";
@@ -29,39 +29,23 @@ export function createAppRouter(bootstrap: FrontendBootstrap) {
           },
           {
             path: "/todos",
-            lazy: async () => {
-              const { TodoWorkspace } =
-                await import("../features/planner/todo-workspace");
-              return {
-                Component: () => (
-                  <TodoWorkspace username={bootstrap.user.username} />
-                ),
-              };
-            },
+            element: <Navigate replace to="/" />,
+          },
+          {
+            path: "/share",
+            element: <Navigate replace to="/?surface=share" />,
           },
           {
             path: "/search",
-            lazy: async () => {
-              const { SearchWorkspace } =
-                await import("../features/search/search-workspace");
-              return { Component: SearchWorkspace };
-            },
+            element: <Navigate replace to="/?surface=search" />,
           },
           {
             path: "/files",
-            lazy: async () => {
-              const { FilesWorkspace } =
-                await import("../features/files/files-workspace");
-              return { Component: FilesWorkspace };
-            },
+            element: <Navigate replace to="/?surface=files" />,
           },
           {
             path: "/settings",
-            lazy: async () => {
-              const { SettingsWorkspace } =
-                await import("../features/settings/settings-workspace");
-              return { Component: SettingsWorkspace };
-            },
+            element: <Navigate replace to="/?surface=settings" />,
           },
         ],
       },

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from functools import lru_cache
 from pathlib import Path
 
 from django import template
@@ -18,9 +17,13 @@ from django.utils.safestring import mark_safe
 register = template.Library()
 
 
-@lru_cache(maxsize=1)
 def _load_manifest() -> dict[str, object]:
-    """Load the Vite manifest from the staticfiles finder once per process."""
+    """Load the current Vite manifest from the staticfiles finder.
+
+    构建产物带 content hash。开发/灰度环境在 Django 未重启时重新构建后，如果
+    缓存 manifest，HTML 会继续引用已删除的旧 hash，最终表现为白屏或“强制刷新
+    才更新”。manifest 很小，因此每个壳页面读取一次比缓存错误资源更可靠。
+    """
     manifest_path = finders.find('react/manifest.json')
     if isinstance(manifest_path, (list, tuple)):
         manifest_path = manifest_path[0] if manifest_path else None

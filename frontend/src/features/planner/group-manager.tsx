@@ -5,7 +5,7 @@ import { plannerApi } from "../../api/planner";
 import { ApiErrorNotice } from "../../components/shared/api-error-notice";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/form";
-import { Sheet } from "../../components/ui/sheet";
+import { CenteredModal } from "../../components/ui/centered-modal";
 
 export interface EditableGroup {
   id: string;
@@ -62,10 +62,11 @@ export function GroupManager({
     onSuccess: refresh,
   });
   return (
-    <Sheet
+    <CenteredModal
       onOpenChange={(next) => !next && onClose()}
       open={open}
       title="管理个人日程组"
+      size="lg"
     >
       <form
         className="mt-4 flex gap-2"
@@ -150,6 +151,6 @@ export function GroupManager({
           </li>
         ))}
       </ul>
-    </Sheet>
+    </CenteredModal>
   );
 }

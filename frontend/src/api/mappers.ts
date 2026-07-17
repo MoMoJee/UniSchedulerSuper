@@ -17,6 +17,9 @@ export interface PlannerOccurrence {
   type: "event" | "reminder" | "unknown";
   description: string;
   status: string;
+  importance: string;
+  urgency: string;
+  ddlAt: string | null;
   groupId: string | null;
   isAllDay: boolean;
   isOverride: boolean;
@@ -89,6 +92,9 @@ export function mapPlannerOccurrence(value: unknown): PlannerOccurrence {
           ? record.content
           : "",
     status: typeof record.status === "string" ? record.status : "",
+    importance: typeof record.importance === "string" ? record.importance : "",
+    urgency: typeof record.urgency === "string" ? record.urgency : "",
+    ddlAt: typeof record.ddl_at === "string" ? record.ddl_at : null,
     groupId: typeof record.group_id === "string" ? record.group_id : null,
     isAllDay: record.is_all_day === true,
     isOverride: record.is_override === true,

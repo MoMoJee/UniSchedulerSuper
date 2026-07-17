@@ -7,11 +7,17 @@ export function ThemeController() {
 
   useEffect(() => {
     const root = document.documentElement;
-    const prefersDark =
-      window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
-    const resolved =
-      theme === "system" ? (prefersDark ? "dark" : "light") : theme;
-    root.dataset.theme = resolved;
+    const media = window.matchMedia?.("(prefers-color-scheme: dark)");
+    const apply = () => {
+      const resolved =
+        theme === "system" ? (media?.matches ? "dark" : "light") : theme;
+      root.dataset.theme = resolved;
+    };
+    apply();
+    // “跟随系统”不是仅在首次加载取一次值；系统配色改变后立即更新。
+    if (theme !== "system" || !media) return undefined;
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
   }, [theme]);
 
   return null;
