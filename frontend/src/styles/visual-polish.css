@@ -541,3 +541,603 @@ select:focus-visible,
     padding-inline: 0.6rem;
   }
 }
+
+/* 2026-07-18 deep workspace refinement: every primary activity owns a
+   distinct floating surface while the browser viewport itself stays fixed. */
+.home-sidebar,
+.agent-workspace {
+  width: calc(100% - 0.75rem);
+  height: calc(100% - 1rem);
+  margin-block: 0.5rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 1.15rem;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+
+.home-sidebar {
+  margin-left: 0.5rem;
+}
+
+.agent-workspace {
+  margin-right: 0.5rem;
+}
+
+.planner-workspace {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 1.2rem;
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  padding: 0.62rem 0.72rem 0.72rem;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(18px) saturate(135%);
+}
+
+.planner-toolbar--compact {
+  min-height: 2.55rem;
+  margin: 0;
+}
+
+.planner-toolbar__actions,
+.planner-toolbar__context {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.planner-toolbar--compact button {
+  min-height: 2.15rem;
+  padding: 0.38rem 0.62rem;
+  border-radius: 0.67rem;
+  font-size: 0.78rem;
+}
+
+.semester-badge {
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  color: var(--accent-strong);
+  font-weight: 640;
+}
+
+.planner-scope-tabs {
+  min-height: 2.25rem;
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none !important;
+}
+
+.planner-scope-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.planner-scope-tabs button {
+  min-height: 1.86rem;
+  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent) !important;
+  border-radius: 0.58rem;
+  background: transparent;
+  padding-inline: 0.62rem;
+  color: var(--text-muted);
+}
+
+.planner-scope-tabs button[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border)) !important;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--accent-strong);
+  box-shadow: inset 0 1px rgb(255 255 255 / 42%);
+}
+
+.planner-workspace .fc {
+  border-radius: 0.95rem;
+  padding: 0.45rem;
+  transition: none;
+}
+
+.planner-workspace .fc .fc-header-toolbar {
+  min-height: 2.45rem;
+  margin-bottom: 0.45rem;
+}
+
+.planner-workspace .fc .fc-button {
+  padding: 0.35rem 0.56rem;
+}
+
+.planner-event-content {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.2rem;
+  overflow: hidden;
+}
+
+.planner-event-time {
+  flex: none;
+  font-size: 0.66rem;
+  opacity: 0.88;
+}
+
+.planner-event-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 620;
+}
+
+/* The time-grid has vertical room that the old one-line event renderer did not
+   use. Keep month/list rows compact, but let week and multi-day events expose
+   their time first and wrap the title onto the remaining lines. */
+.planner-workspace .fc-timegrid-event .planner-event-content {
+  display: grid;
+  height: 100%;
+  align-content: start;
+  gap: 0.08rem;
+  overflow: hidden;
+  line-height: 1.12;
+}
+
+.planner-workspace .fc-timegrid-event .planner-event-time {
+  min-width: 0;
+  font-size: 0.62rem;
+  font-weight: 720;
+  line-height: 1.08;
+}
+
+.planner-workspace .fc-timegrid-event .planner-event-title {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 0.66rem;
+  line-height: 1.14;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+}
+
+.planner-workspace .fc-timegrid-event .planner-share-dots {
+  position: absolute;
+  top: 0.08rem;
+  right: 0.08rem;
+}
+
+.planner-share-dots {
+  display: inline-flex;
+  flex: none;
+  align-self: flex-start;
+  gap: 2px;
+  margin-top: 1px;
+}
+
+.planner-share-dots i {
+  width: 5px;
+  height: 5px;
+  border: 1px solid rgb(255 255 255 / 78%);
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+}
+
+.home-sidebar {
+  container: home-sidebar / inline-size;
+  gap: 0.55rem;
+  grid-template-rows: minmax(0, 1.35fr) minmax(8rem, 0.65fr);
+  padding: 0.5rem;
+}
+
+.home-sidebar__section {
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: 0.88rem;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  padding: 0.5rem;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 52%);
+}
+
+.home-sidebar__todo-board {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: max-content max-content;
+  align-content: start;
+  gap: 0.45rem;
+  overflow: auto;
+  padding-top: 0.2rem;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.home-sidebar__quadrants {
+  height: 15rem;
+  min-height: 15rem;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  padding: 0;
+}
+
+.home-sidebar__quadrants > section,
+.home-sidebar__other {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 0.72rem;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
+.home-sidebar__quadrants > section {
+  min-height: 0;
+}
+
+.home-sidebar__quadrants > section > ul {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.home-sidebar__other {
+  grid-template-rows: auto max-content;
+}
+
+.home-sidebar__quadrants h2,
+.home-sidebar__other h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  margin: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 64%, transparent);
+  background: color-mix(in srgb, var(--surface-muted) 52%, transparent);
+  padding: 0.36rem 0.46rem;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+
+.home-sidebar__quadrants h2 small,
+.home-sidebar__other h2 small {
+  flex: none;
+  font-size: 0.58rem;
+  font-weight: 520;
+  opacity: 0.8;
+}
+
+.home-sidebar__other ul {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0.35rem;
+  list-style: none;
+  overflow: visible;
+}
+
+.home-todo-card,
+.home-reminder-card {
+  position: relative;
+  border-left: 3px solid var(--item-group-color, var(--border-strong));
+}
+
+.home-todo-card::after,
+.home-reminder-card::after {
+  position: absolute;
+  top: 0.48rem;
+  right: 0.48rem;
+  width: 0.38rem;
+  height: 0.38rem;
+  content: "";
+  border-radius: 50%;
+  background: var(--item-group-color, var(--border-strong));
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.home-sidebar__reminders {
+  gap: 0.35rem;
+  padding-top: 0.3rem;
+}
+
+.home-sidebar__reminders li {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  border: 0;
+  padding: 0;
+}
+
+.home-sidebar__reminders details {
+  position: relative;
+  align-self: center;
+}
+
+@container home-sidebar (min-width: 34rem) {
+  .home-sidebar__todo-board {
+    grid-template-columns: minmax(0, 2fr) minmax(11rem, 1fr);
+  }
+}
+
+.agent-header {
+  min-height: 3.45rem;
+}
+
+.agent-workspace {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.agent-insight-bar {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.35rem;
+  overflow-x: auto;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+  padding: 0.38rem 0.72rem;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  scrollbar-width: none;
+}
+
+.agent-insight-bar span {
+  flex: none;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  padding: 0.22rem 0.46rem;
+}
+
+.agent-insight-bar button {
+  flex: none;
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  font-weight: 620;
+  cursor: pointer;
+}
+
+.agent-empty {
+  display: grid;
+  width: min(100%, 23rem);
+  min-height: 100%;
+  align-content: center;
+  justify-items: center;
+  margin: auto;
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.agent-empty strong {
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.agent-empty p {
+  margin: 0.3rem 0 0.8rem;
+}
+
+.agent-empty > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.agent-empty button {
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  padding: 0.38rem 0.62rem;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.agent-picker-tabs {
+  border-radius: 0.7rem;
+  background: var(--surface-muted);
+  padding: 0.2rem;
+}
+
+.agent-picker-tabs button {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.agent-picker-tabs button[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.agent-upload-zone {
+  min-height: 14rem;
+  align-content: center;
+  justify-items: center;
+  border: 1px dashed color-mix(in srgb, var(--accent) 36%, var(--border));
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
+}
+
+.agent-upload-zone strong {
+  margin-top: 0.5rem;
+}
+
+.agent-upload-zone p {
+  margin: 0.15rem 0 0.65rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.settings-action-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-radius: 0.78rem;
+  background: var(--surface-muted);
+  padding: 0.62rem 0.7rem;
+  grid-column: 1 / -1;
+}
+
+.settings-action-row button {
+  flex: none;
+  white-space: nowrap;
+}
+
+.settings-action-row span {
+  display: grid;
+  min-width: 0;
+  gap: 0.12rem;
+}
+
+.settings-action-row small,
+.settings-empty-note {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.semester-settings {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 0.45rem;
+}
+
+.semester-period {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(8rem, 2fr) repeat(3, minmax(4rem, 0.7fr)) auto;
+  gap: 0.35rem;
+}
+
+.semester-period--header {
+  padding-inline: 0.55rem;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 620;
+}
+
+.files-workspace > header {
+  min-height: 3.5rem;
+}
+
+.files-tree {
+  padding: 0.8rem;
+}
+
+.files-tree > strong {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.files-content {
+  background: color-mix(in srgb, var(--surface) 88%, transparent) !important;
+}
+
+.files-toolbar {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) minmax(9rem, 0.7fr) auto auto;
+  gap: 0.45rem;
+}
+
+.files-toolbar > span {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.files-toolbar .files-view-toggle {
+  grid-column: 4;
+  grid-row: 1;
+  justify-self: end;
+}
+
+/* Apple-like scroll indicators: visually quiet at rest, discoverable on hover. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-muted) 28%, transparent)
+    transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 30%, transparent);
+  background-clip: padding-box;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  border-width: 1px;
+  background: color-mix(in srgb, var(--text-muted) 52%, transparent);
+  background-clip: padding-box;
+}
+
+/* Gold is an accent material, not a global yellow recolor. */
+:root[data-gold] {
+  --gold: #b88924;
+  --gold-soft: #f2d889;
+  --focus-ring: #b88924;
+}
+
+:root[data-gold] .top-island,
+:root[data-gold] .planner-workspace,
+:root[data-gold] .home-sidebar,
+:root[data-gold] .agent-workspace {
+  border-color: color-mix(in srgb, var(--gold) 42%, var(--border));
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 58%),
+    0 12px 34px color-mix(in srgb, var(--gold) 10%, transparent);
+}
+
+:root[data-gold] .top-island::before,
+:root[data-gold] .agent-workspace::before {
+  background: linear-gradient(
+    90deg,
+    var(--gold),
+    var(--gold-soft),
+    var(--gold)
+  );
+}
+
+:root[data-gold] button[data-variant="primary"],
+:root[data-gold] .fc-button-active {
+  background: linear-gradient(135deg, #c89d3a, #9f7118) !important;
+  color: white !important;
+}
+
+@container planner-workspace (max-width: 38rem) {
+  .planner-toolbar--compact {
+    display: flex;
+  }
+
+  .planner-toolbar__optional-label,
+  .semester-badge {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .home-sidebar,
+  .agent-workspace {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .semester-period,
+  .files-toolbar {
+    grid-template-columns: 1fr;
+  }
+}

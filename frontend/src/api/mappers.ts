@@ -26,6 +26,7 @@ export interface PlannerOccurrence {
   readOnly: boolean;
   ownerUsername: string | null;
   shareGroupId: string | null;
+  shareGroupIds: string[];
   occurrenceRef: OccurrenceRef | null;
   /** Present when the matching definition endpoint supplied the RRule. */
   recurrenceRRule?: string | null;
@@ -103,6 +104,12 @@ export function mapPlannerOccurrence(value: unknown): PlannerOccurrence {
       typeof record.owner_username === "string" ? record.owner_username : null,
     shareGroupId:
       typeof record.share_group_id === "string" ? record.share_group_id : null,
+    shareGroupIds: Array.isArray(record.share_group_ids)
+      ? record.share_group_ids.filter(
+          (value): value is string =>
+            typeof value === "string" && Boolean(value),
+        )
+      : [],
     occurrenceRef: mapOccurrenceRef(record.occurrence_ref),
   };
 }

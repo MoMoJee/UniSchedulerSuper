@@ -1,6 +1,14 @@
 import { http, HttpResponse } from "msw";
 
 export const handlers = [
+  http.get("*/get_calendar/user_settings/", () =>
+    HttpResponse.json({
+      theme: "light",
+      use_gold_theme: false,
+      show_week_number: true,
+      week_number_periods: [],
+    }),
+  ),
   http.get("*/api/agent/sessions/", () =>
     HttpResponse.json({
       sessions: [

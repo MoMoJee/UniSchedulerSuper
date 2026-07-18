@@ -18,8 +18,10 @@ describe("App", () => {
 
     expect(await screen.findByText("UniSchedulerSuper")).toBeInTheDocument();
     expect(
-      (await screen.findAllByRole("heading", { name: "我的日程" })).length,
-    ).toBeGreaterThan(0);
-    expect(screen.getAllByText("日程工作区").length).toBeGreaterThan(0);
+      await screen.findByRole("button", { name: "创建日程" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: "日历范围" }),
+    ).toBeInTheDocument();
   });
 });

@@ -7,7 +7,7 @@ import {
   type AttachableItemWire,
 } from "../../api/agent";
 import { Button } from "../../components/ui/button";
-import { Sheet } from "../../components/ui/sheet";
+import { CenteredModal } from "../../components/ui/centered-modal";
 import { FilePicker } from "../files/file-picker";
 
 interface AttachmentPickerProps {
@@ -203,13 +203,15 @@ export function AttachmentPicker({
       >
         <Paperclip aria-hidden="true" size={18} />
       </Button>
-      <Sheet
+      <CenteredModal
         open={open}
         onOpenChange={(value) => {
           if (value) setLoading(true);
           setOpen(value);
         }}
         title="添加 Agent 附件"
+        description="关联系统中的内容，或上传一份新文件。"
+        size="lg"
       >
         <div className="agent-picker-tabs" role="tablist">
           <Button
@@ -219,7 +221,7 @@ export function AttachmentPicker({
               setTab("internal");
             }}
           >
-            日程与待办
+            系统内容
           </Button>
           <Button
             aria-selected={tab === "cloud"}
@@ -228,7 +230,7 @@ export function AttachmentPicker({
               setTab("cloud");
             }}
           >
-            云盘文件
+            我的文件
           </Button>
           <Button
             aria-selected={tab === "upload"}
@@ -237,7 +239,7 @@ export function AttachmentPicker({
               setTab("upload");
             }}
           >
-            上传
+            从设备上传
           </Button>
         </div>
         {tab === "internal" ? (
@@ -296,17 +298,22 @@ export function AttachmentPicker({
             }}
           >
             <Upload aria-hidden="true" size={28} />
-            <p>拖入文件，或选择本地文件</p>
+            <strong>拖入文件到这里</strong>
+            <p>支持文档、图片和常见文本格式</p>
             <input
+              hidden
               ref={input}
               aria-label="上传本地附件"
               multiple
               onChange={(event) => void upload(event.target.files)}
               type="file"
             />
+            <Button onClick={() => input.current?.click()} variant="primary">
+              选择文件
+            </Button>
           </div>
         ) : null}
-      </Sheet>
+      </CenteredModal>
     </>
   );
 }

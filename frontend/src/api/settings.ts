@@ -10,6 +10,12 @@ export interface UserPreferences extends JsonObject {
   ai_auto_suggest?: boolean;
   default_event_duration?: number;
   use_gold_theme?: boolean;
+  week_number_periods?: Array<{
+    name: string;
+    year?: number;
+    month: number;
+    day: number;
+  }>;
 }
 
 export const settingsApi = {

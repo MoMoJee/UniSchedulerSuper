@@ -18,10 +18,12 @@ export type ThemePreference =
 
 interface UiState {
   theme: ThemePreference;
+  goldTheme: boolean;
   leftPanelOpen: boolean;
   agentPanelOpen: boolean;
   panelLayout: Record<string, number>;
   setTheme: (theme: ThemePreference) => void;
+  setGoldTheme: (enabled: boolean) => void;
   setLeftPanelOpen: (open: boolean) => void;
   setAgentPanelOpen: (open: boolean) => void;
   setPanelLayout: (layout: Record<string, number>) => void;
@@ -31,11 +33,13 @@ export const useUiStore = create<UiState>()(
   persist(
     (set) => ({
       theme: "system",
+      goldTheme: false,
       leftPanelOpen: false,
       agentPanelOpen: false,
       // 与旧版固定工作台一致：导航 / 内容 / Agent = 20 / 50 / 30。
       panelLayout: { navigation: 20, workspace: 50, agent: 30 },
       setTheme: (theme) => set({ theme }),
+      setGoldTheme: (goldTheme) => set({ goldTheme }),
       setLeftPanelOpen: (leftPanelOpen) => set({ leftPanelOpen }),
       setAgentPanelOpen: (agentPanelOpen) => set({ agentPanelOpen }),
       setPanelLayout: (panelLayout) => set({ panelLayout }),
@@ -54,10 +58,15 @@ export const useUiStore = create<UiState>()(
           version < 3
             ? { navigation: 20, workspace: 50, agent: 30 }
             : (layout ?? { navigation: 20, workspace: 50, agent: 30 });
-        return { theme: state.theme ?? "system", panelLayout };
+        return {
+          theme: state.theme ?? "system",
+          goldTheme: state.goldTheme ?? false,
+          panelLayout,
+        };
       },
       partialize: (state) => ({
         theme: state.theme,
+        goldTheme: state.goldTheme,
         panelLayout: state.panelLayout,
       }),
     },

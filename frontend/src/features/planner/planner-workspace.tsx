@@ -8,21 +8,32 @@ import type {
   DatesSetArg,
   EventDropArg,
   EventClickArg,
+  EventContentArg,
   EventInput,
 } from "@fullcalendar/core";
 import timeGridPlugin from "@fullcalendar/timegrid";
-import { CalendarDays, Check, Filter, RefreshCw, Users } from "lucide-react";
+import {
+  BellPlus,
+  CalendarDays,
+  CalendarPlus,
+  Check,
+  Filter,
+  RefreshCw,
+  Settings2,
+  Users,
+} from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import type { PlannerOccurrence } from "../../api/mappers";
 import { plannerApi } from "../../api/planner";
 import { apiClient } from "../../api/http";
+import { settingsApi } from "../../api/settings";
 import { ApiErrorNotice } from "../../components/shared/api-error-notice";
 import { Button } from "../../components/ui/button";
 import { CenteredModal } from "../../components/ui/centered-modal";
-import { Badge, Skeleton } from "../../components/ui/status";
+import { Badge } from "../../components/ui/status";
 import { Popover } from "../../components/ui/overlays";
 import { useCalendarProjection } from "./hooks";
 import { EventEditor, type NewEventDraft } from "./event-editor";
@@ -90,6 +101,68 @@ function initialRange(date: string) {
 
 function recurrenceText(item: PlannerOccurrence) {
   return item.occurrenceRef?.seriesId ? "重复系列实例" : "单次项目";
+}
+
+function semesterLabel(
+  date: string,
+  periods: Array<{
+    name: string;
+    year?: number;
+    month: number;
+    day: number;
+  }>,
+) {
+  const current = new Date(`${date}T12:00:00`);
+  const candidates = periods
+    .map((period) => ({
+      period,
+      start: new Date(
+        period.year ?? current.getFullYear(),
+        Math.max(0, period.month - 1),
+        period.day,
+        12,
+      ),
+    }))
+    .filter((item) => item.start <= current)
+    .sort((a, b) => b.start.getTime() - a.start.getTime());
+  const active = candidates[0];
+  if (!active) return null;
+  const week =
+    Math.floor(
+      (current.getTime() - active.start.getTime()) / (7 * 24 * 60 * 60 * 1000),
+    ) + 1;
+  return week > 0 ? `${active.period.name} · 第 ${week} 周` : null;
+}
+
+function CalendarEventContent({ event }: EventContentArg) {
+  const item = event.extendedProps.occurrence as PlannerOccurrence;
+  const colors = event.extendedProps.shareColors as string[];
+  return (
+    <div className="planner-event-content">
+      {colors.length ? (
+        <span
+          aria-label={`已分享到 ${colors.length} 个分享组`}
+          className="planner-share-dots"
+        >
+          {colors.map((color, index) => (
+            <i key={`${color}-${index}`} style={{ backgroundColor: color }} />
+          ))}
+        </span>
+      ) : null}
+      <span className="planner-event-time">
+        {event.start
+          ? event.start.toLocaleTimeString("zh-CN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : ""}
+      </span>
+      <span className="planner-event-title">
+        {item.type === "reminder" ? "提醒：" : ""}
+        {item.title}
+      </span>
+    </div>
+  );
 }
 
 function DetailSheet({
@@ -169,6 +242,10 @@ export function PlannerWorkspace({ username }: { username: string }) {
   const recurrenceFilter = params.get("repeat") ?? "all";
   const ddlFilter = params.get("ddl") ?? "all";
   const [range, setRange] = useState(() => initialRange(date));
+  const pendingCalendarLocation = useRef<{
+    date: string;
+    view: string;
+  } | null>(null);
   const [selected, setSelected] = useState<PlannerOccurrence | null>(null);
   const [newEventDraft, setNewEventDraft] = useState<NewEventDraft | null>(
     null,
@@ -176,6 +253,7 @@ export function PlannerWorkspace({ username }: { username: string }) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
   const [groupsOpen, setGroupsOpen] = useState(false);
+  const scopeTabs = useRef<HTMLElement>(null);
   const [showReminders, setShowReminders] = useState(
     params.get("reminders") !== "0",
   );
@@ -223,6 +301,23 @@ export function PlannerWorkspace({ username }: { username: string }) {
     },
     staleTime: 30_000,
   });
+  const preferences = useQuery({
+    queryKey: ["settings", "preferences"],
+    queryFn: settingsApi.getPreferences,
+    staleTime: 60_000,
+  });
+  const shareColorById = useMemo(
+    () =>
+      new Map((shareGroups.data ?? []).map((group) => [group.id, group.color])),
+    [shareGroups.data],
+  );
+  const activeSemester = useMemo(
+    () =>
+      preferences.data?.show_week_number === false
+        ? null
+        : semesterLabel(date, preferences.data?.week_number_periods ?? []),
+    [date, preferences.data],
+  );
   const client = useQueryClient();
   const moveEvent = useMutation({
     mutationFn: async ({
@@ -312,9 +407,22 @@ export function PlannerWorkspace({ username }: { username: string }) {
             : (projection.data?.groups.find(
                 (group) => group.id === item.groupId,
               )?.color ?? "#4f86c6"),
-        extendedProps: { occurrence: item },
+        classNames: item.shareGroupIds.length ? ["planner-event--shared"] : [],
+        extendedProps: {
+          occurrence: item,
+          shareColors: item.shareGroupIds
+            .map((id) => shareColorById.get(id))
+            .filter((color): color is string => Boolean(color)),
+        },
       }));
-  }, [ddlFilter, groupIds, projection.data, recurrenceFilter, showReminders]);
+  }, [
+    ddlFilter,
+    groupIds,
+    projection.data,
+    recurrenceFilter,
+    shareColorById,
+    showReminders,
+  ]);
 
   const toggleGroup = (nextId: string) => {
     const next = groupIds.includes(nextId)
@@ -332,18 +440,28 @@ export function PlannerWorkspace({ username }: { username: string }) {
     setParams(copy, { replace: true });
   };
 
+  // FullCalendar invokes datesSet while its React subtree is mounting. React
+  // Router navigation at that point is a render-phase side effect and can
+  // produce transient route resets, so persist the visible range afterwards.
+  useEffect(() => {
+    if (!pendingCalendarLocation.current) return;
+    const copy = new URLSearchParams(params);
+    copy.set("date", pendingCalendarLocation.current.date);
+    copy.set("view", pendingCalendarLocation.current.view);
+    setParams(copy, { replace: true });
+    pendingCalendarLocation.current = null;
+  }, [params, range, setParams]);
+
   return (
     <section
       className={`planner-workspace ${styles.root}`}
       aria-label="Planner 工作区"
     >
-      <div className="planner-toolbar">
-        <div>
-          <span className="workspace-eyebrow">日程工作区</span>
-          <h1 className="mt-1 text-2xl font-semibold">我的日程</h1>
-        </div>
-        <div className="flex gap-2">
+      <h1 className="sr-only">我的日程</h1>
+      <div className="planner-toolbar planner-toolbar--compact">
+        <div className="planner-toolbar__actions">
           <Button
+            aria-label="创建日程"
             onClick={() => {
               setSelected(null);
               setNewEventDraft(null);
@@ -351,7 +469,7 @@ export function PlannerWorkspace({ username }: { username: string }) {
             }}
             variant="primary"
           >
-            创建日程
+            <CalendarPlus size={16} /> 创建日程
           </Button>
           <Button
             onClick={() => {
@@ -359,125 +477,150 @@ export function PlannerWorkspace({ username }: { username: string }) {
               setReminderOpen(true);
             }}
           >
-            创建提醒
+            <BellPlus size={16} /> 创建提醒
           </Button>
-          <Button onClick={() => setGroupsOpen(true)}>管理日程组</Button>
+          <Button onClick={() => setGroupsOpen(true)}>
+            <Users size={16} /> 日程组
+          </Button>
           <Button
             aria-label="刷新当前日历窗口"
             onClick={() => projection.refetch()}
             variant="secondary"
           >
             <RefreshCw aria-hidden="true" size={16} />
-            刷新
+            <span className="planner-toolbar__optional-label">刷新</span>
           </Button>
         </div>
-      </div>
-      <div className="planner-toolbar__secondary">
-        <Popover
-          trigger={
-            <Button aria-label="打开日程筛选" variant="secondary">
-              <Filter aria-hidden="true" size={16} /> 筛选
-              {groupIds.length ? ` (${groupIds.length})` : ""}
-            </Button>
-          }
-        >
-          <div className="planner-filter-popover" aria-label="日程筛选">
-            <label>
-              <input
-                checked={showReminders}
-                onChange={(event) => {
-                  setShowReminders(event.target.checked);
-                  updateUrl({ reminders: event.target.checked ? null : "0" });
-                }}
-                type="checkbox"
-              />{" "}
-              显示提醒
-            </label>
-            <label>
-              重复
-              <select
-                aria-label="重复筛选"
-                onChange={(event) =>
-                  updateUrl({
-                    repeat:
-                      event.target.value === "all" ? null : event.target.value,
-                  })
-                }
-                value={recurrenceFilter}
-              >
-                <option value="all">全部</option>
-                <option value="recurring">仅重复</option>
-                <option value="single">仅单次</option>
-              </select>
-            </label>
-            <label>
-              DDL
-              <select
-                aria-label="DDL 筛选"
-                onChange={(event) =>
-                  updateUrl({
-                    ddl:
-                      event.target.value === "all" ? null : event.target.value,
-                  })
-                }
-                value={ddlFilter}
-              >
-                <option value="all">全部</option>
-                <option value="with">有 DDL</option>
-                <option value="without">无 DDL</option>
-              </select>
-            </label>
-            <fieldset className="group-filter-list">
-              <legend>日程组（可多选）</legend>
-              {projection.data?.groups.map((group) => (
-                <label key={group.id}>
-                  <input
-                    checked={groupIds.includes(group.id)}
-                    onChange={() => toggleGroup(group.id)}
-                    type="checkbox"
-                  />
-                  <span
-                    className="group-color-dot"
-                    style={{ background: group.color }}
-                  />
-                  {group.name}
-                  {groupIds.includes(group.id) ? (
-                    <Check aria-hidden="true" size={14} />
-                  ) : null}
-                </label>
-              ))}
-              {!projection.data?.groups.length ? (
-                <small>暂无个人日程组</small>
-              ) : null}
-            </fieldset>
-            {groupIds.length ||
-            recurrenceFilter !== "all" ||
-            ddlFilter !== "all" ||
-            !showReminders ? (
-              <Button
-                onClick={() => {
-                  setGroupIds([]);
-                  setShowReminders(true);
-                  updateUrl({
-                    groups: null,
-                    reminders: null,
-                    repeat: null,
-                    ddl: null,
-                  });
-                }}
-                variant="ghost"
-              >
-                重置筛选
+        <div className="planner-toolbar__context">
+          {activeSemester ? (
+            <button
+              className="semester-badge"
+              onClick={() => navigate("/?surface=settings&settings=calendar")}
+              type="button"
+            >
+              {activeSemester}
+            </button>
+          ) : null}
+          <Popover
+            trigger={
+              <Button aria-label="打开日程筛选" variant="secondary">
+                <Filter aria-hidden="true" size={16} /> 筛选
+                {groupIds.length ? ` (${groupIds.length})` : ""}
               </Button>
-            ) : null}
-            {shareGroupId ? <Badge>共享组投影</Badge> : null}
-          </div>
-        </Popover>
-        <Button onClick={() => setGroupsOpen(true)} variant="ghost">
-          <Users aria-hidden="true" size={16} /> 日程组
-        </Button>
+            }
+          >
+            <div className="planner-filter-popover" aria-label="日程筛选">
+              <label>
+                <input
+                  checked={showReminders}
+                  onChange={(event) => {
+                    setShowReminders(event.target.checked);
+                    updateUrl({ reminders: event.target.checked ? null : "0" });
+                  }}
+                  type="checkbox"
+                />{" "}
+                显示提醒
+              </label>
+              <label>
+                重复
+                <select
+                  aria-label="重复筛选"
+                  onChange={(event) =>
+                    updateUrl({
+                      repeat:
+                        event.target.value === "all"
+                          ? null
+                          : event.target.value,
+                    })
+                  }
+                  value={recurrenceFilter}
+                >
+                  <option value="all">全部</option>
+                  <option value="recurring">仅重复</option>
+                  <option value="single">仅单次</option>
+                </select>
+              </label>
+              <label>
+                DDL
+                <select
+                  aria-label="DDL 筛选"
+                  onChange={(event) =>
+                    updateUrl({
+                      ddl:
+                        event.target.value === "all"
+                          ? null
+                          : event.target.value,
+                    })
+                  }
+                  value={ddlFilter}
+                >
+                  <option value="all">全部</option>
+                  <option value="with">有 DDL</option>
+                  <option value="without">无 DDL</option>
+                </select>
+              </label>
+              <fieldset className="group-filter-list">
+                <legend>日程组（可多选）</legend>
+                {projection.data?.groups.map((group) => (
+                  <label key={group.id}>
+                    <input
+                      checked={groupIds.includes(group.id)}
+                      onChange={() => toggleGroup(group.id)}
+                      type="checkbox"
+                    />
+                    <span
+                      className="group-color-dot"
+                      style={{ background: group.color }}
+                    />
+                    {group.name}
+                    {groupIds.includes(group.id) ? (
+                      <Check aria-hidden="true" size={14} />
+                    ) : null}
+                  </label>
+                ))}
+                {!projection.data?.groups.length ? (
+                  <small>暂无个人日程组</small>
+                ) : null}
+              </fieldset>
+              {groupIds.length ||
+              recurrenceFilter !== "all" ||
+              ddlFilter !== "all" ||
+              !showReminders ? (
+                <Button
+                  onClick={() => {
+                    setGroupIds([]);
+                    setShowReminders(true);
+                    updateUrl({
+                      groups: null,
+                      reminders: null,
+                      repeat: null,
+                      ddl: null,
+                    });
+                  }}
+                  variant="ghost"
+                >
+                  重置筛选
+                </Button>
+              ) : null}
+              {shareGroupId ? <Badge>共享组投影</Badge> : null}
+            </div>
+          </Popover>
+        </div>
       </div>
-      <nav aria-label="日历范围" className="planner-scope-tabs">
+      <nav
+        aria-label="日历范围"
+        className="planner-scope-tabs"
+        onWheel={(event) => {
+          if (
+            !scopeTabs.current ||
+            Math.abs(event.deltaY) <= Math.abs(event.deltaX)
+          )
+            return;
+          scopeTabs.current.scrollLeft += event.deltaY;
+          event.preventDefault();
+        }}
+        ref={scopeTabs}
+      >
         <Button
           aria-pressed={!shareGroupId}
           onClick={() => updateUrl({ share: null })}
@@ -499,12 +642,20 @@ export function PlannerWorkspace({ username }: { username: string }) {
             {group.name}
           </Button>
         ))}
-        <Button onClick={() => navigate("/?surface=share")} variant="ghost">
-          管理分享组
+        <Button
+          aria-label="管理分享组"
+          onClick={() => navigate("/?surface=share")}
+          variant="ghost"
+        >
+          <Settings2 size={15} /> 管理
         </Button>
       </nav>
       <div className={styles.calendarStage}>
-        {projection.isLoading ? <Skeleton className="h-full min-h-96" /> : null}
+        {projection.isFetching ? (
+          <div aria-live="polite" className={styles.loadingOverlay}>
+            <RefreshCw className="animate-spin" size={14} /> 正在更新日程
+          </div>
+        ) : null}
         {projection.error ? (
           <ApiErrorNotice
             error={projection.error}
@@ -517,62 +668,77 @@ export function PlannerWorkspace({ username }: { username: string }) {
             onRetry={() => projection.refetch()}
           />
         ) : null}
-        {!projection.isLoading && !projection.error ? (
-          <FullCalendar
-            datesSet={(arg) => {
-              const next = isoRange(arg);
-              setRange(next);
-              updateUrl({
-                date: arg.startStr.slice(0, 10),
-                view: arg.view.type,
-              });
-            }}
-            eventClick={(arg: EventClickArg) =>
-              setSelected(
-                arg.event.extendedProps.occurrence as PlannerOccurrence,
-              )
-            }
-            eventDrop={onDragOrResize}
-            eventResize={onDragOrResize}
-            events={events}
-            firstDay={1}
-            select={(arg) => {
-              setSelected(null);
-              setNewEventDraft({
-                start: arg.start.toISOString(),
-                end: arg.end.toISOString(),
-                isAllDay: arg.allDay,
-                groupId: groupIds.length === 1 ? groupIds[0] : null,
-              });
-              setEditorOpen(true);
-            }}
-            headerToolbar={{
-              left: "prev,next today",
-              center: "title",
-              right: "dayGridMonth,timeGridWeek,timeGridTwoDay,listWeek",
-            }}
-            height="100%"
-            initialDate={date}
-            initialView={view}
-            locale="zh-cn"
-            plugins={[
-              dayGridPlugin,
-              timeGridPlugin,
-              listPlugin,
-              interactionPlugin,
-            ]}
-            selectable
-            selectMirror
-            views={{
-              timeGridTwoDay: {
-                type: "timeGrid",
-                duration: { days: 2 },
-                buttonText: "2日",
-              },
-            }}
-          />
-        ) : null}
-        {!projection.isLoading && !projection.error && events.length === 0 ? (
+        <FullCalendar
+          buttonHints={{
+            next: "下一页",
+            prev: "上一页",
+            today: "回到今天",
+          }}
+          buttonText={{
+            today: "今天",
+            month: "月",
+            week: "周",
+            day: "日",
+            list: "列表",
+          }}
+          datesSet={(arg) => {
+            const next = isoRange(arg);
+            pendingCalendarLocation.current = {
+              date: arg.startStr.slice(0, 10),
+              view: arg.view.type,
+            };
+            setRange(next);
+          }}
+          eventClick={(arg: EventClickArg) =>
+            setSelected(arg.event.extendedProps.occurrence as PlannerOccurrence)
+          }
+          eventContent={CalendarEventContent}
+          eventDrop={onDragOrResize}
+          eventResize={onDragOrResize}
+          events={events}
+          firstDay={1}
+          select={(arg) => {
+            setSelected(null);
+            setNewEventDraft({
+              start: arg.start.toISOString(),
+              end: arg.end.toISOString(),
+              isAllDay: arg.allDay,
+              groupId: groupIds.length === 1 ? groupIds[0] : null,
+            });
+            setEditorOpen(true);
+          }}
+          headerToolbar={{
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridTwoDay,listWeek",
+          }}
+          height="100%"
+          initialDate={date}
+          initialView={view}
+          locale="zh-cn"
+          plugins={[
+            dayGridPlugin,
+            timeGridPlugin,
+            listPlugin,
+            interactionPlugin,
+          ]}
+          selectable
+          selectMirror
+          views={{
+            timeGridTwoDay: {
+              type: "timeGrid",
+              duration: { days: 2 },
+              buttonText: "2日",
+            },
+          }}
+          viewDidMount={(arg) => {
+            arg.el
+              .closest(".fc")
+              ?.querySelectorAll('.fc-icon[role="img"]')
+              .forEach((icon) => icon.setAttribute("aria-hidden", "true"));
+          }}
+        />
+        {!projection.isFetching && !projection.error && events.length === 0 ? (
           <div className="empty-state">
             <CalendarDays aria-hidden="true" size={28} />
             当前查询窗口没有可见项目。
@@ -594,7 +760,7 @@ export function PlannerWorkspace({ username }: { username: string }) {
       <EventEditor
         groups={projection.data?.groups ?? []}
         initialDraft={newEventDraft}
-        key={selected?.id ?? newEventDraft?.start ?? "new-event"}
+        key={`event-editor-${selected?.id ?? newEventDraft?.start ?? "new"}`}
         item={selected}
         onClose={() => {
           setEditorOpen(false);
@@ -604,7 +770,7 @@ export function PlannerWorkspace({ username }: { username: string }) {
         open={editorOpen}
       />
       <ReminderPanel
-        key={selected?.id ?? "new-reminder"}
+        key={`reminder-editor-${selected?.id ?? "new"}`}
         item={selected?.type === "reminder" ? selected : null}
         onClose={() => {
           setReminderOpen(false);

@@ -330,7 +330,11 @@ export function AppShell({ bootstrap }: { bootstrap: FrontendBootstrap }) {
               <motion.div
                 animate={{ opacity: 1, y: 0 }}
                 aria-label="当前页面内容"
-                className="h-full overflow-auto bg-[var(--surface-canvas)] p-4 md:p-6"
+                className={
+                  isHome
+                    ? "h-full overflow-hidden bg-[var(--surface-canvas)] p-2"
+                    : "h-full overflow-auto bg-[var(--surface-canvas)] p-4 md:p-6"
+                }
                 initial={reduceMotion ? false : { opacity: 0, y: 4 }}
                 role="region"
                 transition={{ duration: reduceMotion ? 0 : 0.16 }}

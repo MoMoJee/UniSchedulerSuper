@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellRing, Check, Filter, LayoutGrid, List, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import {
@@ -28,11 +28,13 @@ type TodoItem = {
   groupId: string | null;
 };
 
+type GroupOption = { id: string; name: string; color: string };
+
 const QUADRANTS = [
   { key: "urgent", label: "重要且紧急", hint: "立即处理" },
   { key: "plan", label: "重要不紧急", hint: "安排计划" },
   { key: "delegate", label: "紧急不重要", hint: "尽快处理" },
-  { key: "later", label: "其他待办", hint: "稍后处理" },
+  { key: "later", label: "不重要不紧急", hint: "酌情处理" },
 ] as const;
 
 function mapTodo(value: Record<string, unknown>): TodoItem | null {
@@ -56,6 +58,7 @@ function mapTodo(value: Record<string, unknown>): TodoItem | null {
 }
 
 function quadrant(todo: TodoItem) {
+  if (!todo.importance || !todo.urgency) return "other";
   if (todo.importance === "high" && todo.urgency === "high") return "urgent";
   if (todo.importance === "high") return "plan";
   if (todo.urgency === "high") return "delegate";
@@ -72,10 +75,12 @@ function range(days: number) {
 
 function TodoModal({
   item,
+  groups,
   open,
   onClose,
 }: {
   item: TodoItem | null;
+  groups: GroupOption[];
   open: boolean;
   onClose: () => void;
 }) {
@@ -84,6 +89,7 @@ function TodoModal({
   const [due, setDue] = useState(item?.due?.slice(0, 16) ?? "");
   const [importance, setImportance] = useState(item?.importance ?? "");
   const [urgency, setUrgency] = useState(item?.urgency ?? "");
+  const [groupId, setGroupId] = useState(item?.groupId ?? "");
   const client = useQueryClient();
   const save = useMutation({
     mutationFn: () => {
@@ -95,6 +101,7 @@ function TodoModal({
         urgency,
         due: due ? new Date(due).toISOString() : null,
         tzid: "Asia/Shanghai",
+        group_id: groupId || null,
       };
       return item
         ? plannerApi.patchTodo(item.id, body, item.version)
@@ -168,6 +175,20 @@ function TodoModal({
             </select>
           </label>
         </div>
+        <label>
+          所属日程组
+          <select
+            value={groupId}
+            onChange={(event) => setGroupId(event.target.value)}
+          >
+            <option value="">不属于日程组</option>
+            {groups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
+          </select>
+        </label>
         {save.error ? <ApiErrorNotice error={save.error} /> : null}
         <div className="todo-modal__actions">
           <Button onClick={onClose}>取消</Button>
@@ -207,6 +228,27 @@ export function HomeSidebar({ username }: { username: string }) {
         return item ? [item] : [];
       }) ?? [],
   });
+  const groups = useQuery({
+    queryKey: [...plannerKeys.all, "home-groups", username],
+    queryFn: async ({ signal }) =>
+      ((await plannerApi.listGroups(signal)).groups ?? []).flatMap((value) =>
+        typeof value.group_id === "string" && typeof value.name === "string"
+          ? [
+              {
+                id: value.group_id,
+                name: value.name,
+                color:
+                  typeof value.color === "string" ? value.color : "#8b95a7",
+              },
+            ]
+          : [],
+      ),
+    staleTime: 30_000,
+  });
+  const groupById = useMemo(
+    () => new Map((groups.data ?? []).map((group) => [group.id, group])),
+    [groups.data],
+  );
   const reminders = useQuery({
     queryKey: [
       ...plannerKeys.all,
@@ -303,7 +345,15 @@ export function HomeSidebar({ username }: { username: string }) {
   };
 
   const TodoCard = ({ item }: { item: TodoItem }) => (
-    <li className={`home-todo-card home-todo-card--${quadrant(item)}`}>
+    <li
+      className={`home-todo-card home-todo-card--${quadrant(item)}`}
+      style={
+        {
+          "--item-group-color":
+            groupById.get(item.groupId ?? "")?.color ?? "#9aa3b2",
+        } as CSSProperties
+      }
+    >
       <button
         aria-label={
           item.status === "completed"
@@ -434,28 +484,45 @@ export function HomeSidebar({ username }: { username: string }) {
         {todos.isLoading ? (
           <p className="home-sidebar__state">正在加载待办…</p>
         ) : view === "quadrant" ? (
-          <div className="home-sidebar__quadrants">
-            {QUADRANTS.map((entry) => {
-              const items = todoItems.filter(
-                (item) => quadrant(item) === entry.key,
-              );
-              return (
-                <section key={entry.key}>
-                  <h2>
-                    {entry.label}
-                    <small>{entry.hint}</small>
-                  </h2>
-                  <ul>
-                    {items.map((item) => (
-                      <TodoCard item={item} key={item.id} />
-                    ))}
-                    {!items.length ? (
-                      <li className="home-sidebar__empty">暂无待办</li>
-                    ) : null}
-                  </ul>
-                </section>
-              );
-            })}
+          <div className="home-sidebar__todo-board">
+            <div className="home-sidebar__quadrants">
+              {QUADRANTS.map((entry) => {
+                const items = todoItems.filter(
+                  (item) => quadrant(item) === entry.key,
+                );
+                return (
+                  <section key={entry.key}>
+                    <h2>
+                      {entry.label}
+                      <small>{entry.hint}</small>
+                    </h2>
+                    <ul>
+                      {items.map((item) => (
+                        <TodoCard item={item} key={item.id} />
+                      ))}
+                      {!items.length ? (
+                        <li className="home-sidebar__empty">暂无待办</li>
+                      ) : null}
+                    </ul>
+                  </section>
+                );
+              })}
+            </div>
+            <section className="home-sidebar__other">
+              <h2>
+                其他 <small>尚未分类</small>
+              </h2>
+              <ul>
+                {todoItems
+                  .filter((item) => quadrant(item) === "other")
+                  .map((item) => (
+                    <TodoCard item={item} key={item.id} />
+                  ))}
+                {!todoItems.some((item) => quadrant(item) === "other") ? (
+                  <li className="home-sidebar__empty">暂无待办</li>
+                ) : null}
+              </ul>
+            </section>
           </div>
         ) : (
           <ul className="home-sidebar__todo-list">
@@ -521,6 +588,12 @@ export function HomeSidebar({ username }: { username: string }) {
               <li key={item.id}>
                 <button
                   className="home-reminder-card"
+                  style={
+                    {
+                      "--item-group-color":
+                        groupById.get(item.groupId ?? "")?.color ?? "#9aa3b2",
+                    } as CSSProperties
+                  }
                   onClick={() => setReminderModal(item)}
                   type="button"
                 >
@@ -575,6 +648,7 @@ export function HomeSidebar({ username }: { username: string }) {
         )}
       </section>
       <TodoModal
+        groups={groups.data ?? []}
         item={effectiveTodoModal === "new" ? null : effectiveTodoModal}
         key={
           effectiveTodoModal === "new"

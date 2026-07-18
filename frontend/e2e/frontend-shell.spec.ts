@@ -78,6 +78,21 @@ test("FR-3/FR-4 calendar uses V2 projections without a legacy Planner manager", 
   await expect(page.locator('script[src*="planner-v2-client"]')).toHaveCount(0);
 });
 
+test("calendar keeps the same frame mounted while its visible range reloads", async ({
+  page,
+}) => {
+  await page.goto("/?date=2026-07-14");
+  const calendar = page.locator(".fc").first();
+  await expect(calendar).toBeVisible();
+  await calendar.evaluate((element) => {
+    element.setAttribute("data-mount-probe", "stable");
+  });
+
+  await page.getByRole("button", { name: "下一页" }).click();
+
+  await expect(page.locator('.fc[data-mount-probe="stable"]')).toBeVisible();
+});
+
 test("FR-4A Event creation submits only the V2 endpoint", async ({ page }) => {
   let body: Record<string, unknown> | null = null;
   await page.route("**/api/v2/events/", async (route) => {
@@ -106,7 +121,6 @@ test("FR-4A repeated Event edits send occurrence_ref, version and scope", async 
     await route.fulfill({ json: { event_id: "event-1", version: 4 } });
   });
   await page.goto("/?date=2026-07-14");
-  await page.getByRole("button", { name: "Next month" }).click();
   await page.getByText("无限重复测试").first().click();
   await page.getByRole("button", { name: "编辑日程" }).click();
   await page.getByLabel("标题").fill("范围编辑");

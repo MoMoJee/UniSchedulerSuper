@@ -148,3 +148,97 @@ test("settings, search and files obey their surface container at 390px", async (
     ).toBe(true);
   }
 });
+
+test("desktop home panes align, todo board scrolls, and week titles wrap", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.route("**/api/v2/todos/**", (route) =>
+    route.fulfill({
+      json: {
+        todos: Array.from({ length: 14 }, (_, index) => ({
+          todo_id: `overflow-todo-${index}`,
+          title: `用于验证待办滚动的较长标题 ${index + 1}`,
+          description: "待办内容应留在自己的滚动区域内",
+          status: "pending",
+          version: 1,
+          importance: "",
+          urgency: "",
+        })),
+      },
+    }),
+  );
+  await page.route("**/api/v2/events/occurrences/**", (route) =>
+    route.fulfill({
+      json: {
+        occurrences: [
+          {
+            id: "wrapping-event",
+            entity_type: "event",
+            title: "这是一条需要在周视图中换行展示的长日程标题",
+            start: "2026-07-14T09:00:00+08:00",
+            end: "2026-07-14T11:00:00+08:00",
+            occurrence_ref: {
+              entity_id: "wrapping-event",
+              source_version: 1,
+            },
+          },
+        ],
+      },
+    }),
+  );
+
+  await page.goto("/?date=2026-07-14&view=timeGridWeek");
+  await expect(
+    page.getByRole("region", { name: "Planner 工作区" }),
+  ).toBeVisible();
+  const paneEdges = () =>
+    page
+      .locator(".home-sidebar, .planner-workspace, .agent-workspace")
+      .evaluateAll((items) =>
+        items.map((item) => {
+          const rect = item.getBoundingClientRect();
+          return { top: rect.top, bottom: rect.bottom };
+        }),
+      );
+  await expect
+    .poll(async () => {
+      const panes = await paneEdges();
+      return (
+        Math.max(...panes.map((item) => item.top)) -
+        Math.min(...panes.map((item) => item.top))
+      );
+    })
+    .toBeLessThanOrEqual(0.5);
+  const panes = await paneEdges();
+  expect(
+    Math.max(...panes.map((item) => item.bottom)) -
+      Math.min(...panes.map((item) => item.bottom)),
+  ).toBeLessThanOrEqual(0.5);
+
+  const board = page.locator(".home-sidebar__todo-board");
+  await expect(board).toBeVisible();
+  const scrollRange = await board.evaluate(
+    (item) => item.scrollHeight - item.clientHeight,
+  );
+  expect(scrollRange).toBeGreaterThan(0);
+  await board.hover();
+  await page.mouse.wheel(0, 420);
+  await expect
+    .poll(() => board.evaluate((item) => item.scrollTop))
+    .toBeGreaterThan(0);
+
+  const title = page
+    .locator(".fc-timegrid-event .planner-event-title")
+    .filter({ hasText: "这是一条需要在周视图中换行展示的长日程标题" });
+  await expect(title).toHaveCount(1);
+  const titleStyle = await title.evaluate((item) => ({
+    height: item.getBoundingClientRect().height,
+    lineHeight: Number.parseFloat(getComputedStyle(item).lineHeight),
+    textOverflow: getComputedStyle(item).textOverflow,
+    whiteSpace: getComputedStyle(item).whiteSpace,
+  }));
+  expect(titleStyle.whiteSpace).toBe("normal");
+  expect(titleStyle.textOverflow).toBe("clip");
+  expect(titleStyle.height).toBeGreaterThan(titleStyle.lineHeight);
+});

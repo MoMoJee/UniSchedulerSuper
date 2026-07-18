@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { filesApi, mapFileRecord, type FileRecord } from "../../api/files";
 import { Button } from "../../components/ui/button";
-import { Sheet } from "../../components/ui/sheet";
+import { CenteredModal } from "../../components/ui/centered-modal";
 
 export function FilePicker({
   trigger,
@@ -70,7 +70,13 @@ export function FilePicker({
   return (
     <>
       <span onClick={openPicker}>{trigger}</span>
-      <Sheet open={open} onOpenChange={setOpen} title="选择云盘文件">
+      <CenteredModal
+        open={open}
+        onOpenChange={setOpen}
+        title="选择我的文件"
+        description="从文件管理中选择已经上传的内容。"
+        size="md"
+      >
         <label className="agent-picker-search">
           <Search aria-hidden="true" size={16} />
           <input
@@ -126,7 +132,7 @@ export function FilePicker({
         <Button onClick={() => void confirm()} variant="primary">
           选择文件
         </Button>
-      </Sheet>
+      </CenteredModal>
     </>
   );
 }

@@ -346,7 +346,7 @@ test("FR-5 preserves all Agent session, tool-selection, cloud and local attachme
     .toContain("active_tools=search_items");
 
   await page.getByRole("button", { name: "添加附件" }).click();
-  await page.getByRole("button", { name: "云盘文件" }).click();
+  await page.getByRole("button", { name: "我的文件" }).click();
   await page.getByRole("button", { name: "打开云盘文件选择器" }).click();
   await page.getByLabel("搜索云盘文件").waitFor();
   await page.getByText("资料.md").click();

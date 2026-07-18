@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useUiStore, type ThemePreference } from "../../stores/ui-store";
+import { useSearchParams } from "react-router-dom";
 
 import { settingsApi, type UserPreferences } from "../../api/settings";
 import { Button } from "../../components/ui/button";
@@ -163,15 +164,18 @@ export function SettingsWorkspace({
   onRequestClose,
 }: { embedded?: boolean; onRequestClose?: () => void } = {}) {
   const setUiTheme = useUiStore((state) => state.setTheme);
+  const setGoldTheme = useUiStore((state) => state.setGoldTheme);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<
     "basic" | "calendar" | "display" | "reminders" | "ai" | "mine"
-  >("basic");
+  >(() => (searchParams.get("settings") === "calendar" ? "calendar" : "basic"));
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [agent, setAgent] = useState<Record<string, unknown> | null>(null);
   const [skills, setSkills] = useState<Array<Record<string, unknown>>>([]);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const openingTheme = useRef(useUiStore.getState().theme);
+  const openingGoldTheme = useRef(useUiStore.getState().goldTheme);
   useEffect(() => {
     void Promise.all([
       settingsApi.getPreferences(),
@@ -180,13 +184,14 @@ export function SettingsWorkspace({
     ])
       .then(([prefs, config, loadedSkills]) => {
         setPreferences(prefs);
+        setGoldTheme(prefs.use_gold_theme === true);
         setAgent(object(config));
         setSkills(loadedSkills.items.map(object));
       })
       .catch((error: unknown) =>
         setMessage(error instanceof Error ? error.message : "无法加载设置。"),
       );
-  }, []);
+  }, [setGoldTheme]);
   const save = async () => {
     if (!preferences) return;
     setSaving(true);
@@ -197,6 +202,7 @@ export function SettingsWorkspace({
           ? preferences.theme
           : "light") as ThemePreference,
       );
+      setGoldTheme(preferences.use_gold_theme === true);
       setMessage("设置已保存。");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "保存失败。");
@@ -291,6 +297,22 @@ export function SettingsWorkspace({
                 <label className="settings-check">
                   <input disabled type="checkbox" /> 云端多设备同步（即将推出）
                 </label>
+                <div className="settings-action-row">
+                  <span>
+                    <strong>分享组</strong>
+                    <small>管理协作日历、成员和分享颜色</small>
+                  </span>
+                  <Button
+                    onClick={() => {
+                      const next = new URLSearchParams(searchParams);
+                      next.set("surface", "share");
+                      next.delete("settings");
+                      setSearchParams(next, { replace: true });
+                    }}
+                  >
+                    管理分享组
+                  </Button>
+                </div>
               </>
             ) : null}
             {activeTab === "display" ? (
@@ -329,12 +351,14 @@ export function SettingsWorkspace({
                 <label className="settings-check">
                   <input
                     checked={preferences.use_gold_theme === true}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      const enabled = event.target.checked;
                       setPreferences({
                         ...preferences,
-                        use_gold_theme: event.target.checked,
-                      })
-                    }
+                        use_gold_theme: enabled,
+                      });
+                      setGoldTheme(enabled);
+                    }}
                     type="checkbox"
                   />{" "}
                   启用金色主题装饰
@@ -396,6 +420,150 @@ export function SettingsWorkspace({
                   />
                   显示周数
                 </label>
+                <div className="semester-settings">
+                  <div className="settings-action-row">
+                    <span>
+                      <strong>学期与周次</strong>
+                      <small>日历会采用距离当前日期最近的起始日计算周次</small>
+                    </span>
+                    <Button
+                      onClick={() =>
+                        setPreferences({
+                          ...preferences,
+                          week_number_periods: [
+                            ...(preferences.week_number_periods ?? []),
+                            {
+                              name: "新学期",
+                              year: new Date().getFullYear(),
+                              month: 2,
+                              day: 24,
+                            },
+                          ],
+                        })
+                      }
+                    >
+                      添加学期
+                    </Button>
+                  </div>
+                  {(preferences.week_number_periods ?? []).length ? (
+                    <div
+                      className="semester-period semester-period--header"
+                      aria-hidden="true"
+                    >
+                      <span>学期名称</span>
+                      <span>年份</span>
+                      <span>月份</span>
+                      <span>日期</span>
+                      <span />
+                    </div>
+                  ) : null}
+                  {(preferences.week_number_periods ?? []).map(
+                    (period, index) => (
+                      <div
+                        className="semester-period"
+                        key={`${period.name}-${index}`}
+                      >
+                        <input
+                          aria-label={`第 ${index + 1} 个学期名称`}
+                          onChange={(event) => {
+                            const periods = [
+                              ...(preferences.week_number_periods ?? []),
+                            ];
+                            periods[index] = {
+                              ...period,
+                              name: event.target.value,
+                            };
+                            setPreferences({
+                              ...preferences,
+                              week_number_periods: periods,
+                            });
+                          }}
+                          placeholder="学期名称"
+                          value={period.name}
+                        />
+                        <input
+                          aria-label={`${period.name} 年份`}
+                          min="2000"
+                          max="2100"
+                          onChange={(event) => {
+                            const periods = [
+                              ...(preferences.week_number_periods ?? []),
+                            ];
+                            periods[index] = {
+                              ...period,
+                              year: Number(event.target.value),
+                            };
+                            setPreferences({
+                              ...preferences,
+                              week_number_periods: periods,
+                            });
+                          }}
+                          type="number"
+                          value={period.year ?? new Date().getFullYear()}
+                        />
+                        <input
+                          aria-label={`${period.name} 月份`}
+                          min="1"
+                          max="12"
+                          onChange={(event) => {
+                            const periods = [
+                              ...(preferences.week_number_periods ?? []),
+                            ];
+                            periods[index] = {
+                              ...period,
+                              month: Number(event.target.value),
+                            };
+                            setPreferences({
+                              ...preferences,
+                              week_number_periods: periods,
+                            });
+                          }}
+                          type="number"
+                          value={period.month}
+                        />
+                        <input
+                          aria-label={`${period.name} 日期`}
+                          min="1"
+                          max="31"
+                          onChange={(event) => {
+                            const periods = [
+                              ...(preferences.week_number_periods ?? []),
+                            ];
+                            periods[index] = {
+                              ...period,
+                              day: Number(event.target.value),
+                            };
+                            setPreferences({
+                              ...preferences,
+                              week_number_periods: periods,
+                            });
+                          }}
+                          type="number"
+                          value={period.day}
+                        />
+                        <Button
+                          aria-label={`删除 ${period.name}`}
+                          onClick={() =>
+                            setPreferences({
+                              ...preferences,
+                              week_number_periods: (
+                                preferences.week_number_periods ?? []
+                              ).filter((_, itemIndex) => itemIndex !== index),
+                            })
+                          }
+                          variant="ghost"
+                        >
+                          删除
+                        </Button>
+                      </div>
+                    ),
+                  )}
+                  {!(preferences.week_number_periods ?? []).length ? (
+                    <p className="settings-empty-note">
+                      尚未设置学期，日历不会显示当前周次。
+                    </p>
+                  ) : null}
+                </div>
               </>
             ) : null}
             {activeTab === "reminders" ? (
@@ -605,6 +773,7 @@ export function SettingsWorkspace({
           <Button
             onClick={() => {
               setUiTheme(openingTheme.current);
+              setGoldTheme(openingGoldTheme.current);
               onRequestClose?.();
             }}
           >

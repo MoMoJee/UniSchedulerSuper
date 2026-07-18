@@ -79,7 +79,8 @@ class PlannerV2ApiTests(TestCase):
         self.assertEqual(embedded['web_calendar']['mode'], 'normalized')
         bootstrap = self.client.get('/api/v2/planner/bootstrap/').json()['entrypoints']
         self.assertEqual(embedded, bootstrap)
-        self.assertContains(response, 'id="planner-entrypoints-data"')
+        self.assertContains(response, 'id="frontend-bootstrap"')
+        self.assertContains(response, '"mode": "react"')
         self.assertEqual(UserData.objects.get(user=self.user, key='events').value, '[]')
         self.assertFalse(
             UserData.objects.filter(
@@ -683,6 +684,9 @@ class PlannerV2ApiTests(TestCase):
         self.assertEqual(created.status_code, 201, created.content)
         event_id = created.json()['event']['event_id']
         self.assertTrue(EventShareGroup.objects.filter(event__event_id=event_id, share_group=group).exists())
+        personal = self.client.get('/api/v2/events/occurrences/?from=2026-03-01&to=2026-03-04')
+        self.assertEqual(personal.status_code, 200, personal.content)
+        self.assertEqual(personal.json()['occurrences'][0]['share_group_ids'], ['owned-group'])
         shared = self.client.get('/api/v2/share-groups/owned-group/occurrences/?from=2026-03-01&to=2026-03-04')
         self.assertEqual(shared.status_code, 200, shared.content)
         self.assertEqual(shared.json()['count'], 2)

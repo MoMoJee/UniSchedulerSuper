@@ -165,9 +165,21 @@ class PlannerApplicationService:
     def list_event_occurrences(cls, context: PlannerExecutionContext, *, range_start: datetime, range_end: datetime) -> dict[str, Any]:
         cls.require_access(context)
         items = PlannerRepository.list_event_occurrences(context.user, range_start=range_start, range_end=range_end)
+        share_ids_by_event: dict[str, list[str]] = {}
+        for event_id, share_group_id in EventShareGroup.objects.filter(
+            event__user=context.user,
+            event__event_id__in={item.ref.entity_id for item in items},
+            event__deleted_at__isnull=True,
+        ).values_list("event__event_id", "share_group__share_group_id"):
+            share_ids_by_event.setdefault(event_id, []).append(share_group_id)
+        occurrences = []
+        for item in items:
+            serialized = serialize_occurrence(item)
+            serialized["share_group_ids"] = share_ids_by_event.get(item.ref.entity_id, [])
+            occurrences.append(serialized)
         return {
             "range": {"from": range_start.isoformat(), "to": range_end.isoformat()},
-            "occurrences": [serialize_occurrence(item) for item in items],
+            "occurrences": occurrences,
             "count": len(items),
         }
 

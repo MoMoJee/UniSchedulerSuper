@@ -587,34 +587,31 @@ export function AgentWorkspace({
             ))}
           </section>
         ) : null}
-        <details className="agent-session-utility">
-          <summary>会话上下文与任务</summary>
-          {contextUsage ? (
-            <p>
-              上下文 {contextUsage.total.toLocaleString()} /{" "}
-              {contextUsage.target.toLocaleString()} tokens，剩余{" "}
-              {contextUsage.remaining.toLocaleString()}；
-              {contextUsage.hasSummary ? "已生成摘要" : "尚无摘要"}
-            </p>
-          ) : (
-            <p>上下文用量暂不可用。</p>
-          )}
-          <ul>
-            {sessionTodos.map((todo) => (
-              <li key={todo.id}>
-                {todo.title} · {todo.status}
-              </li>
-            ))}
-            {!sessionTodos.length ? <li>当前会话没有 Agent 任务。</li> : null}
-          </ul>
-          <Button
-            disabled={busy || state.isProcessing || !activeSessionId}
-            onClick={() => void optimizeMemory()}
-            variant="secondary"
-          >
-            优化当前会话记忆
-          </Button>
-        </details>
+        {contextUsage || sessionTodos.length ? (
+          <div className="agent-insight-bar">
+            <span
+              title={
+                contextUsage
+                  ? `已使用 ${contextUsage.total.toLocaleString()}，剩余 ${contextUsage.remaining.toLocaleString()} tokens`
+                  : undefined
+              }
+            >
+              {contextUsage
+                ? `上下文 ${Math.min(100, Math.round((contextUsage.total / Math.max(1, contextUsage.target)) * 100))}%`
+                : "上下文"}
+            </span>
+            {sessionTodos.length ? (
+              <span>{sessionTodos.length} 个进行中任务</span>
+            ) : null}
+            <button
+              disabled={busy || state.isProcessing || !activeSessionId}
+              onClick={() => void optimizeMemory()}
+              type="button"
+            >
+              整理记忆
+            </button>
+          </div>
+        ) : null}
         <section aria-live="polite" className="agent-messages">
           {state.messages.length ? (
             state.messages.map((message) => (
@@ -668,9 +665,25 @@ export function AgentWorkspace({
               </article>
             ))
           ) : (
-            <p className="agent-empty">
-              选择或新建会话后，即可让 Agent 协助管理日程。
-            </p>
+            <div className="agent-empty">
+              <strong>今天想安排什么？</strong>
+              <p>可以直接描述目标，也可以先从一个常见操作开始。</p>
+              <div>
+                {[
+                  "帮我看看今天的安排",
+                  "找出本周的空闲时间",
+                  "整理未完成的待办",
+                ].map((prompt) => (
+                  <button
+                    key={prompt}
+                    onClick={() => setDraft(prompt)}
+                    type="button"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
           {state.statusMessage ? (
             <p className="agent-status">
