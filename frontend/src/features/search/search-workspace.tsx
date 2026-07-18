@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { plannerApi } from "../../api/planner";
 import { apiClient } from "../../api/http";
 import { Button } from "../../components/ui/button";
+import styles from "./search-workspace.module.css";
 
 const DAY = 86_400_000;
 function range(days: number): { from: string; to: string } {
@@ -136,7 +137,8 @@ export function SearchWorkspace({
     <section
       aria-label={embedded ? "全局搜索" : undefined}
       aria-labelledby={embedded ? undefined : "search-title"}
-      className="search-workspace"
+      className={`search-workspace ${styles.root}`}
+      data-ui="search-workspace"
     >
       {!embedded ? (
         <>

@@ -200,3 +200,18 @@ Home 固定壳（20 / 50 / 30）
 | R5 | 设置改为六 tab 中央 modal，主题即时预览、取消恢复快照；旧 `/todos|share|search|files|settings` 只做 compatibility redirect。 | 13 主题选项可用；实测 light → china-red → 取消恢复 light；五个旧深链接均回到 Home/正确 surface，无白屏。 |
 
 完整命令、测试数字、浏览器矩阵和已知非阻断项记录于 `docs/ChangeLogs/20260715-1.md`。
+
+## 8. 布局契约加固（2026-07-17）
+
+R0–R5 完成后，分享组管理在特定窗口宽度暴露出“内容逐字竖排”的系统性缺陷。根因不是 React，而是中央弹窗、业务卡片和全局 CSS 之间没有明确的收缩契约：卡片使用 `auto / 1fr / auto`，操作区先占据固有宽度，内容列可被压缩到单字宽度；同时多个业务 surface 依赖同一份全局选择器，后加载规则可能覆盖先前响应式规则。
+
+本次补充以下强制约束：
+
+1. `CenteredModal`、分享组、设置、文件、搜索和 Planner 各自使用 CSS Module，避免跨模块选择器碰撞。
+2. 所有可收缩内容轨道使用 `minmax(0, 1fr)`，结构容器及其关键子项显式 `min-width: 0`；操作区不得与正文竞争同一行的剩余宽度。
+3. 分享组卡片改为命名网格区域：色点和正文位于首行，操作区独占整行；窄卡片由 container query 切换为 2 列或 1 列按钮。
+4. 页面根边界统一处理长文本、表单和媒体最大宽度；Planner 的 FullCalendar 工具栏在窄容器中堆叠并允许按钮换行。
+5. 新增 `layout-contracts.spec.ts`，在 1440、760、390 三档视口断言正文可读宽度、操作区宽度及页面/卡片无横向溢出，并覆盖设置、搜索和文件 surface。
+6. 开发环境的 Daphne ASGI 入口在 `DEBUG` 下使用 `ASGIStaticFilesHandler`，使 React 静态资源和 `/ws/agent/` 可由同一开发服务器验收；生产 `DEBUG=False` 时仍由 nginx 提供静态资源。
+
+详细结果见 `docs/前端重构验收报告/FR-UI-布局契约修复验收报告.md`。

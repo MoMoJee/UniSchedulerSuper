@@ -14,6 +14,15 @@ export function createAppRouter(bootstrap: FrontendBootstrap) {
     [
       {
         element: <AppShell bootstrap={bootstrap} />,
+        hydrateFallbackElement: (
+          <main
+            aria-busy="true"
+            aria-live="polite"
+            className="route-hydrate-fallback"
+          >
+            正在加载工作台…
+          </main>
+        ),
         children: [
           {
             index: true,

@@ -25,6 +25,8 @@ import { CenteredModal } from "../../components/ui/centered-modal";
 import { ConfirmDialog, TextInputDialog } from "../../components/ui/dialog";
 import { DropdownMenu, DropdownMenuItem } from "../../components/ui/overlays";
 import { Sheet } from "../../components/ui/sheet";
+import { cn } from "../../lib/cn";
+import styles from "./files-workspace.module.css";
 
 function formatSize(value: number): string {
   return value < 1024
@@ -269,7 +271,12 @@ export function FilesWorkspace({
   return (
     <section
       aria-labelledby="files-title"
-      className={`files-workspace${embedded ? " files-workspace--embedded" : ""}`}
+      className={cn(
+        "files-workspace",
+        styles.root,
+        embedded && styles.embedded,
+      )}
+      data-ui="files-workspace"
     >
       <header>
         <div>

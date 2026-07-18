@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { readFrontendBootstrap } from "./bootstrap";
 import "./styles/index.css";
+import "./styles/visual-polish.css";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {

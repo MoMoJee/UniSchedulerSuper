@@ -39,6 +39,7 @@ import {
   useWorkbenchSurfaceStore,
   type WorkbenchSurface,
 } from "./workbench-surface-store";
+import styles from "./app-shell.module.css";
 
 const GlobalSearchWorkspace = lazy(async () => ({
   default: (await import("../features/search/search-workspace"))
@@ -148,7 +149,7 @@ export function AppShell({ bootstrap }: { bootstrap: FrontendBootstrap }) {
   };
 
   return (
-    <div className="app-shell">
+    <div className={cn("app-shell", styles.boundary)}>
       <header className="app-header">
         <div className="flex items-center gap-2">
           <Tooltip content="打开导航">

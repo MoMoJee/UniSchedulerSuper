@@ -28,6 +28,7 @@ import { useCalendarProjection } from "./hooks";
 import { EventEditor, type NewEventDraft } from "./event-editor";
 import { GroupManager } from "./group-manager";
 import { ReminderPanel } from "./reminder-panel";
+import styles from "./planner-workspace.module.css";
 
 function ReminderActions({ item }: { item: PlannerOccurrence }) {
   const client = useQueryClient();
@@ -292,7 +293,13 @@ export function PlannerWorkspace({ username }: { username: string }) {
             : true,
       )
       .map((item) => ({
-        id: item.id,
+        // A recurring definition may project many occurrences with the same
+        // entity id. FullCalendar requires a unique render id per instance.
+        id: [
+          item.type,
+          item.id,
+          item.occurrenceRef?.recurrenceId ?? item.start,
+        ].join(":"),
         title: `${item.type === "reminder" ? "提醒：" : ""}${item.title}`,
         start: item.start,
         end: item.end ?? undefined,
@@ -326,7 +333,10 @@ export function PlannerWorkspace({ username }: { username: string }) {
   };
 
   return (
-    <section className="planner-workspace" aria-label="Planner 工作区">
+    <section
+      className={`planner-workspace ${styles.root}`}
+      aria-label="Planner 工作区"
+    >
       <div className="planner-toolbar">
         <div>
           <span className="workspace-eyebrow">日程工作区</span>
@@ -493,75 +503,82 @@ export function PlannerWorkspace({ username }: { username: string }) {
           管理分享组
         </Button>
       </nav>
-      {projection.isLoading ? <Skeleton className="h-[36rem]" /> : null}
-      {projection.error ? (
-        <ApiErrorNotice
-          error={projection.error}
-          onRetry={() => projection.refetch()}
-        />
-      ) : null}
-      {moveEvent.error ? (
-        <ApiErrorNotice
-          error={moveEvent.error}
-          onRetry={() => projection.refetch()}
-        />
-      ) : null}
-      {!projection.isLoading && !projection.error ? (
-        <FullCalendar
-          datesSet={(arg) => {
-            const next = isoRange(arg);
-            setRange(next);
-            updateUrl({ date: arg.startStr.slice(0, 10), view: arg.view.type });
-          }}
-          eventClick={(arg: EventClickArg) =>
-            setSelected(arg.event.extendedProps.occurrence as PlannerOccurrence)
-          }
-          eventDrop={onDragOrResize}
-          eventResize={onDragOrResize}
-          events={events}
-          firstDay={1}
-          select={(arg) => {
-            setSelected(null);
-            setNewEventDraft({
-              start: arg.start.toISOString(),
-              end: arg.end.toISOString(),
-              isAllDay: arg.allDay,
-              groupId: groupIds.length === 1 ? groupIds[0] : null,
-            });
-            setEditorOpen(true);
-          }}
-          headerToolbar={{
-            left: "prev,next today",
-            center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridTwoDay,listWeek",
-          }}
-          height="100%"
-          initialDate={date}
-          initialView={view}
-          locale="zh-cn"
-          plugins={[
-            dayGridPlugin,
-            timeGridPlugin,
-            listPlugin,
-            interactionPlugin,
-          ]}
-          selectable
-          selectMirror
-          views={{
-            timeGridTwoDay: {
-              type: "timeGrid",
-              duration: { days: 2 },
-              buttonText: "2日",
-            },
-          }}
-        />
-      ) : null}
-      {!projection.isLoading && !projection.error && events.length === 0 ? (
-        <div className="empty-state">
-          <CalendarDays aria-hidden="true" size={28} />
-          当前查询窗口没有可见项目。
-        </div>
-      ) : null}
+      <div className={styles.calendarStage}>
+        {projection.isLoading ? <Skeleton className="h-full min-h-96" /> : null}
+        {projection.error ? (
+          <ApiErrorNotice
+            error={projection.error}
+            onRetry={() => projection.refetch()}
+          />
+        ) : null}
+        {moveEvent.error ? (
+          <ApiErrorNotice
+            error={moveEvent.error}
+            onRetry={() => projection.refetch()}
+          />
+        ) : null}
+        {!projection.isLoading && !projection.error ? (
+          <FullCalendar
+            datesSet={(arg) => {
+              const next = isoRange(arg);
+              setRange(next);
+              updateUrl({
+                date: arg.startStr.slice(0, 10),
+                view: arg.view.type,
+              });
+            }}
+            eventClick={(arg: EventClickArg) =>
+              setSelected(
+                arg.event.extendedProps.occurrence as PlannerOccurrence,
+              )
+            }
+            eventDrop={onDragOrResize}
+            eventResize={onDragOrResize}
+            events={events}
+            firstDay={1}
+            select={(arg) => {
+              setSelected(null);
+              setNewEventDraft({
+                start: arg.start.toISOString(),
+                end: arg.end.toISOString(),
+                isAllDay: arg.allDay,
+                groupId: groupIds.length === 1 ? groupIds[0] : null,
+              });
+              setEditorOpen(true);
+            }}
+            headerToolbar={{
+              left: "prev,next today",
+              center: "title",
+              right: "dayGridMonth,timeGridWeek,timeGridTwoDay,listWeek",
+            }}
+            height="100%"
+            initialDate={date}
+            initialView={view}
+            locale="zh-cn"
+            plugins={[
+              dayGridPlugin,
+              timeGridPlugin,
+              listPlugin,
+              interactionPlugin,
+            ]}
+            selectable
+            selectMirror
+            views={{
+              timeGridTwoDay: {
+                type: "timeGrid",
+                duration: { days: 2 },
+                buttonText: "2日",
+              },
+            }}
+          />
+        ) : null}
+        {!projection.isLoading && !projection.error && events.length === 0 ? (
+          <div className="empty-state">
+            <CalendarDays aria-hidden="true" size={28} />
+            当前查询窗口没有可见项目。
+          </div>
+        ) : null}
+      </div>
       <DetailSheet
         item={effectiveSelected}
         onClose={() => {

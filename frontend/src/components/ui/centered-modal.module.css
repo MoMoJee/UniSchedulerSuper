@@ -1,0 +1,150 @@
+.overlay {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  background: rgb(19 28 45 / 34%);
+  backdrop-filter: blur(7px) saturate(90%);
+  animation: fade-in 140ms ease-out;
+}
+
+.content {
+  position: fixed;
+  z-index: 81;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: min(calc(100vw - 2rem), var(--modal-width, 42rem));
+  min-width: 0;
+  max-height: min(88dvh, 52rem);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, white);
+  border-radius: 1.25rem;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  color: var(--text);
+  box-shadow:
+    var(--shadow-lg),
+    inset 0 1px rgb(255 255 255 / 65%);
+  backdrop-filter: blur(26px) saturate(145%);
+  animation: rise-in 160ms ease-out;
+  container: modal / inline-size;
+}
+
+.sm {
+  --modal-width: 30rem;
+}
+.md {
+  --modal-width: 42rem;
+}
+.lg {
+  --modal-width: 54rem;
+}
+.xl {
+  --modal-width: 72rem;
+}
+
+.header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+  background:
+    radial-gradient(
+      circle at 12% 0,
+      color-mix(in srgb, var(--accent) 14%, transparent),
+      transparent 18rem
+    ),
+    color-mix(in srgb, var(--surface) 78%, transparent);
+  padding: 0.95rem 1.1rem;
+}
+
+.header > div {
+  min-width: 0;
+}
+.header h2 {
+  margin: 0;
+  overflow-wrap: break-word;
+  font-size: 1.08rem;
+  font-weight: 720;
+  letter-spacing: -0.025em;
+}
+.header p {
+  margin: 0.18rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  overflow-wrap: break-word;
+}
+
+.close {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface-muted) 82%, transparent);
+  color: var(--text);
+  cursor: pointer;
+}
+.close:hover {
+  background: var(--surface-hover);
+  transform: scale(1.04);
+}
+
+.body {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 1rem 1.1rem;
+  overscroll-behavior: contain;
+}
+
+.footer {
+  min-width: 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  padding: 0.72rem 1.1rem;
+  backdrop-filter: blur(18px);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.975);
+    filter: blur(5px);
+  }
+}
+
+@media (max-width: 760px) {
+  .content {
+    width: calc(100vw - 1rem);
+    max-height: 94dvh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content,
+  .overlay {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .overlay {
+    backdrop-filter: none;
+  }
+  .content,
+  .footer {
+    background: var(--surface);
+    backdrop-filter: none;
+  }
+}

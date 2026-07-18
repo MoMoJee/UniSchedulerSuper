@@ -22,7 +22,7 @@ export function FullscreenSurface({
       role="dialog"
       aria-modal="true"
     >
-      <header className="fullscreen-surface__header">
+      <div className="fullscreen-surface__header">
         <Button onClick={onClose} variant="ghost">
           <ArrowLeft aria-hidden="true" size={18} /> 返回工作台
         </Button>
@@ -30,7 +30,7 @@ export function FullscreenSurface({
         <Button aria-label="关闭" onClick={onClose} variant="ghost">
           <X aria-hidden="true" size={18} />
         </Button>
-      </header>
+      </div>
       <div className="fullscreen-surface__body">{children}</div>
     </section>
   );

@@ -127,10 +127,11 @@ test("FR-6 search is debounced and V2-only; settings persist by its non-Planner 
   });
   await page.goto("/static/react/search");
   await page.getByLabel("搜索关键词").fill("搜索");
-  await expect(page.getByText("搜索日程")).toBeVisible();
+  await expect(page.getByRole("option", { name: /搜索日程/ })).toBeVisible();
   expect(searchUrl).toContain("/api/v2/search/");
   await page.goto("/static/react/settings");
-  await page.getByLabel("主题").selectOption("dark");
+  await page.getByRole("button", { name: "显示偏好" }).click();
+  await page.getByLabel("主题", { exact: true }).selectOption("dark");
   await page.getByRole("button", { name: "保存设置" }).click();
   await expect.poll(() => saved).toBe(true);
 });
@@ -190,8 +191,10 @@ test("FR-6 search keyboard navigation, Agent optimization and course import stay
   await expect(search).toHaveValue("");
 
   await page.goto("/static/react/settings");
+  await page.getByRole("button", { name: "AI 设置" }).click();
   await page.getByRole("button", { name: "保存优化配置" }).click();
   await expect.poll(() => optimizationSaved).toBe(true);
+  await page.getByRole("button", { name: "我的" }).click();
   await page.getByLabel("教务系统 Cookie").fill("JSESSIONID=test-only");
   await page.getByRole("button", { name: "解析课表" }).click();
   await expect(page.getByText("软件工程")).toBeVisible();
@@ -323,7 +326,11 @@ test("FR-6/FR-7 navigation pages have no critical accessibility violations and h
     "/static/react/files",
   ]) {
     await page.goto(path);
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(
+      path.endsWith("files")
+        ? page.getByRole("dialog", { name: "文件管理" })
+        : page.getByRole("dialog"),
+    ).toBeVisible();
     const results = await new AxeBuilder({ page })
       .disableRules(["color-contrast"])
       .analyze();

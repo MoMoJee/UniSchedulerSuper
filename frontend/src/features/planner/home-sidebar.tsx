@@ -578,15 +578,19 @@ export function HomeSidebar({ username }: { username: string }) {
         item={effectiveTodoModal === "new" ? null : effectiveTodoModal}
         key={
           effectiveTodoModal === "new"
-            ? "new"
-            : (effectiveTodoModal?.id ?? "closed")
+            ? "todo-new"
+            : `todo-${effectiveTodoModal?.id ?? "closed"}`
         }
         onClose={closeTodoModal}
         open={effectiveTodoModal !== null}
       />
       <ReminderPanel
         item={reminderModal === "new" ? null : reminderModal}
-        key={reminderModal === "new" ? "new" : (reminderModal?.id ?? "closed")}
+        key={
+          reminderModal === "new"
+            ? "reminder-new"
+            : `reminder-${reminderModal?.id ?? "closed"}`
+        }
         onClose={() => setReminderModal(null)}
         open={reminderModal !== null}
       />

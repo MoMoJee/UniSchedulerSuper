@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { apiClient } from "../../api/http";
 import { Button } from "../../components/ui/button";
 import { ConfirmDialog, TextInputDialog } from "../../components/ui/dialog";
+import styles from "./share-groups-workspace.module.css";
 
 type ShareGroup = {
   share_group_id: string;
@@ -64,16 +65,28 @@ export function ShareGroupsWorkspace({
   };
   return (
     <section
-      className={`share-groups-workspace${embedded ? " share-groups-workspace--embedded" : ""}`}
+      className={styles.workspace}
       aria-labelledby="share-groups-title"
+      data-ui="share-groups-workspace"
     >
-      <header>
-        <div>
-          <span className="workspace-eyebrow">协作日程</span>
-          <h1 id="share-groups-title">分享组</h1>
-          <p>与成员共享可见日程；只读权限会在日历中明确标识。</p>
-        </div>
-        <div className="flex gap-2">
+      {!embedded ? (
+        <header className={styles.pageHeader}>
+          <div>
+            <span className="workspace-eyebrow">协作日程</span>
+            <h1 id="share-groups-title">分享组</h1>
+            <p>与成员共享可见日程；只读权限会在日历中明确标识。</p>
+          </div>
+          <div className={styles.toolbar}>
+            <Button onClick={() => setJoinOpen(true)}>
+              <UserPlus size={16} /> 加入分享组
+            </Button>
+            <Button onClick={() => setCreateOpen(true)} variant="primary">
+              <Plus size={16} /> 创建分享组
+            </Button>
+          </div>
+        </header>
+      ) : (
+        <div aria-label="分享组操作" className={styles.toolbar}>
           <Button onClick={() => setJoinOpen(true)}>
             <UserPlus size={16} /> 加入分享组
           </Button>
@@ -81,16 +94,22 @@ export function ShareGroupsWorkspace({
             <Plus size={16} /> 创建分享组
           </Button>
         </div>
-      </header>
-      {groups.isLoading ? <p>正在加载分享组…</p> : null}
+      )}
+      {groups.isLoading ? (
+        <p className={styles.state}>正在加载分享组…</p>
+      ) : null}
       {groups.isError ? (
         <p className="agent-error">无法加载分享组，请稍后重试。</p>
       ) : null}
-      <div className="share-groups-grid">
+      <div className={styles.grid}>
         {groups.data?.map((group) => (
-          <article className="share-group-card" key={group.share_group_id}>
+          <article
+            className={styles.card}
+            data-ui="share-group-card"
+            key={group.share_group_id}
+          >
             <span
-              className="group-color-dot"
+              className={`${styles.dot} group-color-dot`}
               style={{
                 background:
                   group.share_group_color ??
@@ -98,7 +117,7 @@ export function ShareGroupsWorkspace({
                   "var(--accent)",
               }}
             />
-            <div>
+            <div className={styles.content} data-ui="share-group-content">
               <strong>{group.share_group_name}</strong>
               <p>{group.share_group_description || "没有描述"}</p>
               <small>
@@ -113,7 +132,7 @@ export function ShareGroupsWorkspace({
               </small>
               <code>{group.share_group_id}</code>
             </div>
-            <div className="share-group-card__actions">
+            <div className={styles.actions} data-ui="share-group-actions">
               <Button
                 onClick={() => {
                   onRequestClose?.();

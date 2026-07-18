@@ -1,0 +1,82 @@
+.root {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  container: planner-workspace / inline-size;
+}
+
+.calendarStage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.calendarStage > :global(.fc) {
+  height: 100%;
+}
+
+.calendarStage > :global(.empty-state) {
+  position: absolute;
+  z-index: 3;
+  inset: 5rem 1rem auto;
+  min-height: 7rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.root :global(.planner-toolbar) {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.root :global(.planner-toolbar) > div {
+  min-width: 0;
+}
+.root :global(.planner-toolbar) > div:last-child {
+  flex-wrap: wrap;
+}
+.root :global(.planner-scope-tabs) {
+  scrollbar-width: thin;
+}
+.root :global(.fc),
+.root :global(.fc-view-harness),
+.root :global(.fc-view) {
+  min-width: 0;
+}
+
+@container planner-workspace (max-width: 42rem) {
+  .root :global(.fc .fc-header-toolbar) {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+  }
+  .root :global(.fc .fc-toolbar-chunk) {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .root :global(.fc .fc-toolbar-title) {
+    font-size: 1.1rem;
+  }
+  .root :global(.fc .fc-button) {
+    padding: 0.35rem 0.55rem;
+  }
+}
+
+@container planner-workspace (max-width: 28rem) {
+  .root :global(.planner-toolbar) {
+    display: grid;
+    justify-content: stretch;
+  }
+  .root :global(.planner-toolbar) > div:last-child {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .root :global(.planner-toolbar) > div:last-child > * {
+    width: 100%;
+    justify-content: center;
+  }
+}

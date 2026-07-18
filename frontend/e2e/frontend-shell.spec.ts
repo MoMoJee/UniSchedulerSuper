@@ -69,9 +69,10 @@ test("FR-3/FR-4 calendar uses V2 projections without a legacy Planner manager", 
 }) => {
   await page.goto("/?date=2026-07-14");
 
-  await expect(page.getByRole("heading", { name: "日程工作区" })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "主导航" })).toBeVisible();
-  await expect(page.locator("#root")).toContainText("FR-4 日程工作区");
+  await expect(page.getByRole("heading", { name: "我的日程" })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Planner 工作区" }),
+  ).toBeVisible();
   await expect(page.locator(".fc").first()).toBeVisible();
   await expect(page.getByText("目标资源已不存在或无法访问。")).toHaveCount(0);
   await expect(page.locator('script[src*="planner-v2-client"]')).toHaveCount(0);
@@ -152,10 +153,11 @@ test("FR-4B Todo create and real conversion only use V2 contracts", async ({
     await route.fulfill({ json: { todo: { todo_id: "todo-1", version: 3 } } });
   });
   await page.goto("/");
-  await page.getByRole("link", { name: "待办" }).click();
-  await page.getByPlaceholder("新增待办").fill("E2E 待办");
-  await page.getByRole("button", { name: "新增" }).click();
-  await page.getByRole("button", { name: "转为日程" }).click();
+  await page.getByRole("button", { name: "创建待办" }).click();
+  await page.getByLabel("标题").fill("E2E 待办");
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await page.getByLabel("待办操作").first().click();
+  await page.getByRole("button", { name: "转日程" }).click();
   await expect.poll(() => calls.length).toBe(2);
   expect(calls[0]).toMatchObject({
     method: "POST",
@@ -171,7 +173,29 @@ test("FR-4C Reminder creation persists an explicit recurrence rule through V2", 
   page,
 }) => {
   let body: Record<string, unknown> | null = null;
+  await page.unroute("**/api/v2/reminders/**");
   await page.route("**/api/v2/reminders/", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        json: {
+          occurrences: [
+            {
+              id: "reminder-1",
+              entity_type: "reminder",
+              title: "测试提醒",
+              start: "2026-07-14T11:00:00+08:00",
+              end: null,
+              occurrence_ref: {
+                entity_id: "reminder-1",
+                source_version: 2,
+              },
+            },
+          ],
+          count: 1,
+        },
+      });
+      return;
+    }
     body = route.request().postDataJSON() as Record<string, unknown>;
     await route.fulfill({
       status: 201,
@@ -179,12 +203,17 @@ test("FR-4C Reminder creation persists an explicit recurrence rule through V2", 
     });
   });
   await page.goto("/?date=2026-07-14");
-  await page.getByRole("button", { name: "创建提醒" }).click();
-  await page.getByLabel("标题").fill("E2E 重复提醒");
-  await page.getByLabel("触发时间").fill("2026-07-14T11:00");
-  await page.getByLabel("重复规则").click();
-  await page.getByText("每周", { exact: true }).last().click();
-  await page.getByRole("button", { name: "保存" }).click();
+  const reminderDialog = page.getByRole("dialog", { name: "创建提醒" }).last();
+  await page
+    .getByRole("region", { name: "Planner 工作区" })
+    .getByRole("button", { name: "创建提醒" })
+    .click();
+  await reminderDialog.getByLabel("标题").fill("E2E 重复提醒");
+  await reminderDialog.getByLabel("触发时间").fill("2026-07-14T11:00");
+  await reminderDialog.getByLabel("重复规则").click();
+  await page.getByRole("option", { name: "每周", exact: true }).click();
+  await expect(reminderDialog.getByLabel("间隔")).toBeVisible();
+  await reminderDialog.getByRole("button", { name: "保存" }).click();
   await expect.poll(() => body?.title).toBe("E2E 重复提醒");
   expect(body).toMatchObject({ recurrence: { rrule: "FREQ=WEEKLY" } });
 });
@@ -213,7 +242,7 @@ test("FR-2 keeps the compact workspace usable at a tablet breakpoint", async ({
   await page.setViewportSize({ width: 768, height: 900 });
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "日程工作区" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "我的日程" })).toBeVisible();
   await page.getByRole("button", { name: "打开 Agent 面板" }).click();
   await expect(
     page.getByRole("complementary", { name: "Agent 面板" }),

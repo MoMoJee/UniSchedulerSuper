@@ -1,0 +1,137 @@
+.root {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  max-width: 70rem;
+  gap: 0.8rem;
+  container: files-workspace / inline-size;
+}
+
+.embedded {
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
+}
+
+.root > header {
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+  padding: 0.75rem 0.9rem;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(18px);
+}
+
+.root :global(.files-layout) {
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr);
+}
+.root :global(.files-tree),
+.root :global(.files-content) {
+  min-width: 0;
+}
+.root :global(.files-tree) {
+  border-color: color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+.root :global(.files-content) {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  padding: 0.8rem;
+  box-shadow: var(--shadow-sm);
+}
+.root :global(.files-toolbar) > * {
+  min-width: 0;
+}
+.root :global(.files-toolbar) {
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 66%, transparent);
+  padding-bottom: 0.75rem;
+}
+.root :global(.files-search) {
+  border-radius: 0.72rem;
+  background: var(--surface);
+  box-shadow: inset 0 1px 2px rgb(20 30 50 / 4%);
+}
+.root :global(.files-grid) {
+  min-width: 0;
+}
+.root :global(.file-card) {
+  min-width: 0;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: 0.82rem;
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 150ms ease-out,
+    border-color 150ms ease-out,
+    box-shadow 170ms ease-out;
+}
+.root :global(.file-card:hover) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.root :global(.file-card__open) {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.root :global(.files-grid--list .file-card) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.root :global(.files-grid--list .file-card__open) {
+  grid-column: 1;
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+.root :global(.files-grid--list .file-card__open small) {
+  grid-column: 2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.root :global(.files-grid--list .file-card > button:not(.file-card__open)) {
+  position: static;
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+}
+.root :global(.file-card strong) {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@container files-workspace (max-width: 48rem) {
+  .root :global(.files-layout) {
+    grid-template-columns: 1fr;
+  }
+  .root :global(.files-tree) {
+    max-height: 12rem;
+    overflow: auto;
+  }
+}
+
+@container files-workspace (max-width: 30rem) {
+  .root > header {
+    display: grid;
+  }
+  .root :global(.files-view-toggle) {
+    margin-left: 0;
+  }
+  .root :global(.files-grid) {
+    grid-template-columns: 1fr;
+  }
+}

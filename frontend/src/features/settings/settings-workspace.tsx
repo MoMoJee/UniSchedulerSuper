@@ -3,7 +3,9 @@ import { useUiStore, type ThemePreference } from "../../stores/ui-store";
 
 import { settingsApi, type UserPreferences } from "../../api/settings";
 import { Button } from "../../components/ui/button";
+import { cn } from "../../lib/cn";
 import { CourseImporter } from "./course-importer";
+import styles from "./settings-workspace.module.css";
 
 function object(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -211,8 +213,13 @@ export function SettingsWorkspace({
   return (
     <section
       aria-labelledby="settings-title"
-      className={`settings-workspace${embedded ? " settings-workspace--embedded" : ""}`}
+      className={cn(
+        "settings-workspace",
+        styles.root,
+        embedded && styles.embedded,
+      )}
       data-active-tab={activeTab}
+      data-ui="settings-workspace"
     >
       <header className="settings-workspace__header">
         <div>
@@ -603,13 +610,15 @@ export function SettingsWorkspace({
           >
             取消
           </Button>
-          <Button
-            disabled={saving || !preferences}
-            onClick={() => void save()}
-            variant="primary"
-          >
-            {saving ? "保存中…" : "保存设置"}
-          </Button>
+          {activeTab !== "ai" && activeTab !== "mine" ? (
+            <Button
+              disabled={saving || !preferences}
+              onClick={() => void save()}
+              variant="primary"
+            >
+              {saving ? "保存中…" : "保存设置"}
+            </Button>
+          ) : null}
         </footer>
       ) : null}
     </section>

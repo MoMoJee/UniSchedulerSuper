@@ -115,6 +115,14 @@ body {
   overflow: hidden;
 }
 
+.route-hydrate-fallback {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  background: var(--surface-canvas);
+  color: var(--text-muted);
+}
+
 button,
 input,
 textarea,
@@ -527,57 +535,6 @@ select {
   color: var(--text-muted);
   text-align: center;
 }
-.share-groups-workspace {
-  display: grid;
-  gap: 1rem;
-  max-width: 70rem;
-}
-.share-groups-workspace > header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 1rem;
-  background: linear-gradient(
-    125deg,
-    color-mix(in srgb, var(--accent) 13%, var(--surface)),
-    var(--surface)
-  );
-  padding: 1.2rem;
-}
-.share-groups-workspace h1 {
-  margin: 0.15rem 0;
-}
-.share-groups-workspace p {
-  color: var(--text-muted);
-}
-.share-groups-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
-  gap: 0.75rem;
-}
-.share-group-card {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.65rem;
-  align-items: start;
-  border: 1px solid var(--border);
-  border-radius: 0.9rem;
-  background: var(--surface);
-  padding: 0.9rem;
-}
-.share-group-card p {
-  margin: 0.25rem 0;
-  font-size: 0.84rem;
-}
-.share-group-card small {
-  color: var(--text-muted);
-}
-.share-group-card button {
-  grid-column: 1/-1;
-  justify-self: start;
-}
 .planner-workspace .fc .fc-button {
   border-color: var(--accent);
   background: var(--accent);
@@ -698,7 +655,9 @@ select {
 }
 
 .menu-content {
-  z-index: 50;
+  /* Radix menus/selects are portaled to body. Keep them above centered
+     dialogs so recurrence and other selects remain clickable in a modal. */
+  z-index: 100;
   min-width: 10rem;
   border: 1px solid var(--border);
   border-radius: 0.5rem;
@@ -1053,87 +1012,6 @@ select {
   display: flex;
   gap: 0.4rem;
   align-items: center;
-}
-.centered-modal__overlay {
-  position: fixed;
-  z-index: 80;
-  inset: 0;
-  background: rgb(15 23 42 / 46%);
-  backdrop-filter: blur(2px);
-  animation: modal-fade-in 140ms ease-out;
-}
-.centered-modal {
-  position: fixed;
-  z-index: 81;
-  top: 50%;
-  left: 50%;
-  display: grid;
-  width: min(calc(100vw - 2rem), 42rem);
-  max-height: min(88vh, 52rem);
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  transform: translate(-50%, -50%);
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
-  border-radius: 1rem;
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: 0 28px 80px rgb(15 23 42 / 32%);
-  animation: modal-rise-in 160ms ease-out;
-}
-.centered-modal--sm {
-  width: min(calc(100vw - 2rem), 30rem);
-}
-.centered-modal--lg {
-  width: min(calc(100vw - 2rem), 54rem);
-}
-.centered-modal--xl {
-  width: min(calc(100vw - 2rem), 72rem);
-}
-.centered-modal__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  background: linear-gradient(
-    110deg,
-    color-mix(in srgb, var(--accent) 30%, var(--surface)),
-    color-mix(in srgb, #d2aa57 32%, var(--surface))
-  );
-  border-bottom: 1px solid var(--border);
-  padding: 0.85rem 1rem;
-}
-.centered-modal__header h2 {
-  margin: 0;
-  font-size: 1.05rem;
-}
-.centered-modal__header p {
-  margin: 0.18rem 0 0;
-  color: var(--text-muted);
-  font-size: 0.78rem;
-}
-.centered-modal__close {
-  display: grid;
-  place-items: center;
-  width: 2rem;
-  height: 2rem;
-  border: 0;
-  border-radius: 50%;
-  background: rgb(255 255 255 / 35%);
-  color: var(--text);
-  cursor: pointer;
-}
-.centered-modal__close:hover {
-  background: var(--surface-hover);
-}
-.centered-modal__body {
-  min-height: 0;
-  overflow: auto;
-  padding: 1rem;
-}
-.centered-modal__footer {
-  border-top: 1px solid var(--border);
-  background: var(--surface);
-  padding: 0.75rem 1rem;
 }
 .fullscreen-surface {
   position: fixed;
@@ -2117,21 +1995,6 @@ select {
   max-height: 24rem;
   overflow: auto;
 }
-.share-groups-workspace--embedded {
-  max-width: none;
-}
-.share-groups-workspace--embedded > header {
-  padding-top: 0;
-}
-.share-groups-grid {
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-}
-.share-group-card {
-  min-height: 0;
-}
-.share-group-card code {
-  overflow-wrap: anywhere;
-}
 .files-workspace--embedded {
   width: 100%;
   max-width: none;
@@ -2217,10 +2080,6 @@ select {
   }
   .search-advanced {
     grid-template-columns: 1fr;
-  }
-  .centered-modal {
-    width: calc(100vw - 1rem);
-    max-height: 94vh;
   }
   .files-layout {
     grid-template-columns: 1fr;

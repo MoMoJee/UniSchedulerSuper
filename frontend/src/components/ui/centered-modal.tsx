@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 
 import { cn } from "../../lib/cn";
+import styles from "./centered-modal.module.css";
 
 export function CenteredModal({
   open,
@@ -32,26 +33,24 @@ export function CenteredModal({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="centered-modal__overlay" />
+        <Dialog.Overlay className={styles.overlay} />
         <Dialog.Content
-          aria-describedby={description ? undefined : undefined}
-          className={cn("centered-modal", `centered-modal--${size}`)}
+          className={cn(styles.content, styles[size])}
+          data-ui="centered-modal"
         >
-          <header className="centered-modal__header">
+          <header className={styles.header}>
             <div>
               <Dialog.Title>{title}</Dialog.Title>
               {description ? (
                 <Dialog.Description>{description}</Dialog.Description>
               ) : null}
             </div>
-            <Dialog.Close aria-label="关闭" className="centered-modal__close">
+            <Dialog.Close aria-label="关闭" className={styles.close}>
               <X aria-hidden="true" size={19} />
             </Dialog.Close>
           </header>
-          <div className="centered-modal__body">{children}</div>
-          {footer ? (
-            <footer className="centered-modal__footer">{footer}</footer>
-          ) : null}
+          <div className={styles.body}>{children}</div>
+          {footer ? <footer className={styles.footer}>{footer}</footer> : null}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
