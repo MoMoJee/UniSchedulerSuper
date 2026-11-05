@@ -155,6 +155,12 @@ PLANNER_DIFF_ASSERT = os.getenv('PLANNER_DIFF_ASSERT', 'false')
 PLANNER_LEGACY_FALLBACK = os.getenv('PLANNER_LEGACY_FALLBACK', 'false')
 PLANNER_CALDAV_NORMALIZED = os.getenv('PLANNER_CALDAV_NORMALIZED', 'true')
 
+# Event 扩展 Payload 的基础限制（字节数按 UTF-8 minified JSON 计算）。
+PLANNER_EVENT_PAYLOAD_MAX_KEYS = int(os.getenv('PLANNER_EVENT_PAYLOAD_MAX_KEYS', '16'))
+PLANNER_EVENT_PAYLOAD_MAX_TOTAL_BYTES = int(os.getenv('PLANNER_EVENT_PAYLOAD_MAX_TOTAL_BYTES', str(64 * 1024)))
+PLANNER_EVENT_PAYLOAD_MAX_ENTRY_BYTES = int(os.getenv('PLANNER_EVENT_PAYLOAD_MAX_ENTRY_BYTES', str(32 * 1024)))
+PLANNER_EVENT_PAYLOAD_MAX_KEY_LENGTH = int(os.getenv('PLANNER_EVENT_PAYLOAD_MAX_KEY_LENGTH', '128'))
+
 # FR-0：前端入口只决定模板/静态资源，绝不改变 Planner 的 V2-only 数据路径。
 # 默认保留成熟的原生界面，React 入口仅在完成各阶段验收后通过环境变量显式启用。
 FRONTEND_MODE = os.getenv('FRONTEND_MODE', 'legacy').strip().lower()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from datetime import date, datetime
 from typing import Any
 
@@ -9,7 +10,9 @@ from core.planner.recurrence.expander import Occurrence
 from core.planner.repository import EventDefinitionProjection
 
 
-def serialize_event_definition(projection: EventDefinitionProjection) -> dict[str, Any]:
+def serialize_event_definition(
+    projection: EventDefinitionProjection, *, include_payload: bool = True
+) -> dict[str, Any]:
     """将 ORM 查询投影转换为前端/Agent 可复用的 v2 definition。"""
     event = projection.event
     start, end = _event_range(event)
@@ -31,6 +34,8 @@ def serialize_event_definition(projection: EventDefinitionProjection) -> dict[st
         'share_group_ids': [item.share_group.share_group_id for item in event.share_links.all()],
         'recurrence': None,
     }
+    if include_payload:
+        result['payload'] = copy.deepcopy(event.payload or {})
     if projection.recurrence is not None:
         definition = projection.recurrence
         result['recurrence'] = {
@@ -46,10 +51,12 @@ def serialize_event_definition(projection: EventDefinitionProjection) -> dict[st
     return result
 
 
-def serialize_occurrence(occurrence: Occurrence) -> dict[str, Any]:
+def serialize_occurrence(
+    occurrence: Occurrence, *, include_payload: bool = True
+) -> dict[str, Any]:
     """输出 occurrence 与复合身份，禁止把虚拟 occurrence 当作实体行。"""
     ref = occurrence.ref
-    return {
+    result = {
         'id': _occurrence_client_id(ref.entity_type, ref.entity_id, ref.series_id, ref.recurrence_id),
         'entity_type': ref.entity_type,
         'title': occurrence.payload.get('title', ''),
@@ -73,6 +80,9 @@ def serialize_occurrence(occurrence: Occurrence) -> dict[str, Any]:
             'source_version': ref.source_version,
         },
     }
+    if include_payload and ref.entity_type == 'event':
+        result['payload'] = copy.deepcopy(occurrence.payload.get('payload') or {})
+    return result
 
 
 def _event_range(event):
