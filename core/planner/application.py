@@ -73,12 +73,17 @@ class PlannerApplicationService:
         )
 
     @classmethod
-    def list_event_definitions(cls, context: PlannerExecutionContext, *, range_start: datetime, range_end: datetime) -> dict[str, Any]:
+    def list_event_definitions(
+        cls, context: PlannerExecutionContext, *, range_start: datetime, range_end: datetime,
+        include_payload: bool = True,
+    ) -> dict[str, Any]:
         cls.require_access(context)
         items = PlannerRepository.list_event_definitions(context.user, range_start=range_start, range_end=range_end)
         return {
             "range": {"from": range_start.isoformat(), "to": range_end.isoformat()},
-            "definitions": [serialize_event_definition(item) for item in items],
+            "definitions": [
+                serialize_event_definition(item, include_payload=include_payload) for item in items
+            ],
             "count": len(items),
         }
 
@@ -162,7 +167,10 @@ class PlannerApplicationService:
         )
 
     @classmethod
-    def list_event_occurrences(cls, context: PlannerExecutionContext, *, range_start: datetime, range_end: datetime) -> dict[str, Any]:
+    def list_event_occurrences(
+        cls, context: PlannerExecutionContext, *, range_start: datetime, range_end: datetime,
+        include_payload: bool = True,
+    ) -> dict[str, Any]:
         cls.require_access(context)
         items = PlannerRepository.list_event_occurrences(context.user, range_start=range_start, range_end=range_end)
         share_ids_by_event: dict[str, list[str]] = {}
@@ -174,7 +182,7 @@ class PlannerApplicationService:
             share_ids_by_event.setdefault(event_id, []).append(share_group_id)
         occurrences = []
         for item in items:
-            serialized = serialize_occurrence(item)
+            serialized = serialize_occurrence(item, include_payload=include_payload)
             serialized["share_group_ids"] = share_ids_by_event.get(item.ref.entity_id, [])
             occurrences.append(serialized)
         return {
@@ -184,7 +192,10 @@ class PlannerApplicationService:
         }
 
     @classmethod
-    def list_conflicts(cls, context: PlannerExecutionContext, *, range_start: datetime, range_end: datetime) -> dict[str, Any]:
+    def list_conflicts(
+        cls, context: PlannerExecutionContext, *, range_start: datetime, range_end: datetime,
+        include_payload: bool = True,
+    ) -> dict[str, Any]:
         cls.require_access(context)
         occurrences = PlannerRepository.list_event_occurrences(context.user, range_start=range_start, range_end=range_end)
         normalized = []
@@ -204,7 +215,10 @@ class PlannerApplicationService:
                         "start": max(start_value, other_start).isoformat(),
                         "end": min(end_value, other_end).isoformat(),
                     },
-                    "items": [serialize_occurrence(other), serialize_occurrence(occurrence)],
+                    "items": [
+                        serialize_occurrence(other, include_payload=include_payload),
+                        serialize_occurrence(occurrence, include_payload=include_payload),
+                    ],
                 })
             active.append((start_value, end_value, occurrence))
         return {"conflicts": conflicts, "count": len(conflicts)}
@@ -260,7 +274,11 @@ class PlannerApplicationService:
         )
 
     @classmethod
-    def search_items(cls, context: PlannerExecutionContext, *, query: str, requested_types: set[str], range_start: datetime, range_end: datetime, page: int = 1, page_size: int = 50) -> dict[str, Any]:
+    def search_items(
+        cls, context: PlannerExecutionContext, *, query: str, requested_types: set[str],
+        range_start: datetime, range_end: datetime, page: int = 1, page_size: int = 50,
+        include_payload: bool = True,
+    ) -> dict[str, Any]:
         cls.require_access(context)
         if requested_types - {"event", "todo", "reminder"}:
             from core.planner.commands import PlannerCommandError
@@ -278,7 +296,7 @@ class PlannerApplicationService:
                 item for item in occurrences
                 if folded in " ".join(str(item.payload.get(field, "")) for field in ("title", "description", "location")).casefold()
             ]
-        results = [serialize_occurrence(item) for item in occurrences]
+        results = [serialize_occurrence(item, include_payload=include_payload) for item in occurrences]
         if "todo" in requested_types:
             for todo in PlannerEntityQueryService.list_todos(context.user):
                 searchable = f"{todo.title} {todo.description}".casefold()
@@ -297,7 +315,7 @@ class PlannerApplicationService:
             ):
                 searchable = f"{item.payload.get('title', '')} {item.payload.get('content', '')}".casefold()
                 if not folded or folded in searchable:
-                    results.append(serialize_occurrence(item))
+                    results.append(serialize_occurrence(item, include_payload=include_payload))
         results.sort(key=lambda item: str(item.get("start") or item.get("due") or ""))
         total, offset = len(results), (page - 1) * page_size
         return {
@@ -655,7 +673,10 @@ class PlannerApplicationService:
         )
 
     @classmethod
-    def list_shared_occurrences(cls, context: PlannerExecutionContext, *, share_group_id: str, range_start: datetime, range_end: datetime) -> dict[str, Any]:
+    def list_shared_occurrences(
+        cls, context: PlannerExecutionContext, *, share_group_id: str,
+        range_start: datetime, range_end: datetime, include_payload: bool = True,
+    ) -> dict[str, Any]:
         cls.require_access(context)
         from core.planner.commands import PlannerCommandError
         group = CollaborativeCalendarGroup.objects.filter(share_group_id=share_group_id).first()
@@ -687,7 +708,7 @@ class PlannerApplicationService:
             )
             owner_membership = GroupMembership.objects.filter(share_group=group, user_id=owner_id).first()
             for occurrence in occurrences:
-                item = serialize_occurrence(occurrence)
+                item = serialize_occurrence(occurrence, include_payload=include_payload)
                 item.update({
                     "read_only": owner_id != context.user.id,
                     "owner_id": owner_id,

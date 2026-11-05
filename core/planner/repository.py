@@ -268,6 +268,9 @@ class PlannerRepository:
             'urgency': event.urgency,
             'group_id': event.group.group_id if event.group else '',
             'is_all_day': event.is_all_day,
+            # 序列化层按 include_payload 决定是否深拷贝；这里避免为每个
+            # occurrence 复制整份扩展数据。
+            'payload': event.payload or {},
         }
 
     @classmethod

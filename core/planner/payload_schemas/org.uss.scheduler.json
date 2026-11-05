@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unischedulersuper.local/schemas/event-payload/org.uss.scheduler.json",
+  "title": "UniSchedulerSuper reserved event payload",
+  "description": "USS 保留注册名的最小 schema；仅要求 data 为 object，具体业务字段由后续版本扩展。",
+  "type": "object",
+  "properties": {
+    "source": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "kind": {
+      "type": "string",
+      "maxLength": 64
+    }
+  },
+  "additionalProperties": true
+}

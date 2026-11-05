@@ -66,6 +66,14 @@ Event create 由领域服务校验完整 payload；Group、Todo、Reminder 仅�
 - 需要分裂时领域服务可要求 `override_policy`，返回 `409 recurrence_split_requires_override_policy`；协议层不得自行选择策略。
 - 重复 Reminder 目前只开放系列内容的 `all` 修改；单次状态使用 action endpoint。
 
+### 3.4 Event Payload
+
+- `POST /api/v2/events/` 与 `PATCH .../` 的 `payload` 使用 map：Key 为统一注册名，Value 为 `{format, data, version?}`；PATCH 仅 `scope=all` 可写且整体替换。
+- Event definitions/occurrences/conflicts/search/shared occurrences 默认返回 `payload`，`include_payload=0` 关闭；其他值返回 `422 invalid_include_payload`。
+- 未知注册名/格式透传；已注册 Key 的 schema 失败返回 `422 payload_schema_violation`；大小超限 `422 payload_too_large`。
+- 实现与注册表位于 `core/planner/payloads.py`，schema 位于 `core/planner/payload_schemas/`；新增注册名必须同步文档与测试。
+- 核心 adapter 不得解析注册方业务字段，也不得把 Payload 写入 iCalendar/CalDAV 资源。
+
 ## 4. 响应和错误
 
 成功响应直接按资源组织，如 `{event: ...}`、`{occurrences: [...], count: n}`、`{groups: [...]}`，不强制历史 `{status, data}` 包装。错误响应至少为：

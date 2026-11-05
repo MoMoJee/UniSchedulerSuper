@@ -1876,6 +1876,9 @@ class CalendarEvent(PlannerVersionedModel):
     end_at = models.DateTimeField(null=True, blank=True)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
+    # 可选的扩展负载：Key 为统一注册名，Value 为 {format, data, version?}。
+    # 核心日历逻辑不得读取或依赖其中任何业务字段。
+    payload = models.JSONField(default=dict, blank=True)
 
     class Meta:
         constraints = [

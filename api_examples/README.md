@@ -11,6 +11,7 @@
 | `README_QUICK_ACTION.md` | Quick Action、语音输入与 Planner V2 关系 |
 | `client.py` | 示例共用的 Token 客户端 |
 | `example_events_api.py` | Event 创建、窗口读取、single 修改、all 删除 |
+| `example_event_payload_api.py` | Event 扩展 Payload 的写入、默认读取、关闭返回与整体替换 |
 | `example_eventgroups_api.py` | 个人 Event Group CRUD |
 | `example_todos_api.py` | Todo CRUD 与 Todo→Event 原子转换 |
 | `example_reminders_api.py` | 重复 Reminder、occurrence action 与 scope |
@@ -31,6 +32,7 @@ $env:UNISCHEDULER_PASSWORD = 'your-password'
 
 .venv\Scripts\python.exe api_examples\test_token_auth.py
 .venv\Scripts\python.exe api_examples\example_events_api.py
+.venv\Scripts\python.exe api_examples\example_event_payload_api.py
 .venv\Scripts\python.exe api_examples\example_calendar_protocols.py
 ```
 
@@ -44,7 +46,8 @@ $env:UNISCHEDULER_PASSWORD = 'your-password'
 - scope 只有 `single`、`all`、`this_and_future`。后两者对重复系列有专门约束，详见接口参考。
 - V2 字段使用 `group_id`、`trigger`、`due`、`recurrence: {rrule: ...}`；旧字段 `groupID`、`trigger_time`、`due_date`、顶层 `rrule` 不会兼容转换，而会返回 `422 unsupported_field`。
 - V1 端点返回 `410 planner_v1_api_retired`。这不是临时错误；重试不会成功，也不会修改任何数据。
+- Event 可携带可选 `payload`（注册名 → `{format, data, version?}`）；查询默认返回，`include_payload=0` 可关闭。详见 [日历事件Payload机制](../docs/日历事件Payload机制.md)。
 
 完整说明见 [API_REFERENCE.md](API_REFERENCE.md)。
 
-**文档版本：2.0.0｜最后更新：2026-07-13**
+**文档版本：2.1.0｜最后更新：2026-11-05**

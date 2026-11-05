@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import copy
 from datetime import date, datetime, timedelta
 from typing import Any, Mapping
 from uuid import uuid4
@@ -34,6 +35,7 @@ from core.models import (
 )
 from core.planner.recurrence.codec import InvalidRRuleError, PlannerTimeCodec, PlannerTimeError, canonicalize_rrule
 from core.planner.calendar_changes import CalendarCollectionChangeWriter
+from core.planner.payloads import PayloadValidationError, normalize_event_payload
 from core.planner.repository import PlannerNotFoundError, PlannerRepository
 from logger import logger
 
@@ -94,6 +96,11 @@ class PlannerCommandService:
     ) -> CalendarEvent:
         event = cls._locked_event(user, event_id)
         series = cls._locked_series(event)
+        if isinstance(payload, Mapping) and 'payload' in payload and scope != 'all':
+            raise PlannerCommandError(
+                'payload 仅支持创建或 scope=all 修改，occurrence 继承 master payload',
+                code='payload_scope_not_supported',
+            )
         if scope == 'this_and_future':
             if series is None:
                 raise PlannerCommandError('非重复 event 不支持 this_and_future', code='invalid_scope')
@@ -336,6 +343,7 @@ class PlannerCommandService:
             ddl_at=event.ddl_at,
             tzid=event.tzid,
             is_all_day=event.is_all_day,
+            payload=copy.deepcopy(event.payload or {}),
             metadata={**event.metadata, 'split_from_series_id': series.series_id, 'split_recurrence_id': recurrence_id},
         )
         if event.is_all_day:
@@ -507,6 +515,7 @@ class PlannerCommandService:
             end_at=end if isinstance(end, datetime) else None,
             start_date=start if isinstance(start, date) and not isinstance(start, datetime) else None,
             end_date=end if isinstance(end, date) and not isinstance(end, datetime) else None,
+            payload=copy.deepcopy(master.payload or {}),
             metadata={'detached_from_series_id': series.series_id, 'recurrence_id': override.recurrence_id},
         )
         cls._copy_event_relations(master, detached)
@@ -550,7 +559,7 @@ class PlannerCommandService:
         if not isinstance(payload, Mapping):
             raise PlannerCommandError('请求体必须是 JSON object')
         known = cls._PATCHABLE_FIELDS | {
-            'title', 'start', 'end', 'is_all_day', 'tzid', 'group_id', 'recurrence', 'share_group_ids'
+            'title', 'start', 'end', 'is_all_day', 'tzid', 'group_id', 'recurrence', 'share_group_ids', 'payload'
         }
         unknown = set(payload) - known
         if unknown:
@@ -602,6 +611,8 @@ class PlannerCommandService:
                 fields['group'] = group
             else:
                 raise PlannerCommandError('group_id 必须是字符串或 null', code='invalid_group')
+        if 'payload' in payload:
+            fields['payload'] = cls._normalize_event_payload(payload['payload'])
         recurrence = payload.get('recurrence') if 'recurrence' in payload else None
         if recurrence is not None and not isinstance(recurrence, Mapping):
             raise PlannerCommandError('recurrence 必须是 object', code='invalid_recurrence')
@@ -806,9 +817,11 @@ class PlannerCommandService:
         fields, recurrence = cls._event_fields_from_payload(user, payload, current=event)
         if recurrence is not None:
             raise PlannerCommandError('single scope 不允许修改 recurrence 规则', code='invalid_scope')
-        disallowed = {'is_all_day', 'tzid', 'ddl_at'} & set(fields)
+        disallowed = {'is_all_day', 'tzid', 'ddl_at', 'payload'} & set(fields)
         if disallowed:
-            raise PlannerCommandError('single scope 不允许修改全天类型、时区或 ddl_at', code='invalid_scope')
+            raise PlannerCommandError(
+                'single scope 不允许修改全天类型、时区、ddl_at 或 payload', code='invalid_scope'
+            )
         effective: dict[str, Any] = {}
         if 'start_at' in fields:
             effective = {'effective_start_at': fields.pop('start_at'), 'effective_end_at': fields.pop('end_at')}
@@ -824,6 +837,14 @@ class PlannerCommandService:
         fields.pop('is_all_day', None)
         fields.pop('tzid', None)
         return fields, effective
+
+    @staticmethod
+    def _normalize_event_payload(raw: Any) -> dict[str, Any]:
+        """把 Payload 校验错误转换为稳定的 v2 command 错误码。"""
+        try:
+            return normalize_event_payload(raw)
+        except PayloadValidationError as exc:
+            raise PlannerCommandError(str(exc), code=exc.code) from exc
 
     @staticmethod
     def _apply_event_fields(event: CalendarEvent, fields: Mapping[str, Any]) -> None:

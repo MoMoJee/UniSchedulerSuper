@@ -94,7 +94,11 @@ V2 不接受 V1 别名或未知字段。拼错字段返回 `422 unsupported_fiel
   "group_id": null,
   "ddl_at": null,
   "share_group_ids": [],
-  "recurrence": {"rrule": "FREQ=WEEKLY;COUNT=10", "rdates": [], "exdates": []}
+  "recurrence": {"rrule": "FREQ=WEEKLY;COUNT=10", "rdates": [], "exdates": []},
+  "payload": {
+    "org.uss.scheduler": {"format": "json", "data": {"source": "web"}},
+    "com.acme.notes": {"format": "json", "data": {"thread_id": "t-42"}}
+  }
 }
 ```
 
@@ -108,6 +112,7 @@ V2 不接受 V1 别名或未知字段。拼错字段返回 `422 unsupported_fiel
 - `share_group_ids` 必须是去重前可验证的非空字符串数组，且用户必须是 owner/member；single occurrence 不能独立改变分享关系。
 - RRULE 使用 RFC 5545 内容，不带 `RRULE:` 也可；不能把 `EXDATE` 拼进 RRULE，使用 recurrence 的 `exdates` 数组。
 - 定时 series 的 rdates/exdates 必须为 DATE-TIME，全天 series 必须为 DATE。
+- `payload` 可选，是注册名到 `{format, data, version?}` 的 map；未知注册名/未知格式透传保留，不参与核心日历逻辑。详见下方“扩展 Payload”。
 
 创建成功为 `201`，返回 `event` definition；它不是全部 occurrences。
 
@@ -142,6 +147,29 @@ V2 不接受 V1 别名或未知字段。拼错字段返回 `422 unsupported_fiel
 缺策略返回 `409 recurrence_split_requires_override_policy`。不要在客户端猜默认值。
 
 删除使用相同 scope：single 取消这一 occurrence；this_and_future 截断；all 软删除整个资源。
+
+### 扩展 Payload
+
+事件可携带可选扩展数据：
+
+```json
+{
+  "payload": {
+    "org.uss.scheduler": {"format": "json", "data": {"source": "web"}},
+    "com.acme.notes": {"format": "json", "data": {"thread_id": "t-42"}, "version": 2}
+  }
+}
+```
+
+- `payload` 必须是 map；Key 建议使用域名倒序，Value 必须包含 `format`（小写格式 token）和 `data`（合法 JSON），可选 `version` 正整数。
+- 默认限制：16 个 Key、总 64 KiB、单 Key 32 KiB、Key 128 字符；超限 `422 payload_too_large`。
+- 已注册 Key（当前 `org.uss.scheduler`）的 `data` 会按维护的 JSON Schema 校验，失败返回 `422 payload_schema_violation`；未知 Key/格式不校验、原样保留。
+- 创建时任意 scope 均可写 `payload`；PATCH 仅 `scope=all` 可写，且是整体替换。`single`/`this_and_future` 携带 `payload` 返回 `422 payload_scope_not_supported`。
+- 重复系列 occurrence 继承 master payload；`this_and_future` 子系列和 detach 出的独立事件复制原 payload。
+- definitions、occurrences、conflicts、search、shared occurrences 默认返回 `payload`；可用 `include_payload=0` 关闭。无扩展数据时返回 `"payload": {}`。
+- Payload 不导出到 iCalendar Feed/CalDAV；通过 CalDAV 写入的事件 payload 为空。
+
+完整结构、注册名表、schema 维护流程见 [日历事件Payload机制](../docs/日历事件Payload机制.md)。
 
 ## 3. 个人 Event Group
 
@@ -363,4 +391,6 @@ HTTP 为 `410 Gone`。未认证请求仍先返回 401/403。后果是确定性�
 
 错误响应优先解析稳定 `code`，自然语言 `error` 仅用于展示。网络超时也不能证明写入失败；对非幂等 POST 应先重新读取或查询任务状态，避免重复创建。
 
-**文档版本：2.0.0｜最后更新：2026-07-13**
+Event Payload 的专属错误码：`invalid_payload`、`payload_key_invalid`、`payload_entry_invalid`、`invalid_payload_data`、`payload_too_large`、`payload_schema_violation`、`payload_scope_not_supported`、`invalid_include_payload`，均为 422。
+
+**文档版本：2.1.0｜最后更新：2026-11-05**

@@ -45,6 +45,21 @@ def _to_utc_datetime(value: str) -> datetime:
     return PlannerTimeCodec.to_utc(parsed)
 
 
+def _include_payload(request) -> bool:
+    """事件读取默认返回 payload；include_payload=0 可显式关闭。"""
+    raw = request.query_params.get('include_payload')
+    if raw is None:
+        return True
+    value = raw.strip().lower()
+    if value in {'1', 'true', 'yes'}:
+        return True
+    if value in {'0', 'false', 'no'}:
+        return False
+    raise PlannerCommandError(
+        'include_payload 仅支持 0/1、false/true 或 no/yes', code='invalid_include_payload'
+    )
+
+
 def _require_normalized_access(user, *, write: bool = False):
     """v2 必须同时满足全局模式、用户 cohort、入口和迁移校验。"""
     decision = (
@@ -81,8 +96,11 @@ def list_event_definitions_v2(request):
     try:
         range_start, range_end = _parse_range(request)
         return Response(PlannerApplicationService.list_event_definitions(
-            _web_context(request), range_start=range_start, range_end=range_end
+            _web_context(request), range_start=range_start, range_end=range_end,
+            include_payload=_include_payload(request),
         ))
+    except PlannerCommandError as exc:
+        return _command_error_response(exc)
     except (PlannerTimeError, ValueError) as exc:
         return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as exc:
@@ -96,8 +114,11 @@ def list_event_occurrences_v2(request):
     try:
         range_start, range_end = _parse_range(request)
         return Response(PlannerApplicationService.list_event_occurrences(
-            _web_context(request), range_start=range_start, range_end=range_end
+            _web_context(request), range_start=range_start, range_end=range_end,
+            include_payload=_include_payload(request),
         ))
+    except PlannerCommandError as exc:
+        return _command_error_response(exc)
     except (PlannerTimeError, ValueError) as exc:
         return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as exc:
@@ -111,8 +132,11 @@ def list_event_conflicts_v2(request):
     try:
         range_start, range_end = _parse_range(request)
         return Response(PlannerApplicationService.list_conflicts(
-            _web_context(request), range_start=range_start, range_end=range_end
+            _web_context(request), range_start=range_start, range_end=range_end,
+            include_payload=_include_payload(request),
         ))
+    except PlannerCommandError as exc:
+        return _command_error_response(exc)
     except (PlannerTimeError, ValueError) as exc:
         return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as exc:
@@ -243,6 +267,7 @@ def search_events_v2(request):
         return Response(PlannerApplicationService.search_items(
             _web_context(request), query=query, requested_types=requested_types,
             range_start=range_start, range_end=range_end, page=page, page_size=page_size,
+            include_payload=_include_payload(request),
         ))
     except Exception as exc:
         return _command_error_response(exc)
@@ -400,6 +425,7 @@ def shared_group_occurrences_v2(request, share_group_id: str):
         return Response(PlannerApplicationService.list_shared_occurrences(
             _web_context(request), share_group_id=share_group_id,
             range_start=range_start, range_end=range_end,
+            include_payload=_include_payload(request),
         ))
     except Exception as exc:
         return _command_error_response(exc)
